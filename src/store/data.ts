@@ -45,6 +45,7 @@ export const useDataStore = defineStore('data', () => {
 		if (!currentTenantId.value) return;
 		try {
 			// [核心修复] 使用正确的后端模块化路由
+			// 注意：后端守卫会自动从Token中获取tenantId，所以前端无需在URL中传递
 			const [
 				prodData, recipeData, ingredientData, memberData, recipeStatData, ingredientStatData
 			] = await Promise.all([
@@ -72,6 +73,9 @@ export const useDataStore = defineStore('data', () => {
 		currentTenantId.value = String(tenantId);
 		uni.setStorageSync('tenant_id', tenantId);
 		await loadDataForCurrentTenant();
+		// 注意：切换店铺后，JWT Token本身不需要变，但Token内的tenantId可能需要更新
+		// 在我们当前的JWT策略下，用户角色是在特定店铺下的，所以可能需要重新登录或刷新Token
+		// 为简化起见，我们暂时只重新获取用户信息
 		const userStore = useUserStore();
 		await userStore.fetchUserInfo();
 	}
