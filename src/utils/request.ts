@@ -1,14 +1,15 @@
 /**
- * 文件路径: /src/utils/request.ts (新建文件)
- * 文件描述: 封装网络请求函数。
+ * 文件路径: /src/utils/request.ts (已重构)
+ * 文件描述: 封装网络请求函数，并从环境变量中读取 API 地址。
  */
 import { useUserStore } from '@/store/user';
 
-const BASE_URL = 'http://localhost:3000'; // 您的后端API地址
+// [核心重构] 从 Vite 的环境变量中读取 API 基础地址
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface RequestOptions {
 	url : string;
-	method ?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+	method ?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; // [修正] 增加了 PATCH 方法
 	data ?: any;
 	header ?: any;
 }
@@ -26,7 +27,8 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 				'Authorization': userStore.token ? `Bearer ${userStore.token}` : ''
 			},
 			success: (res : UniApp.RequestSuccessCallbackResult) => {
-				if (res.statusCode === 200 || res.statusCode === 201) {
+				// 兼容所有 2xx 状态码
+				if (res.statusCode >= 200 && res.statusCode < 300) {
 					resolve(res.data as T);
 				} else {
 					uni.showToast({ title: '请求失败', icon: 'none' });

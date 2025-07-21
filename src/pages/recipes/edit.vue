@@ -8,10 +8,10 @@
 		</view>
 		<view class="page-content">
 			<view class="card">
-				<view class="form-item">
-					<label>配方家族名称</label>
+				<!-- [核心重构] 使用 FormItem 组件 -->
+				<FormItem label="配方家族名称">
 					<input class="input-field" v-model="form.name" placeholder="例如：贝果" />
-				</view>
+				</FormItem>
 			</view>
 
 			<!-- 面团部分 -->
@@ -20,10 +20,9 @@
 					<span class="card-title">面团 {{ doughIndex + 1 }}</span>
 					<button class="btn-danger-sm" @click="removeDough(doughIndex)">删除面团</button>
 				</view>
-				<view class="form-item">
-					<label>面团名称</label>
+				<FormItem label="面团名称">
 					<input class="input-field" v-model="dough.name" placeholder="例如：主面团" />
-				</view>
+				</FormItem>
 				<!-- 面团原料 -->
 				<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="ingredient-row">
 					<input class="input-field" v-model="ing.name" placeholder="原料名" />
@@ -41,14 +40,12 @@
 					<span class="card-title">最终产品 {{ prodIndex + 1 }}</span>
 					<button class="btn-danger-sm" @click="removeProduct(prodIndex)">删除产品</button>
 				</view>
-				<view class="form-item">
-					<label>产品名称</label>
+				<FormItem label="产品名称">
 					<input class="input-field" v-model="product.name" placeholder="例如：原味贝果" />
-				</view>
-				<view class="form-item">
-					<label>产品克重 (g)</label>
+				</FormItem>
+				<FormItem label="产品克重 (g)">
 					<input class="input-field" type="number" v-model.number="product.weight" placeholder="例如：100" />
-				</view>
+				</FormItem>
 			</view>
 			<button class="btn-add" @click="addProduct">+ 添加最终产品</button>
 
@@ -63,6 +60,7 @@
 	import { ref } from 'vue';
 	import { createRecipe } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
+	import FormItem from '@/components/FormItem.vue'; // [核心重构] 引入可复用组件
 
 	const dataStore = useDataStore();
 	const isSubmitting = ref(false);
@@ -167,17 +165,6 @@
 		font-size: 14px;
 		background-color: #f8f9fa;
 		box-sizing: border-box;
-	}
-
-	.form-item {
-		margin-bottom: 20px;
-	}
-
-	.form-item label {
-		display: block;
-		margin-bottom: 8px;
-		font-size: 14px;
-		color: #606266;
 	}
 
 	.ingredient-row {

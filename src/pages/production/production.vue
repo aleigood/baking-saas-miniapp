@@ -41,49 +41,35 @@
 		<!-- 新建按钮 -->
 		<view class="fab" @click="openCreateModal">+</view>
 
-		<!-- 店铺选择模态框 -->
-		<view v-if="showStoreModal" class="modal-overlay" @click="showStoreModal = false">
-			<view class="modal-content" @click.stop>
-				<view class="card-title" style="margin-bottom: 10px;">选择门店</view>
-				<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
-					@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
-			</view>
-		</view>
+		<!-- [核心重构] 使用 AppModal 组件 -->
+		<AppModal v-model:visible="showStoreModal" title="选择门店">
+			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
+				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
+		</AppModal>
 
-		<!-- 用户菜单模态框 -->
-		<view v-if="showUserMenu" class="modal-overlay" @click="showUserMenu = false">
-			<view class="modal-content" @click.stop
-				style="width: auto; position: absolute; top: 85px; right: 15px; padding: 5px;">
-				<view class="list-item" style="border: none; padding: 10px 15px;" @click="userStore.logout()">退出登录
-				</view>
+		<AppModal v-model:visible="showUserMenu">
+			<view class="list-item" style="border: none; padding: 10px 15px;" @click="userStore.logout()">退出登录
 			</view>
-		</view>
+		</AppModal>
 
-		<!-- [新增] 新建任务模态框 -->
-		<view v-if="showCreateModal" class="modal-overlay" @click="showCreateModal = false">
-			<view class="modal-content" @click.stop>
-				<view class="card-title">新建生产任务</view>
-				<view class="form-item">
-					<label>选择产品</label>
-					<picker mode="selector" :range="recipeOptions" range-key="name" @change="onRecipeChange">
-						<view class="picker">
-							{{ selectedRecipeName || '请选择要制作的产品' }}
-						</view>
-					</picker>
-				</view>
-				<view class="form-item">
-					<label>计划数量</label>
-					<input class="input-field" type="number" v-model.number="newTask.plannedQuantity"
-						placeholder="请输入数量" />
-				</view>
-				<view class="modal-actions">
-					<button class="btn-cancel" @click="showCreateModal = false">取消</button>
-					<button class="btn-confirm" @click="handleCreateTask" :disabled="isCreating" :loading="isCreating">
-						{{ isCreating ? '创建中...' : '确认创建' }}
-					</button>
-				</view>
+		<AppModal v-model:visible="showCreateModal" title="新建生产任务">
+			<FormItem label="选择产品">
+				<picker mode="selector" :range="recipeOptions" range-key="name" @change="onRecipeChange">
+					<view class="picker">
+						{{ selectedRecipeName || '请选择要制作的产品' }}
+					</view>
+				</picker>
+			</FormItem>
+			<FormItem label="计划数量">
+				<input class="input-field" type="number" v-model.number="newTask.plannedQuantity" placeholder="请输入数量" />
+			</FormItem>
+			<view class="modal-actions">
+				<button class="btn-cancel" @click="showCreateModal = false">取消</button>
+				<button class="btn-confirm" @click="handleCreateTask" :disabled="isCreating" :loading="isCreating">
+					{{ isCreating ? '创建中...' : '确认创建' }}
+				</button>
 			</view>
-		</view>
+		</AppModal>
 
 	</view>
 </template>
@@ -92,7 +78,10 @@
 	import { ref, computed } from 'vue';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { createTask } from '@/api/tasks'; // 引入新的API方法
+	import { createTask } from '@/api/tasks';
+	// [核心重构] 引入可复用组件
+	import AppModal from '@/components/AppModal.vue';
+	import FormItem from '@/components/FormItem.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -110,29 +99,23 @@
 		plannedQuantity: 1,
 	});
 
-	// --- [新增] 新建任务相关逻辑 ---
-
-	// 为 picker 组件准备的配方选项
+	// --- 新建任务相关逻辑 ---
 	const recipeOptions = computed(() => dataStore.recipes.map(r => ({ id: r.id, name: r.name })));
 	const selectedRecipeName = computed(() => {
 		const recipe = recipeOptions.value.find(r => r.id === newTask.value.productId);
 		return recipe ? recipe.name : '';
 	});
 
-	// 打开模态框
 	const openCreateModal = () => {
-		// 重置表单
 		newTask.value = { productId: '', plannedQuantity: 1 };
 		showCreateModal.value = true;
 	};
 
-	// picker 选择事件
 	const onRecipeChange = (e : any) => {
 		const selectedIndex = e.detail.value;
 		newTask.value.productId = recipeOptions.value[selectedIndex].id;
 	};
 
-	// 提交创建任务
 	const handleCreateTask = async () => {
 		if (!newTask.value.productId) {
 			uni.showToast({ title: '请选择产品', icon: 'none' });
@@ -148,7 +131,6 @@
 			await createTask(newTask.value);
 			uni.showToast({ title: '创建成功', icon: 'success' });
 			showCreateModal.value = false;
-			// 重新加载数据以刷新列表
 			await dataStore.loadDataForCurrentTenant();
 		} catch (error) {
 			console.error("Failed to create task:", error);
@@ -159,7 +141,6 @@
 	};
 
 	// --- 其他页面逻辑 ---
-
 	const handleSelectTenant = async (tenantId : string) => {
 		isLoading.value = true;
 		await dataStore.selectTenant(tenantId);
@@ -169,7 +150,6 @@
 </script>
 
 <style scoped lang="scss">
-	// 引入通用样式
 	@import '@/styles/common.scss';
 
 	.status-tag {
@@ -181,31 +161,19 @@
 	}
 
 	.status-in_progress {
-		background-color: #f9ae3d; // 进行中 - 橙色
+		background-color: #f9ae3d;
 	}
 
 	.status-completed {
-		background-color: #5ac725; // 已完成 - 绿色
+		background-color: #5ac725;
 	}
 
 	.status-canceled {
-		background-color: #a8a8a8; // 已取消 - 灰色
+		background-color: #a8a8a8;
 	}
 
-	// [新增] 模态框内表单样式
-	.form-item {
-		margin-bottom: 20px;
-	}
-
-	.form-item label {
-		display: block;
-		margin-bottom: 8px;
-		font-size: 14px;
-		color: #606266;
-	}
-
-	.form-item .picker,
-	.form-item .input-field {
+	.picker,
+	.input-field {
 		width: 100%;
 		height: 44px;
 		line-height: 44px;

@@ -10,43 +10,38 @@
 			<!-- 原料品类信息 -->
 			<view class="card">
 				<view class="card-title">原料品类</view>
-				<view class="form-item">
-					<label>原料名称</label>
+				<!-- [核心重构] 使用 FormItem 组件 -->
+				<FormItem label="原料名称">
 					<input class="input-field" v-model="ingredientForm.name" placeholder="例如：高筋粉" />
-				</view>
+				</FormItem>
 			</view>
 
 			<!-- SKU 信息 -->
 			<view class="card">
 				<view class="card-title">首个SKU（具体商品）</view>
-				<view class="form-item">
-					<label>品牌</label>
+				<FormItem label="品牌">
 					<input class="input-field" v-model="skuForm.brand" placeholder="例如：王后" />
-				</view>
-				<view class="form-item">
-					<label>规格名称</label>
+				</FormItem>
+				<FormItem label="规格名称">
 					<input class="input-field" v-model="skuForm.specName" placeholder="例如：1kg袋装" />
-				</view>
-				<view class="form-item">
-					<label>规格重量 (g)</label>
+				</FormItem>
+				<FormItem label="规格重量 (g)">
 					<input class="input-field" type="number" v-model.number="skuForm.specWeightInGrams"
 						placeholder="例如：1000" />
-				</view>
+				</FormItem>
 			</view>
 
 			<!-- 首次采购记录 -->
 			<view class="card">
 				<view class="card-title">首次采购入库</view>
-				<view class="form-item">
-					<label>采购包数</label>
+				<FormItem label="采购包数">
 					<input class="input-field" type="number" v-model.number="procurementForm.packagesPurchased"
 						placeholder="例如：10" />
-				</view>
-				<view class="form-item">
-					<label>每包单价 (元)</label>
+				</FormItem>
+				<FormItem label="每包单价 (元)">
 					<input class="input-field" type="number" v-model.number="procurementForm.pricePerPackage"
 						placeholder="例如：25.5" />
-				</view>
+				</FormItem>
 			</view>
 
 			<button class="btn-save-full" @click="handleSubmit" :loading="isSubmitting">
@@ -60,6 +55,7 @@
 	import { ref } from 'vue';
 	import { createIngredient, createSku, createProcurement } from '@/api/ingredients';
 	import { useDataStore } from '@/store/data';
+	import FormItem from '@/components/FormItem.vue'; // [核心重构] 引入可复用组件
 
 	const dataStore = useDataStore();
 	const isSubmitting = ref(false);
@@ -140,16 +136,7 @@
 		box-sizing: border-box;
 	}
 
-	.form-item {
-		margin-bottom: 20px;
-	}
-
-	.form-item label {
-		display: block;
-		margin-bottom: 8px;
-		font-size: 14px;
-		color: #606266;
-	}
+	/* [核心重构] .form-item 相关的样式已被移除，因为它们现在由 FormItem.vue 组件管理 */
 
 	.btn-save-full {
 		width: 100%;
