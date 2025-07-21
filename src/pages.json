@@ -12,7 +12,19 @@
 			}
 		},
 		{
+			"path": "pages/ingredients/edit",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/recipes/recipes",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/recipes/edit",
 			"style": {
 				"navigationStyle": "custom"
 			}
@@ -40,7 +52,6 @@
 		"color": "#a98467",
 		"selectedColor": "#8c5a3b",
 		"backgroundColor": "#ffffff",
-		// [修复] 移除 borderStyle，使用平台默认的样式，效果更柔和
 		"list": [{
 				"pagePath": "pages/production/production",
 				"text": "制作",

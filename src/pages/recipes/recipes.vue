@@ -6,7 +6,7 @@
 			<view class="user-avatar" @click="showUserMenu = true">{{ userStore.userInfo?.name[0] || '管' }}</view>
 		</view>
 		<view class="page-content">
-			<view class="loading-spinner" v-if="dataStore.isLoading">
+			<view class="loading-spinner" v-if="isLoading">
 				<text>加载中...</text>
 			</view>
 			<template v-else>
@@ -63,7 +63,9 @@
 				</view>
 			</template>
 		</view>
-		<view v-if="!selectedRecipe" class="fab">+</view>
+
+		<!-- [核心更新] fab按钮现在会跳转到新建页面 -->
+		<view v-if="!selectedRecipe" class="fab" @click="navigateToEditPage">+</view>
 
 		<!-- Modals -->
 		<view v-if="showStoreModal" class="modal-overlay" @click="showStoreModal = false">
@@ -82,6 +84,7 @@
 		</view>
 	</view>
 </template>
+
 <script setup lang="ts">
 	import { ref, watch } from 'vue';
 	import { useUserStore } from '@/store/user';
@@ -93,18 +96,30 @@
 	const selectedRecipe = ref<Recipe | null>(null);
 	const showStoreModal = ref(false);
 	const showUserMenu = ref(false);
+	const isLoading = ref(false);
 
 	const handleSelectTenant = async (tenantId : string) => {
+		isLoading.value = true;
 		await dataStore.selectTenant(tenantId);
 		showStoreModal.value = false;
+		isLoading.value = false;
 	};
 
-	// 切换租户后，如果当前在详情页，则返回列表页
+	// [新增] 跳转到新建/编辑页面的方法
+	const navigateToEditPage = () => {
+		uni.navigateTo({
+			url: '/pages/recipes/edit'
+		});
+	};
+
 	watch(() => dataStore.currentTenantId, () => {
 		selectedRecipe.value = null;
 	});
 </script>
+
 <style scoped lang="scss">
+	@import '@/styles/common.scss';
+
 	.rating {
 		color: var(--accent-color);
 		font-weight: bold;

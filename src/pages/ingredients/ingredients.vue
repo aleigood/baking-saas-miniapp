@@ -12,7 +12,7 @@
 					<view v-for="(item, index) in dataStore.ingredientStats" :key="item.name" class="stats-item">
 						<span class="rank">{{ index + 1 }}</span>
 						<span class="name">{{ item.name }}</span>
-						<span class="count">{{ item.consumed }} kg</span>
+						<span class="count">{{ item.consumed.toFixed(2) }} kg</span>
 					</view>
 				</view>
 				<view class="filter-tabs">
@@ -28,8 +28,8 @@
 						<view class="desc">品牌: {{ ing.brand }}</view>
 					</view>
 					<view class="side-info">
-						<view class="value" :class="{'stock-low': ing.stock < 50}">{{ ing.stock }} kg</view>
-						<view class="desc">¥ {{ ing.price }}/kg</view>
+						<view class="value" :class="{'stock-low': ing.stock < 50}">{{ ing.stock.toFixed(2) }} kg</view>
+						<view class="desc">¥ {{ ing.price.toFixed(2) }}/kg</view>
 					</view>
 				</view>
 			</view>
@@ -40,7 +40,7 @@
 						<h2 class="detail-title">{{ selectedIngredient.name }}</h2>
 					</view>
 					<view class="tag-group"><span class="tag">品牌: {{ selectedIngredient.brand }}</span><span
-							class="tag">单价: ¥{{ selectedIngredient.price }}/kg</span></view>
+							class="tag">单价: ¥{{ selectedIngredient.price.toFixed(2) }}/kg</span></view>
 					<view class="card">
 						<view class="card-title">价格历史</view>
 						<view class="mock-chart">模拟图表区域</view>
@@ -52,7 +52,9 @@
 				</view>
 			</view>
 		</view>
-		<view v-if="!selectedIngredient" class="fab">+</view>
+
+		<!-- [核心更新] fab按钮现在会跳转到新建页面 -->
+		<view v-if="!selectedIngredient" class="fab" @click="navigateToEditPage">+</view>
 
 		<!-- Modals -->
 		<view v-if="showStoreModal" class="modal-overlay" @click="showStoreModal = false">
@@ -96,11 +98,20 @@
 		showStoreModal.value = false;
 	};
 
+	// [新增] 跳转到新建/编辑页面的方法
+	const navigateToEditPage = () => {
+		uni.navigateTo({
+			url: '/pages/ingredients/edit'
+		});
+	};
+
 	watch(() => dataStore.currentTenantId, () => {
 		selectedIngredient.value = null;
 	});
 </script>
 <style scoped lang="scss">
+	@import '@/styles/common.scss';
+
 	.side-info .stock-low {
 		color: var(--danger-color);
 		font-weight: bold;
