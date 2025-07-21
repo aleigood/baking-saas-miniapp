@@ -1,20 +1,31 @@
+/**
+ * 文件路径: src/store/data.ts
+ * 文件描述: (已重构) 负责管理所有业务数据，通过调用API模块来获取数据。
+ */
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Tenant, Recipe, Ingredient, Member } from '@/types/api';
+import type { Tenant, Recipe, Ingredient, Member, ProductionTaskDto, RecipeStatDto, IngredientStatDto } from '@/types/api';
 import { useUserStore } from './user';
-import { request } from '@/utils/request';
+// [核心重构] 引入模块化的 API 方法
+import { getTenants } from '@/api/tenants';
+import { getTasks } from '@/api/tasks';
+import { getRecipes } from '@/api/recipes';
+import { getIngredients } from '@/api/ingredients';
+import { getMembers } from '@/api/members';
+import { getRecipeStats, getIngredientStats } from '@/api/stats';
+
 
 export const useDataStore = defineStore('data', () => {
 	// State
 	const tenants = ref<Tenant[]>([]);
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
 
-	const production = ref<any[]>([]);
+	const production = ref<ProductionTaskDto[]>([]);
 	const recipes = ref<Recipe[]>([]);
 	const ingredients = ref<Ingredient[]>([]);
 	const members = ref<Member[]>([]);
-	const recipeStats = ref<any[]>([]);
-	const ingredientStats = ref<any[]>([]);
+	const recipeStats = ref<RecipeStatDto[]>([]);
+	const ingredientStats = ref<IngredientStatDto[]>([]);
 
 	// Getters
 	const currentTenant = computed(() => tenants.value.find(t => String(t.id) === String(currentTenantId.value)));
@@ -22,7 +33,7 @@ export const useDataStore = defineStore('data', () => {
 	// Actions
 	async function fetchTenants() {
 		try {
-			const fetchedTenants = await request<Tenant[]>({ url: '/tenants' });
+			const fetchedTenants = await getTenants(); // [核心重构] 使用 API 文件
 			tenants.value = fetchedTenants;
 
 			if (fetchedTenants.length > 0) {
@@ -44,17 +55,16 @@ export const useDataStore = defineStore('data', () => {
 	async function loadDataForCurrentTenant() {
 		if (!currentTenantId.value) return;
 		try {
-			// [核心修复] 使用正确的后端模块化路由
-			// 注意：后端守卫会自动从Token中获取tenantId，所以前端无需在URL中传递
+			// [核心重构] 使用模块化的 API 方法并行获取数据
 			const [
 				prodData, recipeData, ingredientData, memberData, recipeStatData, ingredientStatData
 			] = await Promise.all([
-				request({ url: `/tasks` }),          // 对应 TasksModule
-				request({ url: `/recipes` }),        // 对应 RecipesModule
-				request({ url: `/ingredients` }),    // 对应 IngredientsModule
-				request({ url: `/members` }),        // 对应 MembersModule
-				request({ url: `/stats/recipes` }),    // 对应 StatsModule
-				request({ url: `/stats/ingredients` }),// 对应 StatsModule
+				getTasks(),
+				getRecipes(),
+				getIngredients(),
+				getMembers(),
+				getRecipeStats(),
+				getIngredientStats(),
 			]);
 
 			production.value = prodData;
@@ -73,9 +83,6 @@ export const useDataStore = defineStore('data', () => {
 		currentTenantId.value = String(tenantId);
 		uni.setStorageSync('tenant_id', tenantId);
 		await loadDataForCurrentTenant();
-		// 注意：切换店铺后，JWT Token本身不需要变，但Token内的tenantId可能需要更新
-		// 在我们当前的JWT策略下，用户角色是在特定店铺下的，所以可能需要重新登录或刷新Token
-		// 为简化起见，我们暂时只重新获取用户信息
 		const userStore = useUserStore();
 		await userStore.fetchUserInfo();
 	}
