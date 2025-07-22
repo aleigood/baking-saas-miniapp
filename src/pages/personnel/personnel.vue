@@ -4,7 +4,9 @@
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
-			<view class="user-avatar" @click="showUserMenu = true">{{ userStore.userInfo?.name[0] || '管' }}</view>
+			<view class="user-avatar" @click="showUserMenu = true">{{
+        userStore.userInfo?.name[0] || '管'
+      }}</view>
 		</view>
 
 		<!-- 页面内容 -->
@@ -32,7 +34,6 @@
 					</view>
 					<view class="card">
 						<view class="card-title">人员信息</view>
-						<!-- [核心重构] 使用 FormItem 组件 -->
 						<FormItem label="姓名">
 							<input class="input-field" type="text" :value="selectedMember.name" readonly />
 						</FormItem>
@@ -42,7 +43,9 @@
 						<FormItem label="角色">
 							<picker mode="selector" :range="availableRoles" @change="onRoleChange"
 								:disabled="!canEditRole">
-								<view class="picker" :class="{disabled: !canEditRole}">{{ editableMemberRole }}</view>
+								<view class="picker" :class="{ disabled: !canEditRole }">{{
+                  editableMemberRole
+                }}</view>
 							</picker>
 						</FormItem>
 						<button class="btn-save" @click="handleUpdateMemberRole"
@@ -58,14 +61,30 @@
 			</view>
 		</view>
 
-		<!-- [核心重构] 使用 AppModal 组件 -->
+		<!-- [新增] 邀请成员按钮 (FAB) -->
+		<view v-if="!selectedMember && canInvite" class="fab" @click="handleInvite">+</view>
+
+		<!-- 模态框 -->
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
 				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
 		</AppModal>
 
 		<AppModal v-model:visible="showUserMenu">
-			<view class="list-item" style="border: none; padding: 10px 15px;" @click="userStore.logout()">退出登录
+			<view class="list-item" style="border: none; padding: 10px 15px" @click="userStore.logout()">退出登录
+			</view>
+		</AppModal>
+
+		<!-- [新增] 邀请码显示模态框 -->
+		<AppModal v-model:visible="showInviteModal" title="邀请新成员">
+			<view v-if="isCreatingInvite">
+				<text>正在生成邀请码...</text>
+			</view>
+			<view v-else-if="invitation">
+				<FormItem label="邀请码 (24小时内有效)">
+					<input class="input-field" type="text" :value="invitation.invitationCode" disabled />
+				</FormItem>
+				<button class="btn-save" @click="copyInviteCode">复制邀请码</button>
 			</view>
 		</AppModal>
 	</view>
@@ -75,9 +94,9 @@
 	import { ref, computed, watch } from 'vue';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import type { Member } from '@/types/api';
+	import type { Member, InvitationResponse } from '@/types/api';
 	import { updateMemberRole, removeMember } from '@/api/members';
-	// [核心重构] 引入可复用组件
+	import { createInvitation } from '@/api/invitations'; // [新增] 导入API
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 
@@ -91,11 +110,27 @@
 	const showStoreModal = ref(false);
 	const showUserMenu = ref(false);
 
+	// --- [新增] 邀请相关状态 ---
+	const showInviteModal = ref(false);
+	const isCreatingInvite = ref(false);
+	const invitation = ref<InvitationResponse | null>(null);
+
 	// --- 权限计算 ---
-	const currentUserRole = computed(() => dataStore.members.find(m => m.id === userStore.userInfo?.id)?.role);
+	const currentUserRole = computed(
+		() => dataStore.members.find((m) => m.id === userStore.userInfo?.id)?.role,
+	);
+
+	// [新增] 是否有邀请权限
+	const canInvite = computed(() => {
+		return currentUserRole.value === 'OWNER' || currentUserRole.value === 'MANAGER';
+	});
 
 	const canEditRole = computed(() => {
-		if (!currentUserRole.value || !selectedMember.value || selectedMember.value.id === userStore.userInfo?.id) {
+		if (
+			!currentUserRole.value ||
+			!selectedMember.value ||
+			selectedMember.value.id === userStore.userInfo?.id
+		) {
 			return false;
 		}
 		if (currentUserRole.value === 'OWNER') {
@@ -108,7 +143,11 @@
 	});
 
 	const canRemoveMember = computed(() => {
-		if (!currentUserRole.value || !selectedMember.value || selectedMember.value.id === userStore.userInfo?.id) {
+		if (
+			!currentUserRole.value ||
+			!selectedMember.value ||
+			selectedMember.value.id === userStore.userInfo?.id
+		) {
 			return false;
 		}
 		if (currentUserRole.value === 'OWNER') {
@@ -151,8 +190,11 @@
 			selectedMember.value = null;
 			await dataStore.loadDataForCurrentTenant();
 		} catch (error : any) {
-			console.error("Failed to update role:", error);
-			uni.showToast({ title: error.data?.message || '操作失败，请重试', icon: 'none' });
+			console.error('Failed to update role:', error);
+			uni.showToast({
+				title: error.data?.message || '操作失败，请重试',
+				icon: 'none',
+			});
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -173,13 +215,16 @@
 						selectedMember.value = null;
 						await dataStore.loadDataForCurrentTenant();
 					} catch (error : any) {
-						console.error("Failed to remove member:", error);
-						uni.showToast({ title: error.data?.message || '删除失败，请重试', icon: 'none' });
+						console.error('Failed to remove member:', error);
+						uni.showToast({
+							title: error.data?.message || '删除失败，请重试',
+							icon: 'none',
+						});
 					} finally {
 						isSubmitting.value = false;
 					}
 				}
-			}
+			},
 		});
 	};
 
@@ -188,9 +233,40 @@
 		showStoreModal.value = false;
 	};
 
-	watch(() => dataStore.currentTenantId, () => {
-		selectedMember.value = null;
-	});
+	// --- [新增] 邀请逻辑 ---
+	const handleInvite = async () => {
+		showInviteModal.value = true;
+		isCreatingInvite.value = true;
+		invitation.value = null;
+		try {
+			const res = await createInvitation();
+			invitation.value = res;
+		} catch (error) {
+			console.error('Failed to create invitation:', error);
+			uni.showToast({ title: '生成邀请码失败', icon: 'none' });
+			showInviteModal.value = false;
+		} finally {
+			isCreatingInvite.value = false;
+		}
+	};
+
+	const copyInviteCode = () => {
+		if (!invitation.value) return;
+		uni.setClipboardData({
+			data: invitation.value.invitationCode,
+			success: () => {
+				uni.showToast({ title: '邀请码已复制', icon: 'success' });
+				showInviteModal.value = false;
+			},
+		});
+	};
+
+	watch(
+		() => dataStore.currentTenantId,
+		() => {
+			selectedMember.value = null;
+		},
+	);
 </script>
 
 <style scoped lang="scss">
@@ -222,7 +298,7 @@
 		background-color: var(--primary-color);
 		color: white;
 		font-size: 16px;
-		margin-top: 10px;
+		margin-top: 20px;
 		font-weight: 500;
 	}
 
