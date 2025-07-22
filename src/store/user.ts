@@ -13,17 +13,17 @@ export const useUserStore = defineStore('user', () => {
 		uni.setStorageSync('token', newToken);
 	}
 
-	async function login(credentials : { email : string, password : string }) {
+	async function login(credentials : { email : string; password : string }) {
 		try {
 			const res = await request<LoginRes>({
 				url: '/auth/login',
 				method: 'POST',
-				data: credentials
+				data: credentials,
 			});
 			setToken(res.access_token);
 			return true;
 		} catch (error) {
-			console.error("Login failed:", error);
+			console.error('Login failed:', error);
 			uni.showToast({ title: '登录失败，请检查账户信息', icon: 'none' });
 			return false;
 		}
@@ -35,7 +35,7 @@ export const useUserStore = defineStore('user', () => {
 			const data = await request<UserInfo>({ url: '/auth/me' });
 			userInfo.value = data;
 		} catch (error) {
-			console.error("Fetch user info failed:", error);
+			console.error('Fetch user info failed:', error);
 			logout(); // Token might be invalid, force logout
 		}
 	}
@@ -49,6 +49,9 @@ export const useUserStore = defineStore('user', () => {
 		dataStore.reset();
 		uni.reLaunch({ url: '/pages/login/login' });
 	}
+
+	// [修正] 移除 loginAndInitData 函数，将逻辑合并回 login 页面
+	// 初始化逻辑现在由 App.vue onLaunch 和各个页面的 onShow 负责
 
 	return { token, userInfo, login, setToken, logout, fetchUserInfo };
 });

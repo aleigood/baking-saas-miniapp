@@ -1,6 +1,5 @@
 <template>
 	<view class="page-container">
-		<!-- 页面头部 -->
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
@@ -8,7 +7,6 @@
         userStore.userInfo?.name[0] || '管'
       }}</view>
 		</view>
-
 		<view class="page-content">
 			<view class="loading-spinner" v-if="isLoading">
 				<text>加载中...</text>
@@ -16,7 +14,6 @@
 			<template v-else>
 				<!-- 列表页 -->
 				<view v-if="!selectedRecipe">
-					<!-- ... (排行统计部分代码不变) ... -->
 					<view class="card">
 						<view class="card-title"><span>本周制作排行</span></view>
 						<view v-if="dataStore.recipeStats.length > 0">
@@ -45,7 +42,6 @@
 						<text>暂无配方信息</text>
 					</view>
 				</view>
-
 				<!-- 详情页 -->
 				<view v-else>
 					<view class="detail-page">
@@ -55,8 +51,6 @@
 						</view>
 						<view class="tag-group"><span class="tag">类型: {{ selectedRecipe.type }}</span><span
 								class="tag">克重: {{ selectedRecipe.weight }}g</span></view>
-
-						<!-- [新增] 版本管理卡片 -->
 						<view class="card">
 							<view class="card-title-wrapper">
 								<span class="card-title">版本历史</span>
@@ -85,7 +79,6 @@
 								</view>
 							</view>
 						</view>
-
 						<view class="card">
 							<view class="card-title">成本变化曲线</view>
 							<view class="mock-chart">模拟图表区域</view>
@@ -100,11 +93,7 @@
 				</view>
 			</template>
 		</view>
-
-		<!-- FAB按钮 -->
 		<view v-if="!selectedRecipe && canEditRecipe" class="fab" @click="navigateToEditPage">+</view>
-
-		<!-- 模态框 -->
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
 				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
@@ -112,7 +101,6 @@
 		<AppModal v-model:visible="showUserMenu">
 			<view class="list-item" style="border: none; padding: 10px 15px" @click="userStore.logout()">退出登录</view>
 		</AppModal>
-		<!-- [新增] 创建新版本模态框 -->
 		<AppModal v-model:visible="showCreateVersionModal" title="创建新版本">
 			<FormItem label="新版本名称">
 				<input class="input-field" v-model="newVersionName" placeholder="例如：冬季调整版" />
@@ -132,9 +120,9 @@
 
 <script setup lang="ts">
 	import { ref, watch, computed } from 'vue';
+	import { onShow } from '@dcloudio/uni-app'; // [新增] 导入 onShow
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	// [更新] 导入新增的类型和API
 	import type { ProductListItem, RecipeVersion } from '@/types/api';
 	import {
 		getRecipeVersions,
@@ -152,14 +140,20 @@
 	const showUserMenu = ref(false);
 	const isLoading = ref(false);
 	const isSubmitting = ref(false);
-
-	// --- [新增] 版本管理相关状态 ---
 	const isLoadingVersions = ref(false);
 	const recipeVersions = ref<RecipeVersion[]>([]);
 	const showCreateVersionModal = ref(false);
 	const newVersionName = ref('');
 
-	// --- [新增] 权限计算 ---
+	// [新增] 使用 onShow 生命周期钩子按需加载数据
+	onShow(async () => {
+		if (!dataStore.dataLoaded.recipes) {
+			isLoading.value = true;
+			await dataStore.fetchRecipesData();
+			isLoading.value = false;
+		}
+	});
+
 	const currentUserRole = computed(
 		() => dataStore.members.find((m) => m.id === userStore.userInfo?.id)?.role,
 	);
@@ -170,11 +164,12 @@
 		);
 	});
 
-	// --- 页面逻辑 ---
 	const handleSelectTenant = async (tenantId : string) => {
 		isLoading.value = true;
 		await dataStore.selectTenant(tenantId);
 		showStoreModal.value = false;
+		// 切换店铺后，重新加载当前页数据
+		await dataStore.fetchRecipesData();
 		isLoading.value = false;
 	};
 
@@ -184,12 +179,10 @@
 		});
 	};
 
-	// --- [新增] 版本管理逻辑 ---
 	const handleSelectRecipe = async (recipe : ProductListItem) => {
 		selectedRecipe.value = recipe;
 		isLoadingVersions.value = true;
 		try {
-			// 当选中一个配方时，获取它的所有版本历史
 			recipeVersions.value = await getRecipeVersions(recipe.familyId);
 		} catch (error) {
 			console.error('Failed to fetch recipe versions:', error);
@@ -206,11 +199,13 @@
 		}
 		isSubmitting.value = true;
 		try {
-			await createRecipeVersion(selectedRecipe.value.familyId, newVersionName.value);
+			await createRecipeVersion(
+				selectedRecipe.value.familyId,
+				newVersionName.value,
+			);
 			uni.showToast({ title: '新版本创建成功', icon: 'success' });
 			showCreateVersionModal.value = false;
 			newVersionName.value = '';
-			// 重新获取版本列表
 			await handleSelectRecipe(selectedRecipe.value);
 		} catch (error) {
 			console.error('Failed to create version:', error);
@@ -227,11 +222,13 @@
 			content: `确定要将 "${version.name}" 设为当前生产版本吗？`,
 			success: async (res) => {
 				if (res.confirm) {
-					isLoadingVersions.value = true; // 使用加载状态提升体验
+					isLoadingVersions.value = true;
 					try {
-						await activateRecipeVersion(selectedRecipe.value!.familyId, version.id);
+						await activateRecipeVersion(
+							selectedRecipe.value!.familyId,
+							version.id,
+						);
 						uni.showToast({ title: '激活成功', icon: 'success' });
-						// 重新获取版本列表以更新状态
 						await handleSelectRecipe(selectedRecipe.value!);
 					} catch (error) {
 						console.error('Failed to activate version:', error);
@@ -272,7 +269,6 @@
 		}
 	}
 
-	/* [新增] 版本状态和操作按钮样式 */
 	.status-tag {
 		padding: 4px 12px;
 		border-radius: 15px;
@@ -305,7 +301,6 @@
 		color: var(--text-secondary);
 	}
 
-	/* [新增] 新建版本模态框样式 */
 	.input-field {
 		width: 100%;
 		height: 44px;

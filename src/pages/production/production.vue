@@ -4,7 +4,9 @@
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
-			<view class="user-avatar" @click="showUserMenu = true">{{ userStore.userInfo?.name[0] || '管' }}</view>
+			<view class="user-avatar" @click="showUserMenu = true">{{
+        userStore.userInfo?.name[0] || '管'
+      }}</view>
 		</view>
 
 		<!-- 页面内容 -->
@@ -22,12 +24,14 @@
 						<view class="list-item">
 							<view class="main-info">
 								<view class="name">{{ entry.recipeName }}</view>
-								<view class="desc">{{ new Date(entry.time).toLocaleString() }} by {{ entry.creator }}
+								<view class="desc">{{ new Date(entry.time).toLocaleString() }} by
+									{{ entry.creator }}
 								</view>
 							</view>
 							<view class="side-info">
 								<view class="status-tag" :class="`status-${entry.status.toLowerCase()}`">
-									{{ entry.status }}</view>
+									{{ entry.status }}
+								</view>
 							</view>
 						</view>
 					</view>
@@ -41,14 +45,14 @@
 		<!-- 新建按钮 -->
 		<view class="fab" @click="openCreateModal">+</view>
 
-		<!-- [核心重构] 使用 AppModal 组件 -->
+		<!-- 模态框 -->
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
 				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
 		</AppModal>
 
 		<AppModal v-model:visible="showUserMenu">
-			<view class="list-item" style="border: none; padding: 10px 15px;" @click="userStore.logout()">退出登录
+			<view class="list-item" style="border: none; padding: 10px 15px" @click="userStore.logout()">退出登录
 			</view>
 		</AppModal>
 
@@ -64,45 +68,59 @@
 				<input class="input-field" type="number" v-model.number="newTask.plannedQuantity" placeholder="请输入数量" />
 			</FormItem>
 			<view class="modal-actions">
-				<button class="btn-cancel" @click="showCreateModal = false">取消</button>
+				<button class="btn-cancel" @click="showCreateModal = false">
+					取消
+				</button>
 				<button class="btn-confirm" @click="handleCreateTask" :disabled="isCreating" :loading="isCreating">
 					{{ isCreating ? '创建中...' : '确认创建' }}
 				</button>
 			</view>
 		</AppModal>
-
 	</view>
 </template>
 
 <script setup lang="ts">
 	import { ref, computed } from 'vue';
+	import { onShow } from '@dcloudio/uni-app'; // [新增] 导入 onShow
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { createTask } from '@/api/tasks';
-	// [核心重构] 引入可复用组件
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 
-	// 页面状态
 	const isLoading = ref(false);
 	const showStoreModal = ref(false);
 	const showUserMenu = ref(false);
 	const showCreateModal = ref(false);
 	const isCreating = ref(false);
 
-	// 新建任务表单
 	const newTask = ref({
 		productId: '',
 		plannedQuantity: 1,
 	});
 
-	// --- 新建任务相关逻辑 ---
-	const recipeOptions = computed(() => dataStore.recipes.map(r => ({ id: r.id, name: r.name })));
+	// [新增] 使用 onShow 生命周期钩子按需加载数据
+	onShow(async () => {
+		// 仅在数据未加载时才显示加载动画并获取数据
+		if (!dataStore.dataLoaded.production) {
+			isLoading.value = true;
+			await dataStore.fetchProductionData();
+			// 如果创建任务需要配方列表，也在这里加载
+			if (!dataStore.dataLoaded.recipes) {
+				await dataStore.fetchRecipesData();
+			}
+			isLoading.value = false;
+		}
+	});
+
+	const recipeOptions = computed(() =>
+		dataStore.recipes.map((r) => ({ id: r.id, name: r.name })),
+	);
 	const selectedRecipeName = computed(() => {
-		const recipe = recipeOptions.value.find(r => r.id === newTask.value.productId);
+		const recipe = recipeOptions.value.find((r) => r.id === newTask.value.productId);
 		return recipe ? recipe.name : '';
 	});
 
@@ -131,20 +149,22 @@
 			await createTask(newTask.value);
 			uni.showToast({ title: '创建成功', icon: 'success' });
 			showCreateModal.value = false;
-			await dataStore.loadDataForCurrentTenant();
+			// 创建成功后，刷新当前页面的数据
+			await dataStore.fetchProductionData();
 		} catch (error) {
-			console.error("Failed to create task:", error);
+			console.error('Failed to create task:', error);
 			uni.showToast({ title: '创建失败，请重试', icon: 'none' });
 		} finally {
 			isCreating.value = false;
 		}
 	};
 
-	// --- 其他页面逻辑 ---
 	const handleSelectTenant = async (tenantId : string) => {
 		isLoading.value = true;
 		await dataStore.selectTenant(tenantId);
 		showStoreModal.value = false;
+		// 切换店铺后，重新加载当前页数据
+		await dataStore.fetchProductionData();
 		isLoading.value = false;
 	};
 </script>

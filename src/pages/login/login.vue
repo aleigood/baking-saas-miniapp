@@ -20,15 +20,15 @@
 	const dataStore = useDataStore();
 	const form = reactive({
 		email: 'owner@example.com',
-		password: 'password123'
+		password: 'password123',
 	});
 
 	const handleLogin = async () => {
 		loading.value = true;
 		const loginSuccess = await userStore.login(form);
 		if (loginSuccess) {
+			// [修正] 登录成功后，只加载基础数据，不再加载所有业务数据
 			await dataStore.fetchTenants();
-			await dataStore.loadDataForCurrentTenant();
 			await userStore.fetchUserInfo();
 			uni.showToast({ title: '登录成功', icon: 'success' });
 			uni.switchTab({ url: '/pages/production/production' });

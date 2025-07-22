@@ -1,6 +1,5 @@
 <template>
 	<view class="page-container">
-		<!-- 页面头部 -->
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
@@ -8,63 +7,64 @@
         userStore.userInfo?.name[0] || '管'
       }}</view>
 		</view>
-
-		<!-- 页面内容 -->
 		<view class="page-content">
-			<!-- 列表页 -->
-			<view v-if="!selectedMember">
-				<view v-for="member in dataStore.members" :key="member.id" class="list-item"
-					@click="selectMember(member)">
-					<view class="main-info">
-						<view class="name">{{ member.name }}</view>
-						<view class="desc">加入于: {{ member.joinDate }}</view>
-					</view>
-					<view class="side-info">
-						<view class="value">{{ member.role }}</view>
+			<view class="loading-spinner" v-if="isLoading">
+				<text>加载中...</text>
+			</view>
+			<template v-else>
+				<!-- 列表页 -->
+				<view v-if="!selectedMember">
+					<view v-for="member in dataStore.members" :key="member.id" class="list-item"
+						@click="selectMember(member)">
+						<view class="main-info">
+							<view class="name">{{ member.name }}</view>
+							<view class="desc">加入于: {{ member.joinDate }}</view>
+						</view>
+						<view class="side-info">
+							<view class="value">{{ member.role }}</view>
+						</view>
 					</view>
 				</view>
-			</view>
 
-			<!-- 详情页 -->
-			<view v-else>
-				<view class="detail-page">
-					<view class="detail-header">
-						<view class="back-btn" @click="selectedMember = null">&#10094;</view>
-						<h2 class="detail-title">{{ selectedMember.name }}</h2>
-					</view>
-					<view class="card">
-						<view class="card-title">人员信息</view>
-						<FormItem label="姓名">
-							<input class="input-field" type="text" :value="selectedMember.name" readonly />
-						</FormItem>
-						<FormItem label="加入日期">
-							<input class="input-field" type="text" :value="selectedMember.joinDate" readonly />
-						</FormItem>
-						<FormItem label="角色">
-							<picker mode="selector" :range="availableRoles" @change="onRoleChange"
-								:disabled="!canEditRole">
-								<view class="picker" :class="{ disabled: !canEditRole }">{{
-                  editableMemberRole
-                }}</view>
-							</picker>
-						</FormItem>
-						<button class="btn-save" @click="handleUpdateMemberRole"
-							:disabled="!canEditRole || isSubmitting" :loading="isSubmitting">
-							{{ isSubmitting ? '保存中...' : '保存修改' }}
-						</button>
-						<button class="btn-danger" @click="handleRemoveMember"
-							:disabled="!canRemoveMember || isSubmitting" :loading="isSubmitting">
-							删除员工
-						</button>
+				<!-- 详情页 -->
+				<view v-else>
+					<view class="detail-page">
+						<view class="detail-header">
+							<view class="back-btn" @click="selectedMember = null">&#10094;</view>
+							<h2 class="detail-title">{{ selectedMember.name }}</h2>
+						</view>
+						<view class="card">
+							<view class="card-title">人员信息</view>
+							<FormItem label="姓名">
+								<input class="input-field" type="text" :value="selectedMember.name" readonly />
+							</FormItem>
+							<FormItem label="加入日期">
+								<input class="input-field" type="text" :value="selectedMember.joinDate" readonly />
+							</FormItem>
+							<FormItem label="角色">
+								<picker mode="selector" :range="availableRoles" @change="onRoleChange"
+									:disabled="!canEditRole">
+									<view class="picker" :class="{ disabled: !canEditRole }">{{
+                    editableMemberRole
+                  }}</view>
+								</picker>
+							</FormItem>
+							<button class="btn-save" @click="handleUpdateMemberRole"
+								:disabled="!canEditRole || isSubmitting" :loading="isSubmitting">
+								{{ isSubmitting ? '保存中...' : '保存修改' }}
+							</button>
+							<button class="btn-danger" @click="handleRemoveMember"
+								:disabled="!canRemoveMember || isSubmitting" :loading="isSubmitting">
+								删除员工
+							</button>
+						</view>
 					</view>
 				</view>
-			</view>
+			</template>
 		</view>
 
-		<!-- [新增] 邀请成员按钮 (FAB) -->
 		<view v-if="!selectedMember && canInvite" class="fab" @click="handleInvite">+</view>
 
-		<!-- 模态框 -->
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
 				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
@@ -75,7 +75,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [新增] 邀请码显示模态框 -->
 		<AppModal v-model:visible="showInviteModal" title="邀请新成员">
 			<view v-if="isCreatingInvite">
 				<text>正在生成邀请码...</text>
@@ -92,11 +91,12 @@
 
 <script setup lang="ts">
 	import { ref, computed, watch } from 'vue';
+	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import type { Member, InvitationResponse } from '@/types/api';
 	import { updateMemberRole, removeMember } from '@/api/members';
-	import { createInvitation } from '@/api/invitations'; // [新增] 导入API
+	import { createInvitation } from '@/api/invitations';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 
@@ -106,21 +106,25 @@
 	const selectedMember = ref<Member | null>(null);
 	const editableMemberRole = ref<Member['role']>('BAKER');
 	const isSubmitting = ref(false);
-
 	const showStoreModal = ref(false);
 	const showUserMenu = ref(false);
-
-	// --- [新增] 邀请相关状态 ---
 	const showInviteModal = ref(false);
 	const isCreatingInvite = ref(false);
 	const invitation = ref<InvitationResponse | null>(null);
+	const isLoading = ref(false);
 
-	// --- 权限计算 ---
+	onShow(async () => {
+		if (!dataStore.dataLoaded.members) {
+			isLoading.value = true;
+			await dataStore.fetchMembersData();
+			isLoading.value = false;
+		}
+	});
+
 	const currentUserRole = computed(
 		() => dataStore.members.find((m) => m.id === userStore.userInfo?.id)?.role,
 	);
 
-	// [新增] 是否有邀请权限
 	const canInvite = computed(() => {
 		return currentUserRole.value === 'OWNER' || currentUserRole.value === 'MANAGER';
 	});
@@ -169,8 +173,6 @@
 		return [];
 	});
 
-	// --- 页面逻辑 ---
-
 	const selectMember = (member : Member) => {
 		selectedMember.value = { ...member };
 		editableMemberRole.value = member.role;
@@ -188,7 +190,7 @@
 			await updateMemberRole(selectedMember.value.id, editableMemberRole.value);
 			uni.showToast({ title: '角色更新成功', icon: 'success' });
 			selectedMember.value = null;
-			await dataStore.loadDataForCurrentTenant();
+			await dataStore.fetchMembersData();
 		} catch (error : any) {
 			console.error('Failed to update role:', error);
 			uni.showToast({
@@ -213,7 +215,7 @@
 						await removeMember(selectedMember.value!.id);
 						uni.showToast({ title: '删除成功', icon: 'success' });
 						selectedMember.value = null;
-						await dataStore.loadDataForCurrentTenant();
+						await dataStore.fetchMembersData();
 					} catch (error : any) {
 						console.error('Failed to remove member:', error);
 						uni.showToast({
@@ -229,11 +231,13 @@
 	};
 
 	const handleSelectTenant = async (tenantId : string) => {
+		isLoading.value = true;
 		await dataStore.selectTenant(tenantId);
 		showStoreModal.value = false;
+		await dataStore.fetchMembersData();
+		isLoading.value = false;
 	};
 
-	// --- [新增] 邀请逻辑 ---
 	const handleInvite = async () => {
 		showInviteModal.value = true;
 		isCreatingInvite.value = true;
