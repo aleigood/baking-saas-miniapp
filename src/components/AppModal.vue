@@ -35,20 +35,38 @@
 		emit('update:visible', false);
 	};
 
+	// [新增] 定义 TabBar 页面的路径列表
+	const tabBarPages = [
+		'pages/production/production',
+		'pages/ingredients/ingredients',
+		'pages/recipes/recipes',
+		'pages/personnel/personnel',
+	];
+
 	// [新增] 监听 visible 属性的变化
 	watch(
 		() => props.visible,
 		(newValue) => {
-			if (newValue) {
-				// [新增] 模态框显示时，隐藏 TabBar
-				uni.hideTabBar({
-					animation: true, // 可以添加动画效果
-				});
-			} else {
-				// [新增] 模态框关闭时，显示 TabBar
-				uni.showTabBar({
-					animation: true, // 可以添加动画效果
-				});
+			// [新增] 获取当前页面栈
+			const pages = getCurrentPages();
+			if (pages.length === 0) return;
+
+			// [新增] 获取当前页面的路由
+			const currentPageRoute = pages[pages.length - 1].route;
+
+			// [新增] 判断当前页面是否是 TabBar 页面
+			if (tabBarPages.includes(currentPageRoute)) {
+				if (newValue) {
+					// [新增] 模态框显示时，隐藏 TabBar
+					uni.hideTabBar({
+						animation: true, // 可以添加动画效果
+					});
+				} else {
+					// [新增] 模态框关闭时，显示 TabBar
+					uni.showTabBar({
+						animation: true, // 可以添加动画效果
+					});
+				}
 			}
 		},
 	);

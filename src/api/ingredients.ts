@@ -43,10 +43,28 @@ export function createSku(ingredientId : string, data : { brand ?: string; specN
  * [新增] 创建一条采购记录
  * @param data 包含SKU ID、采购数量和价格
  */
-export function createProcurement(data : { skuId : string; packagesPurchased : number; pricePerPackage : number }) : Promise<any> {
+export function createProcurement(data : { skuId : string; packagesPurchased : number; pricePerPackage : number, purchaseDate : string }) : Promise<any> {
+	// 后端接口需要 skuId 在 URL 中，而不是在 body 中
 	return request({
-		url: '/ingredients/procurements',
+		url: `/ingredients/skus/${data.skuId}/procurements`,
 		method: 'POST',
-		data,
+		data: {
+			packagesPurchased: data.packagesPurchased,
+			pricePerPackage: data.pricePerPackage,
+			purchaseDate: data.purchaseDate, // [新增] 添加采购日期到请求体
+		},
+	});
+}
+
+/**
+ * 设置指定原料的激活SKU
+ * @param ingredientId 原料品类的ID
+ * @param skuId 要激活的SKU的ID
+ */
+export function setActiveSku(ingredientId : string, skuId : string) : Promise<any> {
+	return request({
+		url: `/ingredients/${ingredientId}/active-sku`,
+		method: 'POST', // 后端使用的是 POST
+		data: { skuId },
 	});
 }

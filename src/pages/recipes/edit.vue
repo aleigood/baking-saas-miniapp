@@ -1,7 +1,8 @@
 <template>
 	<view class="page-container">
+		<!-- [修改] 统一使用 page-header 作为顶部容器 -->
 		<view class="page-header">
-			<view class="detail-header" style="width: 100%;">
+			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
 				<!-- [重构] 动态标题 -->
 				<h2 class="detail-title">{{ isEditing ? '创建新版本' : '新建配方' }}</h2>
@@ -189,9 +190,7 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.page-header {
-		padding-bottom: 10px;
-	}
+	/* [修改] page-header 现在由 common.scss 控制，移除这里的局部样式 */
 
 	.input-field {
 		width: 100%;

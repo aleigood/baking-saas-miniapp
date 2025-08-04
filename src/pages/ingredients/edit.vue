@@ -1,8 +1,10 @@
 <template>
 	<view class="page-container">
+		<!-- [修改] 统一使用 page-header 作为顶部容器 -->
 		<view class="page-header">
-			<view class="detail-header" style="width: 100%;">
+			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
+				<!-- [重构] 动态标题 -->
 				<h2 class="detail-title">新建原料</h2>
 			</view>
 		</view>
@@ -53,7 +55,7 @@
 
 <script setup lang="ts">
 	import { ref } from 'vue';
-	import { createIngredient, createSku, createProcurement } from '@/api/ingredients';
+	import { createIngredient, createSku, createProcurement, setActiveSku } from '@/api/ingredients';
 	import { useDataStore } from '@/store/data';
 	import FormItem from '@/components/FormItem.vue'; // [核心重构] 引入可复用组件
 
@@ -97,16 +99,20 @@
 			const skuRes = await createSku(ingredientId, skuForm.value);
 			const skuId = skuRes.id;
 
+			// [新增] 步骤2.5: 将新创建的SKU设为激活状态
+			await setActiveSku(ingredientId, skuId);
+
 			// 步骤3: 创建采购记录
 			await createProcurement({
 				skuId,
 				...procurementForm.value,
+				purchaseDate: new Date().toISOString(), // 附带采购日期
 			});
 
 			uni.showToast({ title: '原料创建并入库成功', icon: 'success' });
 
 			// 刷新列表数据并返回
-			await dataStore.loadDataForCurrentTenant();
+			await dataStore.fetchIngredientsData();
 			uni.navigateBack();
 		} catch (error) {
 			console.error("Failed to create ingredient:", error);
@@ -120,9 +126,7 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.page-header {
-		padding-bottom: 10px;
-	}
+	/* [修改] page-header 现在由 common.scss 控制，移除这里的局部样式 */
 
 	.input-field {
 		width: 100%;
@@ -135,8 +139,6 @@
 		background-color: #f8f9fa;
 		box-sizing: border-box;
 	}
-
-	/* [核心重构] .form-item 相关的样式已被移除，因为它们现在由 FormItem.vue 组件管理 */
 
 	.btn-save-full {
 		width: 100%;
