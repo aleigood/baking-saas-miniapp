@@ -3,6 +3,7 @@
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
+			<!-- [修复] 使用 userInfo.phone 替代不存在的 userInfo.name -->
 			<view class="user-avatar" @click="showUserMenu = true">{{
         userStore.userInfo?.phone[0] || '管'
       }}</view>
@@ -12,7 +13,9 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
+				<!-- 列表页 -->
 				<view v-if="!selectedMember">
+					<!-- [修复] 绑定新的 Member 数据结构 (phone) -->
 					<view v-for="member in dataStore.members" :key="member.id" class="list-item"
 						@click="selectMember(member)">
 						<view class="main-info">
@@ -25,6 +28,7 @@
 					</view>
 				</view>
 
+				<!-- 详情页 -->
 				<view v-else>
 					<view class="detail-page">
 						<view class="detail-header">
@@ -74,6 +78,7 @@
 			</view>
 		</AppModal>
 
+		<!-- [重构] 邀请流程更新为输入手机号 -->
 		<AppModal v-model:visible="showInviteModal" title="邀请新成员">
 			<FormItem label="被邀请人手机号">
 				<input class="input-field" type="tel" v-model="inviteePhone" placeholder="请输入手机号" />
@@ -123,6 +128,7 @@
 		}
 	});
 
+	// [修复] 权限判断逻辑，直接从 userInfo 中获取当前租户的角色
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
 	);
@@ -180,6 +186,7 @@
 
 		isSubmitting.value = true;
 		try {
+			// [修复] 调用新的 updateMember API
 			await updateMember(selectedMember.value.id, { role: editableMemberRole.value });
 			uni.showToast({ title: '角色更新成功', icon: 'success' });
 			selectedMember.value = null;
@@ -227,6 +234,7 @@
 		isLoading.value = false;
 	};
 
+	// [重构] 邀请流程更新
 	const handleInvite = async () => {
 		if (!inviteePhone.value) {
 			uni.showToast({ title: '请输入手机号', icon: 'none' });

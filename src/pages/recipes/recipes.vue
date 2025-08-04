@@ -3,8 +3,9 @@
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
+			<!-- [修复] 使用 userInfo.phone 替代不存在的 userInfo.name -->
 			<view class="user-avatar" @click="showUserMenu = true">{{
-        userStore.userInfo?.name[0] || '管'
+        userStore.userInfo?.phone[0] || '管'
       }}</view>
 		</view>
 		<view class="page-content">
@@ -13,7 +14,7 @@
 			</view>
 			<template v-else>
 				<!-- 列表页 -->
-				<view v-if="!selectedRecipe">
+				<view v-if="!selectedRecipeFamily">
 					<view class="card">
 						<view class="card-title"><span>本周制作排行</span></view>
 						<view v-if="dataStore.recipeStats.length > 0">
@@ -25,16 +26,17 @@
 						</view>
 						<view v-else class="empty-state" style="padding: 20px 0">暂无排行数据</view>
 					</view>
+					<!-- [重构] 遍历配方家族 (RecipeFamily) -->
 					<view v-if="dataStore.recipes.length > 0">
-						<view v-for="recipe in dataStore.recipes" :key="recipe.id" class="list-item"
-							@click="handleSelectRecipe(recipe)">
+						<view v-for="family in dataStore.recipes" :key="family.id" class="list-item"
+							@click="handleSelectRecipeFamily(family)">
 							<view class="main-info">
-								<view class="name">{{ recipe.name }}</view>
-								<view class="desc">类型: {{ recipe.type }}</view>
+								<view class="name">{{ family.name }}</view>
+								<view class="desc">类型: {{ family.type }}</view>
 							</view>
 							<view class="side-info">
-								<view class="rating">★ {{ recipe.rating }}</view>
-								<view class="desc">{{ recipe.publicCount }}次制作</view>
+								<!-- 暂时显示版本数量 -->
+								<view class="desc">{{ family.versions.length }}个版本</view>
 							</view>
 						</view>
 					</view>
@@ -46,24 +48,26 @@
 				<view v-else>
 					<view class="detail-page">
 						<view class="detail-header">
-							<view class="back-btn" @click="selectedRecipe = null">&#10094;</view>
-							<h2 class="detail-title">{{ selectedRecipe.name }}</h2>
+							<view class="back-btn" @click="selectedRecipeFamily = null">&#10094;</view>
+							<h2 class="detail-title">{{ selectedRecipeFamily.name }}</h2>
 						</view>
-						<view class="tag-group"><span class="tag">类型: {{ selectedRecipe.type }}</span><span
-								class="tag">克重: {{ selectedRecipe.weight }}g</span></view>
+						<view class="tag-group">
+							<span class="tag">类型: {{ selectedRecipeFamily.type }}</span>
+						</view>
 						<view class="card">
 							<view class="card-title-wrapper">
 								<span class="card-title">版本历史</span>
-								<button v-if="canEditRecipe" class="btn-primary-sm"
-									@click="showCreateVersionModal = true">
+								<button v-if="canEditRecipe" class="btn-primary-sm" @click="handleCreateVersion">
 									新建版本
 								</button>
 							</view>
 							<view v-if="isLoadingVersions">加载中...</view>
 							<view v-else>
+								<!-- [重构] 遍历版本历史 -->
 								<view v-for="version in recipeVersions" :key="version.id" class="list-item">
 									<view class="main-info">
-										<view class="name">{{ version.name }} (v{{ version.versionNumber }})</view>
+										<view class="name">{{ version.notes || `版本 ${version.version}` }}
+											(v{{ version.version }})</view>
 										<view class="desc">创建于:
 											{{ new Date(version.createdAt).toLocaleDateString()
                       }}
@@ -71,7 +75,7 @@
 									</view>
 									<view class="side-info">
 										<view v-if="version.isActive" class="status-tag active">当前版本</view>
-										<button v-else-if="canEditRecipe" class="btn-secondary-sm"
+										<button v-else-if="canEditRecipe" class="btn-secondary-sm" disabled
 											@click="handleActivateVersion(version)">
 											激活
 										</button>
@@ -83,17 +87,12 @@
 							<view class="card-title">成本变化曲线</view>
 							<view class="mock-chart">模拟图表区域</view>
 						</view>
-						<view class="card">
-							<view class="card-title">原料用量及成本</view>
-							<view v-for="ing in selectedRecipe.ingredients" :key="ing.name"
-								class="list-item detail-list-item"><span>{{ ing.name }} ({{ ing.amount }})</span><span>¥
-									{{ ing.cost }}</span></view>
-						</view>
 					</view>
 				</view>
 			</template>
 		</view>
-		<view v-if="!selectedRecipe && canEditRecipe" class="fab" @click="navigateToEditPage">+</view>
+		<view v-if="!selectedRecipeFamily && canEditRecipe" class="fab" @click="navigateToEditPage(null)">+</view>
+
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
 				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
@@ -101,51 +100,28 @@
 		<AppModal v-model:visible="showUserMenu">
 			<view class="list-item" style="border: none; padding: 10px 15px" @click="userStore.logout()">退出登录</view>
 		</AppModal>
-		<AppModal v-model:visible="showCreateVersionModal" title="创建新版本">
-			<FormItem label="新版本名称">
-				<input class="input-field" v-model="newVersionName" placeholder="例如：冬季调整版" />
-			</FormItem>
-			<view class="modal-actions">
-				<button class="btn-cancel" @click="showCreateVersionModal = false">
-					取消
-				</button>
-				<button class="btn-confirm" @click="handleCreateVersion" :disabled="isSubmitting"
-					:loading="isSubmitting">
-					{{ isSubmitting ? '创建中...' : '确认创建' }}
-				</button>
-			</view>
-		</AppModal>
 	</view>
 </template>
 
 <script setup lang="ts">
 	import { ref, watch, computed } from 'vue';
-	import { onShow } from '@dcloudio/uni-app'; // [新增] 导入 onShow
+	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import type { ProductListItem, RecipeVersion } from '@/types/api';
-	import {
-		getRecipeVersions,
-		createRecipeVersion,
-		activateRecipeVersion,
-	} from '@/api/recipes';
+	import type { RecipeFamily, RecipeVersion } from '@/types/api';
+	import { getRecipeFamily, activateRecipeVersion } from '@/api/recipes';
 	import AppModal from '@/components/AppModal.vue';
-	import FormItem from '@/components/FormItem.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 
-	const selectedRecipe = ref<ProductListItem | null>(null);
+	const selectedRecipeFamily = ref<RecipeFamily | null>(null);
 	const showStoreModal = ref(false);
 	const showUserMenu = ref(false);
 	const isLoading = ref(false);
-	const isSubmitting = ref(false);
 	const isLoadingVersions = ref(false);
 	const recipeVersions = ref<RecipeVersion[]>([]);
-	const showCreateVersionModal = ref(false);
-	const newVersionName = ref('');
 
-	// [新增] 使用 onShow 生命周期钩子按需加载数据
 	onShow(async () => {
 		if (!dataStore.dataLoaded.recipes) {
 			isLoading.value = true;
@@ -154,36 +130,40 @@
 		}
 	});
 
-	const currentUserRole = computed(
-		() => dataStore.members.find((m) => m.id === userStore.userInfo?.id)?.role,
+	const currentUserRoleInTenant = computed(
+		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
 	);
 
 	const canEditRecipe = computed(() => {
 		return (
-			currentUserRole.value === 'OWNER' || currentUserRole.value === 'MANAGER'
+			currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN'
 		);
 	});
 
 	const handleSelectTenant = async (tenantId : string) => {
+		if (dataStore.currentTenantId === tenantId) {
+			showStoreModal.value = false;
+			return;
+		}
 		isLoading.value = true;
 		await dataStore.selectTenant(tenantId);
 		showStoreModal.value = false;
-		// 切换店铺后，重新加载当前页数据
 		await dataStore.fetchRecipesData();
 		isLoading.value = false;
 	};
 
-	const navigateToEditPage = () => {
-		uni.navigateTo({
-			url: '/pages/recipes/edit',
-		});
+	const navigateToEditPage = (familyId : string | null) => {
+		const url = familyId ? `/pages/recipes/edit?familyId=${familyId}` : '/pages/recipes/edit';
+		uni.navigateTo({ url });
 	};
 
-	const handleSelectRecipe = async (recipe : ProductListItem) => {
-		selectedRecipe.value = recipe;
+	const handleSelectRecipeFamily = async (family : RecipeFamily) => {
+		selectedRecipeFamily.value = family;
 		isLoadingVersions.value = true;
 		try {
-			recipeVersions.value = await getRecipeVersions(recipe.familyId);
+			// [重构] 调用新API获取家族详情，其中包含所有版本
+			const fullFamilyData = await getRecipeFamily(family.id);
+			recipeVersions.value = fullFamilyData.versions.sort((a, b) => b.version - a.version);
 		} catch (error) {
 			console.error('Failed to fetch recipe versions:', error);
 			uni.showToast({ title: '获取版本历史失败', icon: 'none' });
@@ -192,44 +172,32 @@
 		}
 	};
 
-	const handleCreateVersion = async () => {
-		if (!newVersionName.value || !selectedRecipe.value) {
-			uni.showToast({ title: '请输入版本名称', icon: 'none' });
-			return;
-		}
-		isSubmitting.value = true;
-		try {
-			await createRecipeVersion(
-				selectedRecipe.value.familyId,
-				newVersionName.value,
-			);
-			uni.showToast({ title: '新版本创建成功', icon: 'success' });
-			showCreateVersionModal.value = false;
-			newVersionName.value = '';
-			await handleSelectRecipe(selectedRecipe.value);
-		} catch (error) {
-			console.error('Failed to create version:', error);
-			uni.showToast({ title: '创建失败，请重试', icon: 'none' });
-		} finally {
-			isSubmitting.value = false;
-		}
+	// [重构] 创建新版本现在导航到编辑页
+	const handleCreateVersion = () => {
+		if (!selectedRecipeFamily.value) return;
+		navigateToEditPage(selectedRecipeFamily.value.id);
 	};
 
+	// [重构] 激活版本功能，由于后端不支持，暂时提示用户
 	const handleActivateVersion = async (version : RecipeVersion) => {
-		if (!selectedRecipe.value) return;
+		if (!selectedRecipeFamily.value) return;
+
+		uni.showToast({
+			title: '后端暂不支持激活旧版本',
+			icon: 'none',
+		});
+		// 下方为未来后端支持后的逻辑
+		/*
 		uni.showModal({
 			title: '确认激活',
-			content: `确定要将 "${version.name}" 设为当前生产版本吗？`,
+			content: `确定要将 "v${version.version}" 设为当前生产版本吗？`,
 			success: async (res) => {
 				if (res.confirm) {
 					isLoadingVersions.value = true;
 					try {
-						await activateRecipeVersion(
-							selectedRecipe.value!.familyId,
-							version.id,
-						);
+						await activateRecipeVersion(selectedRecipeFamily.value!.id, version.id);
 						uni.showToast({ title: '激活成功', icon: 'success' });
-						await handleSelectRecipe(selectedRecipe.value!);
+						await handleSelectRecipeFamily(selectedRecipeFamily.value!);
 					} catch (error) {
 						console.error('Failed to activate version:', error);
 						uni.showToast({ title: '激活失败，请重试', icon: 'none' });
@@ -239,12 +207,13 @@
 				}
 			},
 		});
+		*/
 	};
 
 	watch(
 		() => dataStore.currentTenantId,
 		() => {
-			selectedRecipe.value = null;
+			selectedRecipeFamily.value = null;
 		},
 	);
 </script>
@@ -299,42 +268,11 @@
 	.btn-secondary-sm {
 		background-color: #f3e9e3;
 		color: var(--text-secondary);
-	}
 
-	.input-field {
-		width: 100%;
-		height: 44px;
-		line-height: 44px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-	}
-
-	.modal-actions {
-		display: flex;
-		gap: 10px;
-		margin-top: 30px;
-	}
-
-	.modal-actions button {
-		flex: 1;
-		padding: 12px;
-		border: none;
-		border-radius: 12px;
-		font-size: 16px;
-		font-weight: 500;
-	}
-
-	.btn-cancel {
-		background-color: #f3e9e3;
-		color: var(--text-secondary);
-	}
-
-	.btn-confirm {
-		background-color: var(--primary-color);
-		color: white;
+		&[disabled] {
+			background-color: #e9ecef;
+			color: #adb5bd;
+			opacity: 0.7;
+		}
 	}
 </style>

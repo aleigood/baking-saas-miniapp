@@ -15,14 +15,17 @@ export function getMembers() : Promise<Member[]> {
 }
 
 /**
- * [已更新] 更新指定成员的角色和状态
+ * [重构] 更新指定成员的角色或状态
  * @param memberId 成员的用户ID
  * @param data 包含新角色或新状态的对象
  */
-export function updateMember(memberId : string, data : { role ?: Role; status ?: Member['status'] }) : Promise<any> {
+export function updateMember(
+	memberId : string,
+	data : { role ?: Role; status ?: Member['status'] },
+) : Promise<any> {
 	return request({
 		url: `/members/${memberId}`,
-		method: 'PATCH', // 使用 PATCH 方法
+		method: 'PATCH',
 		data,
 	});
 }

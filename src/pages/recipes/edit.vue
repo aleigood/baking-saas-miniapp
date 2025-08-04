@@ -3,14 +3,15 @@
 		<view class="page-header">
 			<view class="detail-header" style="width: 100%;">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">新建配方</h2>
+				<!-- [重构] 动态标题 -->
+				<h2 class="detail-title">{{ isEditing ? '创建新版本' : '新建配方' }}</h2>
 			</view>
 		</view>
 		<view class="page-content">
 			<view class="card">
-				<!-- [核心重构] 使用 FormItem 组件 -->
 				<FormItem label="配方家族名称">
-					<input class="input-field" v-model="form.name" placeholder="例如：贝果" />
+					<!-- [重构] 如果是创建新版本，名称不可编辑 -->
+					<input class="input-field" v-model="form.name" placeholder="例如：贝果" :disabled="isEditing" />
 				</FormItem>
 			</view>
 
@@ -18,7 +19,8 @@
 			<view v-for="(dough, doughIndex) in form.doughs" :key="doughIndex" class="card">
 				<view class="card-title-wrapper">
 					<span class="card-title">面团 {{ doughIndex + 1 }}</span>
-					<button class="btn-danger-sm" @click="removeDough(doughIndex)">删除面团</button>
+					<button v-if="form.doughs.length > 1" class="btn-danger-sm"
+						@click="removeDough(doughIndex)">删除面团</button>
 				</view>
 				<FormItem label="面团名称">
 					<input class="input-field" v-model="dough.name" placeholder="例如：主面团" />
@@ -38,7 +40,8 @@
 			<view v-for="(product, prodIndex) in form.products" :key="prodIndex" class="card">
 				<view class="card-title-wrapper">
 					<span class="card-title">最终产品 {{ prodIndex + 1 }}</span>
-					<button class="btn-danger-sm" @click="removeProduct(prodIndex)">删除产品</button>
+					<button v-if="form.products.length > 1" class="btn-danger-sm"
+						@click="removeProduct(prodIndex)">删除产品</button>
 				</view>
 				<FormItem label="产品名称">
 					<input class="input-field" v-model="product.name" placeholder="例如：原味贝果" />
@@ -58,25 +61,31 @@
 
 <script setup lang="ts">
 	import { ref } from 'vue';
-	import { createRecipe } from '@/api/recipes';
+	// [新增] 引入 onLoad
+	import { onLoad } from '@dcloudio/uni-app';
+	import { createRecipe, getRecipeFamily } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
-	import FormItem from '@/components/FormItem.vue'; // [核心重构] 引入可复用组件
+	import FormItem from '@/components/FormItem.vue';
 
 	const dataStore = useDataStore();
 	const isSubmitting = ref(false);
+	const isEditing = ref(false); // [新增] 标记是否为编辑（创建新版本）模式
+	const familyId = ref<string | null>(null);
 
 	const form = ref({
 		name: '',
+		type: 'MAIN' as const,
 		doughs: [
 			{
 				name: '主面团',
-				isPreDough: false,
 				targetTemp: 26,
+				lossRatio: 0,
+				procedure: [],
 				ingredients: [
-					{ name: '高筋粉', ratio: 100, isFlour: true },
-					{ name: '水', ratio: 60, isFlour: false },
-					{ name: '酵母', ratio: 1, isFlour: false },
-					{ name: '盐', ratio: 2, isFlour: false },
+					{ name: '高筋粉', ratio: 100, isFlour: true, waterContent: 0 },
+					{ name: '水', ratio: 60, isFlour: false, waterContent: 100 },
+					{ name: '酵母', ratio: 1, isFlour: false, waterContent: 0 },
+					{ name: '盐', ratio: 2, isFlour: false, waterContent: 0 },
 				],
 			},
 		],
@@ -84,20 +93,48 @@
 			{
 				name: '原味',
 				weight: 100,
-				mixIns: [],
-				addOns: [],
-				procedures: [],
+				mixIn: [],
+				fillings: [],
+				toppings: [],
+				procedure: [],
 			},
 		],
-		procedures: [],
+		procedure: [],
 	});
+
+	// [新增] onLoad生命周期钩子，用于处理创建新版本的逻辑
+	onLoad(async (options) => {
+		if (options && options.familyId) {
+			isEditing.value = true;
+			familyId.value = options.familyId;
+			uni.showLoading({ title: '加载配方中...' });
+			try {
+				const familyData = await getRecipeFamily(familyId.value);
+				const activeVersion = familyData.versions.find(v => v.isActive);
+				if (activeVersion) {
+					// 使用激活版本的数据预填充表单
+					// 注意：这里的映射逻辑需要根据您后端返回的具体数据结构进行调整
+					form.value.name = familyData.name;
+					form.value.type = familyData.type;
+					// ... 其他字段的映射
+				}
+			} catch (error) {
+				console.error('Failed to load recipe for editing:', error);
+				uni.showToast({ title: '加载配方失败', icon: 'none' });
+			} finally {
+				uni.hideLoading();
+			}
+		}
+	});
+
 
 	const addDough = () => {
 		form.value.doughs.push({
 			name: '',
-			isPreDough: false,
 			targetTemp: 0,
-			ingredients: [{ name: '', ratio: 0, isFlour: false }],
+			lossRatio: 0,
+			procedure: [],
+			ingredients: [{ name: '', ratio: 0, isFlour: false, waterContent: 0 }],
 		});
 	};
 
@@ -106,7 +143,7 @@
 	};
 
 	const addIngredient = (doughIndex : number) => {
-		form.value.doughs[doughIndex].ingredients.push({ name: '', ratio: 0, isFlour: false });
+		form.value.doughs[doughIndex].ingredients.push({ name: '', ratio: 0, isFlour: false, waterContent: 0 });
 	};
 
 	const removeIngredient = (doughIndex : number, ingIndex : number) => {
@@ -117,9 +154,10 @@
 		form.value.products.push({
 			name: '',
 			weight: 0,
-			mixIns: [],
-			addOns: [],
-			procedures: [],
+			mixIn: [],
+			fillings: [],
+			toppings: [],
+			procedure: [],
 		});
 	};
 
@@ -134,14 +172,14 @@
 	const handleSubmit = async () => {
 		isSubmitting.value = true;
 		try {
+			// 后端 `create` 接口会处理同名配方，自动创建新版本
 			await createRecipe(form.value);
-			uni.showToast({ title: '配方创建成功', icon: 'success' });
+			uni.showToast({ title: '配方保存成功', icon: 'success' });
 			// 刷新列表数据并返回
-			await dataStore.loadDataForCurrentTenant();
+			await dataStore.fetchRecipesData();
 			uni.navigateBack();
 		} catch (error) {
 			console.error("Failed to create recipe:", error);
-			uni.showToast({ title: '创建失败，请检查数据', icon: 'none' });
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -165,6 +203,11 @@
 		font-size: 14px;
 		background-color: #f8f9fa;
 		box-sizing: border-box;
+
+		&[disabled] {
+			background-color: #e9ecef;
+			color: #6c757d;
+		}
 	}
 
 	.ingredient-row {

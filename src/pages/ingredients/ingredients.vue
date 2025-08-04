@@ -3,8 +3,9 @@
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
+			<!-- [修复] 使用 userInfo.phone 替代不存在的 userInfo.name -->
 			<view class="user-avatar" @click="showUserMenu = true">{{
-        userStore.userInfo?.name[0] || '管'
+        userStore.userInfo?.phone[0] || '管'
       }}</view>
 		</view>
 		<view class="page-content">
@@ -15,10 +16,11 @@
 				<view v-if="!selectedIngredient">
 					<view class="card">
 						<view class="card-title"><span>本月消耗统计</span></view>
+						<!-- [修复] 绑定到新的 ingredientStats 结构 -->
 						<view v-for="(item, index) in dataStore.ingredientStats" :key="item.name" class="stats-item">
 							<span class="rank">{{ index + 1 }}</span>
 							<span class="name">{{ item.name }}</span>
-							<span class="count">{{ item.consumed.toFixed(2) }} kg</span>
+							<span class="count">{{ (item.consumedGrams / 1000).toFixed(2) }} kg</span>
 						</view>
 					</view>
 					<view class="filter-tabs">
@@ -27,16 +29,19 @@
 						<view class="filter-tab" :class="{ active: ingredientFilter === 'low' }"
 							@click="ingredientFilter = 'low'">库存紧张</view>
 					</view>
+					<!-- [修复] 绑定到新的 ingredients 和 activeSku 结构 -->
 					<view v-for="ing in filteredIngredients" :key="ing.id" class="list-item"
 						@click="selectedIngredient = ing">
 						<view class="main-info">
 							<view class="name">{{ ing.name }}</view>
-							<view class="desc">品牌: {{ ing.brand }}</view>
+							<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
 						</view>
 						<view class="side-info">
-							<view class="value" :class="{ 'stock-low': ing.stock < 50 }">{{ ing.stock.toFixed(2) }} kg
+							<view class="value"
+								:class="{ 'stock-low': (ing.activeSku?.currentStockInGrams || 0) < 50000 }">
+								{{ ((ing.activeSku?.currentStockInGrams || 0) / 1000).toFixed(2) }} kg
 							</view>
-							<view class="desc">¥ {{ ing.price.toFixed(2) }}/kg</view>
+							<view class="desc">¥ {{ getPricePerKg(ing.activeSku) }}/kg</view>
 						</view>
 					</view>
 				</view>
@@ -46,8 +51,11 @@
 							<view class="back-btn" @click="selectedIngredient = null">&#10094;</view>
 							<h2 class="detail-title">{{ selectedIngredient.name }}</h2>
 						</view>
-						<view class="tag-group"><span class="tag">品牌: {{ selectedIngredient.brand }}</span><span
-								class="tag">单价: ¥{{ selectedIngredient.price.toFixed(2) }}/kg</span></view>
+						<!-- [修复] 绑定到新的 activeSku 结构 -->
+						<view class="tag-group">
+							<span class="tag">品牌: {{ selectedIngredient.activeSku?.brand || '未设置' }}</span>
+							<span class="tag">单价: ¥{{ getPricePerKg(selectedIngredient.activeSku) }}/kg</span>
+						</view>
 						<view class="card">
 							<view class="card-title">价格历史</view>
 							<view class="mock-chart">模拟图表区域</view>
@@ -75,7 +83,7 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import type { Ingredient } from '@/types/api';
+	import type { Ingredient, IngredientSKU } from '@/types/api';
 	import AppModal from '@/components/AppModal.vue';
 
 	const userStore = useUserStore();
@@ -94,14 +102,29 @@
 		}
 	});
 
+	// [修复] 过滤逻辑适配新的数据结构
 	const filteredIngredients = computed(() => {
 		if (ingredientFilter.value === 'low') {
-			return dataStore.ingredients.filter((ing) => ing.stock < 50);
+			// 库存紧张定义为低于50kg
+			return dataStore.ingredients.filter((ing) => (ing.activeSku?.currentStockInGrams || 0) < 50000);
 		}
 		return dataStore.ingredients;
 	});
 
+	// [新增] 计算每公斤价格的辅助函数
+	const getPricePerKg = (sku : IngredientSKU | null) => {
+		if (!sku || !sku.specWeightInGrams) {
+			return '0.00';
+		}
+		return ((Number(sku.currentPricePerPackage) / sku.specWeightInGrams) * 1000).toFixed(2);
+	};
+
+
 	const handleSelectTenant = async (tenantId : string) => {
+		if (dataStore.currentTenantId === tenantId) {
+			showStoreModal.value = false;
+			return;
+		}
 		isLoading.value = true;
 		await dataStore.selectTenant(tenantId);
 		showStoreModal.value = false;
