@@ -50,6 +50,12 @@ export interface RecipeVersion {
 	isActive : boolean;
 	createdAt : string;
 	products : Product[]; // 一个版本可以产出多种最终产品
+	// [新增] 包含面团信息，用于获取原料数量
+	doughs : {
+		_count : {
+			ingredients : number;
+		};
+	}[];
 }
 
 // 最终产品，如“原味法棍”

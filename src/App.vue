@@ -40,4 +40,12 @@
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
 			sans-serif;
 	}
+
+	/* 隐藏滚动条的样式 */
+	::-webkit-scrollbar {
+		width: 0;
+		height: 0;
+		color: transparent;
+		display: none;
+	}
 </style>

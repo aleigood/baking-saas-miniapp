@@ -6,7 +6,7 @@
     - 点击遮罩层会自动关闭。
     - 使用 <slot> 填充模态框内容。
   -->
-	<view v-if="visible" class="modal-overlay" @click.self="handleClose">
+	<view v-if="visible" class="modal-overlay" @click="handleClose">
 		<view class="modal-content" @click.stop>
 			<view v-if="title" class="card-title" style="margin-bottom: 20px;">{{ title }}</view>
 			<slot></slot>
@@ -15,7 +15,10 @@
 </template>
 
 <script setup lang="ts">
-	defineProps({
+	// [新增] 引入 watch 用于监听属性变化
+	import { watch } from 'vue';
+
+	const props = defineProps({
 		visible: {
 			type: Boolean,
 			default: false,
@@ -31,6 +34,24 @@
 	const handleClose = () => {
 		emit('update:visible', false);
 	};
+
+	// [新增] 监听 visible 属性的变化
+	watch(
+		() => props.visible,
+		(newValue) => {
+			if (newValue) {
+				// [新增] 模态框显示时，隐藏 TabBar
+				uni.hideTabBar({
+					animation: true, // 可以添加动画效果
+				});
+			} else {
+				// [新增] 模态框关闭时，显示 TabBar
+				uni.showTabBar({
+					animation: true, // 可以添加动画效果
+				});
+			}
+		},
+	);
 </script>
 
 <style scoped lang="scss">

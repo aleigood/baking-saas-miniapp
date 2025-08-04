@@ -56,13 +56,26 @@
 							<span class="tag">品牌: {{ selectedIngredient.activeSku?.brand || '未设置' }}</span>
 							<span class="tag">单价: ¥{{ getPricePerKg(selectedIngredient.activeSku) }}/kg</span>
 						</view>
+						<!-- [修改] 将两个看板合并为一个，并使用标签页切换 -->
 						<view class="card">
-							<view class="card-title">价格历史</view>
-							<view class="mock-chart">模拟图表区域</view>
-						</view>
-						<view class="card">
-							<view class="card-title">近期用量</view>
-							<view class="mock-chart">模拟图表区域</view>
+							<view class="filter-tabs" style="margin-bottom: 20px; justify-content: center;">
+								<view class="filter-tab" :class="{ active: detailChartTab === 'price' }"
+									@click="detailChartTab = 'price'">
+									价格曲线
+								</view>
+								<view class="filter-tab" :class="{ active: detailChartTab === 'usage' }"
+									@click="detailChartTab = 'usage'">
+									历史用量
+								</view>
+							</view>
+
+							<!-- 根据标签显示不同的图表 -->
+							<view v-if="detailChartTab === 'price'" class="mock-chart">
+								模拟价格曲线图表区域
+							</view>
+							<view v-if="detailChartTab === 'usage'" class="mock-chart">
+								模拟历史用量图表区域
+							</view>
 						</view>
 					</view>
 				</view>
@@ -93,6 +106,9 @@
 	const showStoreModal = ref(false);
 	const showUserMenu = ref(false);
 	const isLoading = ref(false);
+
+	// [新增] 用于详情页图表切换的状态
+	const detailChartTab = ref<'price' | 'usage'>('price');
 
 	onShow(async () => {
 		if (!dataStore.dataLoaded.ingredients) {
@@ -142,6 +158,8 @@
 		() => dataStore.currentTenantId,
 		() => {
 			selectedIngredient.value = null;
+			// [新增] 切换店铺时，重置详情页的图表标签
+			detailChartTab.value = 'price';
 		},
 	);
 </script>
