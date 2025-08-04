@@ -4,7 +4,7 @@
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
 			<view class="user-avatar" @click="showUserMenu = true">{{
-        userStore.userInfo?.name[0] || '管'
+        userStore.userInfo?.phone[0] || '管'
       }}</view>
 		</view>
 		<view class="page-content">
@@ -12,13 +12,12 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<!-- 列表页 -->
 				<view v-if="!selectedMember">
 					<view v-for="member in dataStore.members" :key="member.id" class="list-item"
 						@click="selectMember(member)">
 						<view class="main-info">
-							<view class="name">{{ member.name }}</view>
-							<view class="desc">加入于: {{ member.joinDate }}</view>
+							<view class="name">{{ member.phone }}</view>
+							<view class="desc">加入于: {{ new Date(member.joinDate).toLocaleDateString() }}</view>
 						</view>
 						<view class="side-info">
 							<view class="value">{{ member.role }}</view>
@@ -26,20 +25,20 @@
 					</view>
 				</view>
 
-				<!-- 详情页 -->
 				<view v-else>
 					<view class="detail-page">
 						<view class="detail-header">
 							<view class="back-btn" @click="selectedMember = null">&#10094;</view>
-							<h2 class="detail-title">{{ selectedMember.name }}</h2>
+							<h2 class="detail-title">{{ selectedMember.phone }}</h2>
 						</view>
 						<view class="card">
 							<view class="card-title">人员信息</view>
-							<FormItem label="姓名">
-								<input class="input-field" type="text" :value="selectedMember.name" readonly />
+							<FormItem label="手机号">
+								<input class="input-field" type="text" :value="selectedMember.phone" readonly />
 							</FormItem>
 							<FormItem label="加入日期">
-								<input class="input-field" type="text" :value="selectedMember.joinDate" readonly />
+								<input class="input-field" type="text"
+									:value="new Date(selectedMember.joinDate).toLocaleDateString()" readonly />
 							</FormItem>
 							<FormItem label="角色">
 								<picker mode="selector" :range="availableRoles" @change="onRoleChange"
@@ -54,8 +53,8 @@
 								{{ isSubmitting ? '保存中...' : '保存修改' }}
 							</button>
 							<button class="btn-danger" @click="handleRemoveMember"
-								:disabled="!canRemoveMember || isSubmitting" :loading="isSubmitting">
-								删除员工
+								:disabled="!canRemoveMember || isSubmitting">
+								移除员工
 							</button>
 						</view>
 					</view>
@@ -63,7 +62,7 @@
 			</template>
 		</view>
 
-		<view v-if="!selectedMember && canInvite" class="fab" @click="handleInvite">+</view>
+		<view v-if="!selectedMember && canInvite" class="fab" @click="showInviteModal = true">+</view>
 
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
@@ -76,14 +75,17 @@
 		</AppModal>
 
 		<AppModal v-model:visible="showInviteModal" title="邀请新成员">
-			<view v-if="isCreatingInvite">
-				<text>正在生成邀请码...</text>
-			</view>
-			<view v-else-if="invitation">
-				<FormItem label="邀请码 (24小时内有效)">
-					<input class="input-field" type="text" :value="invitation.invitationCode" disabled />
-				</FormItem>
-				<button class="btn-save" @click="copyInviteCode">复制邀请码</button>
+			<FormItem label="被邀请人手机号">
+				<input class="input-field" type="tel" v-model="inviteePhone" placeholder="请输入手机号" />
+			</FormItem>
+			<view class="modal-actions">
+				<button class="btn-cancel" @click="showInviteModal = false">
+					取消
+				</button>
+				<button class="btn-confirm" @click="handleInvite" :disabled="isCreatingInvite"
+					:loading="isCreatingInvite">
+					{{ isCreatingInvite ? '发送中...' : '确认邀请' }}
+				</button>
 			</view>
 		</AppModal>
 	</view>
@@ -94,8 +96,8 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import type { Member, InvitationResponse } from '@/types/api';
-	import { updateMemberRole, removeMember } from '@/api/members';
+	import type { Member, Role } from '@/types/api';
+	import { updateMember, removeMember } from '@/api/members'; // 更新 API 调用
 	import { createInvitation } from '@/api/invitations';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
@@ -104,13 +106,13 @@
 	const dataStore = useDataStore();
 
 	const selectedMember = ref<Member | null>(null);
-	const editableMemberRole = ref<Member['role']>('BAKER');
+	const editableMemberRole = ref<Role>('MEMBER');
 	const isSubmitting = ref(false);
 	const showStoreModal = ref(false);
 	const showUserMenu = ref(false);
 	const showInviteModal = ref(false);
 	const isCreatingInvite = ref(false);
-	const invitation = ref<InvitationResponse | null>(null);
+	const inviteePhone = ref(''); // 新增：被邀请人手机号
 	const isLoading = ref(false);
 
 	onShow(async () => {
@@ -121,54 +123,45 @@
 		}
 	});
 
-	const currentUserRole = computed(
-		() => dataStore.members.find((m) => m.id === userStore.userInfo?.id)?.role,
+	const currentUserRoleInTenant = computed(
+		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
 	);
 
+
 	const canInvite = computed(() => {
-		return currentUserRole.value === 'OWNER' || currentUserRole.value === 'MANAGER';
+		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
 
 	const canEditRole = computed(() => {
-		if (
-			!currentUserRole.value ||
+		if (!currentUserRoleInTenant.value ||
 			!selectedMember.value ||
 			selectedMember.value.id === userStore.userInfo?.id
 		) {
 			return false;
 		}
-		if (currentUserRole.value === 'OWNER') {
-			return true;
+		if (currentUserRoleInTenant.value === 'OWNER') {
+			return selectedMember.value.role !== 'OWNER'; // 所有者不能修改自己
 		}
-		if (currentUserRole.value === 'MANAGER') {
-			return selectedMember.value.role === 'BAKER';
+		if (currentUserRoleInTenant.value === 'ADMIN') {
+			return selectedMember.value.role === 'MEMBER'; // 管理员只能修改成员
 		}
 		return false;
 	});
 
 	const canRemoveMember = computed(() => {
-		if (
-			!currentUserRole.value ||
+		if (!currentUserRoleInTenant.value ||
 			!selectedMember.value ||
 			selectedMember.value.id === userStore.userInfo?.id
 		) {
 			return false;
 		}
-		if (currentUserRole.value === 'OWNER') {
-			return true;
-		}
-		if (currentUserRole.value === 'MANAGER') {
-			return selectedMember.value.role === 'BAKER';
-		}
-		return false;
+		// 只有所有者能移除成员（非自己）
+		return currentUserRoleInTenant.value === 'OWNER' && selectedMember.value.role !== 'OWNER';
 	});
 
 	const availableRoles = computed(() => {
-		if (currentUserRole.value === 'OWNER') {
-			return ['OWNER', 'MANAGER', 'BAKER'];
-		}
-		if (currentUserRole.value === 'MANAGER') {
-			return ['BAKER'];
+		if (currentUserRoleInTenant.value === 'OWNER') {
+			return ['ADMIN', 'MEMBER']; // 所有者可以指派管理员和成员
 		}
 		return [];
 	});
@@ -187,16 +180,12 @@
 
 		isSubmitting.value = true;
 		try {
-			await updateMemberRole(selectedMember.value.id, editableMemberRole.value);
+			await updateMember(selectedMember.value.id, { role: editableMemberRole.value });
 			uni.showToast({ title: '角色更新成功', icon: 'success' });
 			selectedMember.value = null;
-			await dataStore.fetchMembersData();
+			await dataStore.fetchMembersData(); // 刷新成员列表
 		} catch (error : any) {
 			console.error('Failed to update role:', error);
-			uni.showToast({
-				title: error.data?.message || '操作失败，请重试',
-				icon: 'none',
-			});
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -206,22 +195,18 @@
 		if (!selectedMember.value || !canRemoveMember.value) return;
 
 		uni.showModal({
-			title: '确认删除',
-			content: `确定要删除员工 "${selectedMember.value.name}" 吗？此操作不可撤销。`,
+			title: '确认移除',
+			content: `确定要从本店铺移除 "${selectedMember.value!.phone}" 吗？`,
 			success: async (res) => {
 				if (res.confirm) {
 					isSubmitting.value = true;
 					try {
 						await removeMember(selectedMember.value!.id);
-						uni.showToast({ title: '删除成功', icon: 'success' });
+						uni.showToast({ title: '移除成功', icon: 'success' });
 						selectedMember.value = null;
 						await dataStore.fetchMembersData();
 					} catch (error : any) {
 						console.error('Failed to remove member:', error);
-						uni.showToast({
-							title: error.data?.message || '删除失败，请重试',
-							icon: 'none',
-						});
 					} finally {
 						isSubmitting.value = false;
 					}
@@ -231,6 +216,10 @@
 	};
 
 	const handleSelectTenant = async (tenantId : string) => {
+		if (dataStore.currentTenantId === tenantId) {
+			showStoreModal.value = false;
+			return;
+		}
 		isLoading.value = true;
 		await dataStore.selectTenant(tenantId);
 		showStoreModal.value = false;
@@ -239,30 +228,21 @@
 	};
 
 	const handleInvite = async () => {
-		showInviteModal.value = true;
+		if (!inviteePhone.value) {
+			uni.showToast({ title: '请输入手机号', icon: 'none' });
+			return;
+		}
 		isCreatingInvite.value = true;
-		invitation.value = null;
 		try {
-			const res = await createInvitation();
-			invitation.value = res;
+			await createInvitation(inviteePhone.value);
+			uni.showToast({ title: '邀请已发送', icon: 'success' });
+			showInviteModal.value = false;
+			inviteePhone.value = '';
 		} catch (error) {
 			console.error('Failed to create invitation:', error);
-			uni.showToast({ title: '生成邀请码失败', icon: 'none' });
-			showInviteModal.value = false;
 		} finally {
 			isCreatingInvite.value = false;
 		}
-	};
-
-	const copyInviteCode = () => {
-		if (!invitation.value) return;
-		uni.setClipboardData({
-			data: invitation.value.invitationCode,
-			success: () => {
-				uni.showToast({ title: '邀请码已复制', icon: 'success' });
-				showInviteModal.value = false;
-			},
-		});
 	};
 
 	watch(
@@ -316,5 +296,30 @@
 		font-size: 16px;
 		margin-top: 15px;
 		font-weight: 500;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 10px;
+		margin-top: 30px;
+	}
+
+	.modal-actions button {
+		flex: 1;
+		padding: 12px;
+		border: none;
+		border-radius: 12px;
+		font-size: 16px;
+		font-weight: 500;
+	}
+
+	.btn-cancel {
+		background-color: #f3e9e3;
+		color: var(--text-secondary);
+	}
+
+	.btn-confirm {
+		background-color: var(--primary-color);
+		color: white;
 	}
 </style>

@@ -3,7 +3,7 @@
  * 文件描述: (已更新) 封装所有与人员(Member)相关的API请求，包括更新和删除。
  */
 import { request } from '@/utils/request';
-import type { Member } from '@/types/api';
+import type { Member, Role } from '@/types/api';
 
 /**
  * 获取当前店铺的人员列表
@@ -15,20 +15,20 @@ export function getMembers() : Promise<Member[]> {
 }
 
 /**
- * [新增] 更新指定成员的角色
+ * [已更新] 更新指定成员的角色和状态
  * @param memberId 成员的用户ID
- * @param role 新的角色
+ * @param data 包含新角色或新状态的对象
  */
-export function updateMemberRole(memberId : string, role : Member['role']) : Promise<any> {
+export function updateMember(memberId : string, data : { role ?: Role; status ?: Member['status'] }) : Promise<any> {
 	return request({
-		url: `/members/${memberId}/role`,
-		method: 'PATCH',
-		data: { role },
+		url: `/members/${memberId}`,
+		method: 'PATCH', // 使用 PATCH 方法
+		data,
 	});
 }
 
 /**
- * [新增] "软删除"一个成员 (将其状态更新为 INACTIVE)
+ * [已更新] 从当前店铺中移除一个成员
  * @param memberId 成员的用户ID
  */
 export function removeMember(memberId : string) : Promise<any> {

@@ -1,15 +1,14 @@
 <template>
 	<view class="page-container">
-		<!-- 页面头部 -->
 		<view class="page-header">
-			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
+			<view class="store-selector" @click="showStoreModal = true">
+				{{ dataStore.currentTenant?.name || '请选择店铺' }} &#9662;
 			</view>
 			<view class="user-avatar" @click="showUserMenu = true">{{
-        userStore.userInfo?.name[0] || '管'
+        userStore.userInfo?.phone[0] || '管'
       }}</view>
 		</view>
 
-		<!-- 页面内容 -->
 		<view class="page-content">
 			<view class="loading-spinner" v-if="isLoading">
 				<text>加载中...</text>
@@ -23,9 +22,9 @@
 					<view v-for="entry in dataStore.production" :key="entry.id" class="card">
 						<view class="list-item">
 							<view class="main-info">
-								<view class="name">{{ entry.recipeName }}</view>
-								<view class="desc">{{ new Date(entry.time).toLocaleString() }} by
-									{{ entry.creator }}
+								<view class="name">{{ entry.product.name }}</view>
+								<view class="desc">{{ new Date(entry.plannedDate).toLocaleString() }} | 计划:
+									{{ entry.quantity }}{{ entry.unit }}
 								</view>
 							</view>
 							<view class="side-info">
@@ -42,10 +41,8 @@
 			</template>
 		</view>
 
-		<!-- 新建按钮 -->
 		<view class="fab" @click="openCreateModal">+</view>
 
-		<!-- 模态框 -->
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
 				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
@@ -65,7 +62,10 @@
 				</picker>
 			</FormItem>
 			<FormItem label="计划数量">
-				<input class="input-field" type="number" v-model.number="newTask.plannedQuantity" placeholder="请输入数量" />
+				<input class="input-field" type="number" v-model.number="newTask.quantity" placeholder="请输入数量" />
+			</FormItem>
+			<FormItem label="单位">
+				<input class="input-field" type="text" v-model="newTask.unit" placeholder="例如: 个、盘" />
 			</FormItem>
 			<view class="modal-actions">
 				<button class="btn-cancel" @click="showCreateModal = false">
@@ -81,7 +81,7 @@
 
 <script setup lang="ts">
 	import { ref, computed } from 'vue';
-	import { onShow } from '@dcloudio/uni-app'; // [新增] 导入 onShow
+	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { createTask } from '@/api/tasks';
@@ -97,9 +97,12 @@
 	const showCreateModal = ref(false);
 	const isCreating = ref(false);
 
+	// [重构] newTask 结构与后端 CreateProductionTaskDto 对应
 	const newTask = ref({
 		productId: '',
-		plannedQuantity: 1,
+		quantity: 1,
+		unit: '个',
+		plannedDate: new Date().toISOString(), // 默认为今天
 	});
 
 	// [新增] 使用 onShow 生命周期钩子按需加载数据
@@ -116,8 +119,9 @@
 		}
 	});
 
+	// [重构] 使用 dataStore.productList
 	const recipeOptions = computed(() =>
-		dataStore.recipes.map((r) => ({ id: r.id, name: r.name })),
+		dataStore.productList.map((r) => ({ id: r.id, name: `${r.type} - ${r.name}` })),
 	);
 	const selectedRecipeName = computed(() => {
 		const recipe = recipeOptions.value.find((r) => r.id === newTask.value.productId);
@@ -125,7 +129,12 @@
 	});
 
 	const openCreateModal = () => {
-		newTask.value = { productId: '', plannedQuantity: 1 };
+		newTask.value = {
+			productId: '',
+			quantity: 1,
+			unit: '个',
+			plannedDate: new Date().toISOString(),
+		};
 		showCreateModal.value = true;
 	};
 
@@ -139,7 +148,7 @@
 			uni.showToast({ title: '请选择产品', icon: 'none' });
 			return;
 		}
-		if (!newTask.value.plannedQuantity || newTask.value.plannedQuantity <= 0) {
+		if (!newTask.value.quantity || newTask.value.quantity <= 0) {
 			uni.showToast({ title: '请输入有效的计划数量', icon: 'none' });
 			return;
 		}
@@ -153,13 +162,17 @@
 			await dataStore.fetchProductionData();
 		} catch (error) {
 			console.error('Failed to create task:', error);
-			uni.showToast({ title: '创建失败，请重试', icon: 'none' });
+			// 错误提示已在 request 工具函数中处理
 		} finally {
 			isCreating.value = false;
 		}
 	};
 
 	const handleSelectTenant = async (tenantId : string) => {
+		if (dataStore.currentTenantId === tenantId) {
+			showStoreModal.value = false;
+			return;
+		}
 		isLoading.value = true;
 		await dataStore.selectTenant(tenantId);
 		showStoreModal.value = false;
@@ -180,15 +193,19 @@
 		font-weight: 500;
 	}
 
-	.status-in_progress {
+	.status-pending {
 		background-color: #f9ae3d;
+	}
+
+	.status-in_progress {
+		background-color: #007bff;
 	}
 
 	.status-completed {
 		background-color: #5ac725;
 	}
 
-	.status-canceled {
+	.status-cancelled {
 		background-color: #a8a8a8;
 	}
 

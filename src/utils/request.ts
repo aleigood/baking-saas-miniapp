@@ -24,21 +24,26 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 			data: options.data || {},
 			header: {
 				...options.header,
-				'Authorization': userStore.token ? `Bearer ${userStore.token}` : ''
+				Authorization: userStore.token ? `Bearer ${userStore.token}` : '',
 			},
 			success: (res : UniApp.RequestSuccessCallbackResult) => {
 				// 兼容所有 2xx 状态码
 				if (res.statusCode >= 200 && res.statusCode < 300) {
 					resolve(res.data as T);
 				} else {
-					uni.showToast({ title: '请求失败', icon: 'none' });
+					// 统一处理错误提示
+					const errorMessage = (res.data as any)?.message || '请求失败，请稍后重试';
+					uni.showToast({
+						title: Array.isArray(errorMessage) ? errorMessage.join(',') : errorMessage,
+						icon: 'none',
+					});
 					reject(res);
 				}
 			},
 			fail: (err) => {
-				uni.showToast({ title: '网络错误', icon: 'none' });
+				uni.showToast({ title: '网络错误，请检查您的连接', icon: 'none' });
 				reject(err);
-			}
+			},
 		});
 	});
 };

@@ -1,84 +1,124 @@
 /**
  * 文件路径: src/types/api.d.ts
- * 文件描述: (已更新) 增加了配方版本相关的数据类型。
+ * 文件描述: (已更新) 增加了配方版本、SKU、租户等与新后端匹配的数据类型。
  */
 
-// --- 认证相关 ---
+// --- 认证与用户 ---
 export interface LoginRes {
-	access_token : string;
+	accessToken : string; // 字段名从 access_token 改为 accessToken
 }
+
 export interface UserInfo {
 	id : string;
-	name : string;
-	email : string | null;
+	phone : string; // 字段名从 email/name 改为 phone
+	role : Role; // 全局角色
+	status : string;
+	createdAt : string;
+	tenants : {
+		tenant : Tenant;
+		role : Role; // 在租户中的角色
+	}[];
 }
 
-// --- 邀请相关 ---
-export interface InvitationResponse {
-	invitationCode : string;
-	expiresAt : string; // ISO Date String
-}
-
-// --- [新增] 配方版本相关 ---
-export interface RecipeVersion {
-	id : string;
-	versionNumber : number;
-	name : string;
-	isActive : boolean;
-	createdAt : string; // ISO Date String
-	recipeFamilyId : string;
-}
-
-// --- 核心业务对象 ---
+// --- 租户/店铺 ---
 export interface Tenant {
 	id : string;
 	name : string;
 }
 
-export interface ProductionTaskDto {
-	id : string;
-	recipeName : string;
-	time : string; // ISO Date String
-	creator : string;
-	status : 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED';
+// --- 邀请 ---
+export interface InvitationResponse {
+	message : string;
+	invitationId : string;
 }
 
-// [更新] 将原 Recipe 类型重命名为 ProductListItem，更准确地描述其用途
-export interface ProductListItem {
+// --- 配方、产品与版本 ---
+// 配方家族，代表一个配方，如“法棍”
+export interface RecipeFamily {
 	id : string;
 	name : string;
-	type : string; // 这实际上是 RecipeFamily 的 name
-	weight : number;
-	rating : number; // 模拟数据
-	publicCount : number;
-	// [新增] 添加 familyId 以便在详情页中获取版本信息
+	type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
+	versions : RecipeVersion[]; // 包含了该家族下的版本信息
+}
+
+// 配方的具体版本
+export interface RecipeVersion {
+	id : string;
 	familyId : string;
-	// [更新] 详情数据将在进入详情页时单独获取
-	ingredients : any[]; // 列表页暂时为空
+	version : number;
+	notes : string | null;
+	isActive : boolean;
+	createdAt : string;
+	products : Product[]; // 一个版本可以产出多种最终产品
 }
 
-export interface RecipeIngredient {
+// 最终产品，如“原味法棍”
+export interface Product {
+	id : string;
+	recipeVersionId : string;
 	name : string;
-	amount : string; // e.g., "100g" or "50%"
-	cost : number;
+	baseDoughWeight : number; // 基础面团重量
 }
 
+// 用于产品列表展示的简化项
+export interface ProductListItem {
+	id : string; // 这是 Product 的 ID
+	name : string; // 这是 Product 的 name
+	type : string; // 这是 RecipeFamily 的 name
+	familyId : string; // 这是 RecipeFamily 的 ID
+	// weight 等信息将在详情页获取
+}
+
+// --- 原料与库存 ---
 export interface Ingredient {
 	id : string;
 	name : string;
-	brand : string;
-	price : number; // 元/kg
-	stock : number; // kg
+	type : 'STANDARD' | 'UNTRACKED';
+	activeSku : IngredientSKU | null; // 当前激活的SKU
+	skus : IngredientSKU[];
 }
 
+export interface IngredientSKU {
+	id : string;
+	brand : string | null;
+	specName : string;
+	specWeightInGrams : number;
+	status : 'ACTIVE' | 'INACTIVE';
+	currentStockInGrams : number;
+	currentPricePerPackage : number;
+}
+
+// --- 生产任务 ---
+export interface ProductionTaskDto {
+	id : string;
+	quantity : number;
+	unit : string;
+	status : 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+	plannedDate : string; // ISO Date String
+	product : {
+		id : string;
+		name : string;
+		recipeVersion : {
+			family : {
+				name : string;
+			};
+		};
+	};
+}
+
+// --- 团队成员 ---
 export interface Member {
 	id : string;
-	name : string;
-	role : 'OWNER' | 'MANAGER' | 'BAKER';
+	phone : string; // 使用 phone 替代 name
+	role : Role;
+	status : 'ACTIVE' | 'INACTIVE' | 'PENDING';
 	joinDate : string; // YYYY-MM-DD
 }
 
-// --- 统计相关 ---
+// --- 角色枚举 (与后端保持一致) ---
+export type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'SUPER_ADMIN';
+
+// --- 统计数据 ---
 export interface RecipeStatDto {
 	name : string;
 	count : number;
@@ -86,5 +126,5 @@ export interface RecipeStatDto {
 
 export interface IngredientStatDto {
 	name : string;
-	consumed : number; // kg
+	consumedGrams : number;
 }

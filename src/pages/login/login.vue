@@ -2,7 +2,7 @@
 	<view class="login-container">
 		<h2 class="title">烘焙SaaS管理端</h2>
 		<view class="form-card">
-			<input class="input-field" v-model="form.email" placeholder="请输入邮箱" />
+			<input class="input-field" v-model="form.phone" placeholder="请输入手机号" type="tel" />
 			<input class="input-field" v-model="form.password" type="password" placeholder="请输入密码" />
 			<button class="login-btn" @click="handleLogin" :loading="loading">
 				{{ loading ? '登录中...' : '登 录' }}
@@ -18,22 +18,25 @@
 	const loading = ref(false);
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
+
+	// [重构] 字段从 email 改为 phone
 	const form = reactive({
-		email: 'owner@example.com',
-		password: 'password123',
+		phone: '13966666666', // 默认值或从缓存读取
+		password: '123',
 	});
 
 	const handleLogin = async () => {
 		loading.value = true;
+		// [重构] 调用新的 userStore.login
 		const loginSuccess = await userStore.login(form);
 		if (loginSuccess) {
-			// [修正] 登录成功后，只加载基础数据，不再加载所有业务数据
-			await dataStore.fetchTenants();
+			// [修正] 登录成功后，获取用户信息（其中包含租户列表），然后获取业务数据
 			await userStore.fetchUserInfo();
+			await dataStore.fetchTenants(); // fetchTenants 现在从 userInfo 中读取租户
 			uni.showToast({ title: '登录成功', icon: 'success' });
 			uni.switchTab({ url: '/pages/production/production' });
 		}
-		// 登录失败的提示已在 store action 中处理
+		// 登录失败的提示已在 request 工具函数中统一处理
 		loading.value = false;
 	};
 </script>

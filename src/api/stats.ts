@@ -7,18 +7,24 @@ import type { RecipeStatDto, IngredientStatDto } from '@/types/api';
 
 /**
  * 获取配方制作排行统计
+ * @param startDate 开始日期 'YYYY-MM-DD'
+ * @param endDate 结束日期 'YYYY-MM-DD'
  */
-export function getRecipeStats() : Promise<RecipeStatDto[]> {
-	return request<RecipeStatDto[]>({
-		url: '/stats/recipes',
-	});
+export function getRecipeStats(startDate : string, endDate : string) : Promise<RecipeStatDto[]> {
+	return request<any>({
+		url: '/stats/production',
+		data: { startDate, endDate },
+	}).then((data) => data.productStats); // 从返回数据中提取产品统计
 }
 
 /**
  * 获取原料消耗排行统计
+ * @param startDate 开始日期 'YYYY-MM-DD'
+ * @param endDate 结束日期 'YYYY-MM-DD'
  */
-export function getIngredientStats() : Promise<IngredientStatDto[]> {
-	return request<IngredientStatDto[]>({
-		url: '/stats/ingredients',
-	});
+export function getIngredientStats(startDate : string, endDate : string) : Promise<IngredientStatDto[]> {
+	return request<any>({
+		url: '/stats/production',
+		data: { startDate, endDate },
+	}).then((data) => data.ingredientConsumption); // 从返回数据中提取原料消耗
 }
