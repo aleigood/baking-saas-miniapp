@@ -15,14 +15,14 @@ export function getTasks() : Promise<ProductionTaskDto[]> {
 }
 
 /**
- * 创建一个新的生产任务
- * @param data 包含 productId 和 plannedQuantity 等信息
+ * [修改] 创建一个新的生产任务，该任务可以包含多个产品
+ * (Modified: Create a new production task which can contain multiple products)
+ * @param data 包含 plannedDate 和 products 数组等信息
  */
 export function createTask(data : {
-	productId : string;
-	quantity : number;
-	unit : string;
 	plannedDate : string;
+	notes ?: string;
+	products : { productId : string; quantity : number }[];
 }) : Promise<any> {
 	return request({
 		url: '/production-tasks', // 路由已更新
@@ -44,19 +44,5 @@ export function updateTaskStatus(
 		url: `/production-tasks/${taskId}`, // 路由已更新
 		method: 'PATCH',
 		data: { status },
-	});
-}
-
-
-/**
- * [新增] 批量创建生产任务
-
-
- */
-export function createTasks(tasks : { productId : string; quantity : number; plannedDate : string }[]) : Promise<ProductionTaskDto[]> {
-	return request({
-		url: '/tasks/batch', // 调用新的批量接口
-		method: 'POST',
-		data: { tasks }, // 将任务数组包装在 tasks 字段中
 	});
 }

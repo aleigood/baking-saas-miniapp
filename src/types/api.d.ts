@@ -95,22 +95,30 @@ export interface IngredientSKU {
 }
 
 // --- 生产任务 ---
+// [修改] 更新 ProductionTaskDto 以匹配新的多产品任务结构
+// (Modified: Update ProductionTaskDto to match the new multi-product task structure)
 export interface ProductionTaskDto {
 	id : string;
-	quantity : number;
-	unit : string;
 	status : 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 	plannedDate : string; // ISO Date String
-	product : {
+	notes : string | null;
+	// [修改] 从单个 product 变为 items 数组
+	// (Changed from a single product to an items array)
+	items : {
 		id : string;
-		name : string;
-		recipeVersion : {
-			family : {
-				name : string;
+		quantity : number;
+		product : {
+			id : string;
+			name : string;
+			recipeVersion : {
+				family : {
+					name : string;
+				};
 			};
 		};
-	};
+	}[];
 }
+
 
 // --- 团队成员 ---
 export interface Member {

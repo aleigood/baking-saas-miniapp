@@ -51,7 +51,7 @@
 	import { ref, computed, reactive } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
-	import { createTasks } from '@/api/tasks';
+	import { createTask } from '@/api/tasks'; // [修改] 导入新的 createTask 函数
 
 	const dataStore = useDataStore();
 	const isLoading = ref(false);
@@ -102,16 +102,19 @@
 		}
 	};
 
+	// [修改] 更新创建任务的逻辑以匹配新的API
+	// (Modified: Update task creation logic to match the new API)
 	const handleCreateTasks = async () => {
-		const tasksToCreate = Object.entries(taskQuantities)
+		const productsToCreate = Object.entries(taskQuantities)
 			.filter(([, quantity]) => quantity > 0)
 			.map(([productId, quantity]) => ({
 				productId,
 				quantity,
-				plannedDate: new Date().toISOString(),
+				// [移除] unit 字段，因为它已从 DTO 中删除
+				// (Removed: unit field, as it's removed from the DTO)
 			}));
 
-		if (tasksToCreate.length === 0) {
+		if (productsToCreate.length === 0) {
 			uni.showToast({ title: '请输入要生产的数量', icon: 'none' });
 			return;
 		}
@@ -119,7 +122,13 @@
 		isCreating.value = true;
 		uni.showLoading({ title: '正在生成任务...' });
 		try {
-			await createTasks(tasksToCreate);
+			// [修改] 构造新的请求体
+			// (Modified: Construct the new request body)
+			const payload = {
+				plannedDate: new Date().toISOString(),
+				products: productsToCreate,
+			};
+			await createTask(payload);
 			uni.hideLoading();
 			uni.showToast({ title: '任务创建成功', icon: 'success' });
 			await dataStore.fetchProductionData();
