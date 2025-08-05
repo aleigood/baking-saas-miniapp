@@ -11,29 +11,39 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<view class="card">
-					<view v-for="(group, groupName) in groupedProducts" :key="groupName" class="product-group">
-						<view class="group-title">{{ groupName }}</view>
+				<view v-for="(group, groupName) in groupedProducts" :key="groupName" class="card product-group">
+					<view class="group-title" @click="toggleGroup(groupName)">
+						<span>{{ groupName }}</span>
+						<span class="arrow" :class="{ collapsed: collapsedGroups.has(groupName) }">&#10094;</span>
+					</view>
+					<view v-show="!collapsedGroups.has(groupName)" class="product-list">
 						<view v-for="product in group" :key="product.id" class="product-item">
 							<view class="product-name">{{ product.name }}</view>
 							<view class="quantity-control">
-								<button class="btn-stepper" @click="decreaseQuantity(product.id)">-</button>
+								<!-- [核心修改] 使用 SVG 图标代替文字 -->
+								<button class="btn-stepper" @click="decreaseQuantity(product.id)">
+									<image class="stepper-icon"
+										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13H5v-2h14v2z'/%3E%3C/svg%3E" />
+								</button>
 								<input class="input-stepper" type="number"
 									v-model.number="taskQuantities[product.id]" />
-								<button class="btn-stepper" @click="increaseQuantity(product.id)">+</button>
+								<button class="btn-stepper" @click="increaseQuantity(product.id)">
+									<image class="stepper-icon"
+										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
+								</button>
 							</view>
 						</view>
 					</view>
 				</view>
-				<!-- [新增] 添加一个常驻的、更符合交互习惯的创建按钮 -->
-				<button class="btn btn-primary btn-full-width" :disabled="!hasTasksToCreate" @click="handleCreateTasks"
-					:loading="isCreating">
-					{{ isCreating ? '生成中...' : '生成任务' }}
-				</button>
 			</template>
 		</view>
-		<!-- [修改] 移除此处的 FAB 按钮 -->
-		<!-- <AppFab v-if="hasTasksToCreate" @click="handleCreateTasks" /> -->
+		<!-- [修改] 使用固定的底部按钮栏 -->
+		<view class="footer-bar">
+			<button class="btn btn-primary btn-full-width" :disabled="!hasTasksToCreate" @click="handleCreateTasks"
+				:loading="isCreating">
+				{{ isCreating ? '创建中...' : '创建任务' }}
+			</button>
+		</view>
 	</view>
 </template>
 
@@ -42,16 +52,15 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
 	import { createTasks } from '@/api/tasks';
-	import AppFab from '@/components/AppFab.vue';
 
 	const dataStore = useDataStore();
 	const isLoading = ref(false);
 	const isCreating = ref(false);
 	const taskQuantities = reactive<Record<string, number>>({});
+	const collapsedGroups = reactive(new Set<string>());
 
 	onShow(async () => {
 		isLoading.value = true;
-		// 页面显示时，确保配方数据已加载
 		if (!dataStore.dataLoaded.recipes) {
 			await dataStore.fetchRecipesData();
 		}
@@ -65,13 +74,20 @@
 				groups[groupName] = [];
 			}
 			groups[groupName].push(product);
-			// 初始化数量为0
 			if (taskQuantities[product.id] === undefined) {
 				taskQuantities[product.id] = 0;
 			}
 			return groups;
 		}, {} as Record<string, typeof dataStore.productList>);
 	});
+
+	const toggleGroup = (groupName : string) => {
+		if (collapsedGroups.has(groupName)) {
+			collapsedGroups.delete(groupName);
+		} else {
+			collapsedGroups.add(groupName);
+		}
+	};
 
 	const hasTasksToCreate = computed(() => {
 		return Object.values(taskQuantities).some(qty => qty > 0);
@@ -106,7 +122,6 @@
 			await createTasks(tasksToCreate);
 			uni.hideLoading();
 			uni.showToast({ title: '任务创建成功', icon: 'success' });
-			// 刷新主页面的数据
 			await dataStore.fetchProductionData();
 			uni.navigateBack();
 		} catch (error) {
@@ -126,7 +141,7 @@
 	@import '@/styles/common.scss';
 
 	.page-container {
-		padding-bottom: 20px;
+		padding-bottom: 100px;
 	}
 
 	.product-group {
@@ -134,12 +149,29 @@
 	}
 
 	.group-title {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 		font-size: 16px;
 		font-weight: 600;
 		color: var(--text-primary);
-		padding: 10px 5px;
+		padding: 0 5px 15px 5px;
 		border-bottom: 1px solid var(--border-color);
-		margin-bottom: 10px;
+	}
+
+	.arrow {
+		font-size: 14px;
+		color: var(--text-secondary);
+		transform: rotate(90deg);
+		transition: transform 0.3s ease;
+	}
+
+	.arrow.collapsed {
+		transform: rotate(-90deg);
+	}
+
+	.product-list {
+		padding-top: 10px;
 	}
 
 	.product-item {
@@ -162,12 +194,24 @@
 	.btn-stepper {
 		width: 30px;
 		height: 30px;
-		line-height: 30px;
 		padding: 0;
-		font-size: 20px;
 		background-color: #f3e9e3;
-		color: var(--text-secondary);
 		border-radius: 50%;
+		border: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+
+		/* [新增] 修复 uni-app 中 button 的默认边框问题 */
+		&::after {
+			border: none;
+		}
+	}
+
+	/* [新增] 步进器图标样式 */
+	.stepper-icon {
+		width: 16px;
+		height: 16px;
 	}
 
 	.input-stepper {
@@ -177,5 +221,17 @@
 		border: none;
 		background-color: var(--bg-color);
 		font-size: 16px;
+	}
+
+	.footer-bar {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		padding: 15px;
+		padding-bottom: calc(15px + constant(safe-area-inset-bottom));
+		padding-bottom: calc(15px + env(safe-area-inset-bottom));
+		background-color: var(--card-bg);
+		box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 	}
 </style>
