@@ -76,8 +76,9 @@
 					placeholder="例如：1000" />
 			</FormItem>
 			<view class="modal-actions">
-				<button class="btn-cancel" @click="showAddSkuModal = false">取消</button>
-				<button class="btn-confirm" @click="handleCreateSku" :loading="isSubmitting">
+				<!-- [修改] 使用新的统一按钮样式 -->
+				<button class="btn btn-secondary" @click="showAddSkuModal = false">取消</button>
+				<button class="btn btn-primary" @click="handleCreateSku" :loading="isSubmitting">
 					{{ isSubmitting ? '创建中...' : '确认创建' }}
 				</button>
 			</view>
@@ -101,8 +102,9 @@
 					placeholder="例如：25.5" />
 			</FormItem>
 			<view class="modal-actions">
-				<button class="btn-cancel" @click="showProcurementModal = false">取消</button>
-				<button class="btn-confirm" @click="handleCreateProcurement" :loading="isSubmitting">
+				<!-- [修改] 使用新的统一按钮样式 -->
+				<button class="btn btn-secondary" @click="showProcurementModal = false">取消</button>
+				<button class="btn btn-primary" @click="handleCreateProcurement" :loading="isSubmitting">
 					{{ isSubmitting ? '入库中...' : '确认入库' }}
 				</button>
 			</view>
@@ -334,30 +336,7 @@
 		text-align: left;
 	}
 
-	.modal-actions {
-		display: flex;
-		gap: 10px;
-		margin-top: 30px;
-	}
-
-	.modal-actions button {
-		flex: 1;
-		padding: 12px;
-		border: none;
-		border-radius: 12px;
-		font-size: 16px;
-		font-weight: 500;
-	}
-
-	.btn-cancel {
-		background-color: #f3e9e3;
-		color: var(--text-secondary);
-	}
-
-	.btn-confirm {
-		background-color: var(--primary-color);
-		color: white;
-	}
+	/* [修改] 移除旧的、分散的按钮样式，它们现在由 common.scss 全局控制 */
 
 	/* [修改] 将 filter-tabs 样式移到这里，因为它现在在两个地方使用 */
 	.filter-tabs {

@@ -4,7 +4,8 @@
 		<view class="form-card">
 			<input class="input-field" v-model="form.phone" placeholder="请输入手机号" type="tel" />
 			<input class="input-field" v-model="form.password" type="password" placeholder="请输入密码" />
-			<button class="login-btn" @click="handleLogin" :loading="loading">
+			<!-- [修改] 使用新的统一按钮样式 -->
+			<button class="btn btn-primary btn-full-width" @click="handleLogin" :loading="loading">
 				{{ loading ? '登录中...' : '登 录' }}
 			</button>
 		</view>
@@ -40,7 +41,10 @@
 		loading.value = false;
 	};
 </script>
-<style scoped>
+<style scoped lang="scss">
+	/* [修改] 引入全局样式，并移除局部按钮样式 */
+	@import '@/styles/common.scss';
+
 	.login-container {
 		display: flex;
 		flex-direction: column;
@@ -76,17 +80,5 @@
 		font-size: 16px;
 		box-sizing: border-box;
 		border: 1px solid var(--border-color);
-	}
-
-	.login-btn {
-		width: 100%;
-		height: 50px;
-		line-height: 50px;
-		border: none;
-		border-radius: 12px;
-		background-color: var(--primary-color);
-		color: white;
-		font-size: 18px;
-		margin-top: 10px;
 	}
 </style>

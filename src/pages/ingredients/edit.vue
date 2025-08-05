@@ -46,7 +46,8 @@
 				</FormItem>
 			</view>
 
-			<button class="btn-save-full" @click="handleSubmit" :loading="isSubmitting">
+			<!-- [修改] 使用新的统一按钮样式 -->
+			<button class="btn btn-primary btn-full-width" @click="handleSubmit" :loading="isSubmitting">
 				{{ isSubmitting ? '保存中...' : '保存并入库' }}
 			</button>
 		</view>
@@ -140,15 +141,5 @@
 		box-sizing: border-box;
 	}
 
-	.btn-save-full {
-		width: 100%;
-		padding: 14px;
-		border: none;
-		border-radius: 12px;
-		background-color: var(--primary-color);
-		color: white;
-		font-size: 16px;
-		margin-top: 30px;
-		font-weight: 500;
-	}
+	/* [修改] 移除旧的、分散的按钮样式，它们现在由 common.scss 全局控制 */
 </style>

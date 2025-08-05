@@ -20,7 +20,7 @@
 			<view v-for="(dough, doughIndex) in form.doughs" :key="doughIndex" class="card">
 				<view class="card-title-wrapper">
 					<span class="card-title">面团 {{ doughIndex + 1 }}</span>
-					<button v-if="form.doughs.length > 1" class="btn-danger-sm"
+					<button v-if="form.doughs.length > 1" class="btn btn-danger btn-sm"
 						@click="removeDough(doughIndex)">删除面团</button>
 				</view>
 				<FormItem label="面团名称">
@@ -31,17 +31,17 @@
 					<input class="input-field" v-model="ing.name" placeholder="原料名" />
 					<input class="input-field" type="number" v-model.number="ing.ratio" placeholder="比例%" />
 					<checkbox :checked="ing.isFlour" @click="ing.isFlour = !ing.isFlour">总粉</checkbox>
-					<button class="btn-danger-xs" @click="removeIngredient(doughIndex, ingIndex)">-</button>
+					<button class="btn btn-danger btn-xs" @click="removeIngredient(doughIndex, ingIndex)">-</button>
 				</view>
-				<button class="btn-add-sm" @click="addIngredient(doughIndex)">+ 添加原料</button>
+				<button class="btn btn-dashed btn-full-width" @click="addIngredient(doughIndex)">+ 添加原料</button>
 			</view>
-			<button class="btn-add" @click="addDough">+ 添加面团</button>
+			<button class="btn btn-dashed btn-full-width" @click="addDough">+ 添加面团</button>
 
 			<!-- 最终产品部分 -->
 			<view v-for="(product, prodIndex) in form.products" :key="prodIndex" class="card">
 				<view class="card-title-wrapper">
 					<span class="card-title">最终产品 {{ prodIndex + 1 }}</span>
-					<button v-if="form.products.length > 1" class="btn-danger-sm"
+					<button v-if="form.products.length > 1" class="btn btn-danger btn-sm"
 						@click="removeProduct(prodIndex)">删除产品</button>
 				</view>
 				<FormItem label="产品名称">
@@ -51,9 +51,9 @@
 					<input class="input-field" type="number" v-model.number="product.weight" placeholder="例如：100" />
 				</FormItem>
 			</view>
-			<button class="btn-add" @click="addProduct">+ 添加最终产品</button>
+			<button class="btn btn-dashed btn-full-width" @click="addProduct">+ 添加最终产品</button>
 
-			<button class="btn-save-full" @click="handleSubmit" :loading="isSubmitting">
+			<button class="btn btn-primary btn-full-width" @click="handleSubmit" :loading="isSubmitting">
 				{{ isSubmitting ? '保存中...' : '保存配方' }}
 			</button>
 		</view>
@@ -224,46 +224,5 @@
 		}
 	}
 
-	.btn-add,
-	.btn-add-sm {
-		width: 100%;
-		padding: 10px;
-		border: 1px dashed var(--primary-color);
-		color: var(--primary-color);
-		background: transparent;
-		border-radius: 10px;
-		margin-top: 10px;
-		font-size: 14px;
-	}
-
-	.btn-add {
-		margin-bottom: 20px;
-	}
-
-	.btn-danger-sm,
-	.btn-danger-xs {
-		background-color: #fdecea;
-		color: var(--danger-color);
-		border: none;
-		border-radius: 8px;
-		font-size: 12px;
-		padding: 5px 10px;
-		line-height: 1.5;
-	}
-
-	.btn-danger-xs {
-		padding: 4px 8px;
-	}
-
-	.btn-save-full {
-		width: 100%;
-		padding: 14px;
-		border: none;
-		border-radius: 12px;
-		background-color: var(--primary-color);
-		color: white;
-		font-size: 16px;
-		margin-top: 30px;
-		font-weight: 500;
-	}
+	/* [修改] 移除旧的、分散的按钮样式，它们现在由 common.scss 全局控制 */
 </style>

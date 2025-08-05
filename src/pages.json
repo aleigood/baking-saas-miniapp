@@ -6,6 +6,12 @@
 			}
 		},
 		{
+			"path": "pages/production/create",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/ingredients/ingredients",
 			"style": {
 				"navigationStyle": "custom"
@@ -36,7 +42,19 @@
 			}
 		},
 		{
+			"path": "pages/recipes/detail",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/personnel/personnel",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/personnel/detail",
 			"style": {
 				"navigationStyle": "custom"
 			}

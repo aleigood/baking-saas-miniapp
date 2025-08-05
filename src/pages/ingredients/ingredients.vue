@@ -16,11 +16,17 @@
 				<view>
 					<view class="card">
 						<view class="card-title"><span>本月消耗统计</span></view>
-						<view v-for="(item, index) in dataStore.ingredientStats" :key="item.name" class="stats-item">
-							<span class="rank">{{ index + 1 }}</span>
-							<span class="name">{{ item.name }}</span>
-							<span class="count">{{ (item.consumedGrams / 1000).toFixed(2) }} kg</span>
+						<!-- [修改] 增加 v-if 判断 -->
+						<view v-if="dataStore.ingredientStats.length > 0">
+							<view v-for="(item, index) in dataStore.ingredientStats" :key="item.name"
+								class="stats-item">
+								<span class="rank">{{ index + 1 }}</span>
+								<span class="name">{{ item.name }}</span>
+								<span class="count">{{ (item.consumedGrams / 1000).toFixed(2) }} kg</span>
+							</view>
 						</view>
+						<!-- [新增] 无数据时的占位符 -->
+						<view v-else class="empty-state" style="padding: 20px 0">暂无消耗统计</view>
 					</view>
 					<view class="filter-tabs">
 						<view class="filter-tab" :class="{ active: ingredientFilter === 'all' }"
@@ -45,11 +51,8 @@
 				</view>
 			</template>
 		</view>
-		<!-- [修改] 将 "+" 替换为 SVG 图标 -->
-		<view class="fab" @click="navigateToEditPage">
-			<image class="fab-icon"
-				src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
-		</view>
+		<!-- [核心修改] 使用 AppFab 组件 -->
+		<AppFab @click="navigateToEditPage" />
 
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
@@ -67,6 +70,7 @@
 	import { useDataStore } from '@/store/data';
 	import type { IngredientSKU } from '@/types/api';
 	import AppModal from '@/components/AppModal.vue';
+	import AppFab from '@/components/AppFab.vue'; // [新增] 引入 AppFab 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
