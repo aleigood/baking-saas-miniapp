@@ -60,8 +60,8 @@
 			<text>加载中...</text>
 		</view>
 
-		<!-- FAB按钮用于“新增采购” -->
-		<view class="fab" @click="openProcurementModal">+</view>
+		<!-- [核心修改] 使用 AppFab 组件 -->
+		<AppFab @click="openProcurementModal" />
 
 		<!-- 模态框 -->
 		<AppModal v-model:visible="showAddSkuModal" title="新增品牌规格">
@@ -118,6 +118,7 @@
 	import { createSku, createProcurement, setActiveSku } from '@/api/ingredients';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
+	import AppFab from '@/components/AppFab.vue'; // [新增] 引入 AppFab 组件
 
 	const dataStore = useDataStore();
 	const isLoading = ref(true);

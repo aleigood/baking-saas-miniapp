@@ -41,7 +41,8 @@
 			</template>
 		</view>
 
-		<view class="fab" @click="openCreateModal">+</view>
+		<!-- [核心修改] 使用 AppFab 组件 -->
+		<AppFab @click="openCreateModal" />
 
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
@@ -87,6 +88,7 @@
 	import { createTask } from '@/api/tasks';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
+	import AppFab from '@/components/AppFab.vue'; // [新增] 引入 AppFab 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();

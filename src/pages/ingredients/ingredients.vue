@@ -45,8 +45,11 @@
 				</view>
 			</template>
 		</view>
-		<!-- FAB按钮用于“新增原料” -->
-		<view class="fab" @click="navigateToEditPage">+</view>
+		<!-- [修改] 将 "+" 替换为 SVG 图标 -->
+		<view class="fab" @click="navigateToEditPage">
+			<image class="fab-icon"
+				src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
+		</view>
 
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"

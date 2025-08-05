@@ -1,10 +1,10 @@
 /* Page layout */
 .page-container { padding-bottom: 80px; }
-/* 增加了上下的 padding，以提高标题栏的整体高度 */
+/* [核心修改] 增加了上下的 padding，以提高标题栏的整体高度 */
 .page-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px 20px; padding-top: calc(var(--status-bar-height) + 20px); background: transparent; position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(180%) blur(20px); background-color: rgba(253, 248, 242, 0.85); }
 .store-selector { font-size: 18px; font-weight: 600; }
 .user-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; background-color: var(--primary-color); }
-/* 为内容区域增加上下内边距 */
+/* [核心修改] 为内容区域增加上下内边距 */
 .page-content { padding: 15px; }
 /* Card and List */
 .card { background: var(--card-bg); padding: 20px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
@@ -20,9 +20,45 @@
 .side-info { text-align: right; }
 .side-info .value { font-weight: 500; }
 .side-info .desc { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
-/* FAB */
-.fab { position: fixed; bottom: 85px; right: 20px; width: 56px; height: 56px; background-color: var(--primary-color); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 30px; line-height: 1; box-shadow: 0 6px 20px rgba(140,90,59,0.3); z-index: 20; }
-/* 统一详情页和编辑页的头部样式 */
+
+/* [核心修改] FAB 样式更新，增加水波纹效果 */
+.fab { 
+    position: fixed; 
+    bottom: 85px; 
+    right: 20px; 
+    width: 56px; 
+    height: 56px; 
+    background-color: var(--primary-color); 
+    color: white; 
+    border-radius: 50%; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    box-shadow: 0 6px 20px rgba(140,90,59,0.3); 
+    z-index: 20; 
+    overflow: hidden; /* [新增] 隐藏溢出的伪元素 */
+    transform: translateZ(0); /* [新增] 提高渲染性能 */
+}
+.fab::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100px; /* 波纹的尺寸 */
+    height: 100px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+}
+.fab:active::after {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+    transition: transform 0.4s ease-out, opacity 0.4s ease-out; /* [新增] 定义动画过程 */
+}
+.fab-icon { width: 32px; height: 32px; z-index: 1; /* [新增] 确保图标在波纹之上 */ } 
+
+/* [核心修改] 统一详情页和编辑页的头部样式 */
 .detail-header { display: flex; align-items: center; width: 100%; }
 .back-btn { font-size: 22px; cursor: pointer; margin-right: 15px; color: var(--text-secondary); padding: 5px; }
 .detail-title { font-size: 20px; font-weight: 600; /* [修改] 降低字重和字号 */ flex: 1; /* [新增] 占据剩余空间 */ }

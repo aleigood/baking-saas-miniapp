@@ -116,7 +116,8 @@
 				</view>
 			</template>
 		</view>
-		<view v-if="!selectedRecipeFamily && canEditRecipe" class="fab" @click="navigateToEditPage(null)">+</view>
+		<!-- [核心修改] 使用 AppFab 组件 -->
+		<AppFab v-if="!selectedRecipeFamily && canEditRecipe" @click="navigateToEditPage(null)" />
 
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
 			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
@@ -136,6 +137,7 @@
 	import type { RecipeFamily, RecipeVersion } from '@/types/api';
 	import { getRecipeFamily, activateRecipeVersion } from '@/api/recipes';
 	import AppModal from '@/components/AppModal.vue';
+	import AppFab from '@/components/AppFab.vue'; // [新增] 引入 AppFab 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
