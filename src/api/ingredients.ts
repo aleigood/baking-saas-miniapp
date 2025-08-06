@@ -15,6 +15,17 @@ export function getIngredients() : Promise<Ingredient[]> {
 }
 
 /**
+ * [新增] 获取单个原料的详细信息
+ * @param ingredientId 原料的ID
+ */
+export function getIngredient(ingredientId : string) : Promise<Ingredient> {
+	return request<Ingredient>({
+		url: `/ingredients/${ingredientId}`,
+	});
+}
+
+
+/**
  * [新增] 创建一个新的原料品类
  * @param data 包含原料名称等信息
  */

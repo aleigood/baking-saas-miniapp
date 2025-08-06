@@ -1,23 +1,24 @@
 <template>
 	<view class="page-container">
-		<!-- [核心重构] 详情页现在拥有独立的页面结构 -->
-		<!-- [修改] 统一使用 page-header 作为顶部容器 -->
+		<!-- 页面头部 -->
 		<view class="page-header">
 			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">{{ selectedIngredient?.name || '加载中...' }}</h2>
+				<h2 class="detail-title">{{ ingredient?.name || '加载中...' }}</h2>
 			</view>
 		</view>
 
-		<view class="page-content" v-if="!isLoading && selectedIngredient">
+		<view class="page-content" v-if="!isLoading && ingredient">
 			<view class="detail-page">
-				<!-- 1. 页面顶部：核心信息区 -->
+				<!-- 1. 核心信息区 -->
+				<!-- [核心修改] 调整 tag-group 样式和内容 -->
 				<view class="tag-group">
-					<span class="tag">品牌: {{ selectedIngredient.activeSku?.brand || '未设置' }}</span>
-					<span class="tag">单价: ¥{{ getPricePerKg(selectedIngredient.activeSku) }}/kg</span>
+					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
+					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
+					<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
 				</view>
 
-				<!-- 2. 页面中部：数据洞察区 -->
+				<!-- 2. 数据洞察区 -->
 				<view class="card">
 					<view class="filter-tabs" style="margin-bottom: 20px; justify-content: center;">
 						<view class="filter-tab" :class="{ active: detailChartTab === 'price' }"
@@ -29,30 +30,46 @@
 							历史用量
 						</view>
 					</view>
-					<view v-if="detailChartTab === 'price'" class="mock-chart">
-						模拟价格曲线图表区域
-					</view>
+					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" unit-suffix="/kg" />
 					<view v-if="detailChartTab === 'usage'" class="mock-chart">
 						模拟历史用量图表区域
 					</view>
 				</view>
 
-				<!-- 3. 页面下部：品牌与库存管理区 -->
-				<view class="card">
-					<view class="card-title">品牌与库存管理 (SKU)</view>
-					<view v-for="sku in selectedIngredient.skus" :key="sku.id" class="list-item sku-item"
-						@click="handleActivateSku(sku)">
+				<!-- 3. 品牌与库存管理区 -->
+				<view class="card card-full-bleed-list">
+					<view class="card-title-wrapper">
+						<span class="card-title">品牌与库存管理 (SKU)</span>
+					</view>
+					<view v-for="sku in ingredient.skus" :key="sku.id" class="list-item sku-item"
+						:class="{ 'item-selected': selectedSkuId === sku.id }" hover-class="item-hover"
+						@click="handleSkuClick(sku)" @longpress="handleSkuLongPress(sku)">
 						<view class="main-info">
 							<view class="name">{{ sku.brand || '无品牌' }} - {{ sku.specName }}</view>
-							<view class="desc">库存: {{ (sku.currentStockInGrams / 1000).toFixed(2) }} kg | 单价: ¥{{
-                    getPricePerKg(sku) }}/kg</view>
+							<view class="desc">添加于: {{ new Date(sku.createdAt).toLocaleDateString() }}</view>
 						</view>
 						<view class="side-info">
-							<span v-if="sku.id === selectedIngredient.activeSkuId" class="status-tag active">当前激活</span>
-							<span v-else class="arrow">&#10095;</span>
+							<span v-if="sku.id === ingredient.activeSkuId" class="status-tag active">使用中</span>
 						</view>
 					</view>
 					<button class="btn-add-sm" @click="openAddSkuModal">+ 新增品牌规格</button>
+				</view>
+
+				<!-- 4. [核心新增] 采购记录卡片 -->
+				<view class="card" v-if="selectedSku">
+					<view class="card-title">{{ selectedSku.brand || '无品牌' }} - {{ selectedSku.specName }} 的采购记录
+					</view>
+					<view v-if="selectedSku.procurementRecords && selectedSku.procurementRecords.length > 0">
+						<view v-for="record in selectedSku.procurementRecords" :key="record.id"
+							class="procurement-item">
+							<text>{{ new Date(record.purchaseDate).toLocaleDateString() }}</text>
+							<text>{{ record.packagesPurchased }} 包 x ¥{{ Number(record.pricePerPackage).toFixed(2)
+							}}</text>
+						</view>
+					</view>
+					<view v-else class="procurement-item empty">
+						无采购记录
+					</view>
 				</view>
 			</view>
 		</view>
@@ -60,8 +77,7 @@
 			<text>加载中...</text>
 		</view>
 
-		<!-- [核心修改] 使用 AppFab 组件 -->
-		<AppFab @click="openProcurementModal" />
+		<AppFab @click="openProcurementModal" class="fab-no-tab-bar" />
 
 		<!-- 模态框 -->
 		<AppModal v-model:visible="showAddSkuModal" title="新增品牌规格">
@@ -76,7 +92,6 @@
 					placeholder="例如：1000" />
 			</FormItem>
 			<view class="modal-actions">
-				<!-- [修改] 使用新的统一按钮样式 -->
 				<button class="btn btn-secondary" @click="showAddSkuModal = false">取消</button>
 				<button class="btn btn-primary" @click="handleCreateSku" :loading="isSubmitting">
 					{{ isSubmitting ? '创建中...' : '确认创建' }}
@@ -85,13 +100,8 @@
 		</AppModal>
 
 		<AppModal v-model:visible="showProcurementModal" title="新增采购">
-			<FormItem label="选择SKU">
-				<picker mode="selector" :range="procurementSkuOptions" range-key="name"
-					@change="onProcurementSkuChange">
-					<view class="picker">
-						{{ selectedProcurementSkuName || '请选择采购的商品' }}
-					</view>
-				</picker>
+			<FormItem label="采购商品">
+				<input class="input-field" :value="activeSkuName" readonly disabled />
 			</FormItem>
 			<FormItem label="采购包数">
 				<input class="input-field" type="number" v-model.number="procurementForm.packagesPurchased"
@@ -102,11 +112,16 @@
 					placeholder="例如：25.5" />
 			</FormItem>
 			<view class="modal-actions">
-				<!-- [修改] 使用新的统一按钮样式 -->
 				<button class="btn btn-secondary" @click="showProcurementModal = false">取消</button>
 				<button class="btn btn-primary" @click="handleCreateProcurement" :loading="isSubmitting">
 					{{ isSubmitting ? '入库中...' : '确认入库' }}
 				</button>
+			</view>
+		</AppModal>
+
+		<AppModal v-model:visible="showSkuActionsModal" title="SKU 操作">
+			<view class="list-item" hover-class="item-hover" @click="handleActivateFromModal">
+				设为使用中
 			</view>
 		</AppModal>
 	</view>
@@ -117,15 +132,17 @@
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
 	import type { Ingredient, IngredientSKU } from '@/types/api';
-	import { createSku, createProcurement, setActiveSku } from '@/api/ingredients';
+	import { getIngredient, createSku, createProcurement, setActiveSku } from '@/api/ingredients';
+	import { getIngredientCostHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
-	import AppFab from '@/components/AppFab.vue'; // [新增] 引入 AppFab 组件
+	import AppFab from '@/components/AppFab.vue';
+	import LineChart from '@/components/LineChart.vue';
 
 	const dataStore = useDataStore();
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
-	const selectedIngredient = ref<Ingredient | null>(null);
+	const ingredient = ref<Ingredient | null>(null);
 	const detailChartTab = ref<'price' | 'usage'>('price');
 	const showAddSkuModal = ref(false);
 	const newSkuForm = ref({
@@ -141,27 +158,56 @@
 		purchaseDate: new Date().toISOString(),
 	});
 
-	// 页面加载时，从路由参数获取ingredientId并加载数据
+	const costHistory = ref<{ cost : number }[]>([]);
+	const showSkuActionsModal = ref(false);
+	const selectedSkuForAction = ref<IngredientSKU | null>(null);
+	const selectedSkuId = ref<string | null>(null);
+
 	onLoad(async (options) => {
 		const ingredientId = options?.ingredientId;
 		if (ingredientId) {
-			// 从 Pinia store 中查找数据，如果不存在则发起API请求（此处简化为直接从store获取）
-			const ingredientFromStore = dataStore.ingredients.find(i => i.id === ingredientId);
-			if (ingredientFromStore) {
-				selectedIngredient.value = JSON.parse(JSON.stringify(ingredientFromStore)); // 深拷贝以避免直接修改store
-			} else {
-				// 如果store中没有，可以考虑发起一个API请求获取单个原料详情
-				console.warn("Ingredient not found in store, consider fetching from API.");
-			}
+			await loadIngredientData(ingredientId);
+		} else {
+			uni.showToast({ title: '无效的原料ID', icon: 'none' });
+			isLoading.value = false;
 		}
-		isLoading.value = false;
 	});
 
-	const getPricePerKg = (sku : IngredientSKU | null) => {
-		if (!sku || !sku.specWeightInGrams || !sku.currentPricePerPackage) {
+	const loadIngredientData = async (id : string) => {
+		isLoading.value = true;
+		try {
+			const [ingredientData, historyData] = await Promise.all([
+				getIngredient(id),
+				getIngredientCostHistory(id)
+			]);
+			ingredient.value = ingredientData;
+			costHistory.value = historyData;
+			if (ingredientData.activeSkuId) {
+				selectedSkuId.value = ingredientData.activeSkuId;
+			} else if (ingredientData.skus.length > 0) {
+				selectedSkuId.value = ingredientData.skus[0].id;
+			}
+		} catch (error) {
+			console.error("Failed to load ingredient data:", error);
+			uni.showToast({ title: '数据加载失败', icon: 'none' });
+		} finally {
+			isLoading.value = false;
+		}
+	};
+
+	const getIngredientPricePerKg = (ing : Ingredient | null) => {
+		if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
 			return '0.00';
 		}
-		return ((Number(sku.currentPricePerPackage) / sku.specWeightInGrams) * 1000).toFixed(2);
+		return ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000).toFixed(2);
+	};
+
+	const getSkuPricePerKg = (sku : IngredientSKU) => {
+		const latestRecord = sku.procurementRecords?.[0];
+		if (!latestRecord || !sku.specWeightInGrams) {
+			return 'N/A';
+		}
+		return ((Number(latestRecord.pricePerPackage) / sku.specWeightInGrams) * 1000).toFixed(2);
 	};
 
 	const navigateBack = () => {
@@ -169,62 +215,46 @@
 	};
 
 	const openAddSkuModal = () => {
-		newSkuForm.value = {
-			brand: '',
-			specName: '',
-			specWeightInGrams: 0,
-		};
+		newSkuForm.value = { brand: '', specName: '', specWeightInGrams: 0 };
 		showAddSkuModal.value = true;
 	};
 
 	const handleCreateSku = async () => {
-		if (!selectedIngredient.value) return;
+		if (!ingredient.value) return;
 		if (!newSkuForm.value.specName || !newSkuForm.value.specWeightInGrams) {
 			uni.showToast({ title: '请填写规格名称和重量', icon: 'none' });
 			return;
 		}
 		isSubmitting.value = true;
 		try {
-			await createSku(selectedIngredient.value.id, newSkuForm.value);
+			await createSku(ingredient.value.id, newSkuForm.value);
 			uni.showToast({ title: '创建成功', icon: 'success' });
 			showAddSkuModal.value = false;
+			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
-			const updatedIngredient = dataStore.ingredients.find(i => i.id === selectedIngredient.value!.id);
-			if (updatedIngredient) {
-				selectedIngredient.value = updatedIngredient;
-			}
 		} finally {
 			isSubmitting.value = false;
 		}
 	};
 
-	const procurementSkuOptions = computed(() => {
-		if (!selectedIngredient.value) return [];
-		return selectedIngredient.value.skus.map(sku => ({
-			id: sku.id,
-			name: `${sku.brand || '无品牌'} (${sku.specName})`
-		}));
-	});
-
-	const selectedProcurementSkuName = computed(() => {
-		return procurementSkuOptions.value.find(o => o.id === procurementForm.value.skuId)?.name || '';
+	const activeSkuName = computed(() => {
+		if (!ingredient.value?.activeSku) return '无激活SKU';
+		const sku = ingredient.value.activeSku;
+		return `${sku.brand || '无品牌'} (${sku.specName})`;
 	});
 
 	const openProcurementModal = () => {
+		if (!ingredient.value?.activeSkuId) {
+			uni.showToast({ title: '请先激活一个SKU才能进行采购', icon: 'none' });
+			return;
+		}
 		procurementForm.value = {
-			skuId: '',
+			skuId: ingredient.value.activeSkuId,
 			packagesPurchased: 0,
 			pricePerPackage: 0,
 			purchaseDate: new Date().toISOString(),
 		};
-		if (selectedIngredient.value && selectedIngredient.value.activeSkuId) {
-			procurementForm.value.skuId = selectedIngredient.value.activeSkuId;
-		}
 		showProcurementModal.value = true;
-	};
-
-	const onProcurementSkuChange = (e : any) => {
-		procurementForm.value.skuId = procurementSkuOptions.value[e.detail.value].id;
 	};
 
 	const handleCreateProcurement = async () => {
@@ -237,56 +267,62 @@
 			await createProcurement(procurementForm.value);
 			uni.showToast({ title: '入库成功', icon: 'success' });
 			showProcurementModal.value = false;
+			await loadIngredientData(ingredient.value!.id);
 			await dataStore.fetchIngredientsData();
-			const updatedIngredient = dataStore.ingredients.find(i => i.id === selectedIngredient.value!.id);
-			if (updatedIngredient) {
-				selectedIngredient.value = updatedIngredient;
-			}
 		} finally {
 			isSubmitting.value = false;
 		}
 	};
 
-	const handleActivateSku = (sku : IngredientSKU) => {
-		if (!selectedIngredient.value || sku.id === selectedIngredient.value.activeSkuId) {
+	const handleSkuClick = (sku : IngredientSKU) => {
+		selectedSkuId.value = sku.id;
+	};
+
+	const handleSkuLongPress = (sku : IngredientSKU) => {
+		if (!ingredient.value || sku.id === ingredient.value.activeSkuId) {
 			return;
 		}
-		uni.showModal({
-			title: '确认操作',
-			content: `确定要将 "${sku.brand} - ${sku.specName}" 设为当前激活的采购和计价单位吗？`,
-			success: async (res) => {
-				if (res.confirm) {
-					uni.showLoading({ title: '正在激活...' });
-					try {
-						await setActiveSku(selectedIngredient.value!.id, sku.id);
-						uni.hideLoading();
-						uni.showToast({ title: '激活成功', icon: 'success' });
-						await dataStore.fetchIngredientsData();
-						const updatedIngredient = dataStore.ingredients.find(i => i.id === selectedIngredient.value!.id);
-						if (updatedIngredient) {
-							selectedIngredient.value = updatedIngredient;
-						}
-					} catch (error) {
-						uni.hideLoading();
-					}
-				}
-			}
-		});
+		selectedSkuForAction.value = sku;
+		showSkuActionsModal.value = true;
 	};
+
+	const handleActivateFromModal = async () => {
+		if (!selectedSkuForAction.value || !ingredient.value) return;
+		const sku = selectedSkuForAction.value;
+		showSkuActionsModal.value = false;
+
+		uni.showLoading({ title: '正在激活...' });
+		try {
+			await setActiveSku(ingredient.value.id, sku.id);
+			uni.hideLoading();
+			uni.showToast({ title: '激活成功', icon: 'success' });
+			await loadIngredientData(ingredient.value.id);
+			await dataStore.fetchIngredientsData();
+		} catch (error) {
+			uni.hideLoading();
+		}
+	};
+
+	const selectedSku = computed(() => {
+		if (!ingredient.value || !selectedSkuId.value) return null;
+		return ingredient.value.skus.find(s => s.id === selectedSkuId.value) || null;
+	});
 </script>
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [新增] 详情页独有样式 */
 	.page-container {
-		/* 详情页不需要为底部导航留出空间 */
-		padding-bottom: 20px;
+		padding-bottom: 80px;
 	}
 
 	.detail-page .tag-group {
+		/* [核心修改] 调整内边距和flex布局，实现左对齐 */
 		margin-bottom: 20px;
-		padding: 0 20px;
+		padding: 0 5px;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
 	}
 
 	.sku-item .side-info {
@@ -306,20 +342,19 @@
 		}
 	}
 
-	.arrow {
-		color: var(--text-secondary);
-		font-size: 18px;
-	}
-
 	.btn-add-sm {
 		width: 100%;
-		padding: 10px;
-		border: 1px dashed var(--primary-color);
+		padding: 8px;
+		border: none;
 		color: var(--primary-color);
 		background: transparent;
 		border-radius: 10px;
 		margin-top: 10px;
 		font-size: 14px;
+
+		&::after {
+			border: none;
+		}
 	}
 
 	.picker,
@@ -336,9 +371,11 @@
 		text-align: left;
 	}
 
-	/* [修改] 移除旧的、分散的按钮样式，它们现在由 common.scss 全局控制 */
+	.input-field[disabled] {
+		background-color: #e9ecef;
+		color: #6c757d;
+	}
 
-	/* [修改] 将 filter-tabs 样式移到这里，因为它现在在两个地方使用 */
 	.filter-tabs {
 		display: flex;
 		gap: 10px;
@@ -355,5 +392,67 @@
 	.filter-tab.active {
 		background: var(--primary-color);
 		color: white;
+	}
+
+	.procurement-item {
+		display: flex;
+		justify-content: space-between;
+		font-size: 13px;
+		color: var(--text-secondary);
+		padding: 8px 5px;
+		border-bottom: 1px solid var(--border-color);
+
+		&:last-child {
+			border-bottom: none;
+		}
+
+		&.empty {
+			justify-content: center;
+			color: #b0a8a2;
+			border-bottom: none;
+		}
+	}
+
+	.list-item {
+		position: relative;
+		/* #ifdef H5 */
+		cursor: pointer;
+		/* #endif */
+		transition: background-color 0.2s ease;
+	}
+
+	.item-hover {
+		background-color: #f9f9f9;
+	}
+
+	.list-item.item-selected {
+		background-color: transparent;
+	}
+
+	.list-item.item-selected::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 4px;
+		height: 50%;
+		background-color: var(--primary-color);
+		border-radius: 0 4px 4px 0;
+	}
+
+	.card-full-bleed-list {
+		padding-left: 0;
+		padding-right: 0;
+	}
+
+	.card-full-bleed-list .card-title-wrapper {
+		padding-left: 20px;
+		padding-right: 20px;
+	}
+
+	.card-full-bleed-list .list-item {
+		padding-left: 20px;
+		padding-right: 20px;
 	}
 </style>

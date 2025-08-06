@@ -13,10 +13,11 @@
 				</circle>
 			</g>
 
-			<!-- [核心修复] 数据标签 (数值)，使用 foreignObject 提高兼容性 -->
+			<!-- 数据标签 (数值) -->
 			<g class="data-labels">
-				<foreignObject v-for="point in points" :key="`label-${point.x}`" :x="point.x - 25" :y="point.y - 25"
-					width="50" height="20">
+				<!-- [核心修改] getLabelXPosition 方法会动态计算 x 坐标以防止溢出 -->
+				<foreignObject v-for="(point, index) in points" :key="`label-${point.x}`"
+					:x="getLabelXPosition(point, index)" :y="point.y - 25" :width="labelWidth" height="20">
 					<view xmlns="http://www.w3.org/1999/xhtml" class="label-div">
 						{{ point.label }}
 					</view>
@@ -27,7 +28,7 @@
 
 		<!-- 当数据不足时显示提示 -->
 		<view v-if="!chartData || chartData.length <= 1" class="chart-placeholder">
-			需要至少两次采购记录才能生成成本曲线
+			需要至少两次记录才能生成曲线
 		</view>
 	</view>
 </template>
@@ -35,19 +36,30 @@
 <script setup lang="ts">
 	import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 
-	const props = defineProps<{
-		chartData : { cost : number }[];
-	}>();
+	const props = defineProps({
+		chartData: {
+			type: Array as () => { cost : number }[],
+			default: () => [],
+		},
+		// [核心新增] 允许自定义单位前缀
+		unitPrefix: {
+			type: String,
+			default: '¥',
+		},
+		// [核心新增] 允许自定义单位后缀
+		unitSuffix: {
+			type: String,
+			default: '/kg',
+		},
+	});
 
-	// 动态获取图表容器宽度
 	const chartWidth = ref(0);
 	const height = 180;
-	// 调整内边距以适应没有坐标轴的布局
 	const padding = { top: 30, right: 20, bottom: 20, left: 20 };
+	const labelWidth = 70; // 标签容器宽度
 
 	onMounted(() => {
 		const instance = getCurrentInstance();
-		// 增加一个小的延时，确保容器已经渲染完成
 		setTimeout(() => {
 			const query = uni.createSelectorQuery().in(instance);
 			query.select('#chart-container').boundingClientRect(data => {
@@ -64,7 +76,7 @@
 
 	const yRange = computed(() => {
 		const range = yMax.value - yMin.value;
-		if (range === 0) return { min: yMin.value > 0.001 ? yMin.value - 0.001 : 0, max: yMax.value + 0.001 };
+		if (range === 0) return { min: yMin.value > 0.01 ? yMin.value - 0.01 : 0, max: yMax.value + 0.01 };
 		const buffer = range * 0.2;
 		return { min: Math.max(0, yMin.value - buffer), max: yMax.value + buffer };
 	});
@@ -83,12 +95,12 @@
 			max - min);
 	});
 
-	// 在计算坐标的同时，预先格式化好标签文本
 	const points = computed(() => {
 		return dataValues.value.map((value, index) => ({
 			x: xScale.value(index),
 			y: yScale.value(value),
-			label: value.toFixed(4), // 预先计算好标签
+			// [核心修改] 使用 props 中的单位
+			label: `${props.unitPrefix}${value.toFixed(2)}${props.unitSuffix}`,
 		}));
 	});
 
@@ -105,6 +117,18 @@
 		});
 		return path.join(' ');
 	});
+
+	// [核心新增] 计算标签的 x 坐标，防止溢出
+	const getLabelXPosition = (point : { x : number }, index : number) => {
+		const centeredX = point.x - (labelWidth / 2);
+		if (centeredX < 0) {
+			return 0; // 如果超出左边界，则贴左
+		}
+		if (centeredX + labelWidth > chartWidth.value) {
+			return chartWidth.value - labelWidth; // 如果超出右边界，则贴右
+		}
+		return centeredX; // 默认居中
+	};
 </script>
 
 <style scoped>
@@ -112,7 +136,6 @@
 		width: 100%;
 		height: 180px;
 		position: relative;
-		/* [核心修改] 应用新的背景样式 */
 		background-color: #faf8f5;
 		border-radius: 16px;
 	}
@@ -125,21 +148,17 @@
 
 	.line {
 		fill: none;
-		/* [核心修改] 调整曲线颜色以适应新的背景 */
 		stroke: var(--primary-color);
 		stroke-width: 2;
 	}
 
 	.data-points circle {
-		/* [核心修改] 调整数据点颜色 */
 		fill: var(--primary-color);
 	}
 
-	/* [核心修复] 使用 div 来渲染文本 */
 	.label-div {
 		font-size: 12px;
 		font-weight: bold;
-		/* [核心修改] 调整文本颜色 */
 		color: var(--primary-color);
 		text-align: center;
 		width: 100%;
@@ -156,7 +175,6 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
-		/* [核心修改] 调整占位文本颜色以适应浅色背景 */
 		color: #ced4da;
 		font-size: 14px;
 	}

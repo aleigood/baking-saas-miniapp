@@ -14,3 +14,14 @@ export function getProductCostHistory(productId : string) : Promise<{ cost : num
 		url: `/costing/products/${productId}/cost-history`,
 	});
 }
+
+/**
+ * [新增] 获取单个原料成本的历史变化记录
+ * @param ingredientId 原料的ID
+ * @returns 返回一个包含成本变化点的数组，每个点是一个 { cost: number } 对象
+ */
+export function getIngredientCostHistory(ingredientId : string) : Promise<{ cost : number }[]> {
+	return request<{ cost : number }[]>({
+		url: `/costing/ingredients/${ingredientId}/cost-history`,
+	});
+}

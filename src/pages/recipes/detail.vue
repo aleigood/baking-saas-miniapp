@@ -8,17 +8,19 @@
 		</view>
 		<view class="page-content" v-if="!isLoading && recipeFamily">
 			<view class="detail-page">
+				<!-- [核心修改] 调整 tag-group 样式和内容 -->
 				<view class="tag-group">
-					<span class="tag">类型: {{ getRecipeTypeDisplay(recipeFamily.type) }}</span>
+					<span class="tag" v-for="productName in productNames" :key="productName">{{ productName }}</span>
+					<span v-if="productNames.length === 0" class="tag">暂无产品</span>
 				</view>
 
 				<!-- 1. 成本变化曲线 -->
-				<!-- [核心修改] 移除通栏样式，让卡片恢复默认内边距 -->
 				<view class="card">
 					<view class="card-title-wrapper">
 						<span class="card-title">成本变化曲线</span>
 					</view>
-					<LineChart :chart-data="costHistory" />
+					<!-- [核心修改] 传入单位后缀 -->
+					<LineChart :chart-data="costHistory" unit-suffix="/个" />
 				</view>
 
 				<!-- 2. 版本历史 -->
@@ -153,6 +155,14 @@
 
 	const activeVersion = computed(() => {
 		return recipeVersions.value.find(v => v.isActive);
+	});
+
+	// [核心新增] 计算当前激活版本的所有产品名称
+	const productNames = computed(() => {
+		if (!activeVersion.value || !activeVersion.value.products) {
+			return [];
+		}
+		return activeVersion.value.products.map(p => p.name);
 	});
 
 	const displayedVersion = computed(() => {
@@ -316,8 +326,12 @@
 	}
 
 	.detail-page .tag-group {
+		/* [核心修改] 调整内边距和flex布局，实现左对齐 */
 		margin-bottom: 20px;
-		padding: 0 20px;
+		padding: 0 5px;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
 	}
 
 	.status-tag {
@@ -394,6 +408,4 @@
 		padding-left: 20px;
 		padding-right: 20px;
 	}
-
-	/* [移除] 不再需要图表卡片的通栏样式 */
 </style>

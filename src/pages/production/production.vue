@@ -22,7 +22,7 @@
 					</div>
 					<div>
 						<view class="value">{{ thisWeeksCompletedBreadCount }}</view>
-						<view class="label">本周已完成面包</view>
+						<view class="label">本周已完成</view>
 					</div>
 				</view>
 
