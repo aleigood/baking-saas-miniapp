@@ -20,13 +20,19 @@
 						<view v-for="product in group" :key="product.id" class="product-item">
 							<view class="product-name">{{ product.name }}</view>
 							<view class="quantity-control">
-								<button class="btn-stepper" @click="decreaseQuantity(product.id)">
+								<!-- [修改] 增加长按事件 -->
+								<!-- (Modified) Add long press events -->
+								<button class="btn-stepper"
+									@touchstart.prevent="startChangingQuantity(product.id, 'decrease')"
+									@touchend="stopChangingQuantity" @touchcancel="stopChangingQuantity">
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13H5v-2h14v2z'/%3E%3C/svg%3E" />
 								</button>
 								<input class="input-stepper" type="number"
 									v-model.number="taskQuantities[product.id]" />
-								<button class="btn-stepper" @click="increaseQuantity(product.id)">
+								<button class="btn-stepper"
+									@touchstart.prevent="startChangingQuantity(product.id, 'increase')"
+									@touchend="stopChangingQuantity" @touchcancel="stopChangingQuantity">
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
 								</button>
@@ -56,6 +62,11 @@
 	const isCreating = ref(false);
 	const taskQuantities = reactive<Record<string, number>>({});
 	const collapsedGroups = reactive(new Set<string>());
+
+	// [修改] 用于长按操作的计时器变量
+	// (Modified) Timer variables for long press actions
+	const quantityInterval = ref<any>(null);
+	const quantityTimeout = ref<any>(null);
 
 	onShow(async () => {
 		isLoading.value = true;
@@ -100,6 +111,38 @@
 		}
 	};
 
+	// [修改] 开始增/减数量的函数，使用递归setTimeout保证UI刷新
+	// (Modified) Function to start changing quantity, using recursive setTimeout to ensure UI refresh
+	const startChangingQuantity = (productId : string, direction : 'increase' | 'decrease') => {
+		// 立即执行一次
+		if (direction === 'increase') {
+			increaseQuantity(productId);
+		} else {
+			decreaseQuantity(productId);
+		}
+
+		// 定义一个重复执行的函数
+		const repeat = () => {
+			if (direction === 'increase') {
+				increaseQuantity(productId);
+			} else {
+				decreaseQuantity(productId);
+			}
+			// 设置下一次执行
+			quantityInterval.value = setTimeout(repeat, 100);
+		};
+
+		// 延迟后开始连续执行
+		quantityTimeout.value = setTimeout(repeat, 500);
+	};
+
+	// [修改] 停止增/减数量的函数
+	// (Modified) Function to stop changing quantity
+	const stopChangingQuantity = () => {
+		clearTimeout(quantityTimeout.value);
+		clearTimeout(quantityInterval.value);
+	};
+
 	const handleCreateTasks = async () => {
 		const productsToCreate = Object.entries(taskQuantities)
 			.filter(([, quantity]) => quantity > 0)
@@ -141,8 +184,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [修改] 移除固定的底部栏样式，调整页面padding */
-	/* (Modified) Removed fixed footer styles, adjusted page padding */
 	.page-container {
 		padding-bottom: 20px;
 	}

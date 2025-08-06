@@ -12,6 +12,12 @@
 			}
 		},
 		{
+			"path": "pages/production/detail",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/ingredients/ingredients",
 			"style": {
 				"navigationStyle": "custom"

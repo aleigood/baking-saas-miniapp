@@ -17,12 +17,12 @@
 				<!-- 任务看板 -->
 				<view class="summary-card">
 					<div>
-						<view class="value">{{ todaysPendingCount }}</view>
-						<view class="label">今日待完成</view>
+						<view class="value">{{ totalPendingBreadCount }}</view>
+						<view class="label">待完成面包</view>
 					</div>
 					<div>
-						<view class="value">{{ thisWeeksCompletedCount }}</view>
-						<view class="label">本周已完成</view>
+						<view class="value">{{ thisWeeksCompletedBreadCount }}</view>
+						<view class="label">本周已完成面包</view>
 					</div>
 				</view>
 
@@ -34,11 +34,11 @@
 						@click="alert('查看制作历史')" />
 				</view>
 
-				<!-- [修改] 任务列表布局 -->
-				<!-- (Modified) Task list layout -->
+				<!-- 任务列表 -->
 				<view v-if="activeTasks.length > 0">
 					<view v-for="task in activeTasks" :key="task.id" class="task-card"
-						:class="getStatusClass(task.status)">
+						:class="getStatusClass(task.status)" @click="navigateToDetail(task)"
+						@longpress="handleLongPress(task)">
 						<view class="task-info">
 							<view class="title">{{ getTaskTitle(task) }}</view>
 							<view class="details">{{ getTaskDetails(task) }}</view>
@@ -65,6 +65,14 @@
 			<view class="list-item" style="border: none; padding: 10px 15px" @click="userStore.logout()">退出登录
 			</view>
 		</AppModal>
+
+		<!-- [修改] 任务操作模态框 -->
+		<!-- (Modified) Task actions modal -->
+		<AppModal v-model:visible="showTaskActionsModal" title="任务操作">
+			<view class="list-item" @click="handleCancelTaskFromModal">
+				取消任务
+			</view>
+		</AppModal>
 	</view>
 </template>
 
@@ -76,6 +84,7 @@
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import type { ProductionTaskDto } from '@/types/api';
+	import { updateTaskStatus } from '@/api/tasks';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -83,6 +92,8 @@
 	const isLoading = ref(false);
 	const showStoreModal = ref(false);
 	const showUserMenu = ref(false);
+	const showTaskActionsModal = ref(false);
+	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 
 	onShow(async () => {
 		isLoading.value = true;
@@ -96,23 +107,27 @@
 		);
 	});
 
-	const todaysPendingCount = computed(() => {
-		const today = new Date().toISOString().split('T')[0];
-		return activeTasks.value.filter(task => task.plannedDate.startsWith(today)).length;
+	// [修改] 计算所有待完成面包总数
+	// (Modified: Calculate total pending bread count for all active tasks)
+	const totalPendingBreadCount = computed(() => {
+		return activeTasks.value
+			.reduce((sum, task) => sum + getTotalQuantity(task), 0);
 	});
 
-	const thisWeeksCompletedCount = computed(() => {
+	const thisWeeksCompletedBreadCount = computed(() => {
 		const now = new Date();
 		const dayOfWeek = now.getDay();
 		const startOfWeek = new Date(now);
 		startOfWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
 		startOfWeek.setHours(0, 0, 0, 0);
 
-		return dataStore.production.filter(task => {
-			if (task.status !== 'COMPLETED') return false;
-			const completedDate = new Date(task.plannedDate);
-			return completedDate >= startOfWeek;
-		}).length;
+		return dataStore.production
+			.filter(task => {
+				if (task.status !== 'COMPLETED') return false;
+				const completedDate = new Date(task.plannedDate);
+				return completedDate >= startOfWeek;
+			})
+			.reduce((sum, task) => sum + getTotalQuantity(task), 0);
 	});
 
 	const hasCompletedTasks = computed(() => {
@@ -158,6 +173,40 @@
 			CANCELLED: 'status-cancelled'
 		};
 		return map[status] || '';
+	};
+
+	// [新增] 点击任务卡片导航到详情页
+	// (New) Navigate to detail page on task card click
+	const navigateToDetail = (task : ProductionTaskDto) => {
+		uni.navigateTo({
+			url: `/pages/production/detail?taskId=${task.id}`
+		});
+	};
+
+	const handleLongPress = (task : ProductionTaskDto) => {
+		selectedTaskForAction.value = task;
+		showTaskActionsModal.value = true;
+	};
+
+	const handleCancelTaskFromModal = async () => {
+		if (!selectedTaskForAction.value) return;
+		showTaskActionsModal.value = false;
+		await cancelTask(selectedTaskForAction.value.id);
+		selectedTaskForAction.value = null;
+	};
+
+	const cancelTask = async (taskId : string) => {
+		uni.showLoading({ title: '正在取消...' });
+		try {
+			await updateTaskStatus(taskId, 'CANCELLED');
+			uni.hideLoading();
+			uni.showToast({ title: '任务已取消', icon: 'success' });
+			await dataStore.fetchProductionData();
+		} catch (error) {
+			uni.hideLoading();
+			console.error('Failed to cancel task:', error);
+			uni.showToast({ title: '操作失败，请重试', icon: 'none' });
+		}
 	};
 
 	const navigateToCreatePage = () => {
@@ -209,8 +258,6 @@
 		margin-top: 5px;
 	}
 
-	/* [修改] 任务卡片样式 */
-	/* (Modified) Task card styles */
 	.task-card {
 		display: flex;
 		justify-content: space-between;
@@ -222,21 +269,16 @@
 		cursor: pointer;
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 		border-left: 5px solid;
-		/* 保留左侧颜色条 */
 	}
 
-	/* [新增] 任务卡片左侧颜色条 */
 	.task-card.status-pending {
 		border-color: #f9ae3d;
-		/* 橙色 */
 	}
 
 	.task-card.status-inprogress {
 		border-color: #27ae60;
-		/* 绿色 */
 	}
 
-	/* [新增] 任务信息容器 */
 	.task-info {
 		flex: 1;
 		margin-right: 15px;
@@ -247,7 +289,6 @@
 		font-weight: 400;
 		margin-bottom: 8px;
 		word-break: break-word;
-		/* 确保长标题可以换行 */
 	}
 
 	.task-card .details {
@@ -260,8 +301,6 @@
 		height: 24px;
 	}
 
-	/* [修改] 状态标签样式 */
-	/* (Modified) Status tag styles */
 	.status-tag {
 		padding: 4px 12px;
 		border-radius: 15px;
@@ -269,26 +308,21 @@
 		color: white;
 		font-weight: 500;
 		white-space: nowrap;
-		/* 防止标签内文字换行 */
 	}
 
 	.status-tag.status-pending {
 		background-color: #f9ae3d;
-		/* 橙色 */
 	}
 
 	.status-tag.status-inprogress {
 		background-color: #27ae60;
-		/* 绿色 */
 	}
 
 	.status-tag.status-completed {
 		background-color: #007bff;
-		/* 蓝色 */
 	}
 
 	.status-tag.status-cancelled {
 		background-color: #a8a8a8;
-		/* 灰色 */
 	}
 </style>

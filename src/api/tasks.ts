@@ -15,6 +15,18 @@ export function getTasks() : Promise<ProductionTaskDto[]> {
 }
 
 /**
+ * [新增] 获取单个生产任务的详情
+ * (New: Get details of a single production task)
+ * @param taskId 任务ID
+ */
+export function getTask(taskId : string) : Promise<ProductionTaskDto> {
+	return request<ProductionTaskDto>({
+		url: `/production-tasks/${taskId}`,
+	});
+}
+
+
+/**
  * [修改] 创建一个新的生产任务，该任务可以包含多个产品
  * (Modified: Create a new production task which can contain multiple products)
  * @param data 包含 plannedDate 和 products 数组等信息
