@@ -53,11 +53,23 @@ export interface RecipeVersion {
 	products : Product[]; // 一个版本可以产出多种最终产品
 	// [新增] 包含面团信息，用于获取原料数量
 	doughs : {
+		id : string;
+		name : string;
+		ingredients : DoughIngredient[];
 		_count : {
 			ingredients : number;
 		};
 	}[];
 }
+
+// [新增] 面团中的原料类型
+export interface DoughIngredient {
+	id : string;
+	name : string;
+	ratio : number;
+	isFlour : boolean;
+}
+
 
 // 最终产品，如“原味法棍”
 export interface Product {
@@ -96,25 +108,29 @@ export interface IngredientSKU {
 }
 
 // --- 生产任务 ---
-// [修改] 更新 ProductionTaskDto 以匹配新的多产品任务结构
-// (Modified: Update ProductionTaskDto to match the new multi-product task structure)
+// [核心修改] 更新 ProductionTaskDto 以匹配新的、更完整的后端数据结构
 export interface ProductionTaskDto {
 	id : string;
 	status : 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 	plannedDate : string; // ISO Date String
 	notes : string | null;
-	// [修改] 从单个 product 变为 items 数组
-	// (Changed from a single product to an items array)
 	items : {
 		id : string;
 		quantity : number;
 		product : {
 			id : string;
 			name : string;
+			baseDoughWeight : number; // [新增] 基础面团重量
 			recipeVersion : {
 				family : {
 					name : string;
 				};
+				// [新增] 完整的面团和原料信息
+				doughs : {
+					id : string;
+					name : string;
+					ingredients : DoughIngredient[];
+				}[];
 			};
 		};
 	}[];

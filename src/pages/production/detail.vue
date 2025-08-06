@@ -12,15 +12,13 @@
 				<view class="details">{{ getTaskDetails(task) }}</view>
 			</view>
 
-			<!-- [新增] 原料用量清单 -->
-			<!-- (New) Ingredient usage list -->
-			<view v-for="(dough, index) in ingredientList" :key="dough.doughName" class="card">
-				<view class="group-title" @click="toggleDough(dough.doughName)">
-					<span>{{ dough.doughName }}</span>
-					<span class="arrow" :class="{ collapsed: openDoughName !== dough.doughName }">&#10094;</span>
+			<view v-for="(recipeCard) in recipeCards" :key="recipeCard.recipeName" class="card">
+				<view class="group-title" @click="toggleCard(recipeCard.recipeName)">
+					<span>{{ recipeCard.recipeName }}</span>
+					<span class="arrow" :class="{ collapsed: openCardName !== recipeCard.recipeName }">&#10094;</span>
 				</view>
-				<view v-show="openDoughName === dough.doughName" class="product-list">
-					<view v-for="ingredient in dough.ingredients" :key="ingredient.name" class="ingredient-item">
+				<view v-show="openCardName === recipeCard.recipeName" class="product-list">
+					<view v-for="ingredient in recipeCard.ingredients" :key="ingredient.name" class="ingredient-item">
 						<view class="product-name">{{ ingredient.name }}</view>
 						<view class="quantity">{{ ingredient.amount.toFixed(1) }} g</view>
 					</view>
@@ -50,7 +48,8 @@
 
 	const isLoading = ref(true);
 	const task = ref<ProductionTaskDto | null>(null);
-	const openDoughName = ref('');
+	// [修改] 将 openDoughName 修改为 openCardName 以适应新的卡片逻辑
+	const openCardName = ref('');
 
 	onLoad(async (options) => {
 		const taskId = options?.taskId;
@@ -71,9 +70,9 @@
 				dataStore.fetchProductionData();
 			}
 
-			// 默认展开第一个面团
-			if (ingredientList.value.length > 0) {
-				openDoughName.value = ingredientList.value[0].doughName;
+			// [修改] 默认展开第一个卡片
+			if (recipeCards.value.length > 0) {
+				openCardName.value = recipeCards.value[0].recipeName;
 			}
 
 		} catch (error) {
@@ -84,59 +83,78 @@
 		}
 	});
 
-	// [新增] 计算原料用量清单
-	// (New) Compute ingredient usage list
-	const ingredientList = computed(() => {
+	// [核心重构] 计算按配方分组的原料用量清单
+	const recipeCards = computed(() => {
 		if (!task.value) return [];
 
-		const doughConsumptions = new Map<string, { name : string, amount : number }[]>();
+		// 使用 Map 存储每个配方的原料用量，Key 为配方名
+		const recipeConsumptions = new Map<string, Map<string, number>>();
 
+		// 遍历任务中的每一个产品项
 		task.value.items.forEach(item => {
 			const product = item.product;
+			// 确保产品和其配方版本信息存在
 			if (!product || !product.recipeVersion || !product.recipeVersion.doughs) return;
 
+			// 获取配方家族名称作为卡片标题
+			const recipeName = product.recipeVersion.family.name;
+			if (!recipeConsumptions.has(recipeName)) {
+				recipeConsumptions.set(recipeName, new Map<string, number>());
+			}
+			const ingredientsMap = recipeConsumptions.get(recipeName)!;
+
+			// 遍历配方中的每一个面团定义
 			product.recipeVersion.doughs.forEach(dough => {
-				if (!doughConsumptions.has(dough.name)) {
-					doughConsumptions.set(dough.name, []);
-				}
-				const ingredientsInDough = doughConsumptions.get(dough.name)!;
+				// 计算总粉量对应的基础重量
+				// 注意：这里假设所有 isFlour=true 的原料比例总和为100%
+				let totalFlourRatio = 0;
+				dough.ingredients.forEach(ing => {
+					if (ing.isFlour) {
+						totalFlourRatio += ing.ratio;
+					}
+				});
+				if (totalFlourRatio === 0) totalFlourRatio = 100; // 防止除零错误
 
-				const totalRatio = dough.ingredients.reduce((sum, ing) => sum + ing.ratio, 0);
-				if (totalRatio === 0) return;
+				// 计算每1%的比例对应的克重
+				const weightPerRatioPoint = product.baseDoughWeight / totalFlourRatio;
 
-				const weightPerRatioPoint = product.baseDoughWeight / totalRatio;
-
+				// 遍历面团中的每一种原料
 				dough.ingredients.forEach(ingredient => {
+					// 计算该原料在单个产品中的重量，并乘以任务数量
 					const weight = weightPerRatioPoint * ingredient.ratio * item.quantity;
 
-					const existingIngredient = ingredientsInDough.find(i => i.name === ingredient.name);
-					if (existingIngredient) {
-						existingIngredient.amount += weight;
-					} else {
-						ingredientsInDough.push({ name: ingredient.name, amount: weight });
-					}
+					// 累加到Map中
+					const currentWeight = ingredientsMap.get(ingredient.name) || 0;
+					ingredientsMap.set(ingredient.name, currentWeight + weight);
 				});
 			});
 		});
 
-		return Array.from(doughConsumptions.entries()).map(([doughName, ingredients]) => ({
-			doughName,
-			ingredients,
+		// 将 Map 结构转换为模板所需的数组结构
+		return Array.from(recipeConsumptions.entries()).map(([recipeName, ingredientsMap]) => ({
+			recipeName,
+			ingredients: Array.from(ingredientsMap.entries()).map(([name, amount]) => ({
+				name,
+				amount,
+			})),
 		}));
 	});
 
-	const toggleDough = (doughName : string) => {
-		if (openDoughName.value === doughName) {
-			openDoughName.value = ''; // 如果已打开，则关闭
+	// [新增] 卡片折叠/展开的函数
+	const toggleCard = (recipeName : string) => {
+		if (openCardName.value === recipeName) {
+			openCardName.value = ''; // 如果已打开，则关闭
 		} else {
-			openDoughName.value = doughName; // 否则，打开这个并关闭其他
+			openCardName.value = recipeName; // 否则，打开这个并关闭其他
 		}
 	};
+
 
 	const completeTask = async () => {
 		if (!task.value) return;
 		uni.showLoading({ title: '正在完成...' });
 		try {
+			// [修改] 后端完成任务的接口已变更为 POST /:id/complete
 			await updateTaskStatus(task.value.id, 'COMPLETED');
 			uni.hideLoading();
 			uni.showToast({ title: '任务已完成', icon: 'success' });

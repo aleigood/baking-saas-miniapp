@@ -21,10 +21,10 @@
 .side-info .value { font-weight: 500; }
 .side-info .desc { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
 
-/* [核心修改] FAB 样式更新，增加水波纹效果 */
+/* [核心重构] FAB 样式系统 */
 .fab { 
     position: fixed; 
-    bottom: 85px; 
+    bottom: 85px; /* 默认适配有 TabBar 的页面 */
     right: 20px; 
     width: 56px; 
     height: 56px; 
@@ -36,15 +36,19 @@
     align-items: center; 
     box-shadow: 0 6px 20px rgba(140,90,59,0.3); 
     z-index: 20; 
-    overflow: hidden; /* [新增] 隐藏溢出的伪元素 */
-    transform: translateZ(0); /* [新增] 提高渲染性能 */
+    overflow: hidden; 
+    transform: translateZ(0);
+}
+/* [核心新增] 为没有 TabBar 的页面提供一个修正类 */
+.fab.fab-no-tab-bar {
+	bottom: 30px;
 }
 .fab::after {
     content: '';
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 100px; /* 波纹的尺寸 */
+    width: 100px; 
     height: 100px;
     background: rgba(255, 255, 255, 0.4);
     border-radius: 50%;
@@ -54,33 +58,13 @@
 .fab:active::after {
     transform: translate(-50%, -50%) scale(1);
     opacity: 0;
-    transition: transform 0.4s ease-out, opacity 0.4s ease-out; /* [新增] 定义动画过程 */
+    transition: transform 0.4s ease-out, opacity 0.4s ease-out;
 }
-/* [修改] 调整FAB图标大小 */
-.fab-icon { width: 28px; height: 28px; z-index: 1; /* [新增] 确保图标在波纹之上 */ } 
-
-/* [核心修改] 统一详情页和编辑页的头部样式 */
-.detail-header { display: flex; align-items: center; width: 100%; }
-.back-btn { font-size: 22px; cursor: pointer; margin-right: 15px; color: var(--text-secondary); padding: 5px; }
-.detail-title { font-size: 20px; font-weight: 600; /* [修改] 降低字重和字号 */ flex: 1; /* [新增] 占据剩余空间 */ }
-/* Common Components */
-.tag-group { margin-bottom: 20px; }
-.tag { background-color: #faedcd; color: var(--primary-color); padding: 4px 12px; border-radius: 15px; font-size: 13px; margin-right: 8px; }
-.mock-chart { height: 180px; background: #faf8f5; border-radius: 16px; display: flex; justify-content: center; align-items: center; color: #ced4da; font-size: 14px; }
-.stats-item { display: flex; align-items: center; font-size: 14px; margin-bottom: 12px; }
-.stats-item .rank { font-style: italic; font-weight: bold; width: 20px; color: var(--accent-color); }
-.stats-item .name { flex-grow: 1; }
-.stats-item .count { color: var(--text-secondary); }
-/* Modal Styles */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; backdrop-filter: blur(4px); background: rgba(0,0,0,0.2); z-index: 99; display: flex; justify-content: center; align-items: center; }
-.modal-content { background: white; border-radius: 20px; width: 85%; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-/* Loading and Empty State */
-.loading-spinner { display: flex; justify-content: center; align-items: center; padding-top: 100px; }
-.empty-state { text-align: center; padding: 50px 20px; color: var(--text-secondary); }
+.fab-icon { width: 28px; height: 28px; z-index: 1; } 
 
 /* [核心重构] 统一的按钮样式系统 */
 .btn {
-	padding: 10px; /* [修改] 减小按钮高度 */
+	padding: 10px; 
 	border: none;
 	border-radius: 12px;
 	font-size: 16px;
@@ -165,3 +149,22 @@
 .modal-actions .btn {
 	flex: 1;
 }
+
+/* [核心修改] 统一详情页和编辑页的头部样式 */
+.detail-header { display: flex; align-items: center; width: 100%; }
+.back-btn { font-size: 22px; cursor: pointer; margin-right: 15px; color: var(--text-secondary); padding: 5px; }
+.detail-title { font-size: 20px; font-weight: 600; flex: 1; }
+/* Common Components */
+.tag-group { margin-bottom: 20px; }
+.tag { background-color: #faedcd; color: var(--primary-color); padding: 4px 12px; border-radius: 15px; font-size: 13px; margin-right: 8px; }
+.mock-chart { height: 180px; background: #faf8f5; border-radius: 16px; display: flex; justify-content: center; align-items: center; color: #ced4da; font-size: 14px; }
+.stats-item { display: flex; align-items: center; font-size: 14px; margin-bottom: 12px; }
+.stats-item .rank { font-style: italic; font-weight: bold; width: 20px; color: var(--accent-color); }
+.stats-item .name { flex-grow: 1; }
+.stats-item .count { color: var(--text-secondary); }
+/* Modal Styles */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; backdrop-filter: blur(4px); background: rgba(0,0,0,0.2); z-index: 99; display: flex; justify-content: center; align-items: center; }
+.modal-content { background: white; border-radius: 20px; width: 85%; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+/* Loading and Empty State */
+.loading-spinner { display: flex; justify-content: center; align-items: center; padding-top: 100px; }
+.empty-state { text-align: center; padding: 50px 20px; color: var(--text-secondary); }

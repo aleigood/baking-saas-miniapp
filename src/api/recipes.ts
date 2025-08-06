@@ -23,7 +23,7 @@ export function getRecipes() : Promise<RecipeFamily[]> {
 export function getRecipeVersions(familyId : string) : Promise<RecipeVersion[]> {
 	// 注意：这个接口在后端 recipes.controller.ts 中并未直接提供，
 	// 后端 findOne(id) 可以获取所有版本，这里模拟前端调用，实际项目中后端可能需要单独接口。
-	// 为符合重构要求，我们假设前端将通过 findOne 获取家族信息，其中已包含版本列表。
+	// 为符合重构要求，我们假设前端将通过调用 findOne 实现。
 	// 这里保留函数名，但在页面中会通过调用 findOne 实现。
 	// 实际调用将是 getRecipeFamily(familyId)。
 	return request<RecipeVersion[]>({
@@ -42,36 +42,20 @@ export function getRecipeFamily(familyId : string) : Promise<RecipeFamily> {
 }
 
 /**
- * [新增] 为指定的配方家族创建一个新版本
+ * [核心修改] 为指定的配方家族创建一个新版本
  * @param familyId 配方家族的ID
  * @param createDto 新版本的配方数据
  */
 export function createRecipeVersion(familyId : string, createDto : any) : Promise<RecipeVersion> {
-	// 在当前后端设计中，创建新版本是通过POST /recipes接口，并传入已有配方族的name来实现的。
-	// 这里模拟一个独立的创建版本接口，以保持API文件职责清晰。
 	return request<RecipeVersion>({
-		url: `/recipes`, // 实际指向创建接口
+		url: `/recipes/${familyId}/versions`, // [修改] 调用新的版本创建接口
 		method: 'POST',
 		data: createDto,
 	});
 }
 
 /**
- * [新增] 激活一个指定的配方版本
- * @param familyId 配方家族的ID
- * @param versionId 要激活的版本ID
- */
-export function activateRecipeVersion(familyId : string, versionId : string) : Promise<any> {
-	// 后端并没有直接的激活版本接口，通常这是通过更新 RecipeVersion 的 isActive 字段实现的。
-	// 这里模拟一个激活接口，实际项目中可能需要后端提供 PATCH /recipes/:familyId/versions/:versionId/activate
-	return request({
-		url: `/recipes/${familyId}/versions/${versionId}/activate`, // 假设后端提供了此端点
-		method: 'PATCH',
-	});
-}
-
-/**
- * 创建一个新的配方家族（及其第一个版本）
+ * [修改] 此函数现在只用于创建全新的配方家族
  * @param data 完整的配方数据，符合后端的 CreateRecipeDto 结构
  */
 export function createRecipe(data : any) : Promise<any> {
@@ -79,5 +63,17 @@ export function createRecipe(data : any) : Promise<any> {
 		url: '/recipes',
 		method: 'POST',
 		data,
+	});
+}
+
+/**
+ * [核心修改] 激活一个指定的配方版本
+ * @param familyId 配方家族的ID
+ * @param versionId 要激活的版本ID
+ */
+export function activateRecipeVersion(familyId : string, versionId : string) : Promise<any> {
+	return request({
+		url: `/recipes/${familyId}/versions/${versionId}/activate`,
+		method: 'PATCH',
 	});
 }

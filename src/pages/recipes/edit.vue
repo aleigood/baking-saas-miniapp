@@ -14,6 +14,10 @@
 					<!-- [重构] 如果是创建新版本，名称不可编辑 -->
 					<input class="input-field" v-model="form.name" placeholder="例如：贝果" :disabled="isEditing" />
 				</FormItem>
+				<!-- [新增] 版本说明输入框，仅在创建新版本时显示 -->
+				<FormItem v-if="isEditing" label="版本说明">
+					<input class="input-field" v-model="form.notes" placeholder="例如：夏季版本，减少水量" />
+				</FormItem>
 			</view>
 
 			<!-- 面团部分 -->
@@ -48,7 +52,9 @@
 					<input class="input-field" v-model="product.name" placeholder="例如：原味贝果" />
 				</FormItem>
 				<FormItem label="产品克重 (g)">
-					<input class="input-field" type="number" v-model.number="product.weight" placeholder="例如：100" />
+					<!-- [修改] v-model 绑定到 product.baseDoughWeight -->
+					<input class="input-field" type="number" v-model.number="product.baseDoughWeight"
+						placeholder="例如：100" />
 				</FormItem>
 			</view>
 			<button class="btn btn-dashed btn-full-width" @click="addProduct">+ 添加最终产品</button>
@@ -62,20 +68,21 @@
 
 <script setup lang="ts">
 	import { ref } from 'vue';
-	// [新增] 引入 onLoad
-	import { onLoad } from '@dcloudio/uni-app';
-	import { createRecipe, getRecipeFamily } from '@/api/recipes';
+	import { onLoad, onUnload } from '@dcloudio/uni-app';
+	import { createRecipe, createRecipeVersion, getRecipeFamily } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
 	import FormItem from '@/components/FormItem.vue';
+	import type { RecipeVersion } from '@/types/api';
 
 	const dataStore = useDataStore();
 	const isSubmitting = ref(false);
-	const isEditing = ref(false); // [新增] 标记是否为编辑（创建新版本）模式
+	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
 
 	const form = ref({
 		name: '',
 		type: 'MAIN' as const,
+		notes: '', // [新增] 版本说明字段
 		doughs: [
 			{
 				name: '主面团',
@@ -93,7 +100,7 @@
 		products: [
 			{
 				name: '原味',
-				weight: 100,
+				baseDoughWeight: 100,
 				mixIn: [],
 				fillings: [],
 				toppings: [],
@@ -103,21 +110,45 @@
 		procedure: [],
 	});
 
-	// [新增] onLoad生命周期钩子，用于处理创建新版本的逻辑
 	onLoad(async (options) => {
 		if (options && options.familyId) {
 			isEditing.value = true;
 			familyId.value = options.familyId;
 			uni.showLoading({ title: '加载配方中...' });
 			try {
-				const familyData = await getRecipeFamily(familyId.value);
-				const activeVersion = familyData.versions.find(v => v.isActive);
-				if (activeVersion) {
-					// 使用激活版本的数据预填充表单
-					// 注意：这里的映射逻辑需要根据您后端返回的具体数据结构进行调整
+				const sourceVersionJson = uni.getStorageSync('source_recipe_version');
+				if (sourceVersionJson) {
+					const sourceVersion : RecipeVersion = JSON.parse(sourceVersionJson);
+					const familyData = await getRecipeFamily(familyId.value);
 					form.value.name = familyData.name;
 					form.value.type = familyData.type;
-					// ... 其他字段的映射
+					form.value.doughs = sourceVersion.doughs.map(d => ({
+						name: d.name,
+						targetTemp: 0,
+						lossRatio: 0,
+						procedure: [],
+						ingredients: d.ingredients.map(i => ({
+							name: i.name,
+							ratio: i.ratio,
+							isFlour: i.isFlour,
+							waterContent: 0,
+						})),
+					}));
+					form.value.products = sourceVersion.products.map(p => ({
+						name: p.name,
+						baseDoughWeight: p.baseDoughWeight,
+						mixIn: [],
+						fillings: [],
+						toppings: [],
+						procedure: [],
+					}));
+				} else {
+					const familyData = await getRecipeFamily(familyId.value);
+					const activeVersion = familyData.versions.find(v => v.isActive);
+					if (activeVersion) {
+						form.value.name = familyData.name;
+						form.value.type = familyData.type;
+					}
 				}
 			} catch (error) {
 				console.error('Failed to load recipe for editing:', error);
@@ -128,6 +159,9 @@
 		}
 	});
 
+	onUnload(() => {
+		uni.removeStorageSync('source_recipe_version');
+	});
 
 	const addDough = () => {
 		form.value.doughs.push({
@@ -154,7 +188,7 @@
 	const addProduct = () => {
 		form.value.products.push({
 			name: '',
-			weight: 0,
+			baseDoughWeight: 0,
 			mixIn: [],
 			fillings: [],
 			toppings: [],
@@ -173,14 +207,29 @@
 	const handleSubmit = async () => {
 		isSubmitting.value = true;
 		try {
-			// 后端 `create` 接口会处理同名配方，自动创建新版本
-			await createRecipe(form.value);
+			const payload = {
+				...form.value,
+				products: form.value.products.map(p => ({
+					name: p.name,
+					weight: p.baseDoughWeight,
+					procedure: p.procedure,
+					mixIn: p.mixIn,
+					fillings: p.fillings,
+					toppings: p.toppings,
+				}))
+			};
+
+			if (isEditing.value && familyId.value) {
+				await createRecipeVersion(familyId.value, payload);
+			} else {
+				await createRecipe(payload);
+			}
+
 			uni.showToast({ title: '配方保存成功', icon: 'success' });
-			// 刷新列表数据并返回
 			await dataStore.fetchRecipesData();
 			uni.navigateBack();
 		} catch (error) {
-			console.error("Failed to create recipe:", error);
+			console.error("Failed to save recipe:", error);
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -190,7 +239,10 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [修改] page-header 现在由 common.scss 控制，移除这里的局部样式 */
+	/* [新增] 调整 FAB 按钮在没有 TabBar 的页面上的位置 */
+	.page-container .fab {
+		bottom: 20px;
+	}
 
 	.input-field {
 		width: 100%;
@@ -223,6 +275,4 @@
 			transform: scale(0.8);
 		}
 	}
-
-	/* [修改] 移除旧的、分散的按钮样式，它们现在由 common.scss 全局控制 */
 </style>
