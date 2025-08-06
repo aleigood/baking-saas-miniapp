@@ -10,7 +10,8 @@ export interface LoginRes {
 
 export interface UserInfo {
 	id : string;
-	phone : string; // 字段名从 email/name 改为 phone
+	phone : string;
+	name : string | null; // [新增] 用户姓名
 	role : Role; // 全局角色
 	status : string;
 	createdAt : string;
@@ -123,7 +124,8 @@ export interface ProductionTaskDto {
 // --- 团队成员 ---
 export interface Member {
 	id : string;
-	phone : string; // 使用 phone 替代 name
+	name : string; // [修改] 使用 name
+	phone : string; // 保留 phone 用于详情页显示
 	role : Role;
 	status : 'ACTIVE' | 'INACTIVE' | 'PENDING';
 	joinDate : string; // YYYY-MM-DD

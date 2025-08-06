@@ -20,7 +20,6 @@
 						<view v-for="product in group" :key="product.id" class="product-item">
 							<view class="product-name">{{ product.name }}</view>
 							<view class="quantity-control">
-								<!-- [核心修改] 使用 SVG 图标代替文字 -->
 								<button class="btn-stepper" @click="decreaseQuantity(product.id)">
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13H5v-2h14v2z'/%3E%3C/svg%3E" />
@@ -35,14 +34,13 @@
 						</view>
 					</view>
 				</view>
+				<!-- [修改] 将按钮移至 page-content 内部 -->
+				<!-- (Modified) Moved the button inside page-content -->
+				<button class="btn btn-primary btn-full-width" :disabled="!hasTasksToCreate" @click="handleCreateTasks"
+					:loading="isCreating">
+					{{ isCreating ? '创建中...' : '创建任务' }}
+				</button>
 			</template>
-		</view>
-		<!-- [修改] 使用固定的底部按钮栏 -->
-		<view class="footer-bar">
-			<button class="btn btn-primary btn-full-width" :disabled="!hasTasksToCreate" @click="handleCreateTasks"
-				:loading="isCreating">
-				{{ isCreating ? '创建中...' : '创建任务' }}
-			</button>
 		</view>
 	</view>
 </template>
@@ -51,7 +49,7 @@
 	import { ref, computed, reactive } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
-	import { createTask } from '@/api/tasks'; // [修改] 导入新的 createTask 函数
+	import { createTask } from '@/api/tasks';
 
 	const dataStore = useDataStore();
 	const isLoading = ref(false);
@@ -102,16 +100,12 @@
 		}
 	};
 
-	// [修改] 更新创建任务的逻辑以匹配新的API
-	// (Modified: Update task creation logic to match the new API)
 	const handleCreateTasks = async () => {
 		const productsToCreate = Object.entries(taskQuantities)
 			.filter(([, quantity]) => quantity > 0)
 			.map(([productId, quantity]) => ({
 				productId,
 				quantity,
-				// [移除] unit 字段，因为它已从 DTO 中删除
-				// (Removed: unit field, as it's removed from the DTO)
 			}));
 
 		if (productsToCreate.length === 0) {
@@ -122,8 +116,6 @@
 		isCreating.value = true;
 		uni.showLoading({ title: '正在生成任务...' });
 		try {
-			// [修改] 构造新的请求体
-			// (Modified: Construct the new request body)
 			const payload = {
 				plannedDate: new Date().toISOString(),
 				products: productsToCreate,
@@ -149,8 +141,10 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	/* [修改] 移除固定的底部栏样式，调整页面padding */
+	/* (Modified) Removed fixed footer styles, adjusted page padding */
 	.page-container {
-		padding-bottom: 100px;
+		padding-bottom: 20px;
 	}
 
 	.product-group {
@@ -211,13 +205,11 @@
 		align-items: center;
 		justify-content: center;
 
-		/* [新增] 修复 uni-app 中 button 的默认边框问题 */
 		&::after {
 			border: none;
 		}
 	}
 
-	/* [新增] 步进器图标样式 */
 	.stepper-icon {
 		width: 16px;
 		height: 16px;
@@ -230,17 +222,5 @@
 		border: none;
 		background-color: var(--bg-color);
 		font-size: 16px;
-	}
-
-	.footer-bar {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		padding: 15px;
-		padding-bottom: calc(15px + constant(safe-area-inset-bottom));
-		padding-bottom: calc(15px + env(safe-area-inset-bottom));
-		background-color: var(--card-bg);
-		box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 	}
 </style>
