@@ -13,9 +13,12 @@
 				</view>
 
 				<!-- 1. 成本变化曲线 -->
+				<!-- [核心修改] 移除通栏样式，让卡片恢复默认内边距 -->
 				<view class="card">
-					<view class="card-title">成本变化曲线</view>
-					<view class="mock-chart">模拟图表区域</view>
+					<view class="card-title-wrapper">
+						<span class="card-title">成本变化曲线</span>
+					</view>
+					<LineChart :chart-data="costHistory" />
 				</view>
 
 				<!-- 2. 版本历史 -->
@@ -91,8 +94,10 @@
 	import { useDataStore } from '@/store/data';
 	import type { RecipeFamily, RecipeVersion, IngredientSKU, DoughIngredient } from '@/types/api';
 	import { getRecipeFamily, activateRecipeVersion } from '@/api/recipes';
+	import { getProductCostHistory } from '@/api/costing';
 	import AppFab from '@/components/AppFab.vue';
 	import AppModal from '@/components/AppModal.vue';
+	import LineChart from '@/components/LineChart.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -104,6 +109,7 @@
 	const displayedVersionId = ref<string | null>(null);
 	const showVersionActionsModal = ref(false);
 	const selectedVersionForAction = ref<RecipeVersion | null>(null);
+	const costHistory = ref<{ cost : number }[]>([]);
 
 
 	onLoad(async (options) => {
@@ -116,7 +122,6 @@
 	const loadRecipeData = async (familyId : string) => {
 		isLoading.value = true;
 		try {
-			// [修改] 现在只需要加载原料数据和当前配方详情即可
 			await Promise.all([
 				(async () => {
 					const fullFamilyData = await getRecipeFamily(familyId);
@@ -125,6 +130,15 @@
 					const currentActiveVersion = recipeVersions.value.find(v => v.isActive);
 					if (currentActiveVersion) {
 						displayedVersionId.value = currentActiveVersion.id;
+
+						if (currentActiveVersion.products && currentActiveVersion.products.length > 0) {
+							const firstProductId = currentActiveVersion.products[0].id;
+							try {
+								costHistory.value = await getProductCostHistory(firstProductId);
+							} catch (historyError) {
+								console.error('获取成本历史失败:', historyError);
+							}
+						}
 					}
 				})(),
 				dataStore.fetchIngredientsData(),
@@ -145,14 +159,12 @@
 		return recipeVersions.value.find(v => v.id === displayedVersionId.value);
 	});
 
-	// [核心重构] 调整面种和主面团的显示顺序
 	const currentRecipeIngredients = computed(() => {
 		if (!displayedVersion.value || !displayedVersion.value.doughs) {
 			return [];
 		}
 
-		// [新增] 分别创建用于存放面种和主面团的数组
-		const preDoughGroups : { name : string, ingredients : (DoughIngredient & { pricePerKg : string })[] }[] = [];
+		const finalDoughGroups : { name : string, ingredients : (DoughIngredient & { pricePerKg : string })[] }[] = [];
 		const mainDoughGroups : { name : string, ingredients : (DoughIngredient & { pricePerKg : string })[] }[] = [];
 
 		for (const dough of displayedVersion.value.doughs) {
@@ -188,8 +200,7 @@
 									pricePerKg: getPricePerKg(ingredientInfo?.activeSku || null),
 								});
 							}
-							// [修改] 将解析出的面种分组添加到 preDoughGroups 数组
-							preDoughGroups.push(preDoughGroupForDisplay);
+							finalDoughGroups.push(preDoughGroupForDisplay);
 						}
 					}
 				} else {
@@ -202,13 +213,11 @@
 			}
 
 			if (mainDoughGroup.ingredients.length > 0) {
-				// [修改] 将主面团分组添加到 mainDoughGroups 数组
 				mainDoughGroups.push(mainDoughGroup);
 			}
 		}
 
-		// [修改] 返回合并后的数组，面种在前，主面团在后
-		return [...preDoughGroups, ...mainDoughGroups];
+		return [...finalDoughGroups, ...mainDoughGroups];
 	});
 
 
@@ -385,4 +394,6 @@
 		padding-left: 20px;
 		padding-right: 20px;
 	}
+
+	/* [移除] 不再需要图表卡片的通栏样式 */
 </style>
