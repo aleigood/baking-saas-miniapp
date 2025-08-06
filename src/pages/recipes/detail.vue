@@ -19,30 +19,25 @@
 				</view>
 
 				<!-- 2. 版本历史 -->
-				<view class="card">
+				<view class="card card-full-bleed-list">
 					<view class="card-title-wrapper">
 						<span class="card-title">版本历史</span>
 					</view>
 					<view v-if="isLoadingVersions">加载中...</view>
 					<view v-else>
-						<!-- [修改] 点击列表项时调用 handleActivateVersion -->
 						<view v-for="version in recipeVersions" :key="version.id" class="list-item"
-							@click="handleActivateVersion(version)">
+							:class="{ 'item-selected': displayedVersionId === version.id }" hover-class="item-hover"
+							@click="handleVersionClick(version)" @longpress="handleVersionLongPress(version)">
 							<view class="main-info">
 								<view class="name">{{ version.notes || `版本 ${version.version}` }}
 									(v{{ version.version }})</view>
 								<view class="desc">创建于:
 									{{ new Date(version.createdAt).toLocaleDateString()
-                  }}
+									}}
 								</view>
 							</view>
 							<view class="side-info">
-								<!-- [修改] 根据 version.isActive 动态显示标签 -->
-								<view v-if="version.isActive" class="status-tag active">当前激活</view>
-								<!-- [新增] 如果可编辑且不是当前激活版本，显示一个激活按钮的占位符或箭头 -->
-								<button v-else-if="canEditRecipe" class="btn btn-secondary btn-sm">
-									设为激活
-								</button>
+								<view v-if="version.isActive" class="status-tag active">已激活</view>
 							</view>
 						</view>
 					</view>
@@ -50,8 +45,8 @@
 
 				<!-- 3. 当前配方原料列表 -->
 				<view class="card">
-					<!-- [修改] 标题动态显示当前激活版本的说明 -->
-					<view class="card-title">{{ activeVersion?.notes || `配方详情 (v${activeVersion?.version})` }}</view>
+					<view class="card-title">{{ displayedVersion?.notes || `配方详情 (v${displayedVersion?.version})` }}
+					</view>
 					<view v-if="currentRecipeIngredients.length > 0">
 						<view v-for="dough in currentRecipeIngredients" :key="dough.name" class="dough-group">
 							<view class="dough-title">{{ dough.name }}</view>
@@ -79,8 +74,13 @@
 			<text>加载中...</text>
 		</view>
 
-		<!-- [修改] FAB 按钮应用新的样式类 -->
 		<AppFab v-if="canEditRecipe && !isLoading" @click="handleCreateVersion" class="fab-no-tab-bar" />
+
+		<AppModal v-model:visible="showVersionActionsModal" title="版本操作">
+			<view class="list-item" hover-class="item-hover" @click="handleActivateFromModal">
+				激活当前版本
+			</view>
+		</AppModal>
 	</view>
 </template>
 
@@ -89,9 +89,10 @@
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import type { RecipeFamily, RecipeVersion, IngredientSKU } from '@/types/api';
+	import type { RecipeFamily, RecipeVersion, IngredientSKU, DoughIngredient } from '@/types/api';
 	import { getRecipeFamily, activateRecipeVersion } from '@/api/recipes';
 	import AppFab from '@/components/AppFab.vue';
+	import AppModal from '@/components/AppModal.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -100,6 +101,11 @@
 	const recipeFamily = ref<RecipeFamily | null>(null);
 	const recipeVersions = ref<RecipeVersion[]>([]);
 
+	const displayedVersionId = ref<string | null>(null);
+	const showVersionActionsModal = ref(false);
+	const selectedVersionForAction = ref<RecipeVersion | null>(null);
+
+
 	onLoad(async (options) => {
 		const familyId = options?.familyId;
 		if (familyId) {
@@ -107,17 +113,21 @@
 		}
 	});
 
-	// [新增] 封装加载数据的函数，以便激活后可以复用
 	const loadRecipeData = async (familyId : string) => {
 		isLoading.value = true;
 		try {
+			// [修改] 现在只需要加载原料数据和当前配方详情即可
 			await Promise.all([
 				(async () => {
 					const fullFamilyData = await getRecipeFamily(familyId);
 					recipeFamily.value = fullFamilyData;
 					recipeVersions.value = fullFamilyData.versions.sort((a, b) => b.version - a.version);
+					const currentActiveVersion = recipeVersions.value.find(v => v.isActive);
+					if (currentActiveVersion) {
+						displayedVersionId.value = currentActiveVersion.id;
+					}
 				})(),
-				dataStore.fetchIngredientsData()
+				dataStore.fetchIngredientsData(),
 			]);
 		} catch (error) {
 			console.error('Failed to fetch recipe details:', error);
@@ -131,25 +141,76 @@
 		return recipeVersions.value.find(v => v.isActive);
 	});
 
-	// [修改] 原料列表现在总是基于 activeVersion 计算
+	const displayedVersion = computed(() => {
+		return recipeVersions.value.find(v => v.id === displayedVersionId.value);
+	});
+
+	// [核心重构] 调整面种和主面团的显示顺序
 	const currentRecipeIngredients = computed(() => {
-		if (!activeVersion.value || !activeVersion.value.doughs) {
+		if (!displayedVersion.value || !displayedVersion.value.doughs) {
 			return [];
 		}
 
-		return activeVersion.value.doughs.map(dough => {
-			return {
+		// [新增] 分别创建用于存放面种和主面团的数组
+		const preDoughGroups : { name : string, ingredients : (DoughIngredient & { pricePerKg : string })[] }[] = [];
+		const mainDoughGroups : { name : string, ingredients : (DoughIngredient & { pricePerKg : string })[] }[] = [];
+
+		for (const dough of displayedVersion.value.doughs) {
+			const mainDoughGroup = {
 				name: dough.name,
-				ingredients: dough.ingredients.map(ing => {
-					const ingredientInfo = dataStore.ingredients.find(i => i.name === ing.name);
-					return {
-						...ing,
-						pricePerKg: getPricePerKg(ingredientInfo?.activeSku || null)
-					};
-				})
+				ingredients: [] as (DoughIngredient & { pricePerKg : string })[],
+			};
+
+			for (const ingredient of dough.ingredients) {
+				// @ts-ignore
+				const linkedPreDough = ingredient.linkedPreDough;
+
+				if (linkedPreDough && linkedPreDough.versions && linkedPreDough.versions.length > 0) {
+					const preDoughActiveVersion = linkedPreDough.versions[0];
+					const preDough = preDoughActiveVersion.doughs[0];
+
+					if (preDough && preDough.ingredients) {
+						const preDoughTotalRatio = preDough.ingredients.reduce((sum, ing) => sum + ing.ratio, 0);
+
+						if (preDoughTotalRatio > 0) {
+							const preDoughGroupForDisplay = {
+								name: `${linkedPreDough.name} (用量: ${ingredient.ratio}%)`,
+								ingredients: [] as (DoughIngredient & { pricePerKg : string })[],
+							};
+
+							for (const preDoughIngredient of preDough.ingredients) {
+								const finalRatio = (ingredient.ratio * preDoughIngredient.ratio) / preDoughTotalRatio;
+								const ingredientInfo = dataStore.ingredients.find(i => i.name === preDoughIngredient.name);
+
+								preDoughGroupForDisplay.ingredients.push({
+									...preDoughIngredient,
+									ratio: parseFloat(finalRatio.toFixed(2)),
+									pricePerKg: getPricePerKg(ingredientInfo?.activeSku || null),
+								});
+							}
+							// [修改] 将解析出的面种分组添加到 preDoughGroups 数组
+							preDoughGroups.push(preDoughGroupForDisplay);
+						}
+					}
+				} else {
+					const ingredientInfo = dataStore.ingredients.find(i => i.name === ingredient.name);
+					mainDoughGroup.ingredients.push({
+						...ingredient,
+						pricePerKg: getPricePerKg(ingredientInfo?.activeSku || null),
+					});
+				}
 			}
-		});
+
+			if (mainDoughGroup.ingredients.length > 0) {
+				// [修改] 将主面团分组添加到 mainDoughGroups 数组
+				mainDoughGroups.push(mainDoughGroup);
+			}
+		}
+
+		// [修改] 返回合并后的数组，面种在前，主面团在后
+		return [...preDoughGroups, ...mainDoughGroups];
 	});
+
 
 	const getPricePerKg = (sku : IngredientSKU | null) => {
 		if (!sku || !sku.specWeightInGrams || !sku.currentPricePerPackage) {
@@ -184,7 +245,6 @@
 
 	const navigateToEditPage = (familyId : string | null) => {
 		if (!familyId) return;
-		// [修改] 传递给编辑页的版本，应该是当前激活的版本
 		if (activeVersion.value) {
 			uni.setStorageSync('source_recipe_version', JSON.stringify(activeVersion.value));
 		}
@@ -197,26 +257,44 @@
 		navigateToEditPage(recipeFamily.value.id);
 	};
 
-	// [核心修改] 处理版本激活的逻辑
-	const handleActivateVersion = async (versionToActivate : RecipeVersion) => {
+	const handleVersionClick = (versionToDisplay : RecipeVersion) => {
+		displayedVersionId.value = versionToDisplay.id;
+	};
+
+	const handleVersionLongPress = (versionToActivate : RecipeVersion) => {
 		if (!canEditRecipe.value || versionToActivate.isActive || !recipeFamily.value) {
 			return;
 		}
+		selectedVersionForAction.value = versionToActivate;
+		showVersionActionsModal.value = true;
+	};
+
+	const handleActivateFromModal = () => {
+		if (selectedVersionForAction.value) {
+			activateVersionAction(selectedVersionForAction.value);
+		}
+		showVersionActionsModal.value = false;
+	};
+
+	const activateVersionAction = async (versionToActivate : RecipeVersion) => {
+		if (!recipeFamily.value) return;
 
 		uni.showLoading({ title: '正在激活...' });
 		try {
 			await activateRecipeVersion(recipeFamily.value.id, versionToActivate.id);
 			uni.hideLoading();
 			uni.showToast({ title: '激活成功', icon: 'success' });
-			// [修改] 激活成功后，在前端直接更新状态，实现立即响应
-			recipeVersions.value.forEach(v => {
-				v.isActive = v.id === versionToActivate.id;
-			});
-			// 刷新配方列表页的数据
+
+			// 激活成功后，重新加载一次当前配方的完整数据
+			await loadRecipeData(recipeFamily.value.id);
+
+			// 异步更新列表页数据
 			dataStore.fetchRecipesData();
+
 		} catch (error) {
 			uni.hideLoading();
 			console.error('Failed to activate version:', error);
+			uni.showToast({ title: '激活失败，请重试', icon: 'none' });
 		}
 	};
 </script>
@@ -224,7 +302,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [新增] 针对无 TabBar 页面的 FAB 按钮位置调整 */
 	.fab-no-tab-bar {
 		bottom: 30px;
 	}
@@ -265,5 +342,47 @@
 		padding: 8px 0;
 	}
 
-	/* [移除] 不再需要 item-selected 样式 */
+	.list-item {
+		position: relative;
+		/* #ifdef H5 */
+		cursor: pointer;
+		/* #endif */
+		transition: background-color 0.2s ease;
+	}
+
+	.item-hover {
+		background-color: #f9f9f9;
+	}
+
+	.list-item.item-selected {
+		background-color: transparent;
+	}
+
+	.list-item.item-selected::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 4px;
+		height: 50%;
+		background-color: var(--primary-color);
+		border-radius: 0 4px 4px 0;
+	}
+
+
+	.card-full-bleed-list {
+		padding-left: 0;
+		padding-right: 0;
+	}
+
+	.card-full-bleed-list .card-title-wrapper {
+		padding-left: 20px;
+		padding-right: 20px;
+	}
+
+	.card-full-bleed-list .list-item {
+		padding-left: 20px;
+		padding-right: 20px;
+	}
 </style>
