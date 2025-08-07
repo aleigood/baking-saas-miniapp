@@ -37,7 +37,8 @@
 						<span class="card-title">版本历史</span>
 					</view>
 					<view v-if="isLoadingVersions">加载中...</view>
-					<view v-else>
+					<!-- [核心修正] 使用 template 替代 view 来确保最后一个 list-item 的边框在按钮上方正确显示 -->
+					<template v-else>
 						<view v-for="version in recipeVersions" :key="version.id" class="list-item"
 							:class="{ 'item-selected': displayedVersionId === version.id }" hover-class="item-hover"
 							@click="handleVersionClick(version)" @longpress="handleVersionLongPress(version)">
@@ -53,10 +54,8 @@
 								<view v-if="version.isActive" class="status-tag active">已激活</view>
 							</view>
 						</view>
-					</view>
-					<!-- [核心新增] 创建新版本按钮 -->
-					<button v-if="canEditRecipe" class="btn-add-sm"
-						:class="{'with-border-top': recipeVersions.length > 0}" @click="handleCreateVersion">+
+					</template>
+					<button v-if="canEditRecipe" class="btn-add-sm" @click="handleCreateVersion">+
 						创建新版本</button>
 				</view>
 
@@ -91,9 +90,6 @@
 			<text>加载中...</text>
 		</view>
 
-		<!-- [核心修改] 移除 AppFab 组件 -->
-		<!-- <AppFab v-if="canEditRecipe && !isLoading" @click="handleCreateVersion" class="fab-no-tab-bar" /> -->
-
 		<AppModal v-model:visible="showVersionActionsModal" title="版本操作">
 			<view class="list-item" hover-class="item-hover" @click="handleActivateFromModal">
 				激活当前版本
@@ -104,7 +100,7 @@
 
 <script setup lang="ts">
 	import { ref, computed } from 'vue';
-	import { onLoad } from '@dcloudio/uni-app';
+	import { onLoad, onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import type { RecipeFamily, RecipeVersion, IngredientSKU, DoughIngredient } from '@/types/api';
@@ -126,34 +122,41 @@
 	const showVersionActionsModal = ref(false);
 	const selectedVersionForAction = ref<RecipeVersion | null>(null);
 
-	// [核心新增] 图表相关状态
 	const detailChartTab = ref<'trend' | 'breakdown'>('trend');
 	const costHistory = ref<{ cost : number }[]>([]);
 	const costBreakdown = ref<{ name : string, value : number }[]>([]);
-
+	const familyId = ref<string | null>(null);
 
 	onLoad(async (options) => {
-		const familyId = options?.familyId;
-		if (familyId) {
-			await loadRecipeData(familyId);
+		if (options?.familyId) {
+			familyId.value = options.familyId;
+			await loadRecipeData(familyId.value);
 		}
 	});
 
-	const loadRecipeData = async (familyId : string) => {
+	onShow(async () => {
+		if (familyId.value && !isLoading.value) {
+			await loadRecipeData(familyId.value);
+		}
+	});
+
+
+	const loadRecipeData = async (id : string) => {
 		isLoading.value = true;
 		try {
 			await Promise.all([
 				(async () => {
-					const fullFamilyData = await getRecipeFamily(familyId);
+					const fullFamilyData = await getRecipeFamily(id);
 					recipeFamily.value = fullFamilyData;
 					recipeVersions.value = fullFamilyData.versions.sort((a, b) => b.version - a.version);
 					const currentActiveVersion = recipeVersions.value.find(v => v.isActive);
 					if (currentActiveVersion) {
-						displayedVersionId.value = currentActiveVersion.id;
+						if (!displayedVersionId.value || !recipeVersions.value.some(v => v.id === displayedVersionId.value)) {
+							displayedVersionId.value = currentActiveVersion.id;
+						}
 
 						if (currentActiveVersion.products && currentActiveVersion.products.length > 0) {
 							const firstProductId = currentActiveVersion.products[0].id;
-							// 并行获取两种图表数据
 							const [historyData, breakdownData] = await Promise.all([
 								getProductCostHistory(firstProductId),
 								getProductCostBreakdown(firstProductId)
@@ -161,6 +164,8 @@
 							costHistory.value = historyData;
 							costBreakdown.value = breakdownData;
 						}
+					} else if (recipeVersions.value.length > 0) {
+						displayedVersionId.value = recipeVersions.value[0].id;
 					}
 				})(),
 				dataStore.fetchIngredientsData(),
@@ -466,12 +471,5 @@
 		}
 	}
 
-	/* [核心新增] 为按钮添加上边框的样式 */
-	.btn-add-sm.with-border-top {
-		border-top: 1px solid var(--border-color);
-		border-radius: 0;
-		margin-top: 0;
-		padding-top: 15px;
-		margin-top: 5px;
-	}
+	/* [核心修改] 移除 with-border-top 样式块 */
 </style>

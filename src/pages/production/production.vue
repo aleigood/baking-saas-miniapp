@@ -18,7 +18,7 @@
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ totalPendingBreadCount }}</view>
-						<view class="label">待完成面包</view>
+						<view class="label">待完成</view>
 					</div>
 					<div>
 						<view class="value">{{ thisWeeksCompletedBreadCount }}</view>

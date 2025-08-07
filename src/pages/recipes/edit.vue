@@ -207,8 +207,15 @@
 	const handleSubmit = async () => {
 		isSubmitting.value = true;
 		try {
+			// [核心修正] 根据后端接口，将 payload 中的 doughs 字段转换成扁平的 ingredients 字段
+			// (Core Fix: Convert the 'doughs' field in the payload to a flat 'ingredients' field to match the backend API)
 			const payload = {
-				...form.value,
+				name: form.value.name,
+				type: form.value.type,
+				notes: form.value.notes,
+				// 假设我们总是使用第一个面团的原料列表
+				// (Assuming we always use the ingredient list from the first dough)
+				ingredients: form.value.doughs[0]?.ingredients || [],
 				products: form.value.products.map(p => ({
 					name: p.name,
 					weight: p.baseDoughWeight,
@@ -216,7 +223,12 @@
 					mixIn: p.mixIn,
 					fillings: p.fillings,
 					toppings: p.toppings,
-				}))
+				})),
+				// 同样，使用第一个面团的其它属性
+				// (Similarly, use other properties from the first dough)
+				targetTemp: form.value.doughs[0]?.targetTemp,
+				lossRatio: form.value.doughs[0]?.lossRatio,
+				procedure: form.value.doughs[0]?.procedure,
 			};
 
 			if (isEditing.value && familyId.value) {
