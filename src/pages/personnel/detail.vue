@@ -3,12 +3,16 @@
 		<view class="page-header">
 			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">{{ selectedMember?.phone || '加载中...' }}</h2>
+				<!-- [核心修改] 标题优先显示姓名 -->
+				<h2 class="detail-title">{{ selectedMember?.name || selectedMember?.phone || '加载中...' }}</h2>
 			</view>
 		</view>
 		<view class="page-content" v-if="!isLoading && selectedMember">
 			<view class="card">
 				<view class="card-title">人员信息</view>
+				<FormItem label="姓名">
+					<input class="input-field" type="text" :value="selectedMember.name || '未设置'" readonly />
+				</FormItem>
 				<FormItem label="手机号">
 					<input class="input-field" type="text" :value="selectedMember.phone" readonly />
 				</FormItem>
@@ -130,7 +134,8 @@
 
 		uni.showModal({
 			title: '确认移除',
-			content: `确定要从本店铺移除 "${selectedMember.value!.phone}" 吗？`,
+			// [核心修改] 确认信息优先显示姓名
+			content: `确定要从本店铺移除 "${selectedMember.value!.name || selectedMember.value!.phone}" 吗？`,
 			success: async (res) => {
 				if (res.confirm) {
 					isSubmitting.value = true;

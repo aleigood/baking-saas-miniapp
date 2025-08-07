@@ -3,8 +3,9 @@
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
+			<!-- [核心修改] 用户头像优先显示姓名的第一个字 -->
 			<view class="user-avatar" @click="showUserMenu = true">{{
-        userStore.userInfo?.phone[0] || '管'
+        userStore.userInfo?.name?.[0] || '管'
       }}</view>
 		</view>
 		<view class="page-content">
@@ -15,7 +16,8 @@
 				<view v-for="member in dataStore.members" :key="member.id" class="list-item"
 					@click="navigateToDetail(member.id)">
 					<view class="main-info">
-						<view class="name">{{ member.phone }}</view>
+						<!-- [核心修改] 列表项优先显示姓名 -->
+						<view class="name">{{ member.name || member.phone }}</view>
 						<view class="desc">加入于: {{ new Date(member.joinDate).toLocaleDateString() }}</view>
 					</view>
 					<view class="side-info">
