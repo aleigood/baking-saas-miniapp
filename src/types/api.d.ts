@@ -95,6 +95,11 @@ export interface Ingredient {
 	type : 'STANDARD' | 'UNTRACKED';
 	activeSku : IngredientSKU | null; // 当前激活的SKU
 	skus : IngredientSKU[];
+	// [核心修正] 将库存和价格字段移到 Ingredient 层面
+	currentStockInGrams : number;
+	currentPricePerPackage : number;
+	// [核心新增] 新增平均消耗字段
+	avgConsumptionPerTask : number;
 }
 
 export interface IngredientSKU {
@@ -103,9 +108,21 @@ export interface IngredientSKU {
 	specName : string;
 	specWeightInGrams : number;
 	status : 'ACTIVE' | 'INACTIVE';
-	currentStockInGrams : number;
-	currentPricePerPackage : number;
+	// [核心修正] 移除这里的库存和价格字段
+	// currentStockInGrams: number;
+	// currentPricePerPackage: number;
+	procurementRecords ?: ProcurementRecord[]; // [新增] 用于详情页展示
+	createdAt : string; // [新增]
 }
+
+// [新增] 采购记录类型
+export interface ProcurementRecord {
+	id : string;
+	packagesPurchased : number;
+	pricePerPackage : number;
+	purchaseDate : string;
+}
+
 
 // --- 生产任务 ---
 // [核心修改] 更新 ProductionTaskDto 以匹配新的、更完整的后端数据结构

@@ -42,11 +42,13 @@
 							<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
 						</view>
 						<view class="side-info">
+							<!-- [核心修正] 从 ing 对象直接读取库存，并更新库存紧张的判断逻辑 -->
 							<view class="value"
-								:class="{ 'stock-low': (ing.activeSku?.currentStockInGrams || 0) < 50000 }">
-								{{ ((ing.activeSku?.currentStockInGrams || 0) / 1000).toFixed(2) }} kg
+								:class="{ 'stock-low': ing.currentStockInGrams < ing.avgConsumptionPerTask }">
+								{{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg
 							</view>
-							<view class="desc">¥ {{ getPricePerKg(ing.activeSku) }}/kg</view>
+							<!-- [核心修正] 调用 getPricePerKg 时传入整个 ing 对象 -->
+							<view class="desc">¥ {{ getPricePerKg(ing) }}/kg</view>
 						</view>
 					</view>
 				</view>
@@ -69,7 +71,7 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import type { IngredientSKU } from '@/types/api';
+	import type { Ingredient } from '@/types/api'; // [核心修正] 导入 Ingredient 类型
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue'; // [新增] 引入 AppFab 组件
 
@@ -89,16 +91,18 @@
 
 	const filteredIngredients = computed(() => {
 		if (ingredientFilter.value === 'low') {
-			return dataStore.ingredients.filter((ing) => (ing.activeSku?.currentStockInGrams || 0) < 50000);
+			// [核心修正] 使用新的库存紧张判断逻辑
+			return dataStore.ingredients.filter((ing) => ing.avgConsumptionPerTask > 0 && ing.currentStockInGrams < ing.avgConsumptionPerTask);
 		}
 		return dataStore.ingredients;
 	});
 
-	const getPricePerKg = (sku : IngredientSKU | null) => {
-		if (!sku || !sku.specWeightInGrams || !sku.currentPricePerPackage) {
+	// [核心修正] getPricePerKg 函数现在接收整个 Ingredient 对象
+	const getPricePerKg = (ing : Ingredient) => {
+		if (!ing.activeSku || !ing.activeSku.specWeightInGrams || !ing.currentPricePerPackage) {
 			return '0.00';
 		}
-		return ((Number(sku.currentPricePerPackage) / sku.specWeightInGrams) * 1000).toFixed(2);
+		return ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000).toFixed(2);
 	};
 
 	const handleSelectTenant = async (tenantId : string) => {
