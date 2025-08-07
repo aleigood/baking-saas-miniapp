@@ -11,7 +11,6 @@
 		<view class="page-content" v-if="!isLoading && ingredient">
 			<view class="detail-page">
 				<!-- 1. 核心信息区 -->
-				<!-- [核心修改] 调整 tag-group 样式和内容 -->
 				<view class="tag-group">
 					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
 					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
@@ -20,14 +19,15 @@
 
 				<!-- 2. 数据洞察区 -->
 				<view class="card">
+					<!-- [核心修改] 更新图表标签文本 -->
 					<view class="filter-tabs" style="margin-bottom: 20px; justify-content: center;">
 						<view class="filter-tab" :class="{ active: detailChartTab === 'price' }"
 							@click="detailChartTab = 'price'">
-							价格曲线
+							价格走势
 						</view>
 						<view class="filter-tab" :class="{ active: detailChartTab === 'usage' }"
 							@click="detailChartTab = 'usage'">
-							历史用量
+							用量走势
 						</view>
 					</view>
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" unit-suffix="/kg" />
@@ -317,7 +317,6 @@
 	}
 
 	.detail-page .tag-group {
-		/* [核心修改] 调整内边距和flex布局，实现左对齐 */
 		margin-bottom: 20px;
 		padding: 0 5px;
 		display: flex;

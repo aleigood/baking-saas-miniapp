@@ -16,6 +16,18 @@ export function getProductCostHistory(productId : string) : Promise<{ cost : num
 }
 
 /**
+ * [新增] 获取产品中各原料的成本构成
+ * @param productId 产品的ID
+ * @returns 返回一个包含 { name: string, value: number } 的数组，用于饼图
+ */
+export function getProductCostBreakdown(productId : string) : Promise<{ name : string, value : number }[]> {
+	return request<{ name : string, value : number }[]>({
+		url: `/costing/products/${productId}/cost-breakdown`,
+	});
+}
+
+
+/**
  * [新增] 获取单个原料成本的历史变化记录
  * @param ingredientId 原料的ID
  * @returns 返回一个包含成本变化点的数组，每个点是一个 { cost: number } 对象

@@ -15,9 +15,9 @@
 
 			<!-- 数据标签 (数值) -->
 			<g class="data-labels">
-				<!-- [核心修改] getLabelXPosition 方法会动态计算 x 坐标以防止溢出 -->
+				<!-- [核心修改] foreignObject 的宽度现在是动态的 -->
 				<foreignObject v-for="(point, index) in points" :key="`label-${point.x}`"
-					:x="getLabelXPosition(point, index)" :y="point.y - 25" :width="labelWidth" height="20">
+					:x="getLabelXPosition(point, index)" :y="point.y - 25" :width="point.labelWidth" height="20">
 					<view xmlns="http://www.w3.org/1999/xhtml" class="label-div">
 						{{ point.label }}
 					</view>
@@ -41,22 +41,19 @@
 			type: Array as () => { cost : number }[],
 			default: () => [],
 		},
-		// [核心新增] 允许自定义单位前缀
 		unitPrefix: {
 			type: String,
 			default: '¥',
 		},
-		// [核心新增] 允许自定义单位后缀
 		unitSuffix: {
 			type: String,
-			default: '/kg',
+			default: '',
 		},
 	});
 
 	const chartWidth = ref(0);
 	const height = 180;
 	const padding = { top: 30, right: 20, bottom: 20, left: 20 };
-	const labelWidth = 70; // 标签容器宽度
 
 	onMounted(() => {
 		const instance = getCurrentInstance();
@@ -95,13 +92,22 @@
 			max - min);
 	});
 
+	// [核心修改] 动态计算每个标签的宽度
+	const estimateLabelWidth = (text : string) => {
+		// 基础宽度 + 每个字符大约8px
+		return 10 + text.length * 8;
+	};
+
 	const points = computed(() => {
-		return dataValues.value.map((value, index) => ({
-			x: xScale.value(index),
-			y: yScale.value(value),
-			// [核心修改] 使用 props 中的单位
-			label: `${props.unitPrefix}${value.toFixed(2)}${props.unitSuffix}`,
-		}));
+		return dataValues.value.map((value, index) => {
+			const labelText = `${props.unitPrefix}${value.toFixed(2)}${props.unitSuffix}`;
+			return {
+				x: xScale.value(index),
+				y: yScale.value(value),
+				label: labelText,
+				labelWidth: estimateLabelWidth(labelText)
+			}
+		});
 	});
 
 	const linePath = computed(() => {
@@ -118,16 +124,15 @@
 		return path.join(' ');
 	});
 
-	// [核心新增] 计算标签的 x 坐标，防止溢出
-	const getLabelXPosition = (point : { x : number }, index : number) => {
-		const centeredX = point.x - (labelWidth / 2);
+	const getLabelXPosition = (point : { x : number, labelWidth : number }, index : number) => {
+		const centeredX = point.x - (point.labelWidth / 2);
 		if (centeredX < 0) {
-			return 0; // 如果超出左边界，则贴左
+			return 0;
 		}
-		if (centeredX + labelWidth > chartWidth.value) {
-			return chartWidth.value - labelWidth; // 如果超出右边界，则贴右
+		if (centeredX + point.labelWidth > chartWidth.value) {
+			return chartWidth.value - point.labelWidth;
 		}
-		return centeredX; // 默认居中
+		return centeredX;
 	};
 </script>
 

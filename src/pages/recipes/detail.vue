@@ -8,19 +8,27 @@
 		</view>
 		<view class="page-content" v-if="!isLoading && recipeFamily">
 			<view class="detail-page">
-				<!-- [核心修改] 调整 tag-group 样式和内容 -->
 				<view class="tag-group">
 					<span class="tag" v-for="productName in productNames" :key="productName">{{ productName }}</span>
 					<span v-if="productNames.length === 0" class="tag">暂无产品</span>
 				</view>
 
-				<!-- 1. 成本变化曲线 -->
+				<!-- 1. [核心重构] 成本分析图表区 -->
 				<view class="card">
-					<view class="card-title-wrapper">
-						<span class="card-title">成本变化曲线</span>
+					<view class="filter-tabs">
+						<view class="filter-tab" :class="{ active: detailChartTab === 'trend' }"
+							@click="detailChartTab = 'trend'">
+							成本走势
+						</view>
+						<view class="filter-tab" :class="{ active: detailChartTab === 'breakdown' }"
+							@click="detailChartTab = 'breakdown'">
+							原料成本
+						</view>
 					</view>
-					<!-- [核心修改] 传入单位后缀 -->
-					<LineChart :chart-data="costHistory" unit-suffix="/个" />
+					<!-- 成本走势折线图 -->
+					<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
+					<!-- 原料成本环形图 -->
+					<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
 				</view>
 
 				<!-- 2. 版本历史 -->
@@ -96,10 +104,11 @@
 	import { useDataStore } from '@/store/data';
 	import type { RecipeFamily, RecipeVersion, IngredientSKU, DoughIngredient } from '@/types/api';
 	import { getRecipeFamily, activateRecipeVersion } from '@/api/recipes';
-	import { getProductCostHistory } from '@/api/costing';
+	import { getProductCostHistory, getProductCostBreakdown } from '@/api/costing';
 	import AppFab from '@/components/AppFab.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import LineChart from '@/components/LineChart.vue';
+	import PieChart from '@/components/PieChart.vue'; // 引入新组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -111,7 +120,11 @@
 	const displayedVersionId = ref<string | null>(null);
 	const showVersionActionsModal = ref(false);
 	const selectedVersionForAction = ref<RecipeVersion | null>(null);
+
+	// [核心新增] 图表相关状态
+	const detailChartTab = ref<'trend' | 'breakdown'>('trend');
 	const costHistory = ref<{ cost : number }[]>([]);
+	const costBreakdown = ref<{ name : string, value : number }[]>([]);
 
 
 	onLoad(async (options) => {
@@ -135,11 +148,13 @@
 
 						if (currentActiveVersion.products && currentActiveVersion.products.length > 0) {
 							const firstProductId = currentActiveVersion.products[0].id;
-							try {
-								costHistory.value = await getProductCostHistory(firstProductId);
-							} catch (historyError) {
-								console.error('获取成本历史失败:', historyError);
-							}
+							// 并行获取两种图表数据
+							const [historyData, breakdownData] = await Promise.all([
+								getProductCostHistory(firstProductId),
+								getProductCostBreakdown(firstProductId)
+							]);
+							costHistory.value = historyData;
+							costBreakdown.value = breakdownData;
 						}
 					}
 				})(),
@@ -157,7 +172,6 @@
 		return recipeVersions.value.find(v => v.isActive);
 	});
 
-	// [核心新增] 计算当前激活版本的所有产品名称
 	const productNames = computed(() => {
 		if (!activeVersion.value || !activeVersion.value.products) {
 			return [];
@@ -326,13 +340,35 @@
 	}
 
 	.detail-page .tag-group {
-		/* [核心修改] 调整内边距和flex布局，实现左对齐 */
 		margin-bottom: 20px;
 		padding: 0 5px;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
 	}
+
+	/* [核心修改] 修正图表切换标签的样式 */
+	.filter-tabs {
+		display: flex;
+		justify-content: center;
+		gap: 10px;
+		margin-bottom: 20px;
+	}
+
+	/* [核心新增] 增加 filter-tab 样式，与原料页保持一致 */
+	.filter-tab {
+		padding: 8px 18px;
+		border-radius: 20px;
+		background: #f3e9e3;
+		color: var(--text-secondary);
+		font-size: 14px;
+	}
+
+	.filter-tab.active {
+		background: var(--primary-color);
+		color: white;
+	}
+
 
 	.status-tag {
 		padding: 4px 12px;
