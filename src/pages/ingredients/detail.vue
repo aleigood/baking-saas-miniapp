@@ -30,16 +30,18 @@
 							用量走势
 						</view>
 					</view>
-					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" unit-suffix="/kg" />
-					<view v-if="detailChartTab === 'usage'" class="mock-chart">
-						模拟历史用量图表区域
-					</view>
+					<!-- [核心修改] 移除价格走势图的 unit-suffix -->
+					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
+					<!-- [核心修改] 使用 LineChart 展示用量走势 -->
+					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
+						unit-suffix="g" />
 				</view>
 
-				<!-- 3. 品牌与库存管理区 -->
+				<!-- 3. 品牌与规格管理区 -->
 				<view class="card card-full-bleed-list">
 					<view class="card-title-wrapper">
-						<span class="card-title">品牌与库存管理 (SKU)</span>
+						<!-- [核心修改] 标题从“品牌与库存管理”改为“品牌与规格” -->
+						<span class="card-title">品牌与规格 (SKU)</span>
 					</view>
 					<view v-for="sku in ingredient.skus" :key="sku.id" class="list-item sku-item"
 						:class="{ 'item-selected': selectedSkuId === sku.id }" hover-class="item-hover"
@@ -55,13 +57,13 @@
 					<button class="btn-add-sm" @click="openAddSkuModal">+ 新增品牌规格</button>
 				</view>
 
-				<!-- 4. [核心新增] 采购记录卡片 -->
+				<!-- 4. 采购记录卡片 -->
 				<view class="card" v-if="selectedSku">
 					<view class="card-title">{{ selectedSku.brand || '无品牌' }} - {{ selectedSku.specName }} 的采购记录
 					</view>
-					<view v-if="selectedSku.procurementRecords && selectedSku.procurementRecords.length > 0">
-						<view v-for="record in selectedSku.procurementRecords" :key="record.id"
-							class="procurement-item">
+					<!-- [核心修改] 使用 displayedProcurementRecords 计算属性来展示记录 -->
+					<view v-if="displayedProcurementRecords && displayedProcurementRecords.length > 0">
+						<view v-for="record in displayedProcurementRecords" :key="record.id" class="procurement-item">
 							<text>{{ new Date(record.purchaseDate).toLocaleDateString() }}</text>
 							<text>{{ record.packagesPurchased }} 包 x ¥{{ Number(record.pricePerPackage).toFixed(2)
 							}}</text>
@@ -70,6 +72,8 @@
 					<view v-else class="procurement-item empty">
 						无采购记录
 					</view>
+					<!-- [核心新增] 加载更多按钮 -->
+					<button v-if="hasMoreRecords" class="btn-add-sm" @click="loadMoreRecords">加载更多</button>
 				</view>
 			</view>
 		</view>
@@ -131,9 +135,10 @@
 	import { ref, computed } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
-	import type { Ingredient, IngredientSKU } from '@/types/api';
+	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api'; // [新增] 引入 ProcurementRecord
 	import { getIngredient, createSku, createProcurement, setActiveSku } from '@/api/ingredients';
-	import { getIngredientCostHistory } from '@/api/costing';
+	// [核心修改] 引入 getIngredientUsageHistory
+	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 	import AppFab from '@/components/AppFab.vue';
@@ -159,9 +164,13 @@
 	});
 
 	const costHistory = ref<{ cost : number }[]>([]);
+	const usageHistory = ref<{ cost : number }[]>([]); // [新增] 用量历史状态
 	const showSkuActionsModal = ref(false);
 	const selectedSkuForAction = ref<IngredientSKU | null>(null);
 	const selectedSkuId = ref<string | null>(null);
+
+	// [核心新增] 用于采购记录分页的状态
+	const displayedRecordsCount = ref(10);
 
 	onLoad(async (options) => {
 		const ingredientId = options?.ingredientId;
@@ -176,12 +185,16 @@
 	const loadIngredientData = async (id : string) => {
 		isLoading.value = true;
 		try {
-			const [ingredientData, historyData] = await Promise.all([
+			// [核心修改] 并行获取原料详情、价格历史和用量历史
+			const [ingredientData, historyData, usageData] = await Promise.all([
 				getIngredient(id),
-				getIngredientCostHistory(id)
+				getIngredientCostHistory(id),
+				getIngredientUsageHistory(id)
 			]);
 			ingredient.value = ingredientData;
 			costHistory.value = historyData;
+			usageHistory.value = usageData; // [新增] 保存用量历史数据
+
 			if (ingredientData.activeSkuId) {
 				selectedSkuId.value = ingredientData.activeSkuId;
 			} else if (ingredientData.skus.length > 0) {
@@ -227,11 +240,18 @@
 		}
 		isSubmitting.value = true;
 		try {
-			await createSku(ingredient.value.id, newSkuForm.value);
+			const skuRes = await createSku(ingredient.value.id, newSkuForm.value);
+			const skuId = skuRes.id;
+
+			// [核心修改] 如果这是第一个SKU，则自动设为激活
+			if (ingredient.value.skus.length === 0) {
+				await setActiveSku(ingredient.value.id, skuId);
+			}
+
 			uni.showToast({ title: '创建成功', icon: 'success' });
 			showAddSkuModal.value = false;
 			await loadIngredientData(ingredient.value.id);
-			await dataStore.fetchIngredientsData();
+			await dataStore.fetchIngredientsData(); // 刷新列表页数据
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -276,6 +296,7 @@
 
 	const handleSkuClick = (sku : IngredientSKU) => {
 		selectedSkuId.value = sku.id;
+		displayedRecordsCount.value = 10; // [新增] 切换SKU时重置显示数量
 	};
 
 	const handleSkuLongPress = (sku : IngredientSKU) => {
@@ -307,6 +328,23 @@
 		if (!ingredient.value || !selectedSkuId.value) return null;
 		return ingredient.value.skus.find(s => s.id === selectedSkuId.value) || null;
 	});
+
+	// [核心新增] 计算属性，用于分页显示采购记录
+	const displayedProcurementRecords = computed(() => {
+		if (!selectedSku.value || !selectedSku.value.procurementRecords) return [];
+		return selectedSku.value.procurementRecords.slice(0, displayedRecordsCount.value);
+	});
+
+	// [核心新增] 计算属性，判断是否还有更多记录未显示
+	const hasMoreRecords = computed(() => {
+		if (!selectedSku.value || !selectedSku.value.procurementRecords) return false;
+		return displayedRecordsCount.value < selectedSku.value.procurementRecords.length;
+	});
+
+	// [核心新增] 加载更多记录的方法
+	const loadMoreRecords = () => {
+		displayedRecordsCount.value += 10;
+	};
 </script>
 
 <style scoped lang="scss">

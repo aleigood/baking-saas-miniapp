@@ -37,3 +37,14 @@ export function getIngredientCostHistory(ingredientId : string) : Promise<{ cost
 		url: `/costing/ingredients/${ingredientId}/cost-history`,
 	});
 }
+
+/**
+ * [新增] 获取单个原料用量的历史变化记录
+ * @param ingredientId 原料的ID
+ * @returns 返回一个包含用量变化点的数组
+ */
+export function getIngredientUsageHistory(ingredientId : string) : Promise<{ cost : number }[]> {
+	return request<{ cost : number }[]>({
+		url: `/costing/ingredients/${ingredientId}/usage-history`,
+	});
+}

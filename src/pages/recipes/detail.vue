@@ -28,7 +28,6 @@
 					<!-- 成本走势折线图 -->
 					<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
 					<!-- 原料成本环形图 -->
-					<!-- [核心修改] 使用新的 PieChart 组件来展示成本构成 -->
 					<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
 				</view>
 
@@ -55,6 +54,10 @@
 							</view>
 						</view>
 					</view>
+					<!-- [核心新增] 创建新版本按钮 -->
+					<button v-if="canEditRecipe" class="btn-add-sm"
+						:class="{'with-border-top': recipeVersions.length > 0}" @click="handleCreateVersion">+
+						创建新版本</button>
 				</view>
 
 				<!-- 3. 当前配方原料列表 -->
@@ -88,7 +91,8 @@
 			<text>加载中...</text>
 		</view>
 
-		<AppFab v-if="canEditRecipe && !isLoading" @click="handleCreateVersion" class="fab-no-tab-bar" />
+		<!-- [核心修改] 移除 AppFab 组件 -->
+		<!-- <AppFab v-if="canEditRecipe && !isLoading" @click="handleCreateVersion" class="fab-no-tab-bar" /> -->
 
 		<AppModal v-model:visible="showVersionActionsModal" title="版本操作">
 			<view class="list-item" hover-class="item-hover" @click="handleActivateFromModal">
@@ -109,7 +113,7 @@
 	import AppFab from '@/components/AppFab.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import LineChart from '@/components/LineChart.vue';
-	import PieChart from '@/components/PieChart.vue'; // [新增] 引入 PieChart 组件
+	import PieChart from '@/components/PieChart.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -444,5 +448,30 @@
 	.card-full-bleed-list .list-item {
 		padding-left: 20px;
 		padding-right: 20px;
+	}
+
+	/* [核心新增] “创建新版本”按钮的样式 */
+	.btn-add-sm {
+		width: 100%;
+		padding: 8px;
+		border: none;
+		color: var(--primary-color);
+		background: transparent;
+		border-radius: 10px;
+		margin-top: 10px;
+		font-size: 14px;
+
+		&::after {
+			border: none;
+		}
+	}
+
+	/* [核心新增] 为按钮添加上边框的样式 */
+	.btn-add-sm.with-border-top {
+		border-top: 1px solid var(--border-color);
+		border-radius: 0;
+		margin-top: 0;
+		padding-top: 15px;
+		margin-top: 5px;
 	}
 </style>

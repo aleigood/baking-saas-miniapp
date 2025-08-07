@@ -100,7 +100,8 @@
 
 	const points = computed(() => {
 		return dataValues.value.map((value, index) => {
-			const labelText = `${props.unitPrefix}${value.toFixed(2)}${props.unitSuffix}`;
+			// [核心修改] 调整数值显示精度为一位小数
+			const labelText = `${props.unitPrefix}${value.toFixed(1)}${props.unitSuffix || ''}`;
 			return {
 				x: xScale.value(index),
 				y: yScale.value(value),
