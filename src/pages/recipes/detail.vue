@@ -28,7 +28,7 @@
 					<!-- 成本走势折线图 -->
 					<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
 					<!-- 原料成本环形图 -->
-					<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
+					<LineChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
 				</view>
 
 				<!-- 2. 版本历史 -->
