@@ -58,3 +58,17 @@ export function updateTaskStatus(
 		data: { status },
 	});
 }
+
+/**
+ * [核心新增] 完成一个生产任务的专用接口
+ * (New: Dedicated API to complete a production task)
+ * @param taskId 任务ID
+ * @param data 包含备注等信息
+ */
+export function completeTask(taskId : string, data : { notes ?: string }) : Promise<any> {
+	return request({
+		url: `/production-tasks/${taskId}/complete`,
+		method: 'POST',
+		data,
+	});
+}

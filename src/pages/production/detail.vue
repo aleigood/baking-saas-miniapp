@@ -25,7 +25,7 @@
 				</view>
 			</view>
 
-			<button class="btn btn-primary btn-full-width" @click="completeTask">
+			<button class="btn btn-primary btn-full-width" @click="handleCompleteTask">
 				完成任务
 			</button>
 		</view>
@@ -41,7 +41,8 @@
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import type { ProductionTaskDto } from '@/types/api';
-	import { getTask, updateTaskStatus } from '@/api/tasks';
+	// [核心修正] 引入 completeTask 并移除 updateTaskStatus
+	import { getTask, updateTaskStatus, completeTask } from '@/api/tasks';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -150,12 +151,12 @@
 	};
 
 
-	const completeTask = async () => {
+	const handleCompleteTask = async () => {
 		if (!task.value) return;
 		uni.showLoading({ title: '正在完成...' });
 		try {
-			// [修改] 后端完成任务的接口已变更为 POST /:id/complete
-			await updateTaskStatus(task.value.id, 'COMPLETED');
+			// [核心修正] 调用正确的 completeTask 接口，而不是 updateTaskStatus
+			await completeTask(task.value.id, { notes: '' });
 			uni.hideLoading();
 			uni.showToast({ title: '任务已完成', icon: 'success' });
 			await dataStore.fetchProductionData();
