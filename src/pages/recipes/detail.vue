@@ -28,7 +28,8 @@
 					<!-- 成本走势折线图 -->
 					<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
 					<!-- 原料成本环形图 -->
-					<LineChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
+					<!-- [核心修改] 使用新的 PieChart 组件来展示成本构成 -->
+					<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
 				</view>
 
 				<!-- 2. 版本历史 -->
@@ -108,6 +109,7 @@
 	import AppFab from '@/components/AppFab.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import LineChart from '@/components/LineChart.vue';
+	import PieChart from '@/components/PieChart.vue'; // [新增] 引入 PieChart 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
