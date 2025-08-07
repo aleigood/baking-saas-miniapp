@@ -108,7 +108,6 @@
 	import AppFab from '@/components/AppFab.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import LineChart from '@/components/LineChart.vue';
-	import PieChart from '@/components/PieChart.vue'; // 引入新组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
