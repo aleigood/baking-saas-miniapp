@@ -18,12 +18,18 @@
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ totalPendingBreadCount }}</view>
-						<view class="label">待完成</view>
+						<view class="label">待完成面包</view>
 					</div>
 					<div>
 						<view class="value">{{ thisWeeksCompletedBreadCount }}</view>
 						<view class="label">本周已完成</view>
 					</div>
+				</view>
+
+				<!-- [核心修改] 使用新的 BarChart 组件展示制作排行 -->
+				<view class="card">
+					<view class="card-title"><span>本周制作排行</span></view>
+					<BarChart :chart-data="recipeStatsForChart" unit="次" />
 				</view>
 
 				<!-- 任务列表标题和历史按钮 -->
@@ -83,6 +89,7 @@
 	import { useDataStore } from '@/store/data';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
+	import BarChart from '@/components/BarChart.vue'; // [新增] 引入 BarChart 组件
 	import type { ProductionTaskDto } from '@/types/api';
 	import { updateTaskStatus } from '@/api/tasks';
 
@@ -101,14 +108,22 @@
 		isLoading.value = false;
 	});
 
+	// [核心修正] 将配方统计数据转换为图表所需格式，并按降序排序
+	const recipeStatsForChart = computed(() => {
+		return dataStore.recipeStats
+			.map(item => ({
+				name: item.name,
+				value: item.count,
+			}))
+			.sort((a, b) => b.value - a.value);
+	});
+
 	const activeTasks = computed(() => {
 		return dataStore.production.filter(
 			task => task.status === 'PENDING' || task.status === 'IN_PROGRESS'
 		);
 	});
 
-	// [修改] 计算所有待完成面包总数
-	// (Modified: Calculate total pending bread count for all active tasks)
 	const totalPendingBreadCount = computed(() => {
 		return activeTasks.value
 			.reduce((sum, task) => sum + getTotalQuantity(task), 0);
@@ -175,8 +190,6 @@
 		return map[status] || '';
 	};
 
-	// [新增] 点击任务卡片导航到详情页
-	// (New) Navigate to detail page on task card click
 	const navigateToDetail = (task : ProductionTaskDto) => {
 		uni.navigateTo({
 			url: `/pages/production/detail?taskId=${task.id}`

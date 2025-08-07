@@ -14,16 +14,10 @@
 			</view>
 			<template v-else>
 				<view>
+					<!-- [核心修改] 使用 BarChart 组件替换原有的列表 -->
 					<view class="card">
 						<view class="card-title"><span>本周制作排行</span></view>
-						<view v-if="dataStore.recipeStats.length > 0">
-							<view v-for="(item, index) in dataStore.recipeStats" :key="item.name" class="stats-item">
-								<span class="rank">{{ index + 1 }}</span>
-								<span class="name">{{ item.name }}</span>
-								<span class="count">{{ item.count }} 次</span>
-							</view>
-						</view>
-						<view v-else class="empty-state" style="padding: 20px 0">暂无排行数据</view>
+						<BarChart :chart-data="recipeStatsForChart" unit="次" />
 					</view>
 
 					<view class="filter-tabs">
@@ -84,6 +78,7 @@
 	import type { RecipeFamily } from '@/types/api';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
+	import BarChart from '@/components/BarChart.vue'; // [新增] 引入 BarChart 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -104,6 +99,17 @@
 		await dataStore.fetchRecipesData();
 		isLoading.value = false;
 	});
+
+	// [核心修正] 将配方统计数据转换为图表所需格式，并按降序排序
+	const recipeStatsForChart = computed(() => {
+		return dataStore.recipeStats
+			.map(item => ({
+				name: item.name,
+				value: item.count,
+			}))
+			.sort((a, b) => b.value - a.value);
+	});
+
 
 	const getRecipeTypeDisplay = (type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA') => {
 		return recipeTypeMap[type] || type;

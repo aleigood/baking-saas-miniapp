@@ -13,21 +13,11 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<!-- [核心重构] 移除详情页逻辑，只保留列表页 -->
 				<view>
+					<!-- [核心修改] 使用 BarChart 组件替换原有的列表 -->
 					<view class="card">
 						<view class="card-title"><span>本月消耗统计</span></view>
-						<!-- [修改] 增加 v-if 判断 -->
-						<view v-if="dataStore.ingredientStats.length > 0">
-							<view v-for="(item, index) in dataStore.ingredientStats" :key="item.name"
-								class="stats-item">
-								<span class="rank">{{ index + 1 }}</span>
-								<span class="name">{{ item.name }}</span>
-								<span class="count">{{ (item.consumedGrams / 1000).toFixed(2) }} kg</span>
-							</view>
-						</view>
-						<!-- [新增] 无数据时的占位符 -->
-						<view v-else class="empty-state" style="padding: 20px 0">暂无消耗统计</view>
+						<BarChart :chart-data="ingredientStatsForChart" unit="kg" />
 					</view>
 					<view class="filter-tabs">
 						<view class="filter-tab" :class="{ active: ingredientFilter === 'all' }"
@@ -42,19 +32,16 @@
 							<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
 						</view>
 						<view class="side-info">
-							<!-- [核心修正] 从 ing 对象直接读取库存，并更新库存紧张的判断逻辑 -->
 							<view class="value"
 								:class="{ 'stock-low': ing.currentStockInGrams < ing.avgConsumptionPerTask }">
 								{{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg
 							</view>
-							<!-- [核心修正] 调用 getPricePerKg 时传入整个 ing 对象 -->
 							<view class="desc">¥ {{ getPricePerKg(ing) }}/kg</view>
 						</view>
 					</view>
 				</view>
 			</template>
 		</view>
-		<!-- [核心修改] 使用 AppFab 组件 -->
 		<AppFab @click="navigateToEditPage" />
 
 		<AppModal v-model:visible="showStoreModal" title="选择门店">
@@ -71,9 +58,10 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import type { Ingredient } from '@/types/api'; // [核心修正] 导入 Ingredient 类型
+	import type { Ingredient } from '@/types/api';
 	import AppModal from '@/components/AppModal.vue';
-	import AppFab from '@/components/AppFab.vue'; // [新增] 引入 AppFab 组件
+	import AppFab from '@/components/AppFab.vue';
+	import BarChart from '@/components/BarChart.vue'; // [新增] 引入 BarChart 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -83,21 +71,28 @@
 	const isLoading = ref(false);
 
 	onShow(async () => {
-		// [修改] 每次进入页面都刷新数据，以保证从详情页返回时数据是最新的
 		isLoading.value = true;
 		await dataStore.fetchIngredientsData();
 		isLoading.value = false;
 	});
 
+	// [核心修正] 将原料消耗统计数据转换为图表所需格式，并按降序排序
+	const ingredientStatsForChart = computed(() => {
+		return dataStore.ingredientStats
+			.map(item => ({
+				name: item.name,
+				value: item.consumedGrams / 1000, // 转换为 kg
+			}))
+			.sort((a, b) => b.value - a.value);
+	});
+
 	const filteredIngredients = computed(() => {
 		if (ingredientFilter.value === 'low') {
-			// [核心修正] 使用新的库存紧张判断逻辑
 			return dataStore.ingredients.filter((ing) => ing.avgConsumptionPerTask > 0 && ing.currentStockInGrams < ing.avgConsumptionPerTask);
 		}
 		return dataStore.ingredients;
 	});
 
-	// [核心修正] getPricePerKg 函数现在接收整个 Ingredient 对象
 	const getPricePerKg = (ing : Ingredient) => {
 		if (!ing.activeSku || !ing.activeSku.specWeightInGrams || !ing.currentPricePerPackage) {
 			return '0.00';
@@ -123,7 +118,6 @@
 		});
 	};
 
-	// [新增] 跳转到新的详情页
 	const navigateToDetail = (ingredientId : string) => {
 		uni.navigateTo({
 			url: `/pages/ingredients/detail?ingredientId=${ingredientId}`,
