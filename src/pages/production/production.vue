@@ -18,18 +18,12 @@
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ totalPendingBreadCount }}</view>
-						<view class="label">待完成面包</view>
+						<view class="label">待完成</view>
 					</div>
 					<div>
 						<view class="value">{{ thisWeeksCompletedBreadCount }}</view>
 						<view class="label">本周已完成</view>
 					</div>
-				</view>
-
-				<!-- [核心修改] 使用新的 BarChart 组件展示制作排行 -->
-				<view class="card">
-					<view class="card-title"><span>本周制作排行</span></view>
-					<BarChart :chart-data="recipeStatsForChart" unit="次" />
 				</view>
 
 				<!-- 任务列表标题和历史按钮 -->
