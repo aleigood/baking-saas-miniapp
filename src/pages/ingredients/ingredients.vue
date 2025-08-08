@@ -16,7 +16,7 @@
 				<view>
 					<!-- [核心修改] 使用 BarChart 组件替换原有的列表 -->
 					<view class="card">
-						<view class="card-title"><span>本月消耗统计</span></view>
+						<view class="card-title"><span>本月消耗排行</span></view>
 						<BarChart :chart-data="ingredientStatsForChart" unit="kg" />
 					</view>
 					<view class="filter-tabs">
