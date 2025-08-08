@@ -18,6 +18,12 @@
 			}
 		},
 		{
+			"path": "pages/production/history",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/ingredients/ingredients",
 			"style": {
 				"navigationStyle": "custom"

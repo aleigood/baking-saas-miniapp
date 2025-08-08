@@ -17,7 +17,7 @@ import type {
 import { useUserStore } from './user';
 import { getTenants as getTenantsApi } from '@/api/tenants';
 import { switchTenant as switchTenantApi } from '@/api/auth';
-import { getTasks } from '@/api/tasks';
+import { getTasks, getTasksByStatus } from '@/api/tasks'; // [新增] 引入 getTasksByStatus
 import { getRecipes } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
 import { getMembers } from '@/api/members';
@@ -38,6 +38,8 @@ export const useDataStore = defineStore('data', () => {
 
 	// 业务数据
 	const production = ref<ProductionTaskDto[]>([]);
+	// [核心修改] 将 completedTasks 重命名为 historicalTasks
+	const historicalTasks = ref<ProductionTaskDto[]>([]);
 	const recipes = ref<RecipeFamily[]>([]); // 更新为 RecipeFamily 数组
 	const ingredients = ref<Ingredient[]>([]);
 	const members = ref<Member[]>([]);
@@ -50,6 +52,7 @@ export const useDataStore = defineStore('data', () => {
 		recipes: false,
 		ingredients: false,
 		members: false,
+		historicalTasks: false, // [核心修改]
 	});
 
 	// Getters
@@ -68,11 +71,6 @@ export const useDataStore = defineStore('data', () => {
 							name: product.name,
 							type: family.name, // 类型是配方家族名
 							familyId: family.id,
-							// 旧的模拟数据，可以保留或移除
-							weight: product.baseDoughWeight,
-							rating: 4.5,
-							publicCount: 100,
-							ingredients: [], // 详情数据后续获取
 						});
 					});
 				});
@@ -119,6 +117,23 @@ export const useDataStore = defineStore('data', () => {
 			console.error('Failed to fetch production data', error);
 		}
 	}
+
+	// [核心修改] 获取已完成和已取消的任务
+	async function fetchHistoricalTasks() {
+		if (!currentTenantId.value) return;
+		try {
+			const [completed, cancelled] = await Promise.all([
+				getTasksByStatus('COMPLETED'),
+				getTasksByStatus('CANCELLED')
+			]);
+			// 合并并按日期降序排序
+			historicalTasks.value = [...completed, ...cancelled].sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
+			dataLoaded.value.historicalTasks = true;
+		} catch (error) {
+			console.error('Failed to fetch historical tasks', error);
+		}
+	}
+
 
 	async function fetchRecipesData() {
 		if (!currentTenantId.value) return;
@@ -183,6 +198,7 @@ export const useDataStore = defineStore('data', () => {
 	// [新增] 用于重置业务数据和加载状态的辅助函数
 	function resetData() {
 		production.value = [];
+		historicalTasks.value = []; // [核心修改]
 		recipes.value = [];
 		ingredients.value = [];
 		members.value = [];
@@ -193,6 +209,7 @@ export const useDataStore = defineStore('data', () => {
 			recipes: false,
 			ingredients: false,
 			members: false,
+			historicalTasks: false, // [核心修改]
 		};
 	}
 
@@ -207,6 +224,7 @@ export const useDataStore = defineStore('data', () => {
 		currentTenantId,
 		currentTenant,
 		production,
+		historicalTasks, // [核心修改]
 		recipes,
 		productList, // 暴露转换后的产品列表
 		ingredients,
@@ -219,6 +237,7 @@ export const useDataStore = defineStore('data', () => {
 		reset,
 		// 暴露独立的加载函数
 		fetchProductionData,
+		fetchHistoricalTasks, // [核心修改]
 		fetchRecipesData,
 		fetchIngredientsData,
 		fetchMembersData,

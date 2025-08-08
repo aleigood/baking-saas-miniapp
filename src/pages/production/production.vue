@@ -35,9 +35,10 @@
 				<!-- 任务列表标题和历史按钮 -->
 				<view class="card-title-wrapper">
 					<span class="card-title">进行中的任务</span>
+					<!-- [核心修改] 修改点击事件为导航到历史页面 -->
 					<image v-if="hasCompletedTasks" class="header-icon"
 						src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z'/%3E%3C/svg%3E"
-						@click="alert('查看制作历史')" />
+						@click="navigateToHistory" />
 				</view>
 
 				<!-- 任务列表 -->
@@ -196,6 +197,13 @@
 		});
 	};
 
+	// [新增] 导航到历史页面的方法
+	const navigateToHistory = () => {
+		uni.navigateTo({
+			url: '/pages/production/history'
+		});
+	};
+
 	const handleLongPress = (task : ProductionTaskDto) => {
 		selectedTaskForAction.value = task;
 		showTaskActionsModal.value = true;
@@ -284,8 +292,9 @@
 		border-left: 5px solid;
 	}
 
+	/* [核心修改] 更新状态颜色 */
 	.task-card.status-pending {
-		border-color: #f9ae3d;
+		border-color: #d4a373;
 	}
 
 	.task-card.status-inprogress {
@@ -323,8 +332,9 @@
 		white-space: nowrap;
 	}
 
+	/* [核心修改] 更新状态颜色 */
 	.status-tag.status-pending {
-		background-color: #f9ae3d;
+		background-color: #d4a373;
 	}
 
 	.status-tag.status-inprogress {
@@ -332,7 +342,7 @@
 	}
 
 	.status-tag.status-completed {
-		background-color: #007bff;
+		background-color: #a9c1de;
 	}
 
 	.status-tag.status-cancelled {

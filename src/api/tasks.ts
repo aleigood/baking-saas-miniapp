@@ -6,6 +6,18 @@ import { request } from '@/utils/request';
 import type { ProductionTaskDto } from '@/types/api';
 
 /**
+ * [核心新增] 根据状态获取任务列表
+ * @param status 任务状态
+ */
+export function getTasksByStatus(status : 'COMPLETED' | 'CANCELLED') : Promise<ProductionTaskDto[]> {
+	return request<ProductionTaskDto[]>({
+		url: '/production-tasks',
+		data: { status },
+	});
+}
+
+
+/**
  * 获取当前店铺的生产任务列表
  */
 export function getTasks() : Promise<ProductionTaskDto[]> {
