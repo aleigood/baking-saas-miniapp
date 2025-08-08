@@ -34,7 +34,7 @@
 				<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="ingredient-row">
 					<input class="input-field" v-model="ing.name" placeholder="原料名" />
 					<input class="input-field" type="number" v-model.number="ing.ratio" placeholder="比例%" />
-					<checkbox :checked="ing.isFlour" @click="ing.isFlour = !ing.isFlour">总粉</checkbox>
+					<!-- [核心删除] 移除“总粉”复选框 -->
 					<button class="btn btn-danger btn-xs" @click="removeIngredient(doughIndex, ingIndex)">-</button>
 				</view>
 				<button class="btn btn-dashed btn-full-width" @click="addIngredient(doughIndex)">+ 添加原料</button>
@@ -89,11 +89,12 @@
 				targetTemp: 26,
 				lossRatio: 0,
 				procedure: [],
+				// [核心修正] 移除 isFlour 和 waterContent
 				ingredients: [
-					{ name: '高筋粉', ratio: 100, isFlour: true, waterContent: 0 },
-					{ name: '水', ratio: 60, isFlour: false, waterContent: 100 },
-					{ name: '酵母', ratio: 1, isFlour: false, waterContent: 0 },
-					{ name: '盐', ratio: 2, isFlour: false, waterContent: 0 },
+					{ name: '高筋粉', ratio: 100 },
+					{ name: '水', ratio: 60 },
+					{ name: '酵母', ratio: 1 },
+					{ name: '盐', ratio: 2 },
 				],
 			},
 		],
@@ -127,11 +128,10 @@
 						targetTemp: 0,
 						lossRatio: 0,
 						procedure: [],
+						// [核心修正] 移除 isFlour
 						ingredients: d.ingredients.map(i => ({
 							name: i.name,
 							ratio: i.ratio,
-							isFlour: i.isFlour,
-							waterContent: 0,
 						})),
 					}));
 					form.value.products = sourceVersion.products.map(p => ({
@@ -169,7 +169,8 @@
 			targetTemp: 0,
 			lossRatio: 0,
 			procedure: [],
-			ingredients: [{ name: '', ratio: 0, isFlour: false, waterContent: 0 }],
+			// [核心修正] 移除 isFlour 和 waterContent
+			ingredients: [{ name: '', ratio: 0 }],
 		});
 	};
 
@@ -178,7 +179,8 @@
 	};
 
 	const addIngredient = (doughIndex : number) => {
-		form.value.doughs[doughIndex].ingredients.push({ name: '', ratio: 0, isFlour: false, waterContent: 0 });
+		// [核心修正] 移除 isFlour 和 waterContent
+		form.value.doughs[doughIndex].ingredients.push({ name: '', ratio: 0 });
 	};
 
 	const removeIngredient = (doughIndex : number, ingIndex : number) => {

@@ -85,7 +85,6 @@ export interface ProductListItem {
 	name : string; // 这是 Product 的 name
 	type : string; // 这是 RecipeFamily 的 name
 	familyId : string; // 这是 RecipeFamily 的 ID
-	// weight 等信息将在详情页获取
 }
 
 // --- 原料与库存 ---
@@ -93,12 +92,13 @@ export interface Ingredient {
 	id : string;
 	name : string;
 	type : 'STANDARD' | 'UNTRACKED';
+	// [核心新增] 新增配方属性字段
+	isFlour : boolean;
+	waterContent : number;
 	activeSku : IngredientSKU | null; // 当前激活的SKU
 	skus : IngredientSKU[];
-	// [核心修正] 将库存和价格字段移到 Ingredient 层面
 	currentStockInGrams : number;
 	currentPricePerPackage : number;
-	// [核心新增] 新增平均消耗字段
 	avgConsumptionPerTask : number;
 }
 
@@ -108,9 +108,6 @@ export interface IngredientSKU {
 	specName : string;
 	specWeightInGrams : number;
 	status : 'ACTIVE' | 'INACTIVE';
-	// [核心修正] 移除这里的库存和价格字段
-	// currentStockInGrams: number;
-	// currentPricePerPackage: number;
 	procurementRecords ?: ProcurementRecord[]; // [新增] 用于详情页展示
 	createdAt : string; // [新增]
 }

@@ -38,6 +38,20 @@ export function createIngredient(data : { name : string; type : 'STANDARD' | 'UN
 }
 
 /**
+ * [新增] 更新原料的属性
+ * @param ingredientId 原料的ID
+ * @param data 要更新的数据
+ */
+export function updateIngredient(ingredientId : string, data : { name ?: string; isFlour ?: boolean; waterContent ?: number }) : Promise<Ingredient> {
+	return request<Ingredient>({
+		url: `/ingredients/${ingredientId}`,
+		method: 'PATCH',
+		data,
+	});
+}
+
+
+/**
  * [新增] 为指定原料创建一个新的SKU
  * @param ingredientId 原料品类的ID
  * @param data 包含品牌、规格等信息

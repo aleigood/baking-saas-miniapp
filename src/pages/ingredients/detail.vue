@@ -5,6 +5,10 @@
 			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
 				<h2 class="detail-title">{{ ingredient?.name || '加载中...' }}</h2>
+				<!-- [核心新增] 编辑图标 -->
+				<image class="header-icon"
+					src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E"
+					@click="openEditModal" />
 			</view>
 		</view>
 
@@ -19,7 +23,6 @@
 
 				<!-- 2. 数据洞察区 -->
 				<view class="card">
-					<!-- [核心修改] 更新图表标签文本 -->
 					<view class="filter-tabs" style="margin-bottom: 20px; justify-content: center;">
 						<view class="filter-tab" :class="{ active: detailChartTab === 'price' }"
 							@click="detailChartTab = 'price'">
@@ -30,9 +33,7 @@
 							用量走势
 						</view>
 					</view>
-					<!-- [核心修改] 移除价格走势图的 unit-suffix -->
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
-					<!-- [核心修改] 使用 LineChart 展示用量走势 -->
 					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
 						unit-suffix="g" />
 				</view>
@@ -40,7 +41,6 @@
 				<!-- 3. 品牌与规格管理区 -->
 				<view class="card card-full-bleed-list">
 					<view class="card-title-wrapper">
-						<!-- [核心修改] 标题从“品牌与库存管理”改为“品牌与规格” -->
 						<span class="card-title">品牌与规格 (SKU)</span>
 					</view>
 					<view v-for="sku in ingredient.skus" :key="sku.id" class="list-item sku-item"
@@ -61,7 +61,6 @@
 				<view class="card" v-if="selectedSku">
 					<view class="card-title">{{ selectedSku.brand || '无品牌' }} - {{ selectedSku.specName }} 的采购记录
 					</view>
-					<!-- [核心修改] 使用 displayedProcurementRecords 计算属性来展示记录 -->
 					<view v-if="displayedProcurementRecords && displayedProcurementRecords.length > 0">
 						<view v-for="record in displayedProcurementRecords" :key="record.id" class="procurement-item">
 							<text>{{ new Date(record.purchaseDate).toLocaleDateString() }}</text>
@@ -72,7 +71,6 @@
 					<view v-else class="procurement-item empty">
 						无采购记录
 					</view>
-					<!-- [核心新增] 加载更多按钮 -->
 					<button v-if="hasMoreRecords" class="btn-add-sm" @click="loadMoreRecords">加载更多</button>
 				</view>
 			</view>
@@ -83,7 +81,35 @@
 
 		<AppFab @click="openProcurementModal" class="fab-no-tab-bar" />
 
-		<!-- 模态框 -->
+		<!-- [核心重构] 将所有编辑功能移入此模态框 -->
+		<AppModal v-model:visible="showEditModal" title="编辑原料属性">
+			<FormItem label="原料名称">
+				<input class="input-field" v-model="ingredientForm.name" placeholder="输入原料名称" />
+			</FormItem>
+			<FormItem label="原料类型">
+				<picker mode="selector" :range="availableTypes.map(t => t.label)" @change="onTypeChange">
+					<view class="picker">{{ currentTypeLabel }}</view>
+				</picker>
+			</FormItem>
+			<view class="form-row">
+				<label class="form-row-label">是否为面粉</label>
+				<switch :checked="ingredientForm.isFlour" @change="onIsFlourChange" color="#8c5a3b" />
+			</view>
+			<view class="form-row">
+				<label class="form-row-label">含水量 (%)</label>
+				<input class="input-field" type="number" v-model.number="ingredientForm.waterContent"
+					placeholder="输入百分比, 如 80" />
+			</view>
+			<view class="modal-actions">
+				<button class="btn btn-secondary" @click="showEditModal = false">取消</button>
+				<button class="btn btn-primary" @click="handleUpdateIngredient" :loading="isSubmitting">
+					{{ isSubmitting ? '保存中...' : '确认保存' }}
+				</button>
+			</view>
+		</AppModal>
+
+
+		<!-- SKU模态框 -->
 		<AppModal v-model:visible="showAddSkuModal" title="新增品牌规格">
 			<FormItem label="品牌">
 				<input class="input-field" v-model="newSkuForm.brand" placeholder="例如：王后" />
@@ -132,12 +158,11 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, computed } from 'vue';
+	import { ref, computed, reactive } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
-	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api'; // [新增] 引入 ProcurementRecord
-	import { getIngredient, createSku, createProcurement, setActiveSku } from '@/api/ingredients';
-	// [核心修改] 引入 getIngredientUsageHistory
+	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
+	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient } from '@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
@@ -164,13 +189,23 @@
 	});
 
 	const costHistory = ref<{ cost : number }[]>([]);
-	const usageHistory = ref<{ cost : number }[]>([]); // [新增] 用量历史状态
+	const usageHistory = ref<{ cost : number }[]>([]);
 	const showSkuActionsModal = ref(false);
 	const selectedSkuForAction = ref<IngredientSKU | null>(null);
 	const selectedSkuId = ref<string | null>(null);
 
-	// [核心新增] 用于采购记录分页的状态
 	const displayedRecordsCount = ref(10);
+
+	// [核心新增] 编辑模态框的显示状态
+	const showEditModal = ref(false);
+
+	// 用于编辑原料所有属性的表单
+	const ingredientForm = reactive({
+		name: '',
+		type: 'STANDARD' as 'STANDARD' | 'UNTRACKED',
+		isFlour: false,
+		waterContent: 0,
+	});
 
 	onLoad(async (options) => {
 		const ingredientId = options?.ingredientId;
@@ -185,7 +220,6 @@
 	const loadIngredientData = async (id : string) => {
 		isLoading.value = true;
 		try {
-			// [核心修改] 并行获取原料详情、价格历史和用量历史
 			const [ingredientData, historyData, usageData] = await Promise.all([
 				getIngredient(id),
 				getIngredientCostHistory(id),
@@ -193,7 +227,14 @@
 			]);
 			ingredient.value = ingredientData;
 			costHistory.value = historyData;
-			usageHistory.value = usageData; // [新增] 保存用量历史数据
+			usageHistory.value = usageData;
+
+			// [核心修改] 初始化表单，但不在这里显示
+			ingredientForm.name = ingredientData.name;
+			ingredientForm.type = ingredientData.type;
+			ingredientForm.isFlour = ingredientData.isFlour;
+			ingredientForm.waterContent = ingredientData.waterContent;
+
 
 			if (ingredientData.activeSkuId) {
 				selectedSkuId.value = ingredientData.activeSkuId;
@@ -207,6 +248,33 @@
 			isLoading.value = false;
 		}
 	};
+
+	// [核心新增] 打开编辑模态框
+	const openEditModal = () => {
+		// 确保表单数据与当前显示的数据同步
+		if (ingredient.value) {
+			ingredientForm.name = ingredient.value.name;
+			ingredientForm.type = ingredient.value.type;
+			ingredientForm.isFlour = ingredient.value.isFlour;
+			ingredientForm.waterContent = ingredient.value.waterContent;
+		}
+		showEditModal.value = true;
+	};
+
+
+	const availableTypes = ref([
+		{ label: '标准原料 (追踪库存)', value: 'STANDARD' },
+		{ label: '非追踪原料 (不计库存)', value: 'UNTRACKED' },
+	]);
+
+	const currentTypeLabel = computed(() => {
+		return availableTypes.value.find(t => t.value === ingredientForm.type)?.label || '未知类型';
+	});
+
+	const onTypeChange = (e : any) => {
+		ingredientForm.type = availableTypes.value[e.detail.value].value as 'STANDARD' | 'UNTRACKED';
+	};
+
 
 	const getIngredientPricePerKg = (ing : Ingredient | null) => {
 		if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
@@ -243,7 +311,6 @@
 			const skuRes = await createSku(ingredient.value.id, newSkuForm.value);
 			const skuId = skuRes.id;
 
-			// [核心修改] 如果这是第一个SKU，则自动设为激活
 			if (ingredient.value.skus.length === 0) {
 				await setActiveSku(ingredient.value.id, skuId);
 			}
@@ -251,7 +318,7 @@
 			uni.showToast({ title: '创建成功', icon: 'success' });
 			showAddSkuModal.value = false;
 			await loadIngredientData(ingredient.value.id);
-			await dataStore.fetchIngredientsData(); // 刷新列表页数据
+			await dataStore.fetchIngredientsData();
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -296,7 +363,7 @@
 
 	const handleSkuClick = (sku : IngredientSKU) => {
 		selectedSkuId.value = sku.id;
-		displayedRecordsCount.value = 10; // [新增] 切换SKU时重置显示数量
+		displayedRecordsCount.value = 10;
 	};
 
 	const handleSkuLongPress = (sku : IngredientSKU) => {
@@ -329,21 +396,44 @@
 		return ingredient.value.skus.find(s => s.id === selectedSkuId.value) || null;
 	});
 
-	// [核心新增] 计算属性，用于分页显示采购记录
 	const displayedProcurementRecords = computed(() => {
 		if (!selectedSku.value || !selectedSku.value.procurementRecords) return [];
 		return selectedSku.value.procurementRecords.slice(0, displayedRecordsCount.value);
 	});
 
-	// [核心新增] 计算属性，判断是否还有更多记录未显示
 	const hasMoreRecords = computed(() => {
 		if (!selectedSku.value || !selectedSku.value.procurementRecords) return false;
 		return displayedRecordsCount.value < selectedSku.value.procurementRecords.length;
 	});
 
-	// [核心新增] 加载更多记录的方法
 	const loadMoreRecords = () => {
 		displayedRecordsCount.value += 10;
+	};
+
+	const onIsFlourChange = (e : any) => {
+		ingredientForm.isFlour = e.detail.value;
+	};
+
+	const handleUpdateIngredient = async () => {
+		if (!ingredient.value) return;
+		isSubmitting.value = true;
+		try {
+			await updateIngredient(ingredient.value.id, {
+				name: ingredientForm.name,
+				type: ingredientForm.type,
+				isFlour: ingredientForm.isFlour,
+				waterContent: Number(ingredientForm.waterContent) || 0,
+			});
+			uni.showToast({ title: '保存成功', icon: 'success' });
+			showEditModal.value = false; // [新增] 保存成功后关闭模态框
+			await loadIngredientData(ingredient.value.id);
+			await dataStore.fetchIngredientsData();
+		} catch (error) {
+			console.error("Failed to update ingredient properties:", error);
+			uni.showToast({ title: '保存失败', icon: 'none' });
+		} finally {
+			isSubmitting.value = false;
+		}
 	};
 </script>
 
@@ -352,6 +442,13 @@
 
 	.page-container {
 		padding-bottom: 80px;
+	}
+
+	/* [核心新增] 编辑图标样式 */
+	.header-icon {
+		width: 24px;
+		height: 24px;
+		margin-left: auto;
 	}
 
 	.detail-page .tag-group {
@@ -491,5 +588,23 @@
 	.card-full-bleed-list .list-item {
 		padding-left: 20px;
 		padding-right: 20px;
+	}
+
+	/* [核心新增] 配方属性表单样式 */
+	.form-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 10px 0;
+	}
+
+	.form-row-label {
+		font-size: 15px;
+		color: var(--text-primary);
+	}
+
+	.form-row .input-field {
+		width: 120px;
+		text-align: right;
 	}
 </style>
