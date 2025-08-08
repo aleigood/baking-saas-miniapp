@@ -48,4 +48,14 @@
 		color: transparent;
 		display: none;
 	}
+
+	/* [核心新增] TabBar 样式覆盖，实现立体阴影效果 */
+	.uni-tabbar {
+		box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05) !important;
+	}
+
+	.uni-tabbar-border {
+		/* [核心修改] 直接隐藏该元素以移除分割线 */
+		display: none !important;
+	}
 </style>
