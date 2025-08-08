@@ -137,9 +137,10 @@
 				<input class="input-field" type="number" v-model.number="procurementForm.packagesPurchased"
 					placeholder="例如：10" />
 			</FormItem>
-			<FormItem label="每包单价 (元)">
-				<input class="input-field" type="number" v-model.number="procurementForm.pricePerPackage"
-					placeholder="例如：25.5" />
+			<!-- [核心修改] 将“每包单价”改为“采购总价” -->
+			<FormItem label="采购总价 (元)">
+				<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
+					placeholder="例如：255" />
 			</FormItem>
 			<view class="modal-actions">
 				<button class="btn btn-secondary" @click="showProcurementModal = false">取消</button>
@@ -181,10 +182,11 @@
 		specWeightInGrams: 0,
 	});
 	const showProcurementModal = ref(false);
+	// [核心修改] 将 pricePerPackage 替换为 totalPrice
 	const procurementForm = ref({
 		skuId: '',
 		packagesPurchased: 0,
-		pricePerPackage: 0,
+		totalPrice: 0,
 		purchaseDate: new Date().toISOString(),
 	});
 
@@ -335,23 +337,33 @@
 			uni.showToast({ title: '请先激活一个SKU才能进行采购', icon: 'none' });
 			return;
 		}
+		// [核心修改] 初始化采购表单
 		procurementForm.value = {
 			skuId: ingredient.value.activeSkuId,
 			packagesPurchased: 0,
-			pricePerPackage: 0,
+			totalPrice: 0,
 			purchaseDate: new Date().toISOString(),
 		};
 		showProcurementModal.value = true;
 	};
 
 	const handleCreateProcurement = async () => {
-		if (!procurementForm.value.skuId || !procurementForm.value.packagesPurchased || !procurementForm.value.pricePerPackage) {
-			uni.showToast({ title: '请填写所有采购信息', icon: 'none' });
+		// [核心修改] 更新校验和提交逻辑
+		if (!procurementForm.value.skuId || procurementForm.value.packagesPurchased <= 0 || procurementForm.value.totalPrice <= 0) {
+			uni.showToast({ title: '请填写所有有效的采购信息', icon: 'none' });
 			return;
 		}
 		isSubmitting.value = true;
 		try {
-			await createProcurement(procurementForm.value);
+			// 在客户端计算单价
+			const pricePerPackage = procurementForm.value.totalPrice / procurementForm.value.packagesPurchased;
+
+			await createProcurement({
+				skuId: procurementForm.value.skuId,
+				packagesPurchased: procurementForm.value.packagesPurchased,
+				pricePerPackage: pricePerPackage,
+				purchaseDate: procurementForm.value.purchaseDate,
+			});
 			uni.showToast({ title: '入库成功', icon: 'success' });
 			showProcurementModal.value = false;
 			await loadIngredientData(ingredient.value!.id);

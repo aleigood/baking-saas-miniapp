@@ -40,9 +40,10 @@
 					<input class="input-field" type="number" v-model.number="procurementForm.packagesPurchased"
 						placeholder="例如：10" />
 				</FormItem>
-				<FormItem label="每包单价 (元)">
-					<input class="input-field" type="number" v-model.number="procurementForm.pricePerPackage"
-						placeholder="例如：25.5" />
+				<!-- [核心修改] 将“每包单价”改为“采购总价” -->
+				<FormItem label="采购总价 (元)">
+					<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
+						placeholder="例如：255" />
 				</FormItem>
 			</view>
 
@@ -74,9 +75,10 @@
 		specWeightInGrams: 0,
 	});
 
+	// [核心修改] 将 pricePerPackage 替换为 totalPrice
 	const procurementForm = ref({
 		packagesPurchased: 0,
-		pricePerPackage: 0,
+		totalPrice: 0,
 	});
 
 	const navigateBack = () => {
@@ -84,8 +86,8 @@
 	};
 
 	const handleSubmit = async () => {
-		// 表单校验
-		if (!ingredientForm.value.name || !skuForm.value.specName || skuForm.value.specWeightInGrams <= 0 || procurementForm.value.packagesPurchased <= 0 || procurementForm.value.pricePerPackage <= 0) {
+		// [核心修改] 更新表单校验逻辑
+		if (!ingredientForm.value.name || !skuForm.value.specName || skuForm.value.specWeightInGrams <= 0 || procurementForm.value.packagesPurchased <= 0 || procurementForm.value.totalPrice <= 0) {
 			uni.showToast({ title: '请填写所有必填项', icon: 'none' });
 			return;
 		}
@@ -103,10 +105,14 @@
 			// [新增] 步骤2.5: 将新创建的SKU设为激活状态
 			await setActiveSku(ingredientId, skuId);
 
+			// [核心修改] 在提交前计算每包单价
+			const pricePerPackage = procurementForm.value.totalPrice / procurementForm.value.packagesPurchased;
+
 			// 步骤3: 创建采购记录
 			await createProcurement({
 				skuId,
-				...procurementForm.value,
+				packagesPurchased: procurementForm.value.packagesPurchased,
+				pricePerPackage: pricePerPackage, // 传递计算后的单价
 				purchaseDate: new Date().toISOString(), // 附带采购日期
 			});
 
