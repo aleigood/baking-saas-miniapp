@@ -4,7 +4,6 @@
 		<view class="form-card">
 			<input class="input-field" v-model="form.phone" placeholder="请输入手机号" type="tel" />
 			<input class="input-field" v-model="form.password" type="password" placeholder="请输入密码" />
-			<!-- [修改] 使用新的统一按钮样式 -->
 			<button class="btn btn-primary btn-full-width" @click="handleLogin" :loading="loading">
 				{{ loading ? '登录中...' : '登 录' }}
 			</button>
@@ -20,29 +19,25 @@
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 
-	// [重构] 字段从 email 改为 phone
 	const form = reactive({
-		phone: '13966666666', // 默认值或从缓存读取
+		phone: '13966666666',
 		password: '123',
 	});
 
 	const handleLogin = async () => {
 		loading.value = true;
-		// [重构] 调用新的 userStore.login
 		const loginSuccess = await userStore.login(form);
 		if (loginSuccess) {
-			// [修正] 登录成功后，获取用户信息（其中包含租户列表），然后获取业务数据
 			await userStore.fetchUserInfo();
-			await dataStore.fetchTenants(); // fetchTenants 现在从 userInfo 中读取租户
+			await dataStore.fetchTenants();
 			uni.showToast({ title: '登录成功', icon: 'success' });
-			uni.switchTab({ url: '/pages/production/production' });
+			// [核心修改] 使用 reLaunch 代替 switchTab
+			uni.reLaunch({ url: '/pages/production/production' });
 		}
-		// 登录失败的提示已在 request 工具函数中统一处理
 		loading.value = false;
 	};
 </script>
 <style scoped lang="scss">
-	/* [修改] 引入全局样式，并移除局部按钮样式 */
 	@import '@/styles/common.scss';
 
 	.login-container {

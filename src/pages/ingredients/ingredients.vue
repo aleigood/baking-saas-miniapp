@@ -1,5 +1,5 @@
 <template>
-	<view class="page-container">
+	<view class="page-container page-with-custom-tabbar">
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
@@ -49,6 +49,8 @@
 		<AppModal v-model:visible="showUserMenu">
 			<view class="list-item" style="border: none; padding: 10px 15px" @click="userStore.logout()">退出登录</view>
 		</AppModal>
+
+		<CustomTabBar />
 	</view>
 </template>
 <script setup lang="ts">
@@ -59,7 +61,8 @@
 	import type { Ingredient } from '@/types/api';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
-	import BarChart from '@/components/BarChart.vue'; // [新增] 引入 BarChart 组件
+	import BarChart from '@/components/BarChart.vue';
+	import CustomTabBar from '@/components/CustomTabBar.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -69,17 +72,14 @@
 	const isLoading = ref(false);
 
 	onShow(async () => {
-		// isLoading.value = true; // [修改] 删除此行，不再显示加载中状态
 		await dataStore.fetchIngredientsData();
-		// isLoading.value = false; // [修改] 删除此行
 	});
 
-	// [核心修正] 将原料消耗统计数据转换为图表所需格式，并按降序排序
 	const ingredientStatsForChart = computed(() => {
 		return dataStore.ingredientStats
 			.map(item => ({
 				name: item.name,
-				value: item.consumedGrams / 1000, // 转换为 kg
+				value: item.consumedGrams / 1000,
 			}))
 			.sort((a, b) => b.value - a.value);
 	});
@@ -124,6 +124,10 @@
 </script>
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	.page-with-custom-tabbar {
+		padding-bottom: 130px;
+	}
 
 	.side-info .stock-low {
 		color: var(--danger-color);

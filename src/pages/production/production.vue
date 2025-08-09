@@ -1,5 +1,5 @@
 <template>
-	<view class="page-container">
+	<view class="page-container page-with-custom-tabbar">
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">
 				{{ dataStore.currentTenant?.name || '请选择店铺' }} &#9662;
@@ -14,6 +14,7 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
+				<!-- 任务看板 -->
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ totalPendingBreadCount }}</view>
@@ -25,6 +26,7 @@
 					</div>
 				</view>
 
+				<!-- 任务列表标题和历史按钮 -->
 				<view class="card-title-wrapper">
 					<span class="card-title">进行中的任务</span>
 					<image v-if="hasCompletedTasks" class="header-icon"
@@ -32,6 +34,7 @@
 						@click="navigateToHistory" />
 				</view>
 
+				<!-- 任务列表 -->
 				<view v-if="activeTasks.length > 0">
 					<view v-for="task in activeTasks" :key="task.id" class="task-card"
 						:class="getStatusClass(task.status)" @click="navigateToDetail(task)"
@@ -68,6 +71,8 @@
 				取消任务
 			</view>
 		</AppModal>
+
+		<CustomTabBar />
 	</view>
 </template>
 
@@ -78,7 +83,7 @@
 	import { useDataStore } from '@/store/data';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
-	import BarChart from '@/components/BarChart.vue'; // [新增] 引入 BarChart 组件
+	import CustomTabBar from '@/components/CustomTabBar.vue';
 	import type { ProductionTaskDto } from '@/types/api';
 	import { updateTaskStatus } from '@/api/tasks';
 
@@ -97,7 +102,7 @@
 		// isLoading.value = false; // [修改] 删除此行
 	});
 
-	// [核心修正] 将配方统计数据转换为图表所需格式，并按降序排序
+	// 将配方统计数据转换为图表所需格式，并按降序排序
 	const recipeStatsForChart = computed(() => {
 		return dataStore.recipeStats
 			.map(item => ({
@@ -138,7 +143,6 @@
 		return dataStore.production.some(task => task.status === 'COMPLETED');
 	});
 
-	// [核心修改] 恢复为显示全部产品的逻辑
 	const getTaskTitle = (task : ProductionTaskDto) => {
 		if (!task.items || task.items.length === 0) {
 			return '未知任务';
@@ -185,7 +189,6 @@
 		});
 	};
 
-	// [新增] 导航到历史页面的方法
 	const navigateToHistory = () => {
 		uni.navigateTo({
 			url: '/pages/production/history'
@@ -244,6 +247,10 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	.page-with-custom-tabbar {
+		padding-bottom: 130px;
+	}
+
 	.summary-card {
 		display: flex;
 		justify-content: space-around;
@@ -280,7 +287,6 @@
 		border-left: 5px solid;
 	}
 
-	/* [核心修改] 更新状态颜色 */
 	.task-card.status-pending {
 		border-color: #d4a373;
 	}
@@ -299,16 +305,12 @@
 		font-weight: 400;
 		margin-bottom: 8px;
 		word-break: break-all;
-
-		/* [核心修改] 新增样式以实现最多两行的文本截断 */
 		overflow: hidden;
 		text-overflow: ellipsis;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
-		/* 限制在一个块元素显示的文本的行数 */
 		-webkit-box-orient: vertical;
 		line-height: 1.4;
-		/* 调整行高以获得更好的视觉效果 */
 	}
 
 	.task-card .details {
@@ -330,7 +332,6 @@
 		white-space: nowrap;
 	}
 
-	/* [核心修改] 更新状态颜色 */
 	.status-tag.status-pending {
 		background-color: #d4a373;
 	}

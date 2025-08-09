@@ -6,6 +6,30 @@
 			}
 		},
 		{
+			"path": "pages/ingredients/ingredients",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/recipes/recipes",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/personnel/personnel",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": ""
+			}
+		},
+		{
 			"path": "pages/production/create",
 			"style": {
 				"navigationStyle": "custom"
@@ -24,7 +48,13 @@
 			}
 		},
 		{
-			"path": "pages/ingredients/ingredients",
+			"path": "pages/recipes/edit",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/recipes/detail",
 			"style": {
 				"navigationStyle": "custom"
 			}
@@ -42,39 +72,9 @@
 			}
 		},
 		{
-			"path": "pages/recipes/recipes",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/recipes/edit",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/recipes/detail",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/personnel/personnel",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
 			"path": "pages/personnel/detail",
 			"style": {
 				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/login/login",
-			"style": {
-				"navigationBarTitleText": ""
 			}
 		}
 	],
@@ -83,35 +83,5 @@
 		"navigationBarTitleText": "烘焙SaaS",
 		"navigationBarBackgroundColor": "#F8F8F8",
 		"backgroundColor": "#F8F8F8"
-	},
-	"tabBar": {
-		"color": "#a98467",
-		"selectedColor": "#8c5a3b",
-		"backgroundColor": "#ffffff",
-		"list": [{
-				"pagePath": "pages/production/production",
-				"text": "制作",
-				"iconPath": "static/tabbar/production.svg",
-				"selectedIconPath": "static/tabbar/production_active.svg"
-			},
-			{
-				"pagePath": "pages/ingredients/ingredients",
-				"text": "原料",
-				"iconPath": "static/tabbar/ingredients.svg",
-				"selectedIconPath": "static/tabbar/ingredients_active.svg"
-			},
-			{
-				"pagePath": "pages/recipes/recipes",
-				"text": "配方",
-				"iconPath": "static/tabbar/recipes.svg",
-				"selectedIconPath": "static/tabbar/recipes_active.svg"
-			},
-			{
-				"pagePath": "pages/personnel/personnel",
-				"text": "人员",
-				"iconPath": "static/tabbar/personnel.svg",
-				"selectedIconPath": "static/tabbar/personnel_active.svg"
-			}
-		]
 	}
 }

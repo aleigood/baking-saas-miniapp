@@ -1,5 +1,5 @@
 <template>
-	<view class="page-container">
+	<view class="page-container page-with-custom-tabbar">
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
@@ -51,6 +51,8 @@
 				</button>
 			</view>
 		</AppModal>
+
+		<CustomTabBar />
 	</view>
 </template>
 
@@ -63,6 +65,7 @@
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 	import AppFab from '@/components/AppFab.vue';
+	import CustomTabBar from '@/components/CustomTabBar.vue';
 	import type { Role } from '@/types/api';
 
 	const userStore = useUserStore();
@@ -77,9 +80,7 @@
 	const isLoading = ref(false);
 
 	onShow(async () => {
-		// isLoading.value = true; // [修改] 删除此行，不再显示加载中状态
 		await dataStore.fetchMembersData();
-		// isLoading.value = false; // [修改] 删除此行
 	});
 
 	const currentUserRoleInTenant = computed(
@@ -90,7 +91,6 @@
 		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
 
-	// [核心新增] 角色名称映射函数
 	const getRoleName = (role : Role) => {
 		const roleMap = {
 			OWNER: '店主',
@@ -140,6 +140,10 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	.page-with-custom-tabbar {
+		padding-bottom: 130px;
+	}
 
 	.input-field,
 	.picker {
