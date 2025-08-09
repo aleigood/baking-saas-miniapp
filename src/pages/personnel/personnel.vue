@@ -3,7 +3,6 @@
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
-			<!-- [核心修改] 用户头像优先显示姓名的第一个字 -->
 			<view class="user-avatar" @click="showUserMenu = true">{{
         userStore.userInfo?.name?.[0] || '管'
       }}</view>
@@ -16,12 +15,10 @@
 				<view v-for="member in dataStore.members" :key="member.id" class="list-item"
 					@click="navigateToDetail(member.id)">
 					<view class="main-info">
-						<!-- [核心修改] 列表项优先显示姓名 -->
 						<view class="name">{{ member.name || member.phone }}</view>
 						<view class="desc">加入于: {{ new Date(member.joinDate).toLocaleDateString() }}</view>
 					</view>
 					<view class="side-info">
-						<!-- [核心修改] 调用函数显示中文角色名 -->
 						<view class="value">{{ getRoleName(member.role) }}</view>
 					</view>
 				</view>
@@ -80,9 +77,9 @@
 	const isLoading = ref(false);
 
 	onShow(async () => {
-		isLoading.value = true;
+		// isLoading.value = true; // [修改] 删除此行，不再显示加载中状态
 		await dataStore.fetchMembersData();
-		isLoading.value = false;
+		// isLoading.value = false; // [修改] 删除此行
 	});
 
 	const currentUserRoleInTenant = computed(

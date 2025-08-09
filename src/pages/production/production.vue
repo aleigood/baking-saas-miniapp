@@ -14,7 +14,6 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<!-- 任务看板 -->
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ totalPendingBreadCount }}</view>
@@ -26,16 +25,13 @@
 					</div>
 				</view>
 
-				<!-- 任务列表标题和历史按钮 -->
 				<view class="card-title-wrapper">
 					<span class="card-title">进行中的任务</span>
-					<!-- [核心修改] 修改点击事件为导航到历史页面 -->
 					<image v-if="hasCompletedTasks" class="header-icon"
 						src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z'/%3E%3C/svg%3E"
 						@click="navigateToHistory" />
 				</view>
 
-				<!-- 任务列表 -->
 				<view v-if="activeTasks.length > 0">
 					<view v-for="task in activeTasks" :key="task.id" class="task-card"
 						:class="getStatusClass(task.status)" @click="navigateToDetail(task)"
@@ -67,8 +63,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [修改] 任务操作模态框 -->
-		<!-- (Modified) Task actions modal -->
 		<AppModal v-model:visible="showTaskActionsModal" title="任务操作">
 			<view class="list-item" @click="handleCancelTaskFromModal">
 				取消任务
@@ -98,9 +92,9 @@
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 
 	onShow(async () => {
-		isLoading.value = true;
+		// isLoading.value = true; // [修改] 删除此行，不再显示加载中状态
 		await dataStore.fetchProductionData();
-		isLoading.value = false;
+		// isLoading.value = false; // [修改] 删除此行
 	});
 
 	// [核心修正] 将配方统计数据转换为图表所需格式，并按降序排序

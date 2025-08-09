@@ -3,7 +3,6 @@
 		<view class="page-header">
 			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
-			<!-- [核心修改] 用户头像优先显示姓名的第一个字 -->
 			<view class="user-avatar" @click="showUserMenu = true">{{
         userStore.userInfo?.name?.[0] || '管'
       }}</view>
@@ -14,7 +13,6 @@
 			</view>
 			<template v-else>
 				<view>
-					<!-- [核心修改] 使用 BarChart 组件替换原有的列表 -->
 					<view class="card">
 						<view class="card-title"><span>本周制作排行</span></view>
 						<BarChart :chart-data="recipeStatsForChart" unit="次" />
@@ -95,9 +93,9 @@
 	};
 
 	onShow(async () => {
-		isLoading.value = true;
+		// isLoading.value = true; // [修改] 删除此行，不再显示加载中状态
 		await dataStore.fetchRecipesData();
-		isLoading.value = false;
+		// isLoading.value = false; // [修改] 删除此行
 	});
 
 	// [核心修正] 将配方统计数据转换为图表所需格式，并按降序排序
