@@ -21,7 +21,8 @@
 						<view class="desc">加入于: {{ new Date(member.joinDate).toLocaleDateString() }}</view>
 					</view>
 					<view class="side-info">
-						<view class="value">{{ member.role }}</view>
+						<!-- [核心修改] 调用函数显示中文角色名 -->
+						<view class="value">{{ getRoleName(member.role) }}</view>
 					</view>
 				</view>
 			</template>
@@ -65,6 +66,7 @@
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 	import AppFab from '@/components/AppFab.vue';
+	import type { Role } from '@/types/api';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -90,6 +92,17 @@
 	const canInvite = computed(() => {
 		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
+
+	// [核心新增] 角色名称映射函数
+	const getRoleName = (role : Role) => {
+		const roleMap = {
+			OWNER: '店主',
+			ADMIN: '管理员',
+			MEMBER: '员工',
+			SUPER_ADMIN: '超级管理员'
+		};
+		return roleMap[role] || role;
+	};
 
 	const navigateToDetail = (memberId : string) => {
 		uni.navigateTo({

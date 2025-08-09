@@ -6,9 +6,7 @@
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
 				<h2 class="detail-title">{{ ingredient?.name || '加载中...' }}</h2>
 				<!-- [核心新增] 编辑图标 -->
-				<image class="header-icon"
-					src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E"
-					@click="openEditModal" />
+				<image class="header-icon" src="/static/icons/property.svg" @click="openEditModal" />
 			</view>
 		</view>
 

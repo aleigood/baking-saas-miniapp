@@ -21,9 +21,11 @@
 						:value="new Date(selectedMember.joinDate).toLocaleDateString()" readonly />
 				</FormItem>
 				<FormItem label="角色">
-					<picker mode="selector" :range="availableRoles" @change="onRoleChange" :disabled="!canEditRole">
+					<!-- [核心修改] picker现在显示中文角色，但值仍为英文 -->
+					<picker mode="selector" :range="availableRolesDisplay" @change="onRoleChange"
+						:disabled="!canEditRole">
 						<view class="picker" :class="{ disabled: !canEditRole }">{{
-                    editableMemberRole
+                    editableMemberRoleDisplay
                   }}</view>
 					</picker>
 				</FormItem>
@@ -72,6 +74,21 @@
 		isLoading.value = false;
 	});
 
+	// [核心新增] 角色名称映射
+	const roleMap : Record<Role, string> = {
+		OWNER: '店主',
+		ADMIN: '管理员',
+		MEMBER: '员工',
+		SUPER_ADMIN: '超级管理员'
+	};
+
+	const getRoleName = (role : Role) => {
+		return roleMap[role] || role;
+	};
+
+	// [核心新增] 用于显示的计算属性
+	const editableMemberRoleDisplay = computed(() => getRoleName(editableMemberRole.value));
+
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
 	);
@@ -102,6 +119,7 @@
 		return currentUserRoleInTenant.value === 'OWNER' && selectedMember.value.role !== 'OWNER';
 	});
 
+	// [核心修改] 分离出用于逻辑判断的英文角色列表和用于显示的中文角色列表
 	const availableRoles = computed(() => {
 		if (currentUserRoleInTenant.value === 'OWNER') {
 			return ['ADMIN', 'MEMBER'];
@@ -109,8 +127,13 @@
 		return [];
 	});
 
+	const availableRolesDisplay = computed(() => {
+		return availableRoles.value.map(role => getRoleName(role as Role));
+	});
+
 	const onRoleChange = (e : any) => {
-		editableMemberRole.value = availableRoles.value[e.detail.value];
+		// 使用索引从原始英文列表中获取值
+		editableMemberRole.value = availableRoles.value[e.detail.value] as Role;
 	};
 
 	const handleUpdateMemberRole = async () => {

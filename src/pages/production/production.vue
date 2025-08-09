@@ -144,12 +144,12 @@
 		return dataStore.production.some(task => task.status === 'COMPLETED');
 	});
 
+	// [核心修改] 恢复为显示全部产品的逻辑
 	const getTaskTitle = (task : ProductionTaskDto) => {
 		if (!task.items || task.items.length === 0) {
 			return '未知任务';
 		}
-		const title = task.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
-		return title.length > 25 ? title.substring(0, 23) + '...' : title;
+		return task.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
 	};
 
 	const getTotalQuantity = (task : ProductionTaskDto) => {
@@ -304,7 +304,17 @@
 		font-size: 16px;
 		font-weight: 400;
 		margin-bottom: 8px;
-		word-break: break-word;
+		word-break: break-all;
+
+		/* [核心修改] 新增样式以实现最多两行的文本截断 */
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		/* 限制在一个块元素显示的文本的行数 */
+		-webkit-box-orient: vertical;
+		line-height: 1.4;
+		/* 调整行高以获得更好的视觉效果 */
 	}
 
 	.task-card .details {

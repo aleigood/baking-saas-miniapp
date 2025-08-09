@@ -7,27 +7,46 @@
 			</view>
 		</view>
 		<view class="page-content" v-if="!isLoading && task">
-			<view class="task-summary-card">
-				<view class="title">{{ getTaskTitle(task) }}</view>
-				<view class="details">{{ getTaskDetails(task) }}</view>
-			</view>
-
-			<view v-for="(recipeCard) in recipeCards" :key="recipeCard.recipeName" class="card">
-				<view class="group-title" @click="toggleCard(recipeCard.recipeName)">
-					<span>{{ recipeCard.recipeName }}</span>
-					<span class="arrow" :class="{ collapsed: openCardName !== recipeCard.recipeName }">&#10094;</span>
+			<!-- [核心修改] 将详情信息用标签形式展示在页面顶部 -->
+			<view class="detail-page">
+				<view class="tag-group">
+					<span class="tag">日期: {{ formattedDate }}</span>
+					<span class="tag">创建人: {{ creatorName }}</span>
+					<span class="tag">计划总数: {{ totalQuantity }}</span>
 				</view>
-				<view v-show="openCardName === recipeCard.recipeName" class="product-list">
-					<view v-for="ingredient in recipeCard.ingredients" :key="ingredient.name" class="ingredient-item">
-						<view class="product-name">{{ ingredient.name }}</view>
-						<view class="quantity">{{ ingredient.amount.toFixed(1) }} g</view>
+
+				<view class="task-summary-card">
+					<view class="product-grid-title">产品列表</view>
+					<!-- [核心修改] 按配方大类对产品进行分组展示 -->
+					<view v-for="group in groupedProducts" :key="group.familyName" class="product-group">
+						<view class="product-group-title">{{ group.familyName }}</view>
+						<view class="product-grid">
+							<view v-for="product in group.products" :key="product.id" class="product-grid-item">
+								{{ product.name }} x{{ product.quantity }}
+							</view>
+						</view>
 					</view>
 				</view>
-			</view>
 
-			<button class="btn btn-primary btn-full-width" @click="handleCompleteTask">
-				完成任务
-			</button>
+				<view v-for="(recipeCard) in recipeCards" :key="recipeCard.recipeName" class="card">
+					<view class="group-title" @click="toggleCard(recipeCard.recipeName)">
+						<span>{{ recipeCard.recipeName }}</span>
+						<span class="arrow"
+							:class="{ collapsed: openCardName !== recipeCard.recipeName }">&#10094;</span>
+					</view>
+					<view v-show="openCardName === recipeCard.recipeName" class="product-list">
+						<view v-for="ingredient in recipeCard.ingredients" :key="ingredient.name"
+							class="ingredient-item">
+							<view class="product-name">{{ ingredient.name }}</view>
+							<view class="quantity">{{ ingredient.amount.toFixed(1) }} g</view>
+						</view>
+					</view>
+				</view>
+
+				<button class="btn btn-primary btn-full-width" @click="handleCompleteTask">
+					完成任务
+				</button>
+			</view>
 		</view>
 		<view class="loading-spinner" v-else>
 			<text>加载中...</text>
@@ -82,6 +101,36 @@
 		} finally {
 			isLoading.value = false;
 		}
+	});
+
+	// [核心新增] 新的计算属性，用于按配方大类对产品进行分组
+	const groupedProducts = computed(() => {
+		if (!task.value || !task.value.items) {
+			return [];
+		}
+
+		const groups = new Map<string, {
+			id : string;
+			name : string;
+			quantity : number
+		}[]>();
+
+		task.value.items.forEach(item => {
+			const familyName = item.product.recipeVersion.family.name;
+			if (!groups.has(familyName)) {
+				groups.set(familyName, []);
+			}
+			groups.get(familyName)!.push({
+				id: item.product.id,
+				name: item.product.name,
+				quantity: item.quantity
+			});
+		});
+
+		return Array.from(groups.entries()).map(([familyName, products]) => ({
+			familyName,
+			products
+		}));
 	});
 
 	// [核心重构] 计算按配方分组的原料用量清单
@@ -167,23 +216,27 @@
 		}
 	};
 
-	const getTaskTitle = (task : ProductionTaskDto) => {
-		if (!task.items || task.items.length === 0) return '未知任务';
-		return task.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
-	};
-
+	// [核心修改] 将 getTaskDetails 拆分为独立的计算属性
 	const getTotalQuantity = (task : ProductionTaskDto) => {
 		if (!task.items) return 0;
 		return task.items.reduce((sum, item) => sum + item.quantity, 0);
 	};
 
-	const getTaskDetails = (task : ProductionTaskDto) => {
-		const date = new Date(task.plannedDate);
-		const formattedDate = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
-		const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
-		const totalQuantity = getTotalQuantity(task);
-		return `${formattedDate} - by ${creator} | 计划总数: ${totalQuantity}`;
-	};
+	const formattedDate = computed(() => {
+		if (!task.value) return '';
+		const date = new Date(task.value.plannedDate);
+		return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+	});
+
+	const creatorName = computed(() => {
+		if (!task.value) return '';
+		return userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
+	});
+
+	const totalQuantity = computed(() => {
+		if (!task.value) return 0;
+		return getTotalQuantity(task.value);
+	});
 
 	const navigateBack = () => {
 		uni.navigateBack();
@@ -193,6 +246,15 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	/* [核心新增] 与其他详情页一致的样式 */
+	.detail-page .tag-group {
+		margin-bottom: 20px;
+		padding: 0 5px;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
 	.task-summary-card {
 		background: var(--card-bg);
 		padding: 20px;
@@ -201,11 +263,47 @@
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 	}
 
-	.title {
-		font-size: 20px;
+	.product-grid-title {
+		font-size: 18px;
 		font-weight: 600;
+		margin-bottom: 12px;
+		color: var(--text-primary);
+		padding-bottom: 12px;
+		border-bottom: 1px solid var(--border-color);
+	}
+
+	/* [核心新增] 产品分组样式 */
+	.product-group {
+		margin-bottom: 15px;
+
+		&:last-child {
+			margin-bottom: 0;
+		}
+	}
+
+	.product-group-title {
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--text-primary);
 		margin-bottom: 8px;
 	}
+
+	.product-grid {
+		display: grid;
+		/* [核心修改] 将两列布局改为三列布局 */
+		grid-template-columns: 1fr 1fr 1fr;
+		gap: 8px 12px;
+		/* 行间距和列间距 */
+	}
+
+	.product-grid-item {
+		font-size: 14px;
+		color: var(--text-secondary);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 
 	.details {
 		color: var(--text-secondary);

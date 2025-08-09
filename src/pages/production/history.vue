@@ -122,12 +122,12 @@
 	});
 
 
+	// [核心修改] 更新 getTaskTitle 逻辑以匹配主页
 	const getTaskTitle = (task : ProductionTaskDto) => {
 		if (!task.items || task.items.length === 0) {
 			return '未知任务';
 		}
-		const title = task.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
-		return title.length > 25 ? title.substring(0, 23) + '...' : title;
+		return task.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
 	};
 
 	const getTotalQuantity = (task : ProductionTaskDto) => {
@@ -215,11 +215,18 @@
 		margin-right: 15px;
 	}
 
+	/* [核心修改] 更新标题样式以匹配主页，实现多行截断 */
 	.task-card .title {
 		font-size: 16px;
 		font-weight: 400;
 		margin-bottom: 8px;
-		word-break: break-word;
+		word-break: break-all;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		line-height: 1.4;
 	}
 
 	.task-card .details {
