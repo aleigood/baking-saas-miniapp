@@ -49,14 +49,56 @@
 .card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
 .card-title-wrapper .card-title { margin-bottom: 0; }
 .header-action { color: var(--primary-color); font-size: 14px; font-weight: 500; }
-.list-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 5px; border-bottom: 1px solid var(--border-color); }
+
+/* [核心修改] 移除 border-bottom，并为伪元素分隔线添加相对定位 */
+.list-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 15px 5px;
+	position: relative;
+	border-bottom: none;
+}
+
+/* [核心新增] 使用伪元素创建分隔线，默认不应用于最后一个列表项 */
+.list-item:not(:last-child)::after {
+	content: '';
+	position: absolute;
+	bottom: 0;
+	height: 1px;
+	background-color: var(--border-color);
+	left: 5px;
+	right: 5px;
+}
+
 .list-item:last-child { border-bottom: none; }
 .card .list-item { padding-left: 0; padding-right: 0; }
+
+/* [核心新增] 确保卡片内的分隔线是全宽的 */
+.card .list-item:not(:last-child)::after {
+	left: 0;
+	right: 0;
+}
+
 .main-info .name { font-weight: 500; }
 .main-info .desc { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
 .side-info { text-align: right; }
 .side-info .value { font-weight: 500; }
 .side-info .desc { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
+
+/* [核心修改] 为全宽列表项增加内边距，使文本离屏幕边缘更远 */
+.page-content > .list-item:not(.task-card) {
+  margin-left: -15px;
+  margin-right: -15px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* [核心新增] 为全宽列表项的分隔线设置较小的边距 */
+.page-content > .list-item:not(.task-card):not(:last-child)::after {
+	left: 15px;
+	right: 15px;
+}
 
 /* [核心重构] FAB 样式系统 */
 .fab { 

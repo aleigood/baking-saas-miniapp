@@ -14,48 +14,46 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<view>
-					<view class="card">
-						<view class="card-title"><span>本周制作排行</span></view>
-						<BarChart :chart-data="recipeStatsForChart" unit="次" />
-					</view>
+				<!-- [核心修改] 移除了外层的 <view> 标签 -->
+				<view class="card">
+					<view class="card-title"><span>本周制作排行</span></view>
+					<BarChart :chart-data="recipeStatsForChart" unit="次" />
+				</view>
 
-					<view class="filter-tabs">
-						<view class="filter-tab" :class="{ active: recipeFilter === 'MAIN' }"
-							@click="recipeFilter = 'MAIN'">主面团</view>
-						<view class="filter-tab" :class="{ active: recipeFilter === 'PRE_DOUGH' }"
-							@click="recipeFilter = 'PRE_DOUGH'">面种</view>
-						<view class="filter-tab" :class="{ active: recipeFilter === 'EXTRA' }"
-							@click="recipeFilter = 'EXTRA'">馅料</view>
-					</view>
+				<view class="filter-tabs">
+					<view class="filter-tab" :class="{ active: recipeFilter === 'MAIN' }"
+						@click="recipeFilter = 'MAIN'">
+						主面团</view>
+					<view class="filter-tab" :class="{ active: recipeFilter === 'PRE_DOUGH' }"
+						@click="recipeFilter = 'PRE_DOUGH'">面种</view>
+					<view class="filter-tab" :class="{ active: recipeFilter === 'EXTRA' }"
+						@click="recipeFilter = 'EXTRA'">馅料</view>
+				</view>
 
-					<view v-if="filteredRecipes.length > 0">
-						<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
-						<ListItem v-for="family in filteredRecipes" :key="family.id"
-							@click="navigateToDetail(family.id)">
-							<view class="main-info">
-								<view class="name">{{ family.name }}</view>
-								<view v-if="family.type === 'MAIN'" class="desc">
-									{{ getProductCount(family) }} 种面包
-								</view>
-								<view v-else class="desc">
-									类型: {{ getRecipeTypeDisplay(family.type) }}
-								</view>
+				<template v-if="filteredRecipes.length > 0">
+					<ListItem v-for="family in filteredRecipes" :key="family.id" @click="navigateToDetail(family.id)">
+						<view class="main-info">
+							<view class="name">{{ family.name }}</view>
+							<view v-if="family.type === 'MAIN'" class="desc">
+								{{ getProductCount(family) }} 种面包
 							</view>
-							<view class="side-info">
-								<template v-if="family.type === 'MAIN'">
-									<view class="rating">★ {{ getRating(getFamilyProductionCount(family)) }}</view>
-									<view class="desc">{{ getFamilyProductionCount(family) }} 次制作</view>
-								</template>
-								<template v-else>
-									<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
-								</template>
+							<view v-else class="desc">
+								类型: {{ getRecipeTypeDisplay(family.type) }}
 							</view>
-						</ListItem>
-					</view>
-					<view v-else class="empty-state">
-						<text>暂无配方信息</text>
-					</view>
+						</view>
+						<view class="side-info">
+							<template v-if="family.type === 'MAIN'">
+								<view class="rating">★ {{ getRating(getFamilyProductionCount(family)) }}</view>
+								<view class="desc">{{ getFamilyProductionCount(family) }} 次制作</view>
+							</template>
+							<template v-else>
+								<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
+							</template>
+						</view>
+					</ListItem>
+				</template>
+				<view v-else class="empty-state">
+					<text>暂无配方信息</text>
 				</view>
 			</template>
 		</view>

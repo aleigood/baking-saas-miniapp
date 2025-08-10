@@ -14,32 +14,30 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<view>
-					<view class="card">
-						<view class="card-title"><span>本月消耗排行</span></view>
-						<BarChart :chart-data="ingredientStatsForChart" unit="kg" />
-					</view>
-					<view class="filter-tabs">
-						<view class="filter-tab" :class="{ active: ingredientFilter === 'all' }"
-							@click="ingredientFilter = 'all'">全部</view>
-						<view class="filter-tab" :class="{ active: ingredientFilter === 'low' }"
-							@click="ingredientFilter = 'low'">库存紧张</view>
-					</view>
-					<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
-					<ListItem v-for="ing in filteredIngredients" :key="ing.id" @click="navigateToDetail(ing.id)">
-						<view class="main-info">
-							<view class="name">{{ ing.name }}</view>
-							<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
-						</view>
-						<view class="side-info">
-							<view class="value"
-								:class="{ 'stock-low': ing.currentStockInGrams < ing.avgConsumptionPerTask }">
-								{{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg
-							</view>
-							<view class="desc">¥ {{ getPricePerKg(ing) }}/kg</view>
-						</view>
-					</ListItem>
+				<!-- [核心修改] 移除了外层的 <view> 标签 -->
+				<view class="card">
+					<view class="card-title"><span>本月消耗排行</span></view>
+					<BarChart :chart-data="ingredientStatsForChart" unit="kg" />
 				</view>
+				<view class="filter-tabs">
+					<view class="filter-tab" :class="{ active: ingredientFilter === 'all' }"
+						@click="ingredientFilter = 'all'">全部</view>
+					<view class="filter-tab" :class="{ active: ingredientFilter === 'low' }"
+						@click="ingredientFilter = 'low'">库存紧张</view>
+				</view>
+				<ListItem v-for="ing in filteredIngredients" :key="ing.id" @click="navigateToDetail(ing.id)">
+					<view class="main-info">
+						<view class="name">{{ ing.name }}</view>
+						<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
+					</view>
+					<view class="side-info">
+						<view class="value"
+							:class="{ 'stock-low': ing.currentStockInGrams < ing.avgConsumptionPerTask }">
+							{{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg
+						</view>
+						<view class="desc">¥ {{ getPricePerKg(ing) }}/kg</view>
+					</view>
+				</ListItem>
 			</template>
 		</view>
 		<AppFab @click="navigateToEditPage" />
