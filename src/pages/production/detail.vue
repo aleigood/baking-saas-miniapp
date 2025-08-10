@@ -43,7 +43,8 @@
 					</view>
 				</view>
 
-				<button class="btn btn-primary btn-full-width" @click="handleCompleteTask">
+				<!-- [核心修改] 点击按钮现在会打开确认模态框 -->
+				<button class="btn btn-primary btn-full-width" @click="openCompleteTaskModal">
 					完成任务
 				</button>
 			</view>
@@ -51,6 +52,22 @@
 		<view class="loading-spinner" v-else>
 			<text>加载中...</text>
 		</view>
+
+		<!-- [核心新增] 完成任务的确认模态框 -->
+		<AppModal v-model:visible="showCompleteTaskModal" title="确认完成任务">
+			<view class="modal-prompt-text">
+				您确定要完成这个任务吗？
+			</view>
+			<view class="modal-warning-text">
+				完成后，将根据配方用量自动扣减原料库存。
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showCompleteTaskModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleConfirmCompleteTask" :loading="isSubmitting">
+					{{ isSubmitting ? '完成中...' : '确认完成' }}
+				</AppButton>
+			</view>
+		</AppModal>
 	</view>
 </template>
 
@@ -60,16 +77,18 @@
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import type { ProductionTaskDto } from '@/types/api';
-	// [核心修正] 引入 completeTask 并移除 updateTaskStatus
 	import { getTask, updateTaskStatus, completeTask } from '@/api/tasks';
+	import AppModal from '@/components/AppModal.vue';
+	import AppButton from '@/components/AppButton.vue'; // [核心新增]
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 
 	const isLoading = ref(true);
+	const isSubmitting = ref(false); // [核心新增]
 	const task = ref<ProductionTaskDto | null>(null);
-	// [修改] 将 openDoughName 修改为 openCardName 以适应新的卡片逻辑
 	const openCardName = ref('');
+	const showCompleteTaskModal = ref(false); // [核心新增]
 
 	onLoad(async (options) => {
 		const taskId = options?.taskId;
@@ -80,17 +99,13 @@
 		}
 
 		try {
-			// 获取任务详情
 			task.value = await getTask(taskId);
 
-			// 如果任务是待开始，则更新为进行中
 			if (task.value?.status === 'PENDING') {
 				await updateTaskStatus(taskId, 'IN_PROGRESS');
-				// 刷新列表页数据
 				dataStore.fetchProductionData();
 			}
 
-			// [修改] 默认展开第一个卡片
 			if (recipeCards.value.length > 0) {
 				openCardName.value = recipeCards.value[0].recipeName;
 			}
@@ -103,7 +118,6 @@
 		}
 	});
 
-	// [核心新增] 新的计算属性，用于按配方大类对产品进行分组
 	const groupedProducts = computed(() => {
 		if (!task.value || !task.value.items) {
 			return [];
@@ -133,54 +147,40 @@
 		}));
 	});
 
-	// [核心重构] 计算按配方分组的原料用量清单
 	const recipeCards = computed(() => {
 		if (!task.value) return [];
 
-		// 使用 Map 存储每个配方的原料用量，Key 为配方名
 		const recipeConsumptions = new Map<string, Map<string, number>>();
 
-		// 遍历任务中的每一个产品项
 		task.value.items.forEach(item => {
 			const product = item.product;
-			// 确保产品和其配方版本信息存在
 			if (!product || !product.recipeVersion || !product.recipeVersion.doughs) return;
 
-			// 获取配方家族名称作为卡片标题
 			const recipeName = product.recipeVersion.family.name;
 			if (!recipeConsumptions.has(recipeName)) {
 				recipeConsumptions.set(recipeName, new Map<string, number>());
 			}
 			const ingredientsMap = recipeConsumptions.get(recipeName)!;
 
-			// 遍历配方中的每一个面团定义
 			product.recipeVersion.doughs.forEach(dough => {
-				// 计算总粉量对应的基础重量
-				// 注意：这里假设所有 isFlour=true 的原料比例总和为100%
 				let totalFlourRatio = 0;
 				dough.ingredients.forEach(ing => {
 					if (ing.isFlour) {
 						totalFlourRatio += ing.ratio;
 					}
 				});
-				if (totalFlourRatio === 0) totalFlourRatio = 100; // 防止除零错误
+				if (totalFlourRatio === 0) totalFlourRatio = 100;
 
-				// 计算每1%的比例对应的克重
 				const weightPerRatioPoint = product.baseDoughWeight / totalFlourRatio;
 
-				// 遍历面团中的每一种原料
 				dough.ingredients.forEach(ingredient => {
-					// 计算该原料在单个产品中的重量，并乘以任务数量
 					const weight = weightPerRatioPoint * ingredient.ratio * item.quantity;
-
-					// 累加到Map中
 					const currentWeight = ingredientsMap.get(ingredient.name) || 0;
 					ingredientsMap.set(ingredient.name, currentWeight + weight);
 				});
 			});
 		});
 
-		// 将 Map 结构转换为模板所需的数组结构
 		return Array.from(recipeConsumptions.entries()).map(([recipeName, ingredientsMap]) => ({
 			recipeName,
 			ingredients: Array.from(ingredientsMap.entries()).map(([name, amount]) => ({
@@ -190,33 +190,36 @@
 		}));
 	});
 
-	// [新增] 卡片折叠/展开的函数
 	const toggleCard = (recipeName : string) => {
 		if (openCardName.value === recipeName) {
-			openCardName.value = ''; // 如果已打开，则关闭
+			openCardName.value = '';
 		} else {
-			openCardName.value = recipeName; // 否则，打开这个并关闭其他
+			openCardName.value = recipeName;
 		}
 	};
 
+	// [核心新增] 打开确认模态框
+	const openCompleteTaskModal = () => {
+		showCompleteTaskModal.value = true;
+	};
 
-	const handleCompleteTask = async () => {
+	// [核心修改] 将原有的完成任务逻辑移到这里
+	const handleConfirmCompleteTask = async () => {
 		if (!task.value) return;
-		uni.showLoading({ title: '正在完成...' });
+		isSubmitting.value = true;
 		try {
-			// [核心修正] 调用正确的 completeTask 接口，而不是 updateTaskStatus
 			await completeTask(task.value.id, { notes: '' });
-			uni.hideLoading();
 			uni.showToast({ title: '任务已完成', icon: 'success' });
 			await dataStore.fetchProductionData();
 			uni.navigateBack();
 		} catch (error) {
-			uni.hideLoading();
 			console.error('Failed to complete task:', error);
+		} finally {
+			isSubmitting.value = false;
+			showCompleteTaskModal.value = false;
 		}
 	};
 
-	// [核心修改] 将 getTaskDetails 拆分为独立的计算属性
 	const getTotalQuantity = (task : ProductionTaskDto) => {
 		if (!task.items) return 0;
 		return task.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -246,7 +249,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [核心新增] 与其他详情页一致的样式 */
 	.detail-page .tag-group {
 		margin-bottom: 20px;
 		padding: 0 5px;
@@ -272,7 +274,6 @@
 		border-bottom: 1px solid var(--border-color);
 	}
 
-	/* [核心新增] 产品分组样式 */
 	.product-group {
 		margin-bottom: 15px;
 
@@ -290,10 +291,8 @@
 
 	.product-grid {
 		display: grid;
-		/* [核心修改] 将两列布局改为三列布局 */
 		grid-template-columns: 1fr 1fr 1fr;
 		gap: 8px 12px;
-		/* 行间距和列间距 */
 	}
 
 	.product-grid-item {
@@ -347,5 +346,21 @@
 	.quantity {
 		color: var(--text-primary);
 		font-weight: 500;
+	}
+
+	/* [核心新增] 与其他模态框统一的样式 */
+	.modal-prompt-text {
+		font-size: 16px;
+		color: var(--text-primary);
+		text-align: center;
+		margin-bottom: 10px;
+	}
+
+	.modal-warning-text {
+		font-size: 13px;
+		color: var(--text-secondary);
+		text-align: center;
+		margin-bottom: 20px;
+		line-height: 1.5;
 	}
 </style>
