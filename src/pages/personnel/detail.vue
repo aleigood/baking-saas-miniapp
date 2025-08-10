@@ -3,7 +3,6 @@
 		<view class="page-header">
 			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<!-- [核心修改] 标题优先显示姓名 -->
 				<h2 class="detail-title">{{ selectedMember?.name || selectedMember?.phone || '加载中...' }}</h2>
 			</view>
 		</view>
@@ -21,7 +20,6 @@
 						:value="new Date(selectedMember.joinDate).toLocaleDateString()" readonly />
 				</FormItem>
 				<FormItem label="角色">
-					<!-- [核心修改] picker现在显示中文角色，但值仍为英文 -->
 					<picker mode="selector" :range="availableRolesDisplay" @change="onRoleChange"
 						:disabled="!canEditRole">
 						<view class="picker" :class="{ disabled: !canEditRole }">{{
@@ -29,14 +27,15 @@
                   }}</view>
 					</picker>
 				</FormItem>
-				<button class="btn btn-primary btn-full-width" @click="handleUpdateMemberRole"
+				<!-- [核心修改] 替换为 AppButton 组件 -->
+				<AppButton type="primary" full-width @click="handleUpdateMemberRole"
 					:disabled="!canEditRole || isSubmitting" :loading="isSubmitting">
-					{{ isSubmitting ? '保存中...' : '保存修改' }}
-				</button>
-				<button class="btn btn-danger btn-full-width" @click="handleRemoveMember"
+					{{ isSubmitting ? '' : '保存修改' }}
+				</AppButton>
+				<AppButton type="danger" full-width @click="handleRemoveMember"
 					:disabled="!canRemoveMember || isSubmitting">
 					移除员工
-				</button>
+				</AppButton>
 			</view>
 		</view>
 		<view class="loading-spinner" v-else>
@@ -53,6 +52,7 @@
 	import type { Member, Role } from '@/types/api';
 	import { updateMember, removeMember } from '@/api/members';
 	import FormItem from '@/components/FormItem.vue';
+	import AppButton from '@/components/AppButton.vue'; // [核心新增]
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -74,7 +74,6 @@
 		isLoading.value = false;
 	});
 
-	// [核心新增] 角色名称映射
 	const roleMap : Record<Role, string> = {
 		OWNER: '店主',
 		ADMIN: '管理员',
@@ -86,7 +85,6 @@
 		return roleMap[role] || role;
 	};
 
-	// [核心新增] 用于显示的计算属性
 	const editableMemberRoleDisplay = computed(() => getRoleName(editableMemberRole.value));
 
 	const currentUserRoleInTenant = computed(
@@ -119,7 +117,6 @@
 		return currentUserRoleInTenant.value === 'OWNER' && selectedMember.value.role !== 'OWNER';
 	});
 
-	// [核心修改] 分离出用于逻辑判断的英文角色列表和用于显示的中文角色列表
 	const availableRoles = computed(() => {
 		if (currentUserRoleInTenant.value === 'OWNER') {
 			return ['ADMIN', 'MEMBER'];
@@ -132,7 +129,6 @@
 	});
 
 	const onRoleChange = (e : any) => {
-		// 使用索引从原始英文列表中获取值
 		editableMemberRole.value = availableRoles.value[e.detail.value] as Role;
 	};
 
@@ -157,7 +153,6 @@
 
 		uni.showModal({
 			title: '确认移除',
-			// [核心修改] 确认信息优先显示姓名
 			content: `确定要从本店铺移除 "${selectedMember.value!.name || selectedMember.value!.phone}" 吗？`,
 			success: async (res) => {
 				if (res.confirm) {

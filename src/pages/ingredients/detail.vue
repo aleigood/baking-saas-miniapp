@@ -96,10 +96,11 @@
 					placeholder="输入百分比, 如 80" />
 			</view>
 			<view class="modal-actions">
-				<button class="btn btn-secondary" @click="showEditModal = false">取消</button>
-				<button class="btn btn-primary" @click="handleUpdateIngredient" :loading="isSubmitting">
+				<!-- [核心修改] 替换为 AppButton 组件 -->
+				<AppButton type="secondary" @click="showEditModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleUpdateIngredient" :loading="isSubmitting">
 					{{ isSubmitting ? '保存中...' : '确认保存' }}
-				</button>
+				</AppButton>
 			</view>
 		</AppModal>
 
@@ -115,10 +116,11 @@
 					placeholder="例如：1000" />
 			</FormItem>
 			<view class="modal-actions">
-				<button class="btn btn-secondary" @click="showAddSkuModal = false">取消</button>
-				<button class="btn btn-primary" @click="handleCreateSku" :loading="isSubmitting">
+				<!-- [核心修改] 替换为 AppButton 组件 -->
+				<AppButton type="secondary" @click="showAddSkuModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleCreateSku" :loading="isSubmitting">
 					{{ isSubmitting ? '创建中...' : '确认创建' }}
-				</button>
+				</AppButton>
 			</view>
 		</AppModal>
 
@@ -135,14 +137,14 @@
 					placeholder="例如：255" />
 			</FormItem>
 			<view class="modal-actions">
-				<button class="btn btn-secondary" @click="showProcurementModal = false">取消</button>
-				<button class="btn btn-primary" @click="handleCreateProcurement" :loading="isSubmitting">
+				<!-- [核心修改] 替换为 AppButton 组件 -->
+				<AppButton type="secondary" @click="showProcurementModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleCreateProcurement" :loading="isSubmitting">
 					{{ isSubmitting ? '入库中...' : '确认入库' }}
-				</button>
+				</AppButton>
 			</view>
 		</AppModal>
 
-		<!-- [核心修改] 重构SKU操作模态框 -->
 		<AppModal v-model:visible="showSkuActionsModal" title="设为使用中">
 			<view class="modal-prompt-text">
 				要将此规格设为当前使用的吗？
@@ -405,7 +407,7 @@
 	const handleActivateFromModal = async () => {
 		if (!selectedSkuForAction.value || !ingredient.value) return;
 		const sku = selectedSkuForAction.value;
-		isSubmitting.value = true; // [核心新增]
+		isSubmitting.value = true;
 		try {
 			await setActiveSku(ingredient.value.id, sku.id);
 			uni.showToast({ title: '设置成功', icon: 'success' });
@@ -414,7 +416,7 @@
 		} catch (error) {
 			console.error('Failed to activate SKU:', error);
 		} finally {
-			isSubmitting.value = false; // [核心新增]
+			isSubmitting.value = false;
 			showSkuActionsModal.value = false;
 		}
 	};

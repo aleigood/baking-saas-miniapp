@@ -12,7 +12,6 @@
         tenant.name }}</ListItem>
 		</AppModal>
 
-		<!-- [核心修改] 重新设计退出登录的模态框 -->
 		<AppModal v-model:visible="uiStore.showUserMenu" title="退出登录">
 			<view class="modal-prompt-text">
 				您确定要退出登录吗？
@@ -28,13 +27,14 @@
 				<input class="input-field" type="tel" v-model="inviteePhone" placeholder="请输入手机号" />
 			</FormItem>
 			<view class="modal-actions">
-				<button class="btn btn-secondary" @click="uiStore.closeModal('invite')">
+				<!-- [核心修改] 替换为 AppButton 组件 -->
+				<AppButton type="secondary" @click="uiStore.closeModal('invite')">
 					取消
-				</button>
-				<button class="btn btn-primary" @click="handleInvite" :disabled="isCreatingInvite"
+				</AppButton>
+				<AppButton type="primary" @click="handleInvite" :disabled="isCreatingInvite"
 					:loading="isCreatingInvite">
-					{{ isCreatingInvite ? '发送中...' : '确认邀请' }}
-				</button>
+					{{ isCreatingInvite ? '' : '确认邀请' }}
+				</AppButton>
 			</view>
 		</AppModal>
 
@@ -52,7 +52,7 @@
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 	import ListItem from '@/components/ListItem.vue';
-	import AppButton from '@/components/AppButton.vue'; // [核心新增] 引入 AppButton
+	import AppButton from '@/components/AppButton.vue';
 
 	// 引入四个页面级组件
 	import ProductionPage from '@/pages/production/production.vue';
@@ -119,12 +119,10 @@
 		box-sizing: border-box;
 	}
 
-	/* [核心新增] 为模态框内的文本和按钮添加样式 */
 	.modal-prompt-text {
 		font-size: 16px;
 		color: var(--text-primary);
 		text-align: center;
 		margin-bottom: 25px;
-		/* 增加与按钮的间距 */
 	}
 </style>
