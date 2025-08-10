@@ -29,8 +29,9 @@
 						</FilterTab>
 					</FilterTabs>
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
+					<!-- [核心修改] 将单位后缀从 g 改为 kg -->
 					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
-						unit-suffix="g" />
+						unit-suffix="kg" />
 				</view>
 
 				<!-- 3. 品牌与规格管理区 -->
@@ -96,7 +97,6 @@
 					placeholder="输入百分比, 如 80" />
 			</view>
 			<view class="modal-actions">
-				<!-- [核心修改] 替换为 AppButton 组件 -->
 				<AppButton type="secondary" @click="showEditModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleUpdateIngredient" :loading="isSubmitting">
 					{{ isSubmitting ? '保存中...' : '确认保存' }}
@@ -116,7 +116,6 @@
 					placeholder="例如：1000" />
 			</FormItem>
 			<view class="modal-actions">
-				<!-- [核心修改] 替换为 AppButton 组件 -->
 				<AppButton type="secondary" @click="showAddSkuModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleCreateSku" :loading="isSubmitting">
 					{{ isSubmitting ? '创建中...' : '确认创建' }}
@@ -137,7 +136,6 @@
 					placeholder="例如：255" />
 			</FormItem>
 			<view class="modal-actions">
-				<!-- [核心修改] 替换为 AppButton 组件 -->
 				<AppButton type="secondary" @click="showProcurementModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleCreateProcurement" :loading="isSubmitting">
 					{{ isSubmitting ? '入库中...' : '确认入库' }}
@@ -249,7 +247,8 @@
 			const [ingredientData, historyData, usageData] = await Promise.all([
 				getIngredient(id),
 				getIngredientCostHistory(id),
-				getIngredientUsageHistory(id)
+				// [核心修改] 获取用量数据时，将其从克转换为千克
+				getIngredientUsageHistory(id).then(data => data.map(item => ({ cost: item.cost / 1000 })))
 			]);
 			ingredient.value = ingredientData;
 			costHistory.value = historyData;
@@ -493,8 +492,10 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.page-container {
-		padding-bottom: 80px;
+	/* [核心修改] 移除 page-container 的底部内边距，并为 page-content 设置合适的内边距 */
+	.page-content {
+		/* FAB高度(56) + FAB离底部距离(30) + 额外间距(20) = 106 */
+		padding-bottom: 106px;
 	}
 
 	.header-icon {
