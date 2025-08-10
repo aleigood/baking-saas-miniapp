@@ -141,24 +141,11 @@
 	}
 }
 
-.btn::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 250px; 
-    height: 250px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 1;
-}
-
-.btn:active::before {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 0;
-    transition: transform 0.6s ease-out, opacity 0.6s ease-out; 
-}
+/* [核心删除] 移除旧的 CSS 水波纹效果 */
+/*
+.btn::before { ... }
+.btn:active::before { ... }
+*/
 
 /* 按钮颜色变体 */
 .btn-primary {

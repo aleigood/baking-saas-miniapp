@@ -20,32 +20,28 @@
 						<view v-for="product in group" :key="product.id" class="product-item">
 							<view class="product-name">{{ product.name }}</view>
 							<view class="quantity-control">
-								<!-- [修改] 增加长按事件 -->
-								<!-- (Modified) Add long press events -->
-								<button class="btn-stepper"
-									@touchstart.prevent="startChangingQuantity(product.id, 'decrease')"
-									@touchend="stopChangingQuantity" @touchcancel="stopChangingQuantity">
+								<!-- [核心修改] 替换为 StepperButton 组件 -->
+								<StepperButton @touchstart.prevent="startChangingQuantity(product.id, 'decrease')"
+									@touchend="stopChangingQuantity">
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13H5v-2h14v2z'/%3E%3C/svg%3E" />
-								</button>
+								</StepperButton>
 								<input class="input-stepper" type="number"
 									v-model.number="taskQuantities[product.id]" />
-								<button class="btn-stepper"
-									@touchstart.prevent="startChangingQuantity(product.id, 'increase')"
-									@touchend="stopChangingQuantity" @touchcancel="stopChangingQuantity">
+								<StepperButton @touchstart.prevent="startChangingQuantity(product.id, 'increase')"
+									@touchend="stopChangingQuantity">
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
-								</button>
+								</StepperButton>
 							</view>
 						</view>
 					</view>
 				</view>
-				<!-- [修改] 将按钮移至 page-content 内部 -->
-				<!-- (Modified) Moved the button inside page-content -->
-				<button class="btn btn-primary btn-full-width" :disabled="!hasTasksToCreate" @click="handleCreateTasks"
+				<!-- [核心修改] 替换为 AppButton 组件 -->
+				<AppButton type="primary" full-width :disabled="!hasTasksToCreate" @click="handleCreateTasks"
 					:loading="isCreating">
-					{{ isCreating ? '创建中...' : '创建任务' }}
-				</button>
+					{{ isCreating ? '' : '创建任务' }}
+				</AppButton>
 			</template>
 		</view>
 	</view>
@@ -56,6 +52,8 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
 	import { createTask } from '@/api/tasks';
+	import AppButton from '@/components/AppButton.vue'; // 引入 AppButton
+	import StepperButton from '@/components/StepperButton.vue'; // 引入 StepperButton
 
 	const dataStore = useDataStore();
 	const isLoading = ref(false);
@@ -63,8 +61,6 @@
 	const taskQuantities = reactive<Record<string, number>>({});
 	const collapsedGroups = reactive(new Set<string>());
 
-	// [修改] 用于长按操作的计时器变量
-	// (Modified) Timer variables for long press actions
 	const quantityInterval = ref<any>(null);
 	const quantityTimeout = ref<any>(null);
 
@@ -111,33 +107,23 @@
 		}
 	};
 
-	// [修改] 开始增/减数量的函数，使用递归setTimeout保证UI刷新
-	// (Modified) Function to start changing quantity, using recursive setTimeout to ensure UI refresh
 	const startChangingQuantity = (productId : string, direction : 'increase' | 'decrease') => {
-		// 立即执行一次
 		if (direction === 'increase') {
 			increaseQuantity(productId);
 		} else {
 			decreaseQuantity(productId);
 		}
-
-		// 定义一个重复执行的函数
 		const repeat = () => {
 			if (direction === 'increase') {
 				increaseQuantity(productId);
 			} else {
 				decreaseQuantity(productId);
 			}
-			// 设置下一次执行
 			quantityInterval.value = setTimeout(repeat, 100);
 		};
-
-		// 延迟后开始连续执行
 		quantityTimeout.value = setTimeout(repeat, 500);
 	};
 
-	// [修改] 停止增/减数量的函数
-	// (Modified) Function to stop changing quantity
 	const stopChangingQuantity = () => {
 		clearTimeout(quantityTimeout.value);
 		clearTimeout(quantityInterval.value);
@@ -233,22 +219,6 @@
 		display: flex;
 		align-items: center;
 		gap: 5px;
-	}
-
-	.btn-stepper {
-		width: 30px;
-		height: 30px;
-		padding: 0;
-		background-color: #f3e9e3;
-		border-radius: 50%;
-		border: none;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-
-		&::after {
-			border: none;
-		}
 	}
 
 	.stepper-icon {
