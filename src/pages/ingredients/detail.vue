@@ -5,8 +5,8 @@
 			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
 				<h2 class="detail-title">{{ ingredient?.name || '加载中...' }}</h2>
-				<!-- [核心修改] 添加 .stop 修饰符阻止事件冒泡 -->
-				<IconButton @click.stop="openEditModal">
+				<!-- [核心修改] 移除 .stop 修饰符，因为底层的 IconButton 组件已经修复了事件穿透问题 -->
+				<IconButton @click="openEditModal">
 					<image class="header-icon" src="/static/icons/property.svg" />
 				</IconButton>
 			</view>

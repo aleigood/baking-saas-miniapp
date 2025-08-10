@@ -16,6 +16,7 @@
 	const ripples = ref<any[]>([]); // 存储当前显示的水波纹
 	const longPressTimer = ref<any>(null); // 长按计时器
 	const touchMoved = ref(false); // 标记手指是否移动过
+	const longPressTriggered = ref(false); // [核心新增] 标记长按事件是否已触发
 	const LONG_PRESS_DURATION = 350; // 定义长按的时长（毫秒）
 	const instance = getCurrentInstance(); // 获取当前组件实例，用于 SelectorQuery
 
@@ -25,6 +26,7 @@
 	 */
 	const handleTouchStart = (event : any) => {
 		touchMoved.value = false;
+		longPressTriggered.value = false; // [核心新增] 重置长按标记
 		clearTimeout(longPressTimer.value);
 
 		const touch = event.touches[0];
@@ -64,6 +66,7 @@
 		// 启动长按计时器
 		longPressTimer.value = setTimeout(() => {
 			if (!touchMoved.value) {
+				longPressTriggered.value = true; // [核心新增] 标记长按已触发
 				emit('longpress'); // 如果手指未移动，触发 longpress 事件
 			}
 		}, LONG_PRESS_DURATION);
@@ -80,9 +83,12 @@
 	/**
 	 * 手指抬起时触发
 	 */
-	const handleTouchEnd = () => {
+	const handleTouchEnd = (event : Event) => {
 		clearTimeout(longPressTimer.value);
-		if (!touchMoved.value) {
+		// [核心修改] 只有在未移动且未触发长按时，才视为单击
+		if (!touchMoved.value && !longPressTriggered.value) {
+			// [核心修改] 阻止默认事件，防止长按后依然触发导航等“幽灵点击”
+			event.preventDefault();
 			emit('click'); // 如果未移动，则触发 click 事件
 		}
 	};

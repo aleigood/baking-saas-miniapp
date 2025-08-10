@@ -53,8 +53,11 @@
 		touchMoved.value = true;
 	};
 
-	const handleTouchEnd = () => {
+	const handleTouchEnd = (event : Event) => {
 		if (!touchMoved.value) {
+			// [核心修改] 传入事件对象并阻止默认行为，以防止移动端上的“幽灵点击”问题。
+			// 这是导致模态框立即关闭的关键修复。
+			event.preventDefault();
 			emit('click');
 		}
 	};
