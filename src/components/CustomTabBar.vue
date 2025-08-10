@@ -1,12 +1,11 @@
 <template>
-	<view class="custom-tab-bar">
-		<!-- [核心修改] 为每个 tab-item 添加 ripple-container 类和触摸事件 -->
+	<!-- [核心修改] 动态绑定 z-index -->
+	<view class="custom-tab-bar" :style="{ zIndex: uiStore.isAnyModalOpen ? 90 : 9998 }">
 		<view v-for="(item, index) in list" :key="item.key" class="tab-item ripple-container"
 			@touchstart="handleTouchStart($event, item, index)" @touchmove="handleTouchMove"
 			@touchend="handleTouchEnd(item)">
 			<image class="icon" :src="uiStore.activeTab === item.key ? item.selectedIconPath : item.iconPath" />
 			<view class="text" :class="{ 'text-active': uiStore.activeTab === item.key }">{{ item.text }}</view>
-			<!-- [核心新增] 每个 tab-item 内部都有自己的水波纹效果容器 -->
 			<span v-for="ripple in ripples[item.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 		</view>
 	</view>
@@ -41,7 +40,6 @@
 		selectedIconPath: "/static/tabbar/personnel_active.svg"
 	}]);
 
-	// [核心新增] 水波纹效果逻辑
 	const ripples = reactive<Record<string, any[]>>({
 		production: [],
 		ingredients: [],
@@ -119,7 +117,7 @@
 		align-items: center;
 		border-top: 1px solid var(--border-color);
 		box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.04);
-		z-index: 9998;
+		/* [核心修改] 移除静态 z-index，改为动态绑定 */
 	}
 
 	.tab-item {
@@ -129,7 +127,6 @@
 		justify-content: center;
 		height: 60px;
 		flex: 1;
-		/* [核心新增] 为水波纹效果提供定位上下文 */
 		position: relative;
 		overflow: hidden;
 	}
@@ -149,7 +146,6 @@
 		color: var(--primary-color);
 	}
 
-	/* [核心新增] 定义水波纹样式 */
 	.ripple {
 		position: absolute;
 		border-radius: 50%;

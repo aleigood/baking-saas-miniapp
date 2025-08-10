@@ -34,7 +34,6 @@
 
 				<!-- 任务列表 -->
 				<view v-if="activeTasks.length > 0">
-					<!-- [核心重构] 使用 ListItem 组件，并通过事件监听实现交互 -->
 					<ListItem v-for="task in activeTasks" :key="task.id" @click="navigateToDetail(task)"
 						@longpress="handleLongPressAction(task)" class="task-card" :class="getStatusClass(task.status)">
 						<view class="task-info">
@@ -54,7 +53,8 @@
 
 		<AppFab @click="navigateToCreatePage" />
 
-		<AppModal v-model:visible="showTaskActionsModal" title="任务操作">
+		<!-- [核心修改] v-model:visible 绑定到 uiStore.showTaskActionsModal -->
+		<AppModal v-model:visible="uiStore.showTaskActionsModal" title="任务操作">
 			<view class="list-item" @click="handleCancelTaskFromModal">
 				取消任务
 			</view>
@@ -70,7 +70,7 @@
 	import { useUiStore } from '@/store/ui';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
-	import ListItem from '@/components/ListItem.vue'; // [核心新增] 引入新组件
+	import ListItem from '@/components/ListItem.vue';
 	import type { ProductionTaskDto } from '@/types/api';
 	import { updateTaskStatus } from '@/api/tasks';
 
@@ -79,13 +79,9 @@
 	const uiStore = useUiStore();
 
 	const isLoading = ref(false);
-	const showTaskActionsModal = ref(false);
+	// [核心删除] 移除本地的 showTaskActionsModal 状态
+	// const showTaskActionsModal = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
-
-	// [核心删除] 移除所有与触摸事件和水波纹相关的本地状态
-	// const longPressTimer = ref<any>(null);
-	// const touchMoved = ref(false);
-	// const ripples = ref<Record<string, any[]>>({});
 
 	onShow(async () => {
 		await dataStore.fetchProductionData();
@@ -174,17 +170,16 @@
 		});
 	};
 
-	// [核心删除] 移除 handleTouchStart, handleTouchMove, handleTouchEnd
-
-	// 实际执行长按的函数
+	// [核心修改] 长按时调用 uiStore 的 openModal 方法
 	const handleLongPressAction = (task : ProductionTaskDto) => {
 		selectedTaskForAction.value = task;
-		showTaskActionsModal.value = true;
+		uiStore.openModal('taskActions');
 	};
 
+	// [核心修改] 点击取消时调用 uiStore 的 closeModal 方法
 	const handleCancelTaskFromModal = async () => {
 		if (!selectedTaskForAction.value) return;
-		showTaskActionsModal.value = false;
+		uiStore.closeModal('taskActions');
 		await cancelTask(selectedTaskForAction.value.id);
 		selectedTaskForAction.value = null;
 	};
@@ -240,9 +235,7 @@
 		margin-top: 5px;
 	}
 
-	/* [核心修改] 将 task-card 的样式应用到 ListItem 组件上 */
 	.task-card {
-		/* ListItem 已经有 list-item 的基础样式，这里只添加 task-card 特有的样式 */
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
@@ -253,7 +246,6 @@
 		cursor: pointer;
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 		border-left: 5px solid;
-		/* 移除 ListItem 自带的 border-bottom */
 		border-bottom: none !important;
 	}
 

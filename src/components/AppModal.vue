@@ -23,7 +23,7 @@
 		},
 		width: {
 			type: String,
-			default: '85%',
+			default: '80%', // [核心修改] 将默认宽度从 85% 改为 80%
 		},
 	});
 
@@ -45,7 +45,7 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
-		z-index: 1001; // 比 tabbar 的 z-index 高
+		z-index: 9999;
 	}
 
 	.modal-content {
@@ -59,7 +59,6 @@
 
 	.modal-header {
 		display: flex;
-		/* [核心修改] 移除关闭按钮后，将标题居中显示 */
 		justify-content: center;
 		align-items: center;
 		margin-bottom: 20px;
