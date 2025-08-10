@@ -17,6 +17,32 @@
 	padding-bottom: 165px;
 }
 
+
+/* [核心新增] 水波纹效果容器 */
+.ripple-container {
+	position: relative;
+	overflow: hidden;
+}
+
+/* [核心新增] 水波纹动画元素 */
+.ripple {
+	position: absolute;
+	border-radius: 50%;
+	background-color: rgba(0, 0, 0, 0.1);
+	transform: scale(0);
+	animation: ripple-animation 0.6s linear;
+	pointer-events: none; /* 确保水波纹不影响点击 */
+}
+
+/* [核心新增] 水波纹动画定义 */
+@keyframes ripple-animation {
+	to {
+		transform: scale(4);
+		opacity: 0;
+	}
+}
+
+
 /* Card and List */
 .card { background: var(--card-bg); padding: 20px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
 .card-title-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 5px; }

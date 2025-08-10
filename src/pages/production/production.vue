@@ -1,8 +1,6 @@
 <template>
-	<!-- [核心修改] 页面不再是独立的 page-container，因为它现在是 main.vue 的一个子组件 -->
 	<view>
 		<view class="page-header">
-			<!-- [核心修改] 点击事件调用 uiStore 的方法 -->
 			<view class="store-selector" @click="uiStore.openModal('store')">
 				{{ dataStore.currentTenant?.name || '请选择店铺' }} &#9662;
 			</view>
@@ -11,13 +9,11 @@
       }}</view>
 		</view>
 
-		<!-- [核心修改] 添加 page-content-with-fab 类 -->
 		<view class="page-content page-content-with-fab">
 			<view class="loading-spinner" v-if="isLoading">
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<!-- 任务看板 -->
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ totalPendingBreadCount }}</view>
@@ -29,7 +25,6 @@
 					</div>
 				</view>
 
-				<!-- 任务列表标题和历史按钮 -->
 				<view class="card-title-wrapper">
 					<span class="card-title">进行中的任务</span>
 					<image v-if="hasCompletedTasks" class="header-icon"
@@ -39,10 +34,9 @@
 
 				<!-- 任务列表 -->
 				<view v-if="activeTasks.length > 0">
-					<!-- [核心重构] 替换 @click 和 @longpress 为底层的触摸事件 -->
-					<view v-for="task in activeTasks" :key="task.id" class="task-card"
-						:class="getStatusClass(task.status)" @touchstart="handleTouchStart(task)"
-						@touchmove="handleTouchMove" @touchend="handleTouchEnd(task)">
+					<!-- [核心重构] 使用 ListItem 组件，并通过事件监听实现交互 -->
+					<ListItem v-for="task in activeTasks" :key="task.id" @click="navigateToDetail(task)"
+						@longpress="handleLongPressAction(task)" class="task-card" :class="getStatusClass(task.status)">
 						<view class="task-info">
 							<view class="title">{{ getTaskTitle(task) }}</view>
 							<view class="details">{{ getTaskDetails(task) }}</view>
@@ -50,7 +44,7 @@
 						<view class="status-tag" :class="getStatusClass(task.status)">
 							{{ getStatusText(task.status) }}
 						</view>
-					</view>
+					</ListItem>
 				</view>
 				<view v-else class="empty-state">
 					<text>暂无进行中的任务</text>
@@ -60,15 +54,11 @@
 
 		<AppFab @click="navigateToCreatePage" />
 
-		<!-- [核心删除] 移除页面内部的所有 AppModal 组件 -->
-
 		<AppModal v-model:visible="showTaskActionsModal" title="任务操作">
 			<view class="list-item" @click="handleCancelTaskFromModal">
 				取消任务
 			</view>
 		</AppModal>
-
-		<!-- [核心删除] 移除 CustomTabBar，因为它已经在 main.vue 中 -->
 	</view>
 </template>
 
@@ -77,39 +67,28 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useUiStore } from '@/store/ui'; // [核心新增]
+	import { useUiStore } from '@/store/ui';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
-	// [核心删除] 不再需要 CustomTabBar
+	import ListItem from '@/components/ListItem.vue'; // [核心新增] 引入新组件
 	import type { ProductionTaskDto } from '@/types/api';
 	import { updateTaskStatus } from '@/api/tasks';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const uiStore = useUiStore(); // [核心新增]
+	const uiStore = useUiStore();
 
 	const isLoading = ref(false);
-	// [核心删除] 移除 showStoreModal 和 showUserMenu 的 ref
 	const showTaskActionsModal = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 
-	// [核心新增] 用于手动实现长按逻辑的状态变量
-	const longPressTimer = ref<any>(null);
-	const touchMoved = ref(false);
-	const LONG_PRESS_DURATION = 350; // 长按的毫秒数
+	// [核心删除] 移除所有与触摸事件和水波纹相关的本地状态
+	// const longPressTimer = ref<any>(null);
+	// const touchMoved = ref(false);
+	// const ripples = ref<Record<string, any[]>>({});
 
 	onShow(async () => {
 		await dataStore.fetchProductionData();
-	});
-
-	// ... (其余的 computed 和 methods 保持不变)
-	const recipeStatsForChart = computed(() => {
-		return dataStore.recipeStats
-			.map(item => ({
-				name: item.name,
-				value: item.count,
-			}))
-			.sort((a, b) => b.value - a.value);
 	});
 
 	const activeTasks = computed(() => {
@@ -195,36 +174,7 @@
 		});
 	};
 
-	// [核心重构] 手动实现长按与点击事件
-	const handleTouchStart = (task : ProductionTaskDto) => {
-		touchMoved.value = false;
-		// 清除上一次可能未执行的计时器
-		clearTimeout(longPressTimer.value);
-
-		// 启动一个新的计时器，准备执行长按操作
-		longPressTimer.value = setTimeout(() => {
-			if (!touchMoved.value) {
-				// 如果计时器完成时手指未移动，则判定为长按
-				handleLongPressAction(task);
-			}
-		}, LONG_PRESS_DURATION);
-	};
-
-	const handleTouchMove = () => {
-		// 只要手指移动，就标记为已移动，并清除长按计时器
-		touchMoved.value = true;
-		clearTimeout(longPressTimer.value);
-	};
-
-	const handleTouchEnd = (task : ProductionTaskDto) => {
-		// 手指抬起时，立即清除计时器
-		clearTimeout(longPressTimer.value);
-
-		// 如果手指没有移动过，则判定为一次单击
-		if (!touchMoved.value) {
-			navigateToDetail(task);
-		}
-	};
+	// [核心删除] 移除 handleTouchStart, handleTouchMove, handleTouchEnd
 
 	// 实际执行长按的函数
 	const handleLongPressAction = (task : ProductionTaskDto) => {
@@ -267,8 +217,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [核心删除] .page-with-custom-tabbar 不再需要，因为 main.vue 已经处理了 */
-
 	.summary-card {
 		display: flex;
 		justify-content: space-around;
@@ -292,7 +240,9 @@
 		margin-top: 5px;
 	}
 
+	/* [核心修改] 将 task-card 的样式应用到 ListItem 组件上 */
 	.task-card {
+		/* ListItem 已经有 list-item 的基础样式，这里只添加 task-card 特有的样式 */
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
@@ -303,6 +253,8 @@
 		cursor: pointer;
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 		border-left: 5px solid;
+		/* 移除 ListItem 自带的 border-bottom */
+		border-bottom: none !important;
 	}
 
 	.task-card.status-pending {
