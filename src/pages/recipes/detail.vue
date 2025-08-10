@@ -15,16 +15,15 @@
 
 				<!-- 1. [核心重构] 成本分析图表区 -->
 				<view class="card">
-					<view class="filter-tabs">
-						<view class="filter-tab" :class="{ active: detailChartTab === 'trend' }"
-							@click="detailChartTab = 'trend'">
+					<!-- [核心修改] 替换为 FilterTabs 和 FilterTab 组件 -->
+					<FilterTabs style="justify-content: center;">
+						<FilterTab :active="detailChartTab === 'trend'" @click="detailChartTab = 'trend'">
 							成本走势
-						</view>
-						<view class="filter-tab" :class="{ active: detailChartTab === 'breakdown' }"
-							@click="detailChartTab = 'breakdown'">
+						</FilterTab>
+						<FilterTab :active="detailChartTab === 'breakdown'" @click="detailChartTab = 'breakdown'">
 							原料成本
-						</view>
-					</view>
+						</FilterTab>
+					</FilterTabs>
 					<!-- 成本走势折线图 -->
 					<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
 					<!-- 原料成本环形图 -->
@@ -111,7 +110,9 @@
 	import AppModal from '@/components/AppModal.vue';
 	import LineChart from '@/components/LineChart.vue';
 	import PieChart from '@/components/PieChart.vue';
-	import ListItem from '@/components/ListItem.vue'; // 引入 ListItem 组件
+	import ListItem from '@/components/ListItem.vue';
+	import FilterTabs from '@/components/FilterTabs.vue'; // 引入新组件
+	import FilterTab from '@/components/FilterTab.vue'; // 引入新组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -128,11 +129,6 @@
 	const costHistory = ref<{ cost : number }[]>([]);
 	const costBreakdown = ref<{ name : string, value : number }[]>([]);
 	const familyId = ref<string | null>(null);
-
-	// [核心删除] 移除所有与触摸事件和长按计时器相关的本地状态
-	// const longPressTimer = ref<any>(null);
-	// const touchMoved = ref(false);
-	// const LONG_PRESS_DURATION = 350;
 
 	onLoad(async (options) => {
 		if (options?.familyId) {
@@ -307,14 +303,10 @@
 		navigateToEditPage(recipeFamily.value.id);
 	};
 
-	// [核心删除] 移除 handleTouchStart, handleTouchMove, handleTouchEnd
-
-	// 原始的点击逻辑 (现在由 ListItem 的 @click 触发)
 	const handleVersionClick = (versionToDisplay : RecipeVersion) => {
 		displayedVersionId.value = versionToDisplay.id;
 	};
 
-	// 原始的长按逻辑 (现在由 ListItem 的 @longpress 触发)
 	const handleVersionLongPressAction = (versionToActivate : RecipeVersion) => {
 		if (!canEditRecipe.value || versionToActivate.isActive || !recipeFamily.value) {
 			return;
@@ -339,10 +331,7 @@
 			uni.hideLoading();
 			uni.showToast({ title: '激活成功', icon: 'success' });
 
-			// 激活成功后，重新加载一次当前配方的完整数据
 			await loadRecipeData(recipeFamily.value.id);
-
-			// 异步更新列表页数据
 			dataStore.fetchRecipesData();
 
 		} catch (error) {
@@ -367,29 +356,6 @@
 		flex-wrap: wrap;
 		gap: 8px;
 	}
-
-	/* [核心修改] 修正图表切换标签的样式 */
-	.filter-tabs {
-		display: flex;
-		justify-content: center;
-		gap: 10px;
-		margin-bottom: 20px;
-	}
-
-	/* [核心新增] 增加 filter-tab 样式，与原料页保持一致 */
-	.filter-tab {
-		padding: 8px 18px;
-		border-radius: 20px;
-		background: #f3e9e3;
-		color: var(--text-secondary);
-		font-size: 14px;
-	}
-
-	.filter-tab.active {
-		background: var(--primary-color);
-		color: white;
-	}
-
 
 	.status-tag {
 		padding: 4px 12px;
@@ -466,7 +432,6 @@
 		padding-right: 20px;
 	}
 
-	/* [核心新增] “创建新版本”按钮的样式 */
 	.btn-add-sm {
 		width: 100%;
 		padding: 8px;
@@ -481,6 +446,4 @@
 			border: none;
 		}
 	}
-
-	/* [核心修改] 移除 with-border-top 样式块 */
 </style>

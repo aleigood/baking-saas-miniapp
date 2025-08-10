@@ -1,8 +1,6 @@
 <template>
-	<!-- [核心修改] 页面不再是独立的 page-container -->
 	<view>
 		<view class="page-header">
-			<!-- [核心修改] 点击事件调用 uiStore 的方法 -->
 			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
 			<view class="user-avatar" @click="uiStore.openModal('userMenu')">{{
@@ -14,21 +12,17 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<!-- [核心修改] 移除了外层的 <view> 标签 -->
 				<view class="card">
 					<view class="card-title"><span>本周制作排行</span></view>
 					<BarChart :chart-data="recipeStatsForChart" unit="次" />
 				</view>
 
-				<view class="filter-tabs">
-					<view class="filter-tab" :class="{ active: recipeFilter === 'MAIN' }"
-						@click="recipeFilter = 'MAIN'">
-						主面团</view>
-					<view class="filter-tab" :class="{ active: recipeFilter === 'PRE_DOUGH' }"
-						@click="recipeFilter = 'PRE_DOUGH'">面种</view>
-					<view class="filter-tab" :class="{ active: recipeFilter === 'EXTRA' }"
-						@click="recipeFilter = 'EXTRA'">馅料</view>
-				</view>
+				<!-- [核心修改] 替换为 FilterTabs 和 FilterTab 组件 -->
+				<FilterTabs>
+					<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">主面团</FilterTab>
+					<FilterTab :active="recipeFilter === 'PRE_DOUGH'" @click="recipeFilter = 'PRE_DOUGH'">面种</FilterTab>
+					<FilterTab :active="recipeFilter === 'EXTRA'" @click="recipeFilter = 'EXTRA'">馅料</FilterTab>
+				</FilterTabs>
 
 				<template v-if="filteredRecipes.length > 0">
 					<ListItem v-for="family in filteredRecipes" :key="family.id" @click="navigateToDetail(family.id)">
@@ -58,8 +52,6 @@
 			</template>
 		</view>
 		<AppFab v-if="canEditRecipe" @click="navigateToEditPage(null)" />
-
-		<!-- [核心删除] 移除页面内部的所有 AppModal 和 CustomTabBar 组件 -->
 	</view>
 </template>
 
@@ -68,15 +60,17 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useUiStore } from '@/store/ui'; // [核心新增]
+	import { useUiStore } from '@/store/ui';
 	import type { RecipeFamily } from '@/types/api';
 	import AppFab from '@/components/AppFab.vue';
 	import BarChart from '@/components/BarChart.vue';
-	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
+	import ListItem from '@/components/ListItem.vue';
+	import FilterTabs from '@/components/FilterTabs.vue'; // 引入新组件
+	import FilterTab from '@/components/FilterTab.vue'; // 引入新组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const uiStore = useUiStore(); // [核心新增]
+	const uiStore = useUiStore();
 
 	const isLoading = ref(false);
 	const recipeFilter = ref<'MAIN' | 'PRE_DOUGH' | 'EXTRA'>('MAIN');
@@ -88,7 +82,6 @@
 	};
 
 	onShow(async () => {
-		// [核心修改] 仅当数据未加载时才去获取
 		if (!dataStore.dataLoaded.recipes) {
 			isLoading.value = true;
 			await dataStore.fetchRecipesData();
@@ -182,24 +175,5 @@
 	.rating {
 		color: var(--accent-color);
 		font-weight: bold;
-	}
-
-	.filter-tabs {
-		display: flex;
-		gap: 10px;
-		margin-bottom: 20px;
-	}
-
-	.filter-tab {
-		padding: 8px 18px;
-		border-radius: 20px;
-		background: #f3e9e3;
-		color: var(--text-secondary);
-		font-size: 14px;
-	}
-
-	.filter-tab.active {
-		background: var(--primary-color);
-		color: white;
 	}
 </style>

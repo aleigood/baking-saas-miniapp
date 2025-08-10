@@ -21,16 +21,13 @@
 
 				<!-- 2. 数据洞察区 -->
 				<view class="card">
-					<view class="filter-tabs" style="margin-bottom: 20px; justify-content: center;">
-						<view class="filter-tab" :class="{ active: detailChartTab === 'price' }"
-							@click="detailChartTab = 'price'">
-							价格走势
-						</view>
-						<view class="filter-tab" :class="{ active: detailChartTab === 'usage' }"
-							@click="detailChartTab = 'usage'">
-							用量走势
-						</view>
-					</view>
+					<!-- [核心修改] 替换为 FilterTabs 和 FilterTab 组件 -->
+					<FilterTabs style="margin-bottom: 20px; justify-content: center;">
+						<FilterTab :active="detailChartTab === 'price'" @click="detailChartTab = 'price'">价格走势
+						</FilterTab>
+						<FilterTab :active="detailChartTab === 'usage'" @click="detailChartTab = 'usage'">用量走势
+						</FilterTab>
+					</FilterTabs>
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
 					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
 						unit-suffix="g" />
@@ -41,7 +38,6 @@
 					<view class="card-title-wrapper">
 						<span class="card-title">品牌与规格 (SKU)</span>
 					</view>
-					<!-- [核心重构] 使用 ListItem 组件并绑定 click 和 longpress 事件 -->
 					<ListItem v-for="sku in ingredient.skus" :key="sku.id" class="sku-item"
 						:class="{ 'item-selected': selectedSkuId === sku.id }" @click="handleSkuClick(sku)"
 						@longpress="handleSkuLongPressAction(sku)">
@@ -168,7 +164,9 @@
 	import FormItem from '@/components/FormItem.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import LineChart from '@/components/LineChart.vue';
-	import ListItem from '@/components/ListItem.vue'; // 引入 ListItem 组件
+	import ListItem from '@/components/ListItem.vue';
+	import FilterTabs from '@/components/FilterTabs.vue'; // 引入新组件
+	import FilterTab from '@/components/FilterTab.vue'; // 引入新组件
 
 	const dataStore = useDataStore();
 	const isLoading = ref(true);
@@ -182,7 +180,6 @@
 		specWeightInGrams: 0,
 	});
 	const showProcurementModal = ref(false);
-	// [核心修改] 将 pricePerPackage 替换为 totalPrice
 	const procurementForm = ref({
 		skuId: '',
 		packagesPurchased: 0,
@@ -197,22 +194,14 @@
 	const selectedSkuId = ref<string | null>(null);
 
 	const displayedRecordsCount = ref(10);
-
-	// [核心新增] 编辑模态框的显示状态
 	const showEditModal = ref(false);
 
-	// 用于编辑原料所有属性的表单
 	const ingredientForm = reactive({
 		name: '',
 		type: 'STANDARD' as 'STANDARD' | 'UNTRACKED',
 		isFlour: false,
 		waterContent: 0,
 	});
-
-	// [核心删除] 移除所有与触摸事件和长按计时器相关的本地状态
-	// const longPressTimer = ref<any>(null);
-	// const touchMoved = ref(false);
-	// const LONG_PRESS_DURATION = 350;
 
 	onLoad(async (options) => {
 		const ingredientId = options?.ingredientId;
@@ -236,7 +225,6 @@
 			costHistory.value = historyData;
 			usageHistory.value = usageData;
 
-			// [核心修改] 初始化表单，但不在这里显示
 			ingredientForm.name = ingredientData.name;
 			ingredientForm.type = ingredientData.type;
 			ingredientForm.isFlour = ingredientData.isFlour;
@@ -256,9 +244,7 @@
 		}
 	};
 
-	// [核心新增] 打开编辑模态框
 	const openEditModal = () => {
-		// 确保表单数据与当前显示的数据同步
 		if (ingredient.value) {
 			ingredientForm.name = ingredient.value.name;
 			ingredientForm.type = ingredient.value.type;
@@ -342,7 +328,6 @@
 			uni.showToast({ title: '请先激活一个SKU才能进行采购', icon: 'none' });
 			return;
 		}
-		// [核心修改] 初始化采购表单
 		procurementForm.value = {
 			skuId: ingredient.value.activeSkuId,
 			packagesPurchased: 0,
@@ -353,14 +338,12 @@
 	};
 
 	const handleCreateProcurement = async () => {
-		// [核心修改] 更新校验和提交逻辑
 		if (!procurementForm.value.skuId || procurementForm.value.packagesPurchased <= 0 || procurementForm.value.totalPrice <= 0) {
 			uni.showToast({ title: '请填写所有有效的采购信息', icon: 'none' });
 			return;
 		}
 		isSubmitting.value = true;
 		try {
-			// 在客户端计算单价
 			const pricePerPackage = procurementForm.value.totalPrice / procurementForm.value.packagesPurchased;
 
 			await createProcurement({
@@ -378,15 +361,11 @@
 		}
 	};
 
-	// [核心删除] 移除 handleTouchStart, handleTouchMove, handleTouchEnd
-
-	// 原始的点击逻辑 (现在由 ListItem 的 @click 触发)
 	const handleSkuClick = (sku : IngredientSKU) => {
 		selectedSkuId.value = sku.id;
 		displayedRecordsCount.value = 10;
 	};
 
-	// 原始的长按逻辑 (现在由 ListItem 的 @longpress 触发)
 	const handleSkuLongPressAction = (sku : IngredientSKU) => {
 		if (!ingredient.value || sku.id === ingredient.value.activeSkuId) {
 			return;
@@ -446,7 +425,7 @@
 				waterContent: Number(ingredientForm.waterContent) || 0,
 			});
 			uni.showToast({ title: '保存成功', icon: 'success' });
-			showEditModal.value = false; // [新增] 保存成功后关闭模态框
+			showEditModal.value = false;
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
@@ -465,7 +444,6 @@
 		padding-bottom: 80px;
 	}
 
-	/* [核心新增] 编辑图标样式 */
 	.header-icon {
 		width: 24px;
 		height: 24px;
@@ -531,24 +509,6 @@
 		color: #6c757d;
 	}
 
-	.filter-tabs {
-		display: flex;
-		gap: 10px;
-	}
-
-	.filter-tab {
-		padding: 8px 18px;
-		border-radius: 20px;
-		background: #f3e9e3;
-		color: var(--text-secondary);
-		font-size: 14px;
-	}
-
-	.filter-tab.active {
-		background: var(--primary-color);
-		color: white;
-	}
-
 	.procurement-item {
 		display: flex;
 		justify-content: space-between;
@@ -611,7 +571,6 @@
 		padding-right: 20px;
 	}
 
-	/* [核心新增] 配方属性表单样式 */
 	.form-row {
 		display: flex;
 		justify-content: space-between;

@@ -141,12 +141,6 @@
 	}
 }
 
-/* [核心删除] 移除旧的 CSS 水波纹效果 */
-/*
-.btn::before { ... }
-.btn:active::before { ... }
-*/
-
 /* 按钮颜色变体 */
 .btn-primary {
 	background-color: var(--primary-color);
@@ -217,3 +211,5 @@
 /* Loading and Empty State */
 .loading-spinner { display: flex; justify-content: center; align-items: center; padding-top: 100px; }
 .empty-state { text-align: center; padding: 50px 20px; color: var(--text-secondary); }
+
+/* [核心删除] 移除旧的 filter-tabs 和 filter-tab 样式 */
