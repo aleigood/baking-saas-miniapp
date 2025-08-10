@@ -1,40 +1,15 @@
 <template>
-	<view class="chart-container" id="chart-container">
-		<!-- #ifdef H5 || APP-PLUS || MP-WEIXIN -->
-		<!-- 确保在获取到容器宽度后再渲染 -->
-		<svg v-if="chartData && chartData.length > 1 && chartWidth > 0" :viewBox="`0 0 ${chartWidth} ${height}`"
-			xmlns="http://www.w3.org/2000/svg">
-			<!-- 平滑成本曲线 -->
-			<path class="line" :d="linePath" />
-
-			<!-- 数据点 -->
-			<g class="data-points">
-				<circle v-for="(point, index) in points" :key="`point-${index}`" :cx="point.x" :cy="point.y" r="4">
-				</circle>
-			</g>
-
-			<!-- 数据标签 (数值) -->
-			<g class="data-labels">
-				<!-- [核心修改] foreignObject 的宽度现在是动态的 -->
-				<foreignObject v-for="(point, index) in points" :key="`label-${point.x}`"
-					:x="getLabelXPosition(point, index)" :y="point.y - 25" :width="point.labelWidth" height="20">
-					<view xmlns="http://www.w3.org/1999/xhtml" class="label-div">
-						{{ point.label }}
-					</view>
-				</foreignObject>
-			</g>
-		</svg>
-		<!-- #endif -->
-
-		<!-- 当数据不足时显示提示 -->
+	<view class="chart-container">
 		<view v-if="!chartData || chartData.length <= 1" class="chart-placeholder">
 			需要至少两次记录才能生成曲线
 		</view>
+		<!-- [核心修正] 移除 type="2d" 属性，使用旧版 Canvas API -->
+		<canvas v-else :id="canvasId" :canvas-id="canvasId" class="chart-canvas"></canvas>
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref, computed, onMounted, getCurrentInstance } from 'vue';
+	import { ref, onMounted, watch, nextTick, getCurrentInstance } from 'vue';
 
 	const props = defineProps({
 		chartData: {
@@ -51,89 +26,124 @@
 		},
 	});
 
-	const chartWidth = ref(0);
-	const height = 180;
-	const padding = { top: 30, right: 20, bottom: 20, left: 20 };
+	const instance = getCurrentInstance();
+	const canvasId = `line-chart-${Date.now()}-${Math.random().toString().slice(2)}`;
+	let ctx : UniApp.CanvasContext | null = null;
+	let canvasWidth = 0;
+	let canvasHeight = 0;
+
+	// 监听数据变化，重新绘制图表
+	watch(() => props.chartData, () => {
+		if (ctx) {
+			drawChart();
+		}
+	}, { deep: true });
 
 	onMounted(() => {
-		const instance = getCurrentInstance();
-		setTimeout(() => {
+		initChart();
+	});
+
+	// 初始化 Canvas
+	const initChart = () => {
+		nextTick(() => {
+			// [核心修正] 使用 uni.createCanvasContext 获取绘图上下文
+			ctx = uni.createCanvasContext(canvasId, instance);
+
 			const query = uni.createSelectorQuery().in(instance);
-			query.select('#chart-container').boundingClientRect(data => {
-				if (data && data.width) {
-					chartWidth.value = data.width;
-				}
-			}).exec();
-		}, 50);
-	});
-
-	const dataValues = computed(() => props.chartData.map(d => d.cost));
-	const yMin = computed(() => Math.min(...dataValues.value));
-	const yMax = computed(() => Math.max(...dataValues.value));
-
-	const yRange = computed(() => {
-		const range = yMax.value - yMin.value;
-		if (range === 0) return { min: yMin.value > 0.01 ? yMin.value - 0.01 : 0, max: yMax.value + 0.01 };
-		const buffer = range * 0.2;
-		return { min: Math.max(0, yMin.value - buffer), max: yMax.value + buffer };
-	});
-
-	const xScale = computed(() => {
-		const dataLength = props.chartData.length;
-		if (dataLength <= 1) return () => 0;
-		return (index : number) => padding.left + (index * (chartWidth.value - padding.left - padding.right)) / (
-			dataLength - 1);
-	});
-
-	const yScale = computed(() => {
-		const { min, max } = yRange.value;
-		if (max - min === 0) return () => height / 2;
-		return (value : number) => height - padding.bottom - ((value - min) * (height - padding.top - padding.bottom)) / (
-			max - min);
-	});
-
-	// [核心修改] 动态计算每个标签的宽度
-	const estimateLabelWidth = (text : string) => {
-		// 基础宽度 + 每个字符大约8px
-		return 10 + text.length * 8;
+			query.select(`#${canvasId}`)
+				.boundingClientRect((res) => {
+					if (res) {
+						canvasWidth = res.width as number;
+						canvasHeight = res.height as number;
+						drawChart();
+					}
+				}).exec();
+		});
 	};
 
-	const points = computed(() => {
-		return dataValues.value.map((value, index) => {
-			// [核心修改] 调整数值显示精度为一位小数
-			const labelText = `${props.unitPrefix}${value.toFixed(1)}${props.unitSuffix || ''}`;
-			return {
-				x: xScale.value(index),
-				y: yScale.value(value),
-				label: labelText,
-				labelWidth: estimateLabelWidth(labelText)
+	// 绘制图表的核心函数
+	const drawChart = () => {
+		if (!ctx || !props.chartData || props.chartData.length <= 1) {
+			return;
+		}
+
+		ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+		const padding = { top: 30, right: 20, bottom: 20, left: 20 };
+		const data = props.chartData.map(d => d.cost);
+		const yMin = Math.min(...data);
+		const yMax = Math.max(...data);
+
+		const range = yMax - yMin;
+		const yRange = {
+			min: Math.max(0, yMin - range * 0.2),
+			max: yMax + range * 0.2,
+		};
+		if (yRange.max === yRange.min) {
+			yRange.max += 1;
+		}
+
+		const points = data.map((value, index) => {
+			const x = padding.left + (index / (data.length - 1)) * (canvasWidth - padding.left - padding.right);
+			const y = canvasHeight - padding.bottom - ((value - yRange.min) / (yRange.max - yRange.min)) * (canvasHeight - padding.top - padding.bottom);
+			return { x, y, value };
+		});
+
+		// [核心重构] 采用基于中点的二次贝塞尔曲线算法，确保曲线穿过所有点
+		const drawSmoothPath = (isFill : boolean) => {
+			ctx!.beginPath();
+			ctx!.moveTo(points[0].x, isFill ? canvasHeight - padding.bottom : points[0].y);
+			if (isFill) {
+				ctx!.lineTo(points[0].x, points[0].y);
 			}
-		});
-	});
 
-	const linePath = computed(() => {
-		if (points.value.length < 2) return '';
-		const path = points.value.map((p, i) => {
-			if (i === 0) return `M ${p.x},${p.y}`;
-			const prev = points.value[i - 1];
-			const cp1x = prev.x + (p.x - prev.x) / 2;
-			const cp1y = prev.y;
-			const cp2x = prev.x + (p.x - prev.x) / 2;
-			const cp2y = p.y;
-			return `C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p.x},${p.y}`;
-		});
-		return path.join(' ');
-	});
+			// 遍历所有点来绘制平滑曲线
+			for (let i = 0; i < points.length - 1; i++) {
+				const p1 = points[i];
+				const p2 = points[i + 1];
+				// 计算两个数据点之间的中点
+				const midPoint = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+				// 从上一个点，以当前点为控制点，绘制到中点
+				ctx!.quadraticCurveTo(p1.x, p1.y, midPoint.x, midPoint.y);
+			}
+			// 绘制最后一个线段，确保曲线到达终点
+			ctx!.lineTo(points[points.length - 1].x, points[points.length - 1].y);
 
-	const getLabelXPosition = (point : { x : number, labelWidth : number }, index : number) => {
-		const centeredX = point.x - (point.labelWidth / 2);
-		if (centeredX < 0) {
-			return 0;
+			if (isFill) {
+				ctx!.lineTo(points[points.length - 1].x, canvasHeight - padding.bottom);
+				ctx!.closePath();
+				const gradient = ctx!.createLinearGradient(0, 0, 0, canvasHeight);
+				gradient.addColorStop(0, 'rgba(140, 90, 59, 0.3)');
+				gradient.addColorStop(1, 'rgba(140, 90, 59, 0)');
+				ctx!.setFillStyle(gradient);
+				ctx!.fill();
+			} else {
+				ctx!.setStrokeStyle('#8c5a3b');
+				ctx!.setLineWidth(2);
+				ctx!.stroke();
+			}
 		}
-		if (centeredX + point.labelWidth > chartWidth.value) {
-			return chartWidth.value - point.labelWidth;
-		}
-		return centeredX;
+
+		// 绘制区域填充
+		drawSmoothPath(true);
+		// 绘制曲线
+		drawSmoothPath(false);
+
+		// 绘制数据点和文本
+		points.forEach(p => {
+			ctx!.beginPath();
+			ctx!.arc(p.x, p.y, 4, 0, 2 * Math.PI);
+			ctx!.setFillStyle('#8c5a3b');
+			ctx!.fill();
+
+			const text = `${props.unitPrefix}${p.value.toFixed(1)}${props.unitSuffix}`;
+			ctx!.setFontSize(12);
+			ctx!.setFillStyle('#8c5a3b');
+			ctx!.setTextAlign('center');
+			ctx!.fillText(text, p.x, p.y - 10);
+		});
+
+		ctx!.draw();
 	};
 </script>
 
@@ -146,27 +156,7 @@
 		border-radius: 16px;
 	}
 
-	svg {
-		width: 100%;
-		height: 100%;
-		overflow: visible;
-	}
-
-	.line {
-		fill: none;
-		stroke: var(--primary-color);
-		stroke-width: 2;
-	}
-
-	.data-points circle {
-		fill: var(--primary-color);
-	}
-
-	.label-div {
-		font-size: 12px;
-		font-weight: bold;
-		color: var(--primary-color);
-		text-align: center;
+	.chart-canvas {
 		width: 100%;
 		height: 100%;
 	}

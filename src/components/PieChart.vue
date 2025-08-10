@@ -1,139 +1,141 @@
 <template>
-	<view class="chart-container" id="chart-container">
-		<!-- #ifdef H5 || APP-PLUS || MP-WEIXIN -->
-		<!-- 确保在获取到容器宽度后再渲染 -->
-		<svg v-if="chartData && chartData.length > 0 && chartWidth > 0" :viewBox="`0 0 ${chartWidth} ${height}`"
-			xmlns="http://www.w3.org/2000/svg">
-			<g :transform="`translate(${chartWidth / 2}, ${height / 2})`">
-				<!-- 绘制环图的各个扇区 -->
-				<path v-for="(slice, index) in slices" :key="index" :d="slice.path" :fill="slice.color" />
-
-				<!-- 绘制标签和引线 -->
-				<g v-for="(slice, index) in slices" :key="`label-${index}`">
-					<polyline :points="slice.linePoints" fill="none" :stroke="slice.color" stroke-width="1" />
-					<!-- [核心修正] 使用 foreignObject 包装 view 来渲染文本，以解决小程序SVG文本渲染问题 -->
-					<foreignObject :x="slice.labelBox.x" :y="slice.labelBox.y" :width="slice.labelBox.width"
-						:height="slice.labelBox.height">
-						<view xmlns="http://www.w3.org/1999/xhtml" class="label-div"
-							:style="{ color: slice.color, textAlign: slice.textAnchor === 'start' ? 'left' : 'right' }">
-							{{ slice.name }} ({{ slice.percentage }}%)
-						</view>
-					</foreignObject>
-				</g>
-			</g>
-		</svg>
-		<!-- #endif -->
-
-		<!-- 当数据为空时显示提示 -->
+	<view class="chart-container">
 		<view v-if="!chartData || chartData.length === 0" class="chart-placeholder">
 			暂无成本构成数据
 		</view>
+		<!-- [核心修正] 移除 type="2d" 属性，使用旧版 Canvas API -->
+		<canvas v-else :id="canvasId" :canvas-id="canvasId" class="chart-canvas"></canvas>
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref, computed, onMounted, getCurrentInstance } from 'vue';
+	import { ref, onMounted, watch, nextTick, getCurrentInstance } from 'vue';
 
-	// 定义组件接收的属性
 	const props = defineProps({
-		// [核心修正] chartData 期望的格式是 [{ name: string, value: number }]
 		chartData: {
 			type: Array as () => { name : string, value : number }[],
 			default: () => [],
 		},
 	});
 
-	const chartWidth = ref(0);
-	const height = 180;
-	const radius = computed(() => Math.min(chartWidth.value, height) / 2 * 0.6);
-	const innerRadius = computed(() => radius.value * 0.5); // 环图的内半径
+	const instance = getCurrentInstance();
+	const canvasId = `pie-chart-${Date.now()}-${Math.random().toString().slice(2)}`;
+	let ctx : UniApp.CanvasContext | null = null;
+	let canvasWidth = 0;
+	let canvasHeight = 0;
 
-	// 预定义的颜色列表
-	const colors = [
-		'#8c5a3b', '#d4a373', '#a98467', '#c2956f',
-		'#e6b89c', '#7b4f32', '#b38a68', '#d9ae94'
-	];
+	// 监听数据变化，重新绘制图表
+	watch(() => props.chartData, () => {
+		if (ctx) {
+			drawChart();
+		}
+	}, { deep: true });
 
-	// 在组件挂载后获取容器宽度
 	onMounted(() => {
-		const instance = getCurrentInstance();
-		setTimeout(() => {
-			const query = uni.createSelectorQuery().in(instance);
-			query.select('#chart-container').boundingClientRect(data => {
-				if (data && data.width) {
-					chartWidth.value = data.width;
-				}
-			}).exec();
-		}, 50);
+		initChart();
 	});
 
-	// 计算每个数据项的角度、路径等SVG属性
-	const slices = computed(() => {
-		if (!props.chartData || props.chartData.length === 0) return [];
+	// 初始化 Canvas
+	const initChart = () => {
+		nextTick(() => {
+			// [核心修正] 使用 uni.createCanvasContext 获取绘图上下文
+			ctx = uni.createCanvasContext(canvasId, instance);
 
-		const total = props.chartData.reduce((sum, d) => sum + d.value, 0);
-		if (total === 0) return [];
+			const query = uni.createSelectorQuery().in(instance);
+			query.select(`#${canvasId}`)
+				.boundingClientRect((res) => {
+					if (res) {
+						canvasWidth = res.width as number;
+						canvasHeight = res.height as number;
+						drawChart();
+					}
+				}).exec();
+		});
+	};
 
-		let startAngle = -Math.PI / 2;
+	// 绘制图表的核心函数
+	const drawChart = () => {
+		if (!ctx || !props.chartData || props.chartData.length === 0) {
+			return;
+		}
 
-		return props.chartData.map((d, i) => {
-			const percentage = ((d.value / total) * 100).toFixed(1);
-			const angle = (d.value / total) * 2 * Math.PI;
-			let endAngle = startAngle + angle;
+		// 清空画布
+		ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-			// [核心修正] 避免SVG绘制360度弧的问题
-			if (Math.abs(angle - 2 * Math.PI) < 1e-9) {
-				endAngle -= 0.0001;
+		const colors = [
+			'#8c5a3b', '#d4a373', '#a98467', '#c2956f',
+			'#e6b89c', '#7b4f32', '#b38a68', '#d9ae94'
+		];
+
+		// [核心新增] 数据处理逻辑：排序、取前5、合并“其他”
+		const sortedData = [...props.chartData].sort((a, b) => b.value - a.value);
+		let displayData = sortedData;
+		if (sortedData.length > 5) {
+			const top5 = sortedData.slice(0, 5);
+			const otherValue = sortedData.slice(5).reduce((sum, item) => sum + item.value, 0);
+			if (otherValue > 0) {
+				displayData = [...top5, { name: '其他', value: otherValue }];
+			} else {
+				displayData = top5;
 			}
+		}
 
-			const largeArcFlag = angle > Math.PI ? 1 : 0;
+		const total = displayData.reduce((sum, d) => sum + d.value, 0);
+		if (total === 0) return;
 
-			const x1 = Math.cos(startAngle) * radius.value;
-			const y1 = Math.sin(startAngle) * radius.value;
-			const x2 = Math.cos(endAngle) * radius.value;
-			const y2 = Math.sin(endAngle) * radius.value;
+		// 图表参数
+		const centerX = canvasWidth / 2;
+		const centerY = canvasHeight / 2;
+		const radius = Math.min(canvasWidth, canvasHeight) / 2 * 0.65;
+		const innerRadius = radius * 0.5;
 
-			const ix1 = Math.cos(startAngle) * innerRadius.value;
-			const iy1 = Math.sin(startAngle) * innerRadius.value;
-			const ix2 = Math.cos(endAngle) * innerRadius.value;
-			const iy2 = Math.sin(endAngle) * innerRadius.value;
+		let startAngle = -0.5 * Math.PI;
 
-			const path = `M ${ix1} ${iy1} L ${x1} ${y1} A ${radius.value} ${radius.value} 0 ${largeArcFlag} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerRadius.value} ${innerRadius.value} 0 ${largeArcFlag} 0 ${ix1} ${iy1} Z`;
+		// 绘制环形图扇区和标签
+		displayData.forEach((item, index) => {
+			const sliceAngle = (item.value / total) * 2 * Math.PI;
+			const endAngle = startAngle + sliceAngle;
 
-			// 计算标签引线和文本位置
-			const midAngle = startAngle + angle / 2;
-			const labelRadius = radius.value * 1.2;
-			const lineStartX = Math.cos(midAngle) * (radius.value + 5);
-			const lineStartY = Math.sin(midAngle) * (radius.value + 5);
-			const lineEndX = Math.cos(midAngle) * labelRadius;
-			const lineEndY = Math.sin(midAngle) * labelRadius;
-			const textAnchor = midAngle > -Math.PI / 2 && midAngle < Math.PI / 2 ? 'start' : 'end';
+			// 绘制扇区
+			ctx!.beginPath();
+			ctx!.arc(centerX, centerY, radius, startAngle, endAngle);
+			ctx!.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
+			ctx!.closePath();
+			ctx!.setFillStyle(colors[index % colors.length]);
+			ctx!.fill();
 
-			// [新增] 计算 foreignObject 的属性
-			const labelText = `${d.name} (${percentage}%)`;
-			const labelWidth = labelText.length * 7 + 10;
-			const labelHeight = 20;
-			const labelBox = {
-				width: labelWidth,
-				height: labelHeight,
-				x: textAnchor === 'start' ? lineEndX + 5 : lineEndX - 5 - labelWidth,
-				y: lineEndY - (labelHeight / 2)
-			};
+			// [核心重构] 绘制引线和文本标签
+			const midAngle = startAngle + sliceAngle / 2;
+			const isRightSide = midAngle > -0.5 * Math.PI && midAngle < 0.5 * Math.PI;
 
-			const sliceData = {
-				...d,
-				path,
-				percentage,
-				color: colors[i % colors.length],
-				linePoints: `${lineStartX},${lineStartY} ${lineEndX},${lineEndY}`,
-				textAnchor,
-				labelBox,
-			};
+			const lineStartX = centerX + Math.cos(midAngle) * radius;
+			const lineStartY = centerY + Math.sin(midAngle) * radius;
+			const lineEndX = centerX + Math.cos(midAngle) * (radius + 10);
+			const lineEndY = centerY + Math.sin(midAngle) * (radius + 10);
+			const textStartX = lineEndX + (isRightSide ? 5 : -5);
+
+			ctx!.beginPath();
+			ctx!.moveTo(lineStartX, lineStartY);
+			ctx!.lineTo(lineEndX, lineEndY);
+			ctx!.lineTo(textStartX, lineEndY);
+			ctx!.setStrokeStyle(colors[index % colors.length]);
+			ctx!.stroke();
+
+			const percentage = ((item.value / total) * 100).toFixed(1);
+			const text = `${item.name} ${percentage}%`;
+			// [核心优化] 文本颜色与引线、扇区颜色保持一致
+			ctx!.setFillStyle(colors[index % colors.length]);
+			ctx!.setFontSize(12);
+			ctx!.setTextAlign(isRightSide ? 'left' : 'right');
+			ctx!.setTextBaseline('middle');
+			ctx!.fillText(text, textStartX, lineEndY);
 
 			startAngle = endAngle;
-			return sliceData;
 		});
-	});
+
+		// [核心修正] 调用 draw() 方法将所有绘制操作渲染到 canvas 上
+		ctx.draw();
+	};
 </script>
 
 <style scoped>
@@ -145,16 +147,7 @@
 		border-radius: 16px;
 	}
 
-	svg {
-		width: 100%;
-		height: 100%;
-		overflow: visible;
-	}
-
-	/* [新增] 标签文本样式 */
-	.label-div {
-		font-size: 12px;
-		font-weight: 500;
+	.chart-canvas {
 		width: 100%;
 		height: 100%;
 	}
