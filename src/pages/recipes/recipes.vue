@@ -30,7 +30,8 @@
 					</view>
 
 					<view v-if="filteredRecipes.length > 0">
-						<view v-for="family in filteredRecipes" :key="family.id" class="list-item"
+						<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
+						<ListItem v-for="family in filteredRecipes" :key="family.id"
 							@click="navigateToDetail(family.id)">
 							<view class="main-info">
 								<view class="name">{{ family.name }}</view>
@@ -50,7 +51,7 @@
 									<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
 								</template>
 							</view>
-						</view>
+						</ListItem>
 					</view>
 					<view v-else class="empty-state">
 						<text>暂无配方信息</text>
@@ -73,6 +74,7 @@
 	import type { RecipeFamily } from '@/types/api';
 	import AppFab from '@/components/AppFab.vue';
 	import BarChart from '@/components/BarChart.vue';
+	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();

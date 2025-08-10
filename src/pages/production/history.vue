@@ -15,7 +15,8 @@
 				<view v-if="Object.keys(groupedTasks).length > 0">
 					<view v-for="(tasks, date) in groupedTasks" :key="date" class="task-group">
 						<view class="date-header">{{ date }}</view>
-						<view v-for="task in tasks" :key="task.id" class="task-card"
+						<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
+						<ListItem v-for="task in tasks" :key="task.id" class="task-card"
 							:class="getStatusClass(task.status)" @click="navigateToDetail(task)">
 							<view class="task-info">
 								<view class="title">{{ getTaskTitle(task) }}</view>
@@ -24,7 +25,7 @@
 							<view class="status-tag" :class="getStatusClass(task.status)">
 								{{ getStatusText(task.status) }}
 							</view>
-						</view>
+						</ListItem>
 					</view>
 				</view>
 				<view v-else class="empty-state">
@@ -47,6 +48,7 @@
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import type { ProductionTaskDto } from '@/types/api';
+	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -200,6 +202,8 @@
 		cursor: pointer;
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 		border-left: 5px solid;
+		/* 移除 ListItem 自带的 border-bottom */
+		border-bottom: none !important;
 	}
 
 	.task-card.status-completed {

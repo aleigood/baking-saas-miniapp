@@ -73,30 +73,13 @@
     align-items: center; 
     box-shadow: 0 6px 20px rgba(140,90,59,0.3); 
     z-index: 20; 
-    overflow: hidden; 
     transform: translateZ(0);
 }
 /* [核心新增] 为没有 TabBar 的页面提供一个修正类 */
 .fab.fab-no-tab-bar {
 	bottom: 30px;
 }
-.fab::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 100px; 
-    height: 100px;
-    background: rgba(255, 255, 255, 0.4);
-    border-radius: 50%;
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 1;
-}
-.fab:active::after {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 0;
-    transition: transform 0.4s ease-out, opacity 0.4s ease-out;
-}
+/* [核心删除] 移除旧的 CSS :active 效果，改用 JS 实现 */
 .fab-icon { width: 28px; height: 28px; z-index: 1; } 
 
 /* [核心重构] 统一的按钮样式系统 */

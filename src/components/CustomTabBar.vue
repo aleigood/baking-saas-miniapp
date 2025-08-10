@@ -1,19 +1,24 @@
 <template>
 	<view class="custom-tab-bar">
-		<view v-for="item in list" :key="item.key" class="tab-item" @click="switchTab(item)">
+		<!-- [核心修改] 为每个 tab-item 添加 ripple-container 类和触摸事件 -->
+		<view v-for="(item, index) in list" :key="item.key" class="tab-item ripple-container"
+			@touchstart="handleTouchStart($event, item, index)" @touchmove="handleTouchMove"
+			@touchend="handleTouchEnd(item)">
 			<image class="icon" :src="uiStore.activeTab === item.key ? item.selectedIconPath : item.iconPath" />
 			<view class="text" :class="{ 'text-active': uiStore.activeTab === item.key }">{{ item.text }}</view>
+			<!-- [核心新增] 每个 tab-item 内部都有自己的水波纹效果容器 -->
+			<span v-for="ripple in ripples[item.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 		</view>
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref } from 'vue';
-	import { useUiStore } from '@/store/ui'; // [核心新增] 引入 uiStore
+	import { ref, reactive, getCurrentInstance } from 'vue';
+	import { useUiStore } from '@/store/ui';
 
-	const uiStore = useUiStore(); // [核心新增] 初始化 uiStore
+	const uiStore = useUiStore();
+	const instance = getCurrentInstance();
 
-	// [核心修改] 为每个 tab 增加一个唯一的 key
 	const list = ref([{
 		key: "production",
 		text: "制作",
@@ -36,7 +41,65 @@
 		selectedIconPath: "/static/tabbar/personnel_active.svg"
 	}]);
 
-	// [核心修改] 点击事件不再跳转页面，而是修改全局状态
+	// [核心新增] 水波纹效果逻辑
+	const ripples = reactive<Record<string, any[]>>({
+		production: [],
+		ingredients: [],
+		recipes: [],
+		personnel: [],
+	});
+	const touchMoved = ref(false);
+	let currentTouchItemKey : string | null = null;
+
+	const handleTouchStart = (event : any, item : { key : string }, index : number) => {
+		touchMoved.value = false;
+		currentTouchItemKey = item.key;
+
+		const touch = event.touches[0];
+		const query = uni.createSelectorQuery().in(instance);
+
+		query.selectAll('.tab-item').boundingClientRect(rects => {
+			if (Array.isArray(rects) && rects[index]) {
+				const rect = rects[index];
+				const x = touch.clientX - rect.left;
+				const y = touch.clientY - rect.top;
+				const size = Math.max(rect.width, rect.height) * 2;
+
+				const newRipple = {
+					id: Date.now(),
+					style: {
+						width: `${size}px`,
+						height: `${size}px`,
+						top: `${y - size / 2}px`,
+						left: `${x - size / 2}px`,
+					}
+				};
+
+				if (!ripples[item.key]) {
+					ripples[item.key] = [];
+				}
+				ripples[item.key].push(newRipple);
+
+				setTimeout(() => {
+					if (ripples[item.key] && ripples[item.key].length > 0) {
+						ripples[item.key].shift();
+					}
+				}, 600);
+			}
+		}).exec();
+	};
+
+	const handleTouchMove = () => {
+		touchMoved.value = true;
+	};
+
+	const handleTouchEnd = (item : { key : string }) => {
+		if (!touchMoved.value && currentTouchItemKey === item.key) {
+			switchTab(item);
+		}
+		currentTouchItemKey = null;
+	};
+
 	const switchTab = (item) => {
 		uiStore.setActiveTab(item.key);
 	};
@@ -53,11 +116,9 @@
 		background-color: #ffffff;
 		display: flex;
 		justify-content: space-around;
-		/* [核心修改] 将 align-items 从 flex-start 改为 center，确保 tab-item 在交叉轴上居中 */
 		align-items: center;
 		border-top: 1px solid var(--border-color);
 		box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.04);
-		/* [核心修改] 调整 z-index 层级，确保在页面内容之上，但在模态框之下 */
 		z-index: 9998;
 	}
 
@@ -68,7 +129,9 @@
 		justify-content: center;
 		height: 60px;
 		flex: 1;
-		/* [核心修改] 移除 padding-top，让 justify-content 完全控制垂直居中 */
+		/* [核心新增] 为水波纹效果提供定位上下文 */
+		position: relative;
+		overflow: hidden;
 	}
 
 	.icon {
@@ -84,5 +147,22 @@
 
 	.text-active {
 		color: var(--primary-color);
+	}
+
+	/* [核心新增] 定义水波纹样式 */
+	.ripple {
+		position: absolute;
+		border-radius: 50%;
+		background-color: rgba(0, 0, 0, 0.1);
+		transform: scale(0);
+		animation: ripple-animation 0.6s linear;
+		pointer-events: none;
+	}
+
+	@keyframes ripple-animation {
+		to {
+			transform: scale(4);
+			opacity: 0;
+		}
 	}
 </style>

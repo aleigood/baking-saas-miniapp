@@ -8,13 +8,15 @@
 		<CustomTabBar />
 
 		<AppModal v-model:visible="uiStore.showStoreModal" title="选择门店">
-			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
-				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
+			<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
+			<ListItem v-for="tenant in dataStore.tenants" :key="tenant.id" @click="handleSelectTenant(tenant.id)">{{
+        tenant.name }}</ListItem>
 		</AppModal>
 
 		<AppModal v-model:visible="uiStore.showUserMenu">
-			<view class="list-item" style="border: none; padding: 10px 15px" @click="handleLogout">退出登录
-			</view>
+			<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
+			<ListItem style="border: none; padding: 10px 15px" @click="handleLogout">退出登录
+			</ListItem>
 		</AppModal>
 
 		<AppModal v-model:visible="uiStore.showInviteModal" title="邀请新成员">
@@ -45,6 +47,7 @@
 	import CustomTabBar from '@/components/CustomTabBar.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
+	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
 
 	// 引入四个页面级组件
 	import ProductionPage from '@/pages/production/production.vue';

@@ -25,8 +25,8 @@
 						<view class="filter-tab" :class="{ active: ingredientFilter === 'low' }"
 							@click="ingredientFilter = 'low'">库存紧张</view>
 					</view>
-					<view v-for="ing in filteredIngredients" :key="ing.id" class="list-item"
-						@click="navigateToDetail(ing.id)">
+					<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
+					<ListItem v-for="ing in filteredIngredients" :key="ing.id" @click="navigateToDetail(ing.id)">
 						<view class="main-info">
 							<view class="name">{{ ing.name }}</view>
 							<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
@@ -38,7 +38,7 @@
 							</view>
 							<view class="desc">¥ {{ getPricePerKg(ing) }}/kg</view>
 						</view>
-					</view>
+					</ListItem>
 				</view>
 			</template>
 		</view>
@@ -56,6 +56,7 @@
 	import type { Ingredient } from '@/types/api';
 	import AppFab from '@/components/AppFab.vue';
 	import BarChart from '@/components/BarChart.vue';
+	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();

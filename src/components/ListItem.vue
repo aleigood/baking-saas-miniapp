@@ -1,15 +1,13 @@
 <template>
 	<view class="list-item ripple-container" @touchstart="handleTouchStart" @touchmove="handleTouchMove"
 		@touchend="handleTouchEnd">
-		<!-- 插槽，用于父组件填充自定义内容 -->
 		<slot></slot>
-		<!-- 水波纹效果的渲染容器 -->
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref } from 'vue';
+	import { ref, getCurrentInstance } from 'vue';
 
 	// 定义组件可以向外触发的事件
 	const emit = defineEmits(['click', 'longpress']);
@@ -19,6 +17,7 @@
 	const longPressTimer = ref<any>(null); // 长按计时器
 	const touchMoved = ref(false); // 标记手指是否移动过
 	const LONG_PRESS_DURATION = 350; // 定义长按的时长（毫秒）
+	const instance = getCurrentInstance(); // 获取当前组件实例，用于 SelectorQuery
 
 	/**
 	 * 手指按下时触发
@@ -29,33 +28,38 @@
 		clearTimeout(longPressTimer.value);
 
 		const touch = event.touches[0];
-		const target = event.currentTarget;
 
-		// uni-app 的事件对象提供了计算触摸点在元素内坐标所需的所有信息
-		// touch.pageX/pageY 是相对于页面的坐标
-		// target.offsetLeft/Top 是元素相对于页面的偏移
-		const x = touch.pageX - target.offsetLeft;
-		const y = touch.pageY - target.offsetTop;
-		const size = Math.max(target.offsetWidth, target.offsetHeight) * 2;
+		// [核心修正] 使用 uni.createSelectorQuery() 来异步获取元素信息，这是最可靠的跨平台方案
+		const query = uni.createSelectorQuery().in(instance);
+		query.select('.list-item').boundingClientRect(rect => {
+			if (rect) {
+				// rect 对象包含了元素的位置和尺寸信息 (left, top, width, height)
+				// clientX/Y 是触摸点相对于视口的坐标
+				const x = touch.clientX - rect.left;
+				const y = touch.clientY - rect.top;
+				const size = Math.max(rect.width, rect.height) * 2;
 
-		// 创建一个新的水波纹对象
-		const ripple = {
-			id: Date.now(),
-			style: {
-				width: `${size}px`,
-				height: `${size}px`,
-				top: `${y - size / 2}px`,
-				left: `${x - size / 2}px`,
+				// 创建一个新的水波纹对象
+				const ripple = {
+					id: Date.now(),
+					style: {
+						width: `${size}px`,
+						height: `${size}px`,
+						top: `${y - size / 2}px`,
+						left: `${x - size / 2}px`,
+					}
+				};
+				ripples.value.push(ripple);
+
+				// 动画结束后自动移除水波纹元素
+				setTimeout(() => {
+					if (ripples.value.length > 0) {
+						ripples.value.shift();
+					}
+				}, 600);
 			}
-		};
-		ripples.value.push(ripple);
+		}).exec();
 
-		// 动画结束后自动移除水波纹元素
-		setTimeout(() => {
-			if (ripples.value.length > 0) {
-				ripples.value.shift();
-			}
-		}, 600);
 
 		// 启动长按计时器
 		longPressTimer.value = setTimeout(() => {
@@ -87,6 +91,11 @@
 <style scoped lang="scss">
 	// 引入全局样式，使组件拥有 list-item 和 ripple-container 的基础样式
 	@import '@/styles/common.scss';
+
+	/* [核心修改] 调整水波纹颜色，使其更明显 */
+	.ripple {
+		background-color: rgba(0, 0, 0, 0.15);
+	}
 
 	.list-item {
 		// 这里可以为组件本身添加一些特有的、不与父组件冲突的样式

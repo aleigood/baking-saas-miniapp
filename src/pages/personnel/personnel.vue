@@ -14,8 +14,8 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<view v-for="member in dataStore.members" :key="member.id" class="list-item"
-					@click="navigateToDetail(member.id)">
+				<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
+				<ListItem v-for="member in dataStore.members" :key="member.id" @click="navigateToDetail(member.id)">
 					<view class="main-info">
 						<view class="name">{{ member.name || member.phone }}</view>
 						<view class="desc">加入于: {{ new Date(member.joinDate).toLocaleDateString() }}</view>
@@ -23,7 +23,7 @@
 					<view class="side-info">
 						<view class="value">{{ getRoleName(member.role) }}</view>
 					</view>
-				</view>
+				</ListItem>
 			</template>
 		</view>
 
@@ -41,6 +41,7 @@
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui'; // [核心新增]
 	import AppFab from '@/components/AppFab.vue';
+	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
 	import type { Role } from '@/types/api';
 
 	const userStore = useUserStore();
