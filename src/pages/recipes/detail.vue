@@ -39,11 +39,10 @@
 					<view v-if="isLoadingVersions">加载中...</view>
 					<!-- [核心修正] 使用 template 替代 view 来确保最后一个 list-item 的边框在按钮上方正确显示 -->
 					<template v-else>
-						<!-- [核心重构] 替换 @click 和 @longpress 为底层的触摸事件 -->
-						<view v-for="version in recipeVersions" :key="version.id" class="list-item"
-							:class="{ 'item-selected': displayedVersionId === version.id }" hover-class="item-hover"
-							@touchstart="handleTouchStart(version)" @touchmove="handleTouchMove"
-							@touchend="handleTouchEnd(version)">
+						<!-- [核心重构] 使用 ListItem 组件并绑定 click 和 longpress 事件 -->
+						<ListItem v-for="version in recipeVersions" :key="version.id"
+							:class="{ 'item-selected': displayedVersionId === version.id }"
+							@click="handleVersionClick(version)" @longpress="handleVersionLongPressAction(version)">
 							<view class="main-info">
 								<view class="name">{{ version.notes || `版本 ${version.version}` }}
 									(v{{ version.version }})</view>
@@ -55,7 +54,7 @@
 							<view class="side-info">
 								<view v-if="version.isActive" class="status-tag active">已激活</view>
 							</view>
-						</view>
+						</ListItem>
 					</template>
 					<button v-if="canEditRecipe" class="btn-add-sm" @click="handleCreateVersion">+
 						创建新版本</button>
@@ -112,6 +111,7 @@
 	import AppModal from '@/components/AppModal.vue';
 	import LineChart from '@/components/LineChart.vue';
 	import PieChart from '@/components/PieChart.vue';
+	import ListItem from '@/components/ListItem.vue'; // 引入 ListItem 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -129,10 +129,10 @@
 	const costBreakdown = ref<{ name : string, value : number }[]>([]);
 	const familyId = ref<string | null>(null);
 
-	// [核心新增] 用于手动实现长按逻辑的状态变量
-	const longPressTimer = ref<any>(null);
-	const touchMoved = ref(false);
-	const LONG_PRESS_DURATION = 350; // 长按的毫秒数
+	// [核心删除] 移除所有与触摸事件和长按计时器相关的本地状态
+	// const longPressTimer = ref<any>(null);
+	// const touchMoved = ref(false);
+	// const LONG_PRESS_DURATION = 350;
 
 	onLoad(async (options) => {
 		if (options?.familyId) {
@@ -307,35 +307,14 @@
 		navigateToEditPage(recipeFamily.value.id);
 	};
 
-	// [核心重构] 手动实现长按与点击事件
-	const handleTouchStart = (version : RecipeVersion) => {
-		touchMoved.value = false;
-		clearTimeout(longPressTimer.value);
-		longPressTimer.value = setTimeout(() => {
-			if (!touchMoved.value) {
-				handleVersionLongPressAction(version);
-			}
-		}, LONG_PRESS_DURATION);
-	};
+	// [核心删除] 移除 handleTouchStart, handleTouchMove, handleTouchEnd
 
-	const handleTouchMove = () => {
-		touchMoved.value = true;
-		clearTimeout(longPressTimer.value);
-	};
-
-	const handleTouchEnd = (version : RecipeVersion) => {
-		clearTimeout(longPressTimer.value);
-		if (!touchMoved.value) {
-			handleVersionClick(version);
-		}
-	};
-
-	// 原始的点击逻辑
+	// 原始的点击逻辑 (现在由 ListItem 的 @click 触发)
 	const handleVersionClick = (versionToDisplay : RecipeVersion) => {
 		displayedVersionId.value = versionToDisplay.id;
 	};
 
-	// 原始的长按逻辑
+	// 原始的长按逻辑 (现在由 ListItem 的 @longpress 触发)
 	const handleVersionLongPressAction = (versionToActivate : RecipeVersion) => {
 		if (!canEditRecipe.value || versionToActivate.isActive || !recipeFamily.value) {
 			return;

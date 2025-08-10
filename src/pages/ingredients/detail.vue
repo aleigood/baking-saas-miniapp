@@ -41,11 +41,10 @@
 					<view class="card-title-wrapper">
 						<span class="card-title">品牌与规格 (SKU)</span>
 					</view>
-					<!-- [核心重构] 替换 @click 和 @longpress 为底层的触摸事件 -->
-					<view v-for="sku in ingredient.skus" :key="sku.id" class="list-item sku-item"
-						:class="{ 'item-selected': selectedSkuId === sku.id }" hover-class="item-hover"
-						@touchstart="handleTouchStart(sku)" @touchmove="handleTouchMove"
-						@touchend="handleTouchEnd(sku)">
+					<!-- [核心重构] 使用 ListItem 组件并绑定 click 和 longpress 事件 -->
+					<ListItem v-for="sku in ingredient.skus" :key="sku.id" class="sku-item"
+						:class="{ 'item-selected': selectedSkuId === sku.id }" @click="handleSkuClick(sku)"
+						@longpress="handleSkuLongPressAction(sku)">
 						<view class="main-info">
 							<view class="name">{{ sku.brand || '无品牌' }} - {{ sku.specName }}</view>
 							<view class="desc">添加于: {{ new Date(sku.createdAt).toLocaleDateString() }}</view>
@@ -53,7 +52,7 @@
 						<view class="side-info">
 							<span v-if="sku.id === ingredient.activeSkuId" class="status-tag active">使用中</span>
 						</view>
-					</view>
+					</ListItem>
 					<button class="btn-add-sm" @click="openAddSkuModal">+ 新增品牌规格</button>
 				</view>
 
@@ -169,6 +168,7 @@
 	import FormItem from '@/components/FormItem.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import LineChart from '@/components/LineChart.vue';
+	import ListItem from '@/components/ListItem.vue'; // 引入 ListItem 组件
 
 	const dataStore = useDataStore();
 	const isLoading = ref(true);
@@ -209,10 +209,10 @@
 		waterContent: 0,
 	});
 
-	// [核心新增] 用于手动实现长按逻辑的状态变量
-	const longPressTimer = ref<any>(null);
-	const touchMoved = ref(false);
-	const LONG_PRESS_DURATION = 350; // 长按的毫秒数
+	// [核心删除] 移除所有与触摸事件和长按计时器相关的本地状态
+	// const longPressTimer = ref<any>(null);
+	// const touchMoved = ref(false);
+	// const LONG_PRESS_DURATION = 350;
 
 	onLoad(async (options) => {
 		const ingredientId = options?.ingredientId;
@@ -378,36 +378,15 @@
 		}
 	};
 
-	// [核心重构] 手动实现长按与点击事件
-	const handleTouchStart = (sku : IngredientSKU) => {
-		touchMoved.value = false;
-		clearTimeout(longPressTimer.value);
-		longPressTimer.value = setTimeout(() => {
-			if (!touchMoved.value) {
-				handleSkuLongPressAction(sku);
-			}
-		}, LONG_PRESS_DURATION);
-	};
+	// [核心删除] 移除 handleTouchStart, handleTouchMove, handleTouchEnd
 
-	const handleTouchMove = () => {
-		touchMoved.value = true;
-		clearTimeout(longPressTimer.value);
-	};
-
-	const handleTouchEnd = (sku : IngredientSKU) => {
-		clearTimeout(longPressTimer.value);
-		if (!touchMoved.value) {
-			handleSkuClick(sku);
-		}
-	};
-
-	// 原始的点击逻辑
+	// 原始的点击逻辑 (现在由 ListItem 的 @click 触发)
 	const handleSkuClick = (sku : IngredientSKU) => {
 		selectedSkuId.value = sku.id;
 		displayedRecordsCount.value = 10;
 	};
 
-	// 原始的长按逻辑
+	// 原始的长按逻辑 (现在由 ListItem 的 @longpress 触发)
 	const handleSkuLongPressAction = (sku : IngredientSKU) => {
 		if (!ingredient.value || sku.id === ingredient.value.activeSkuId) {
 			return;
