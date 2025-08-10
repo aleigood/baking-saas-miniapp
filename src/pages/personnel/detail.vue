@@ -16,8 +16,9 @@
 					<input class="input-field" type="text" :value="selectedMember.phone" readonly />
 				</FormItem>
 				<FormItem label="加入日期">
-					<input class="input-field" type="text"
-						:value="new Date(selectedMember.joinDate).toLocaleDateString()" readonly />
+					<!-- [核心修改] 使用统一的日期格式化函数 -->
+					<input class="input-field" type="text" :value="formatChineseDate(selectedMember.joinDate)"
+						readonly />
 				</FormItem>
 				<FormItem label="角色">
 					<picker mode="selector" :range="availableRolesDisplay" @change="onRoleChange"
@@ -53,6 +54,7 @@
 	import { updateMember, removeMember } from '@/api/members';
 	import FormItem from '@/components/FormItem.vue';
 	import AppButton from '@/components/AppButton.vue'; // [核心新增]
+	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();

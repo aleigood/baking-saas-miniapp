@@ -38,8 +38,9 @@
 							<view class="main-info">
 								<view class="name">{{ version.notes || `版本 ${version.version}` }}
 									(v{{ version.version }})</view>
+								<!-- [核心修改] 使用统一的日期格式化函数 -->
 								<view class="desc">创建于:
-									{{ new Date(version.createdAt).toLocaleDateString()
+									{{ formatChineseDate(version.createdAt)
 									}}
 								</view>
 							</view>
@@ -115,6 +116,7 @@
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 	import AppButton from '@/components/AppButton.vue';
+	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();

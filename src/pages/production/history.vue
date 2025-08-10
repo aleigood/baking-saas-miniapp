@@ -49,6 +49,7 @@
 	import { useDataStore } from '@/store/data';
 	import type { ProductionTaskDto } from '@/types/api';
 	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
+	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -138,8 +139,8 @@
 	};
 
 	const getTaskDetails = (task : ProductionTaskDto) => {
-		const date = new Date(task.plannedDate);
-		const formattedDate = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+		// [核心修改] 使用统一的日期格式化函数
+		const formattedDate = formatChineseDate(task.plannedDate);
 		const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
 		const totalQuantity = getTotalQuantity(task);
 		return `${formattedDate} - by ${creator} | 总数: ${totalQuantity}`;

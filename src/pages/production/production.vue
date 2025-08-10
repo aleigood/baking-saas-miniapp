@@ -85,6 +85,7 @@
 	import AppButton from '@/components/AppButton.vue'; // [核心新增] 引入 AppButton
 	import type { ProductionTaskDto } from '@/types/api';
 	import { updateTaskStatus } from '@/api/tasks';
+	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -142,8 +143,8 @@
 	};
 
 	const getTaskDetails = (task : ProductionTaskDto) => {
-		const date = new Date(task.plannedDate);
-		const formattedDate = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+		// [核心修改] 使用统一的日期格式化函数
+		const formattedDate = formatChineseDate(task.plannedDate);
 		const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
 		const totalQuantity = getTotalQuantity(task);
 		return `${formattedDate} - by ${creator} | 计划总数: ${totalQuantity}`;
