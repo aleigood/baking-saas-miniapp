@@ -5,12 +5,10 @@
     - 通过 v-if 控制显示。
     - 监听 click 事件。
   -->
-	<!-- [核心修改] 添加 ripple-container 类和触摸事件监听 -->
 	<view class="fab ripple-container" @touchstart="handleTouchStart" @touchmove="handleTouchMove"
 		@touchend="handleTouchEnd">
 		<image class="fab-icon"
 			src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
-		<!-- [核心新增] 水波纹效果的渲染容器 -->
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 	</view>
 </template>
@@ -21,7 +19,6 @@
 	// 定义组件可以触发的事件
 	const emit = defineEmits(['click']);
 
-	// [核心新增] 水波纹效果逻辑
 	const ripples = ref<any[]>([]);
 	const touchMoved = ref(false);
 	const instance = getCurrentInstance();
@@ -58,8 +55,10 @@
 		touchMoved.value = true;
 	};
 
-	const handleTouchEnd = () => {
+	const handleTouchEnd = (event : Event) => {
 		if (!touchMoved.value) {
+			// [核心修改] 传入事件对象并阻止默认行为，以防止移动端上的“幽灵点击”问题。
+			event.preventDefault();
 			emit('click');
 		}
 	};
@@ -69,7 +68,7 @@
 	// 样式从全局 common.scss 继承
 	@import '@/styles/common.scss';
 
-	/* [核心新增] 为FAB定制水波纹颜色，因为背景是深色，所以水波纹用亮色 */
+	/* 为FAB定制水波纹颜色，因为背景是深色，所以水波纹用亮色 */
 	.ripple {
 		background-color: rgba(255, 255, 255, 0.4);
 	}
