@@ -29,7 +29,6 @@
 						</FilterTab>
 					</FilterTabs>
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
-					<!-- [核心修改] 将单位后缀从 g 改为 kg -->
 					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
 						unit-suffix="kg" />
 				</view>
@@ -44,7 +43,7 @@
 						@longpress="handleSkuLongPressAction(sku)">
 						<view class="main-info">
 							<view class="name">{{ sku.brand || '无品牌' }} - {{ sku.specName }}</view>
-							<view class="desc">添加于: {{ new Date(sku.createdAt).toLocaleDateString() }}</view>
+							<view class="desc">添加于: {{ formatChineseDate(sku.createdAt) }}</view>
 						</view>
 						<view class="side-info">
 							<span v-if="sku.id === ingredient.activeSkuId" class="status-tag active">使用中</span>
@@ -57,16 +56,27 @@
 				<view class="card" v-if="selectedSku">
 					<view class="card-title">{{ selectedSku.brand || '无品牌' }} - {{ selectedSku.specName }} 的采购记录
 					</view>
-					<view v-if="displayedProcurementRecords && displayedProcurementRecords.length > 0">
-						<ListItem v-for="record in displayedProcurementRecords" :key="record.id"
-							class="procurement-item" @longpress="handleProcurementLongPress(record)">
-							<text>{{ new Date(record.purchaseDate).toLocaleDateString() }}</text>
-							<text>{{ record.packagesPurchased }} 包 x ¥{{ Number(record.pricePerPackage).toFixed(2)
-							}}</text>
-						</ListItem>
-					</view>
-					<view v-else class="procurement-item empty">
-						无采购记录
+					<!-- [核心修改] 重构采购记录为表格化展示 -->
+					<view class="procurement-list">
+						<view class="list-header">
+							<text class="col-date">采购日期</text>
+							<text class="col-quantity">数量</text>
+							<text class="col-price">单价</text>
+							<text class="col-total">总价</text>
+						</view>
+						<view v-if="displayedProcurementRecords && displayedProcurementRecords.length > 0">
+							<ListItem v-for="record in displayedProcurementRecords" :key="record.id"
+								class="procurement-item" @longpress="handleProcurementLongPress(record)">
+								<text class="col-date">{{ formatChineseDate(record.purchaseDate) }}</text>
+								<text class="col-quantity">{{ record.packagesPurchased }} 包</text>
+								<text class="col-price">¥{{ Number(record.pricePerPackage).toFixed(2) }}</text>
+								<text
+									class="col-total">¥{{ (record.packagesPurchased * Number(record.pricePerPackage)).toFixed(2) }}</text>
+							</ListItem>
+						</view>
+						<view v-else class="empty-procurements">
+							无采购记录
+						</view>
 					</view>
 					<AppButton v-if="hasMoreRecords" type="text-link" @click="loadMoreRecords">加载更多</AppButton>
 				</view>
@@ -193,6 +203,7 @@
 	import FilterTab from '@/components/FilterTab.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
+	import { formatChineseDate } from '@/utils/format';
 
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
@@ -247,7 +258,6 @@
 			const [ingredientData, historyData, usageData] = await Promise.all([
 				getIngredient(id),
 				getIngredientCostHistory(id),
-				// [核心修改] 获取用量数据时，将其从克转换为千克
 				getIngredientUsageHistory(id).then(data => data.map(item => ({ cost: item.cost / 1000 })))
 			]);
 			ingredient.value = ingredientData;
@@ -492,9 +502,7 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [核心修改] 移除 page-container 的底部内边距，并为 page-content 设置合适的内边距 */
 	.page-content {
-		/* FAB高度(56) + FAB离底部距离(30) + 额外间距(20) = 106 */
 		padding-bottom: 106px;
 	}
 
@@ -547,24 +555,48 @@
 		color: #6c757d;
 	}
 
-	.procurement-item {
-		display: flex;
-		justify-content: space-between;
-		font-size: 13px;
-		color: var(--text-secondary);
-		padding: 8px 5px;
+	/* [核心新增] 采购记录列表样式 */
+	.procurement-list {
+
+		.list-header,
+		.procurement-item {
+			display: grid;
+			grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr;
+			/* 调整列的比例 */
+			align-items: center;
+			padding: 8px 5px;
+			font-size: 13px;
+		}
+
+		.list-header {
+			font-weight: 600;
+			color: var(--primary-color);
+			border-bottom: 1px solid var(--border-color);
+			margin-bottom: 5px;
+		}
+
+		.procurement-item {
+			color: var(--text-secondary);
+		}
+
+		.col-quantity,
+		.col-price,
+		.col-total {
+			text-align: right;
+		}
 	}
 
-	.procurement-item.empty {
-		justify-content: center;
+	.empty-procurements {
+		text-align: center;
 		color: #b0a8a2;
+		padding: 20px 0;
+		font-size: 13px;
 	}
+
 
 	.list-item {
 		position: relative;
-		/* #ifdef H5 */
 		cursor: pointer;
-		/* #endif */
 		transition: background-color 0.2s ease;
 	}
 

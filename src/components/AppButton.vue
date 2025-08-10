@@ -1,8 +1,13 @@
 <template>
 	<button class="btn ripple-container" :class="buttonClasses" :disabled="disabled || loading"
 		@touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
-		<view v-if="loading" class="loading-spinner"></view>
-		<slot v-else></slot>
+		<!-- [核心修改] 使用 v-show 和 visibility 来防止布局变化 -->
+		<view v-if="loading" class="loading-spinner-wrapper">
+			<view class="loading-spinner"></view>
+		</view>
+		<view class="content-wrapper" :style="{ visibility: loading ? 'hidden' : 'visible' }">
+			<slot></slot>
+		</view>
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 	</button>
 </template>
@@ -41,7 +46,7 @@
 		'btn-secondary': props.type === 'secondary',
 		'btn-danger': props.type === 'danger',
 		'btn-dashed': props.type === 'dashed',
-		'btn-text-link': props.type === 'text-link', // [核心新增] 添加 text-link 类型
+		'btn-text-link': props.type === 'text-link',
 		'btn-sm': props.size === 'sm',
 		'btn-xs': props.size === 'xs',
 		'btn-full-width': props.fullWidth,
@@ -87,7 +92,6 @@
 	const handleTouchEnd = (event : Event) => {
 		if (props.disabled || props.loading) return;
 		if (!touchMoved.value) {
-			// [核心新增] 传入事件对象并阻止默认行为，以防止移动端上的“幽灵点击”问题。
 			event.preventDefault();
 			emit('click');
 		}
@@ -97,8 +101,23 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* 让按钮内的 slot 内容和 loading 居中 */
 	.btn {
+		/* [核心修改] 确保按钮有最小高度，防止内容为空时塌陷 */
+		min-height: 50px;
+		box-sizing: border-box;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		position: relative;
+	}
+
+	/* [核心新增] 加载动画的容器，用于绝对定位 */
+	.loading-spinner-wrapper {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
 		display: flex;
 		justify-content: center;
 		align-items: center;
@@ -124,7 +143,6 @@
 	.btn-secondary .loading-spinner,
 	.btn-dashed .loading-spinner,
 	.btn-text-link .loading-spinner {
-		/* [核心新增] 为 text-link 添加 loading 样式 */
 		border-color: rgba(0, 0, 0, 0.2);
 		border-top-color: var(--primary-color);
 	}
@@ -137,7 +155,6 @@
 	.btn-secondary .ripple,
 	.btn-dashed .ripple,
 	.btn-text-link .ripple {
-		/* [核心新增] 为 text-link 添加 ripple 样式 */
 		background-color: rgba(0, 0, 0, 0.1);
 	}
 </style>

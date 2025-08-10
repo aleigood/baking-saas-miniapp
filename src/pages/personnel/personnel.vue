@@ -18,7 +18,8 @@
 				<ListItem v-for="member in dataStore.members" :key="member.id" @click="navigateToDetail(member.id)">
 					<view class="main-info">
 						<view class="name">{{ member.name || member.phone }}</view>
-						<view class="desc">加入于: {{ new Date(member.joinDate).toLocaleDateString() }}</view>
+						<!-- [核心修改] 使用统一的日期格式化函数 -->
+						<view class="desc">加入于: {{ formatChineseDate(member.joinDate) }}</view>
 					</view>
 					<view class="side-info">
 						<view class="value">{{ getRoleName(member.role) }}</view>
@@ -44,6 +45,7 @@
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
 	import type { Role } from '@/types/api';
+	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
