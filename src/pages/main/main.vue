@@ -8,15 +8,19 @@
 		<CustomTabBar />
 
 		<AppModal v-model:visible="uiStore.showStoreModal" title="选择门店">
-			<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
 			<ListItem v-for="tenant in dataStore.tenants" :key="tenant.id" @click="handleSelectTenant(tenant.id)">{{
         tenant.name }}</ListItem>
 		</AppModal>
 
-		<AppModal v-model:visible="uiStore.showUserMenu">
-			<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
-			<ListItem style="border: none; padding: 10px 15px" @click="handleLogout">退出登录
-			</ListItem>
+		<!-- [核心修改] 重新设计退出登录的模态框 -->
+		<AppModal v-model:visible="uiStore.showUserMenu" title="退出登录">
+			<view class="modal-prompt-text">
+				您确定要退出登录吗？
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="uiStore.closeModal('userMenu')">取消</AppButton>
+				<AppButton type="danger" @click="handleLogout">确认退出</AppButton>
+			</view>
 		</AppModal>
 
 		<AppModal v-model:visible="uiStore.showInviteModal" title="邀请新成员">
@@ -47,7 +51,8 @@
 	import CustomTabBar from '@/components/CustomTabBar.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
-	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
+	import ListItem from '@/components/ListItem.vue';
+	import AppButton from '@/components/AppButton.vue'; // [核心新增] 引入 AppButton
 
 	// 引入四个页面级组件
 	import ProductionPage from '@/pages/production/production.vue';
@@ -59,34 +64,27 @@
 	const dataStore = useDataStore();
 	const userStore = useUserStore();
 
-	// [核心新增] 将原本分散在各个页面的逻辑提升到顶层
 	const isCreatingInvite = ref(false);
 	const inviteePhone = ref('');
 
-	// 处理选择门店的逻辑
 	const handleSelectTenant = async (tenantId : string) => {
 		if (dataStore.currentTenantId === tenantId) {
 			uiStore.closeModal('store');
 			return;
 		}
-		// 此处可以添加 loading 状态
 		await dataStore.selectTenant(tenantId);
 		uiStore.closeModal('store');
-		// 切换店铺后，需要刷新当前页面的数据
-		// 这里的实现可以更优雅，比如通过 watch 监听 currentTenantId 变化
 		if (uiStore.activeTab === 'production') await dataStore.fetchProductionData();
 		if (uiStore.activeTab === 'ingredients') await dataStore.fetchIngredientsData();
 		if (uiStore.activeTab === 'recipes') await dataStore.fetchRecipesData();
 		if (uiStore.activeTab === 'personnel') await dataStore.fetchMembersData();
 	};
 
-	// 处理退出登录
 	const handleLogout = () => {
 		userStore.logout();
 		uiStore.closeModal('userMenu');
 	};
 
-	// 处理邀请成员
 	const handleInvite = async () => {
 		if (!inviteePhone.value) {
 			uni.showToast({ title: '请输入手机号', icon: 'none' });
@@ -107,10 +105,8 @@
 </script>
 
 <style scoped lang="scss">
-	// 继承全局样式
 	@import '@/styles/common.scss';
 
-	/* [核心新增] 为提升后的模态框组件提供样式 */
 	.input-field {
 		width: 100%;
 		height: 44px;
@@ -121,5 +117,14 @@
 		font-size: 14px;
 		background-color: #f8f9fa;
 		box-sizing: border-box;
+	}
+
+	/* [核心新增] 为模态框内的文本和按钮添加样式 */
+	.modal-prompt-text {
+		font-size: 16px;
+		color: var(--text-primary);
+		text-align: center;
+		margin-bottom: 25px;
+		/* 增加与按钮的间距 */
 	}
 </style>

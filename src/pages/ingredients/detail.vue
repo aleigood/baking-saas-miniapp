@@ -57,7 +57,6 @@
 					<view class="card-title">{{ selectedSku.brand || '无品牌' }} - {{ selectedSku.specName }} 的采购记录
 					</view>
 					<view v-if="displayedProcurementRecords && displayedProcurementRecords.length > 0">
-						<!-- [核心修改] 将采购记录项包裹在 ListItem 中以支持长按 -->
 						<ListItem v-for="record in displayedProcurementRecords" :key="record.id"
 							class="procurement-item" @longpress="handleProcurementLongPress(record)">
 							<text>{{ new Date(record.purchaseDate).toLocaleDateString() }}</text>
@@ -68,7 +67,6 @@
 					<view v-else class="procurement-item empty">
 						无采购记录
 					</view>
-					<!-- [核心修改] 将“加载更多”按钮替换为 AppButton -->
 					<AppButton v-if="hasMoreRecords" type="text-link" @click="loadMoreRecords">加载更多</AppButton>
 				</view>
 			</view>
@@ -144,13 +142,22 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showSkuActionsModal" title="SKU 操作">
-			<view class="list-item" hover-class="item-hover" @click="handleActivateFromModal">
-				设为使用中
+		<!-- [核心修改] 重构SKU操作模态框 -->
+		<AppModal v-model:visible="showSkuActionsModal" title="设为使用中">
+			<view class="modal-prompt-text">
+				要将此规格设为当前使用的吗？
+			</view>
+			<view class="modal-warning-text">
+				后续的采购和成本计算将默认使用此规格。
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showSkuActionsModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleActivateFromModal" :loading="isSubmitting">
+					{{ isSubmitting ? '设置中...' : '确认设置' }}
+				</AppButton>
 			</view>
 		</AppModal>
 
-		<!-- [核心新增] 删除采购记录的确认模态框 -->
 		<AppModal v-model:visible="uiStore.showProcurementActionsModal" title="确认删除">
 			<view class="modal-prompt-text">
 				确定要删除这条采购记录吗？
@@ -172,9 +179,8 @@
 	import { ref, computed, reactive } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
-	import { useUiStore } from '@/store/ui'; // [核心新增]
+	import { useUiStore } from '@/store/ui';
 	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
-	// [核心修改] 引入 deleteProcurement
 	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteProcurement } from
 		'@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
@@ -189,7 +195,7 @@
 	import AppButton from '@/components/AppButton.vue';
 
 	const dataStore = useDataStore();
-	const uiStore = useUiStore(); // [核心新增]
+	const uiStore = useUiStore();
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const ingredient = ref<Ingredient | null>(null);
@@ -213,7 +219,6 @@
 	const showSkuActionsModal = ref(false);
 	const selectedSkuForAction = ref<IngredientSKU | null>(null);
 	const selectedSkuId = ref<string | null>(null);
-	// [核心新增] 用于长按删除的状态
 	const selectedProcurementForAction = ref<ProcurementRecord | null>(null);
 
 	const displayedRecordsCount = ref(10);
@@ -400,17 +405,17 @@
 	const handleActivateFromModal = async () => {
 		if (!selectedSkuForAction.value || !ingredient.value) return;
 		const sku = selectedSkuForAction.value;
-		showSkuActionsModal.value = false;
-
-		uni.showLoading({ title: '正在激活...' });
+		isSubmitting.value = true; // [核心新增]
 		try {
 			await setActiveSku(ingredient.value.id, sku.id);
-			uni.hideLoading();
-			uni.showToast({ title: '激活成功', icon: 'success' });
+			uni.showToast({ title: '设置成功', icon: 'success' });
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
-			uni.hideLoading();
+			console.error('Failed to activate SKU:', error);
+		} finally {
+			isSubmitting.value = false; // [核心新增]
+			showSkuActionsModal.value = false;
 		}
 	};
 
@@ -459,13 +464,11 @@
 		}
 	};
 
-	// [核心新增] 处理采购记录长按事件
 	const handleProcurementLongPress = (record : ProcurementRecord) => {
 		selectedProcurementForAction.value = record;
 		uiStore.openModal('procurementActions');
 	};
 
-	// [核心新增] 处理删除采购记录的逻辑
 	const handleDeleteProcurement = async () => {
 		if (!selectedProcurementForAction.value || !ingredient.value) return;
 		isSubmitting.value = true;
@@ -473,7 +476,6 @@
 			await deleteProcurement(selectedProcurementForAction.value.id);
 			uni.showToast({ title: '删除成功', icon: 'success' });
 			uiStore.closeModal('procurementActions');
-			// 重新加载数据以更新库存和列表
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
@@ -548,7 +550,6 @@
 		font-size: 13px;
 		color: var(--text-secondary);
 		padding: 8px 5px;
-		/* [核心修改] 移除自身的边框，交由 ListItem 处理 */
 	}
 
 	.procurement-item.empty {
@@ -599,8 +600,6 @@
 		padding-right: 20px;
 	}
 
-	/* [核心删除] 移除不再使用的 .btn-add-sm 样式 */
-
 	.form-row {
 		display: flex;
 		justify-content: space-between;
@@ -618,7 +617,6 @@
 		text-align: right;
 	}
 
-	/* [核心新增] 删除确认模态框的特定样式 */
 	.modal-prompt-text {
 		font-size: 16px;
 		color: var(--text-primary);

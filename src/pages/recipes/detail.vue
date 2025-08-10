@@ -13,9 +13,7 @@
 					<span v-if="productNames.length === 0" class="tag">暂无产品</span>
 				</view>
 
-				<!-- 1. [核心重构] 成本分析图表区 -->
 				<view class="card">
-					<!-- [核心修改] 替换为 FilterTabs 和 FilterTab 组件 -->
 					<FilterTabs style="justify-content: center;">
 						<FilterTab :active="detailChartTab === 'trend'" @click="detailChartTab = 'trend'">
 							成本走势
@@ -24,21 +22,16 @@
 							原料成本
 						</FilterTab>
 					</FilterTabs>
-					<!-- 成本走势折线图 -->
 					<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
-					<!-- 原料成本环形图 -->
 					<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
 				</view>
 
-				<!-- 2. 版本历史 -->
 				<view class="card card-full-bleed-list">
 					<view class="card-title-wrapper">
 						<span class="card-title">版本历史</span>
 					</view>
 					<view v-if="isLoadingVersions">加载中...</view>
-					<!-- [核心修正] 使用 template 替代 view 来确保最后一个 list-item 的边框在按钮上方正确显示 -->
 					<template v-else>
-						<!-- [核心重构] 使用 ListItem 组件并绑定 click 和 longpress 事件 -->
 						<ListItem v-for="version in recipeVersions" :key="version.id"
 							:class="{ 'item-selected': displayedVersionId === version.id }"
 							@click="handleVersionClick(version)" @longpress="handleVersionLongPressAction(version)">
@@ -51,15 +44,13 @@
 								</view>
 							</view>
 							<view class="side-info">
-								<view v-if="version.isActive" class="status-tag active">已激活</view>
+								<view v-if="version.isActive" class="status-tag active">使用中</view>
 							</view>
 						</ListItem>
 					</template>
-					<!-- [核心修改] 替换为带有点击效果的 AppButton 组件 -->
 					<AppButton v-if="canEditRecipe" type="text-link" @click="handleCreateVersion">+ 创建新版本</AppButton>
 				</view>
 
-				<!-- 3. 当前配方原料列表 -->
 				<view class="card">
 					<view class="card-title">{{ displayedVersion?.notes || `配方详情 (v${displayedVersion?.version})` }}
 					</view>
@@ -90,9 +81,19 @@
 			<text>加载中...</text>
 		</view>
 
-		<AppModal v-model:visible="showVersionActionsModal" title="版本操作">
-			<view class="list-item" hover-class="item-hover" @click="handleActivateFromModal">
-				激活当前版本
+		<!-- [核心修改] 重构版本操作模态框 -->
+		<AppModal v-model:visible="showVersionActionsModal" title="设为使用中">
+			<view class="modal-prompt-text">
+				要将这个版本设为当前使用的配方吗？
+			</view>
+			<view class="modal-warning-text">
+				后续创建生产任务时将默认使用此版本配方。
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showVersionActionsModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleActivateFromModal" :loading="isSubmitting">
+					{{ isSubmitting ? '设置中...' : '确认设置' }}
+				</AppButton>
 			</view>
 		</AppModal>
 	</view>
@@ -113,11 +114,12 @@
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
-	import AppButton from '@/components/AppButton.vue'; // [核心新增] 引入 AppButton 组件
+	import AppButton from '@/components/AppButton.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const isLoading = ref(true);
+	const isSubmitting = ref(false); // [核心新增]
 	const isLoadingVersions = ref(false);
 	const recipeFamily = ref<RecipeFamily | null>(null);
 	const recipeVersions = ref<RecipeVersion[]>([]);
@@ -320,25 +322,25 @@
 		if (selectedVersionForAction.value) {
 			activateVersionAction(selectedVersionForAction.value);
 		}
-		showVersionActionsModal.value = false;
 	};
 
 	const activateVersionAction = async (versionToActivate : RecipeVersion) => {
 		if (!recipeFamily.value) return;
 
-		uni.showLoading({ title: '正在激活...' });
+		isSubmitting.value = true; // [核心新增]
 		try {
 			await activateRecipeVersion(recipeFamily.value.id, versionToActivate.id);
-			uni.hideLoading();
-			uni.showToast({ title: '激活成功', icon: 'success' });
+			uni.showToast({ title: '设置成功', icon: 'success' });
 
 			await loadRecipeData(recipeFamily.value.id);
 			dataStore.fetchRecipesData();
 
 		} catch (error) {
-			uni.hideLoading();
 			console.error('Failed to activate version:', error);
-			uni.showToast({ title: '激活失败，请重试', icon: 'none' });
+			uni.showToast({ title: '设置失败，请重试', icon: 'none' });
+		} finally {
+			isSubmitting.value = false; // [核心新增]
+			showVersionActionsModal.value = false;
 		}
 	};
 </script>
@@ -433,5 +435,19 @@
 		padding-right: 20px;
 	}
 
-	/* [核心删除] 移除不再使用的 .btn-add-sm 样式 */
+	/* [核心新增] 与其他模态框统一的样式 */
+	.modal-prompt-text {
+		font-size: 16px;
+		color: var(--text-primary);
+		text-align: center;
+		margin-bottom: 10px;
+	}
+
+	.modal-warning-text {
+		font-size: 13px;
+		color: var(--text-secondary);
+		text-align: center;
+		margin-bottom: 20px;
+		line-height: 1.5;
+	}
 </style>

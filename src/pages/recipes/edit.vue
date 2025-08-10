@@ -24,8 +24,9 @@
 			<view v-for="(dough, doughIndex) in form.doughs" :key="doughIndex" class="card">
 				<view class="card-title-wrapper">
 					<span class="card-title">面团 {{ doughIndex + 1 }}</span>
-					<button v-if="form.doughs.length > 1" class="btn btn-danger btn-sm"
-						@click="removeDough(doughIndex)">删除面团</button>
+					<!-- [核心修改] 替换为 AppButton 组件 -->
+					<AppButton v-if="form.doughs.length > 1" type="danger" size="sm" @click="removeDough(doughIndex)">
+						删除面团</AppButton>
 				</view>
 				<FormItem label="面团名称">
 					<input class="input-field" v-model="dough.name" placeholder="例如：主面团" />
@@ -34,19 +35,22 @@
 				<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="ingredient-row">
 					<input class="input-field" v-model="ing.name" placeholder="原料名" />
 					<input class="input-field" type="number" v-model.number="ing.ratio" placeholder="比例%" />
-					<!-- [核心删除] 移除“总粉”复选框 -->
-					<button class="btn btn-danger btn-xs" @click="removeIngredient(doughIndex, ingIndex)">-</button>
+					<!-- [核心修改] 替换为 AppButton 组件 -->
+					<AppButton type="danger" size="xs" @click="removeIngredient(doughIndex, ingIndex)">-</AppButton>
 				</view>
-				<button class="btn btn-dashed btn-full-width" @click="addIngredient(doughIndex)">+ 添加原料</button>
+				<!-- [核心修改] 替换为 AppButton 组件 -->
+				<AppButton type="dashed" full-width @click="addIngredient(doughIndex)">+ 添加原料</AppButton>
 			</view>
-			<button class="btn btn-dashed btn-full-width" @click="addDough">+ 添加面团</button>
+			<!-- [核心修改] 替换为 AppButton 组件 -->
+			<AppButton type="dashed" full-width @click="addDough">+ 添加面团</AppButton>
 
 			<!-- 最终产品部分 -->
 			<view v-for="(product, prodIndex) in form.products" :key="prodIndex" class="card">
 				<view class="card-title-wrapper">
 					<span class="card-title">最终产品 {{ prodIndex + 1 }}</span>
-					<button v-if="form.products.length > 1" class="btn btn-danger btn-sm"
-						@click="removeProduct(prodIndex)">删除产品</button>
+					<!-- [核心修改] 替换为 AppButton 组件 -->
+					<AppButton v-if="form.products.length > 1" type="danger" size="sm"
+						@click="removeProduct(prodIndex)">删除产品</AppButton>
 				</view>
 				<FormItem label="产品名称">
 					<input class="input-field" v-model="product.name" placeholder="例如：原味贝果" />
@@ -57,11 +61,13 @@
 						placeholder="例如：100" />
 				</FormItem>
 			</view>
-			<button class="btn btn-dashed btn-full-width" @click="addProduct">+ 添加最终产品</button>
+			<!-- [核心修改] 替换为 AppButton 组件 -->
+			<AppButton type="dashed" full-width @click="addProduct">+ 添加最终产品</AppButton>
 
-			<button class="btn btn-primary btn-full-width" @click="handleSubmit" :loading="isSubmitting">
-				{{ isSubmitting ? '保存中...' : '保存配方' }}
-			</button>
+			<!-- [核心修改] 替换为 AppButton 组件 -->
+			<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting">
+				{{ isSubmitting ? '' : '保存配方' }}
+			</AppButton>
 		</view>
 	</view>
 </template>
@@ -72,6 +78,7 @@
 	import { createRecipe, createRecipeVersion, getRecipeFamily } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
 	import FormItem from '@/components/FormItem.vue';
+	import AppButton from '@/components/AppButton.vue'; // [核心新增] 引入 AppButton
 	import type { RecipeVersion } from '@/types/api';
 
 	const dataStore = useDataStore();

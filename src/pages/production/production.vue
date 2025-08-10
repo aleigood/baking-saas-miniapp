@@ -4,7 +4,6 @@
 			<view class="store-selector" @click="uiStore.openModal('store')">
 				{{ dataStore.currentTenant?.name || '请选择店铺' }} &#9662;
 			</view>
-			<!-- [核心修改] 使用 IconButton 组件包裹用户头像 -->
 			<IconButton circle class="user-avatar" @click="uiStore.openModal('userMenu')">
 				{{ userStore.userInfo?.name?.[0] || '管' }}
 			</IconButton>
@@ -28,7 +27,6 @@
 
 				<view class="card-title-wrapper">
 					<span class="card-title">进行中的任务</span>
-					<!-- [核心修改] 使用 IconButton 组件包裹历史图标 -->
 					<IconButton v-if="hasCompletedTasks" @click="navigateToHistory">
 						<image class="header-icon"
 							src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z'/%3E%3C/svg%3E" />
@@ -56,9 +54,19 @@
 
 		<AppFab @click="navigateToCreatePage" />
 
-		<AppModal v-model:visible="uiStore.showTaskActionsModal" title="任务操作">
-			<view class="list-item" @click="handleCancelTaskFromModal">
-				取消任务
+		<!-- [核心修改] 优化取消任务的模态框，使用按钮并增加提示 -->
+		<AppModal v-model:visible="uiStore.showTaskActionsModal" title="取消任务">
+			<view class="modal-prompt-text">
+				确定要取消这个任务吗？
+			</view>
+			<view class="modal-warning-text">
+				任务将被标记为已取消，此操作不会扣减任何原料库存。
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="uiStore.closeModal('taskActions')">返回</AppButton>
+				<AppButton type="danger" @click="handleCancelTaskFromModal" :loading="isSubmitting">
+					{{ isSubmitting ? '取消中...' : '确认取消' }}
+				</AppButton>
 			</view>
 		</AppModal>
 	</view>
@@ -73,7 +81,8 @@
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
-	import IconButton from '@/components/IconButton.vue'; // 引入 IconButton 组件
+	import IconButton from '@/components/IconButton.vue';
+	import AppButton from '@/components/AppButton.vue'; // [核心新增] 引入 AppButton
 	import type { ProductionTaskDto } from '@/types/api';
 	import { updateTaskStatus } from '@/api/tasks';
 
@@ -82,6 +91,7 @@
 	const uiStore = useUiStore();
 
 	const isLoading = ref(false);
+	const isSubmitting = ref(false); // [核心新增]
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 
 	onShow(async () => {
@@ -178,22 +188,19 @@
 
 	const handleCancelTaskFromModal = async () => {
 		if (!selectedTaskForAction.value) return;
-		uiStore.closeModal('taskActions');
-		await cancelTask(selectedTaskForAction.value.id);
-		selectedTaskForAction.value = null;
-	};
 
-	const cancelTask = async (taskId : string) => {
-		uni.showLoading({ title: '正在取消...' });
+		isSubmitting.value = true; // [核心新增]
 		try {
-			await updateTaskStatus(taskId, 'CANCELLED');
-			uni.hideLoading();
+			await updateTaskStatus(selectedTaskForAction.value.id, 'CANCELLED');
 			uni.showToast({ title: '任务已取消', icon: 'success' });
 			await dataStore.fetchProductionData();
 		} catch (error) {
-			uni.hideLoading();
 			console.error('Failed to cancel task:', error);
 			uni.showToast({ title: '操作失败，请重试', icon: 'none' });
+		} finally {
+			isSubmitting.value = false; // [核心新增]
+			uiStore.closeModal('taskActions');
+			selectedTaskForAction.value = null;
 		}
 	};
 
@@ -307,5 +314,21 @@
 
 	.status-tag.status-cancelled {
 		background-color: #a8a8a8;
+	}
+
+	/* [核心新增] 删除确认模态框的特定样式 */
+	.modal-prompt-text {
+		font-size: 16px;
+		color: var(--text-primary);
+		text-align: center;
+		margin-bottom: 10px;
+	}
+
+	.modal-warning-text {
+		font-size: 13px;
+		color: var(--text-secondary);
+		text-align: center;
+		margin-bottom: 20px;
+		line-height: 1.5;
 	}
 </style>
