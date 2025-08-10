@@ -39,9 +39,10 @@
 
 				<!-- 任务列表 -->
 				<view v-if="activeTasks.length > 0">
+					<!-- [核心重构] 替换 @click 和 @longpress 为底层的触摸事件 -->
 					<view v-for="task in activeTasks" :key="task.id" class="task-card"
-						:class="getStatusClass(task.status)" @click="navigateToDetail(task)"
-						@longpress="handleLongPress(task)">
+						:class="getStatusClass(task.status)" @touchstart="handleTouchStart(task)"
+						@touchmove="handleTouchMove" @touchend="handleTouchEnd(task)">
 						<view class="task-info">
 							<view class="title">{{ getTaskTitle(task) }}</view>
 							<view class="details">{{ getTaskDetails(task) }}</view>
@@ -91,6 +92,11 @@
 	// [核心删除] 移除 showStoreModal 和 showUserMenu 的 ref
 	const showTaskActionsModal = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
+
+	// [核心新增] 用于手动实现长按逻辑的状态变量
+	const longPressTimer = ref<any>(null);
+	const touchMoved = ref(false);
+	const LONG_PRESS_DURATION = 350; // 长按的毫秒数
 
 	onShow(async () => {
 		await dataStore.fetchProductionData();
@@ -189,7 +195,39 @@
 		});
 	};
 
-	const handleLongPress = (task : ProductionTaskDto) => {
+	// [核心重构] 手动实现长按与点击事件
+	const handleTouchStart = (task : ProductionTaskDto) => {
+		touchMoved.value = false;
+		// 清除上一次可能未执行的计时器
+		clearTimeout(longPressTimer.value);
+
+		// 启动一个新的计时器，准备执行长按操作
+		longPressTimer.value = setTimeout(() => {
+			if (!touchMoved.value) {
+				// 如果计时器完成时手指未移动，则判定为长按
+				handleLongPressAction(task);
+			}
+		}, LONG_PRESS_DURATION);
+	};
+
+	const handleTouchMove = () => {
+		// 只要手指移动，就标记为已移动，并清除长按计时器
+		touchMoved.value = true;
+		clearTimeout(longPressTimer.value);
+	};
+
+	const handleTouchEnd = (task : ProductionTaskDto) => {
+		// 手指抬起时，立即清除计时器
+		clearTimeout(longPressTimer.value);
+
+		// 如果手指没有移动过，则判定为一次单击
+		if (!touchMoved.value) {
+			navigateToDetail(task);
+		}
+	};
+
+	// 实际执行长按的函数
+	const handleLongPressAction = (task : ProductionTaskDto) => {
 		selectedTaskForAction.value = task;
 		showTaskActionsModal.value = true;
 	};
