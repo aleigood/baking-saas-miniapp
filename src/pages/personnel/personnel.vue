@@ -2,12 +2,12 @@
 	<!-- [核心修改] 页面不再是独立的 page-container -->
 	<view>
 		<view class="page-header">
-			<!-- [核心修改] 点击事件调用 uiStore 的方法 -->
+			<!-- [核心修改] 使用 IconButton 组件包裹用户头像 -->
 			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
-			<view class="user-avatar" @click="uiStore.openModal('userMenu')">{{
-        userStore.userInfo?.name?.[0] || '管'
-      }}</view>
+			<IconButton circle class="user-avatar" @click="uiStore.openModal('userMenu')">
+				{{ userStore.userInfo?.name?.[0] || '管' }}
+			</IconButton>
 		</view>
 		<view class="page-content page-content-with-fab">
 			<view class="loading-spinner" v-if="isLoading">
@@ -35,6 +35,7 @@
 </template>
 
 <script setup lang="ts">
+	import IconButton from '@/components/IconButton.vue'; // 引入 IconButton 组件
 	import { ref, computed } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';

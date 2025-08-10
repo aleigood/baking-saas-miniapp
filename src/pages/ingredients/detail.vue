@@ -5,8 +5,10 @@
 			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
 				<h2 class="detail-title">{{ ingredient?.name || '加载中...' }}</h2>
-				<!-- [核心新增] 编辑图标 -->
-				<image class="header-icon" src="/static/icons/property.svg" @click="openEditModal" />
+				<!-- [核心修改] 添加 .stop 修饰符阻止事件冒泡 -->
+				<IconButton @click.stop="openEditModal">
+					<image class="header-icon" src="/static/icons/property.svg" />
+				</IconButton>
 			</view>
 		</view>
 
@@ -21,7 +23,6 @@
 
 				<!-- 2. 数据洞察区 -->
 				<view class="card">
-					<!-- [核心修改] 替换为 FilterTabs 和 FilterTab 组件 -->
 					<FilterTabs style="margin-bottom: 20px; justify-content: center;">
 						<FilterTab :active="detailChartTab === 'price'" @click="detailChartTab = 'price'">价格走势
 						</FilterTab>
@@ -76,7 +77,6 @@
 
 		<AppFab @click="openProcurementModal" class="fab-no-tab-bar" />
 
-		<!-- [核心重构] 将所有编辑功能移入此模态框 -->
 		<AppModal v-model:visible="showEditModal" title="编辑原料属性">
 			<FormItem label="原料名称">
 				<input class="input-field" v-model="ingredientForm.name" placeholder="输入原料名称" />
@@ -103,8 +103,6 @@
 			</view>
 		</AppModal>
 
-
-		<!-- SKU模态框 -->
 		<AppModal v-model:visible="showAddSkuModal" title="新增品牌规格">
 			<FormItem label="品牌">
 				<input class="input-field" v-model="newSkuForm.brand" placeholder="例如：王后" />
@@ -132,7 +130,6 @@
 				<input class="input-field" type="number" v-model.number="procurementForm.packagesPurchased"
 					placeholder="例如：10" />
 			</FormItem>
-			<!-- [核心修改] 将“每包单价”改为“采购总价” -->
 			<FormItem label="采购总价 (元)">
 				<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
 					placeholder="例如：255" />
@@ -165,8 +162,9 @@
 	import AppFab from '@/components/AppFab.vue';
 	import LineChart from '@/components/LineChart.vue';
 	import ListItem from '@/components/ListItem.vue';
-	import FilterTabs from '@/components/FilterTabs.vue'; // 引入新组件
-	import FilterTab from '@/components/FilterTab.vue'; // 引入新组件
+	import FilterTabs from '@/components/FilterTabs.vue';
+	import FilterTab from '@/components/FilterTab.vue';
+	import IconButton from '@/components/IconButton.vue';
 
 	const dataStore = useDataStore();
 	const isLoading = ref(true);
@@ -447,7 +445,6 @@
 	.header-icon {
 		width: 24px;
 		height: 24px;
-		margin-left: auto;
 	}
 
 	.detail-page .tag-group {

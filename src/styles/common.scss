@@ -3,6 +3,10 @@
 .page-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px 20px; padding-top: calc(var(--status-bar-height) + 20px); background: transparent; position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(180%) blur(20px); background-color: rgba(253, 248, 242, 0.85); }
 .store-selector { font-size: 18px; font-weight: 600; }
 .user-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; background-color: var(--primary-color); }
+/* [核心新增] 当 IconButton 组件被用作头像时，移除其内边距以保持原始尺寸 */
+.icon-button.user-avatar {
+	padding: 0;
+}
 .page-content {
 	padding: 15px;
 	padding-bottom: 80px;
@@ -192,7 +196,6 @@
 
 /* Modal Styles */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; backdrop-filter: blur(4px); background: rgba(0,0,0,0.2); z-index: 99; display: flex; justify-content: center; align-items: center; }
-/* [核心修改] 将宽度从 85% 改为 80% */
 .modal-content { background: white; border-radius: 20px; width: 80%; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
 
 /* Loading and Empty State */
