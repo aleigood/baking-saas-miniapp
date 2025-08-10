@@ -82,6 +82,17 @@ export function createProcurement(data : { skuId : string; packagesPurchased : n
 }
 
 /**
+ * [核心新增] 删除一条采购记录
+ * @param procurementId 采购记录的ID
+ */
+export function deleteProcurement(procurementId : string) : Promise<any> {
+	return request({
+		url: `/ingredients/procurements/${procurementId}`,
+		method: 'DELETE',
+	});
+}
+
+/**
  * 设置指定原料的激活SKU
  * @param ingredientId 原料品类的ID
  * @param skuId 要激活的SKU的ID

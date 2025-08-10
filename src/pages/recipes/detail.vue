@@ -55,8 +55,8 @@
 							</view>
 						</ListItem>
 					</template>
-					<button v-if="canEditRecipe" class="btn-add-sm" @click="handleCreateVersion">+
-						创建新版本</button>
+					<!-- [核心修改] 替换为带有点击效果的 AppButton 组件 -->
+					<AppButton v-if="canEditRecipe" type="text-link" @click="handleCreateVersion">+ 创建新版本</AppButton>
 				</view>
 
 				<!-- 3. 当前配方原料列表 -->
@@ -111,8 +111,9 @@
 	import LineChart from '@/components/LineChart.vue';
 	import PieChart from '@/components/PieChart.vue';
 	import ListItem from '@/components/ListItem.vue';
-	import FilterTabs from '@/components/FilterTabs.vue'; // 引入新组件
-	import FilterTab from '@/components/FilterTab.vue'; // 引入新组件
+	import FilterTabs from '@/components/FilterTabs.vue';
+	import FilterTab from '@/components/FilterTab.vue';
+	import AppButton from '@/components/AppButton.vue'; // [核心新增] 引入 AppButton 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -432,18 +433,5 @@
 		padding-right: 20px;
 	}
 
-	.btn-add-sm {
-		width: 100%;
-		padding: 8px;
-		border: none;
-		color: var(--primary-color);
-		background: transparent;
-		border-radius: 10px;
-		margin-top: 10px;
-		font-size: 14px;
-
-		&::after {
-			border: none;
-		}
-	}
+	/* [核心删除] 移除不再使用的 .btn-add-sm 样式 */
 </style>

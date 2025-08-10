@@ -13,7 +13,7 @@
 	const props = defineProps({
 		type: {
 			type: String,
-			default: 'primary', // primary, secondary, danger, dashed
+			default: 'primary', // primary, secondary, danger, dashed, text-link
 		},
 		size: {
 			type: String,
@@ -41,6 +41,7 @@
 		'btn-secondary': props.type === 'secondary',
 		'btn-danger': props.type === 'danger',
 		'btn-dashed': props.type === 'dashed',
+		'btn-text-link': props.type === 'text-link', // [核心新增] 添加 text-link 类型
 		'btn-sm': props.size === 'sm',
 		'btn-xs': props.size === 'xs',
 		'btn-full-width': props.fullWidth,
@@ -83,9 +84,11 @@
 		touchMoved.value = true;
 	};
 
-	const handleTouchEnd = () => {
+	const handleTouchEnd = (event : Event) => {
 		if (props.disabled || props.loading) return;
 		if (!touchMoved.value) {
+			// [核心新增] 传入事件对象并阻止默认行为，以防止移动端上的“幽灵点击”问题。
+			event.preventDefault();
 			emit('click');
 		}
 	};
@@ -119,7 +122,9 @@
 
 	/* 为不同背景色的按钮调整 loading 颜色 */
 	.btn-secondary .loading-spinner,
-	.btn-dashed .loading-spinner {
+	.btn-dashed .loading-spinner,
+	.btn-text-link .loading-spinner {
+		/* [核心新增] 为 text-link 添加 loading 样式 */
 		border-color: rgba(0, 0, 0, 0.2);
 		border-top-color: var(--primary-color);
 	}
@@ -130,7 +135,9 @@
 	}
 
 	.btn-secondary .ripple,
-	.btn-dashed .ripple {
+	.btn-dashed .ripple,
+	.btn-text-link .ripple {
+		/* [核心新增] 为 text-link 添加 ripple 样式 */
 		background-color: rgba(0, 0, 0, 0.1);
 	}
 </style>

@@ -5,7 +5,6 @@
 			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
 				<h2 class="detail-title">{{ ingredient?.name || '加载中...' }}</h2>
-				<!-- [核心修改] 移除 .stop 修饰符，因为底层的 IconButton 组件已经修复了事件穿透问题 -->
 				<IconButton @click="openEditModal">
 					<image class="header-icon" src="/static/icons/property.svg" />
 				</IconButton>
@@ -50,7 +49,7 @@
 							<span v-if="sku.id === ingredient.activeSkuId" class="status-tag active">使用中</span>
 						</view>
 					</ListItem>
-					<button class="btn-add-sm" @click="openAddSkuModal">+ 新增品牌规格</button>
+					<AppButton type="text-link" @click="openAddSkuModal">+ 新增品牌规格</AppButton>
 				</view>
 
 				<!-- 4. 采购记录卡片 -->
@@ -58,16 +57,19 @@
 					<view class="card-title">{{ selectedSku.brand || '无品牌' }} - {{ selectedSku.specName }} 的采购记录
 					</view>
 					<view v-if="displayedProcurementRecords && displayedProcurementRecords.length > 0">
-						<view v-for="record in displayedProcurementRecords" :key="record.id" class="procurement-item">
+						<!-- [核心修改] 将采购记录项包裹在 ListItem 中以支持长按 -->
+						<ListItem v-for="record in displayedProcurementRecords" :key="record.id"
+							class="procurement-item" @longpress="handleProcurementLongPress(record)">
 							<text>{{ new Date(record.purchaseDate).toLocaleDateString() }}</text>
 							<text>{{ record.packagesPurchased }} 包 x ¥{{ Number(record.pricePerPackage).toFixed(2)
 							}}</text>
-						</view>
+						</ListItem>
 					</view>
 					<view v-else class="procurement-item empty">
 						无采购记录
 					</view>
-					<button v-if="hasMoreRecords" class="btn-add-sm" @click="loadMoreRecords">加载更多</button>
+					<!-- [核心修改] 将“加载更多”按钮替换为 AppButton -->
+					<AppButton v-if="hasMoreRecords" type="text-link" @click="loadMoreRecords">加载更多</AppButton>
 				</view>
 			</view>
 		</view>
@@ -147,6 +149,22 @@
 				设为使用中
 			</view>
 		</AppModal>
+
+		<!-- [核心新增] 删除采购记录的确认模态框 -->
+		<AppModal v-model:visible="uiStore.showProcurementActionsModal" title="确认删除">
+			<view class="modal-prompt-text">
+				确定要删除这条采购记录吗？
+			</view>
+			<view class="modal-warning-text">
+				请注意：删除此条采购记录将会相应减少该原料的库存量。此操作不可撤销。
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="uiStore.closeModal('procurementActions')">取消</AppButton>
+				<AppButton type="danger" @click="handleDeleteProcurement" :loading="isSubmitting">
+					{{ isSubmitting ? '删除中...' : '确认删除' }}
+				</AppButton>
+			</view>
+		</AppModal>
 	</view>
 </template>
 
@@ -154,8 +172,11 @@
 	import { ref, computed, reactive } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
+	import { useUiStore } from '@/store/ui'; // [核心新增]
 	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
-	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient } from '@/api/ingredients';
+	// [核心修改] 引入 deleteProcurement
+	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteProcurement } from
+		'@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
@@ -165,8 +186,10 @@
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 	import IconButton from '@/components/IconButton.vue';
+	import AppButton from '@/components/AppButton.vue';
 
 	const dataStore = useDataStore();
+	const uiStore = useUiStore(); // [核心新增]
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const ingredient = ref<Ingredient | null>(null);
@@ -190,6 +213,8 @@
 	const showSkuActionsModal = ref(false);
 	const selectedSkuForAction = ref<IngredientSKU | null>(null);
 	const selectedSkuId = ref<string | null>(null);
+	// [核心新增] 用于长按删除的状态
+	const selectedProcurementForAction = ref<ProcurementRecord | null>(null);
 
 	const displayedRecordsCount = ref(10);
 	const showEditModal = ref(false);
@@ -433,6 +458,32 @@
 			isSubmitting.value = false;
 		}
 	};
+
+	// [核心新增] 处理采购记录长按事件
+	const handleProcurementLongPress = (record : ProcurementRecord) => {
+		selectedProcurementForAction.value = record;
+		uiStore.openModal('procurementActions');
+	};
+
+	// [核心新增] 处理删除采购记录的逻辑
+	const handleDeleteProcurement = async () => {
+		if (!selectedProcurementForAction.value || !ingredient.value) return;
+		isSubmitting.value = true;
+		try {
+			await deleteProcurement(selectedProcurementForAction.value.id);
+			uni.showToast({ title: '删除成功', icon: 'success' });
+			uiStore.closeModal('procurementActions');
+			// 重新加载数据以更新库存和列表
+			await loadIngredientData(ingredient.value.id);
+			await dataStore.fetchIngredientsData();
+		} catch (error) {
+			console.error("Failed to delete procurement record:", error);
+			uni.showToast({ title: '删除失败', icon: 'none' });
+		} finally {
+			isSubmitting.value = false;
+			selectedProcurementForAction.value = null;
+		}
+	};
 </script>
 
 <style scoped lang="scss">
@@ -472,21 +523,6 @@
 		}
 	}
 
-	.btn-add-sm {
-		width: 100%;
-		padding: 8px;
-		border: none;
-		color: var(--primary-color);
-		background: transparent;
-		border-radius: 10px;
-		margin-top: 10px;
-		font-size: 14px;
-
-		&::after {
-			border: none;
-		}
-	}
-
 	.picker,
 	.input-field {
 		width: 100%;
@@ -512,17 +548,12 @@
 		font-size: 13px;
 		color: var(--text-secondary);
 		padding: 8px 5px;
-		border-bottom: 1px solid var(--border-color);
+		/* [核心修改] 移除自身的边框，交由 ListItem 处理 */
+	}
 
-		&:last-child {
-			border-bottom: none;
-		}
-
-		&.empty {
-			justify-content: center;
-			color: #b0a8a2;
-			border-bottom: none;
-		}
+	.procurement-item.empty {
+		justify-content: center;
+		color: #b0a8a2;
 	}
 
 	.list-item {
@@ -568,6 +599,8 @@
 		padding-right: 20px;
 	}
 
+	/* [核心删除] 移除不再使用的 .btn-add-sm 样式 */
+
 	.form-row {
 		display: flex;
 		justify-content: space-between;
@@ -583,5 +616,21 @@
 	.form-row .input-field {
 		width: 120px;
 		text-align: right;
+	}
+
+	/* [核心新增] 删除确认模态框的特定样式 */
+	.modal-prompt-text {
+		font-size: 16px;
+		color: var(--text-primary);
+		text-align: center;
+		margin-bottom: 10px;
+	}
+
+	.modal-warning-text {
+		font-size: 13px;
+		color: var(--text-secondary);
+		text-align: center;
+		margin-bottom: 20px;
+		line-height: 1.5;
 	}
 </style>
