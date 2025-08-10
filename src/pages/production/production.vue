@@ -1,6 +1,8 @@
 <template>
+	<!-- [核心修改] 页面不再是独立的 page-container，因为它现在是 main.vue 的一个子组件 -->
 	<view>
 		<view class="page-header">
+			<!-- [核心修改] 点击事件调用 uiStore 的方法 -->
 			<view class="store-selector" @click="uiStore.openModal('store')">
 				{{ dataStore.currentTenant?.name || '请选择店铺' }} &#9662;
 			</view>
@@ -9,11 +11,13 @@
       }}</view>
 		</view>
 
-		<view class="page-content">
+		<!-- [核心修改] 添加 page-content-with-fab 类 -->
+		<view class="page-content page-content-with-fab">
 			<view class="loading-spinner" v-if="isLoading">
 				<text>加载中...</text>
 			</view>
 			<template v-else>
+				<!-- 任务看板 -->
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ totalPendingBreadCount }}</view>
@@ -25,6 +29,7 @@
 					</div>
 				</view>
 
+				<!-- 任务列表标题和历史按钮 -->
 				<view class="card-title-wrapper">
 					<span class="card-title">进行中的任务</span>
 					<image v-if="hasCompletedTasks" class="header-icon"
@@ -32,6 +37,7 @@
 						@click="navigateToHistory" />
 				</view>
 
+				<!-- 任务列表 -->
 				<view v-if="activeTasks.length > 0">
 					<view v-for="task in activeTasks" :key="task.id" class="task-card"
 						:class="getStatusClass(task.status)" @click="navigateToDetail(task)"
@@ -53,12 +59,15 @@
 
 		<AppFab @click="navigateToCreatePage" />
 
+		<!-- [核心删除] 移除页面内部的所有 AppModal 组件 -->
+
 		<AppModal v-model:visible="showTaskActionsModal" title="任务操作">
 			<view class="list-item" @click="handleCancelTaskFromModal">
 				取消任务
 			</view>
 		</AppModal>
 
+		<!-- [核心删除] 移除 CustomTabBar，因为它已经在 main.vue 中 -->
 	</view>
 </template>
 

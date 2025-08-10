@@ -9,7 +9,7 @@
         userStore.userInfo?.name?.[0] || '管'
       }}</view>
 		</view>
-		<view class="page-content">
+		<view class="page-content page-content-with-fab">
 			<view class="loading-spinner" v-if="isLoading">
 				<text>加载中...</text>
 			</view>

@@ -1,11 +1,22 @@
 /* Page layout */
-.page-container { padding-bottom: 80px; }
+/* [核心修改] 移除容器的底部内边距，将其移至 page-content 中统一管理 */
+.page-container { /* padding-bottom: 80px; */ }
 /* [核心修改] 增加了上下的 padding，以提高标题栏的整体高度 */
 .page-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px 20px; padding-top: calc(var(--status-bar-height) + 20px); background: transparent; position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(180%) blur(20px); background-color: rgba(253, 248, 242, 0.85); }
 .store-selector { font-size: 18px; font-weight: 600; }
 .user-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; background-color: var(--primary-color); }
-/* [核心修改] 为内容区域增加上下内边距 */
-.page-content { padding: 15px; }
+/* [核心修改] 为内容区域增加默认内边距，并为 TabBar 预留 80px 的空间 */
+.page-content {
+	padding: 15px;
+	padding-bottom: 80px;
+}
+
+/* [核心修改] 为带有 FAB 按钮的页面内容区设置一个更精确的底部空间 */
+.page-content-with-fab {
+	/* 165px = FAB 顶部到屏幕底部的距离(141px) + 期望的间距(~24px) */
+	padding-bottom: 165px;
+}
+
 /* Card and List */
 .card { background: var(--card-bg); padding: 20px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
 .card-title-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 5px; }
