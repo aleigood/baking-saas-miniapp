@@ -1,10 +1,10 @@
 <template>
-	<view class="page-container page-with-custom-tabbar">
+	<view>
 		<view class="page-header">
-			<view class="store-selector" @click="showStoreModal = true">
+			<view class="store-selector" @click="uiStore.openModal('store')">
 				{{ dataStore.currentTenant?.name || '请选择店铺' }} &#9662;
 			</view>
-			<view class="user-avatar" @click="showUserMenu = true">{{
+			<view class="user-avatar" @click="uiStore.openModal('userMenu')">{{
         userStore.userInfo?.name?.[0] || '管'
       }}</view>
 		</view>
@@ -14,7 +14,6 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<!-- 任务看板 -->
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ totalPendingBreadCount }}</view>
@@ -26,7 +25,6 @@
 					</div>
 				</view>
 
-				<!-- 任务列表标题和历史按钮 -->
 				<view class="card-title-wrapper">
 					<span class="card-title">进行中的任务</span>
 					<image v-if="hasCompletedTasks" class="header-icon"
@@ -34,7 +32,6 @@
 						@click="navigateToHistory" />
 				</view>
 
-				<!-- 任务列表 -->
 				<view v-if="activeTasks.length > 0">
 					<view v-for="task in activeTasks" :key="task.id" class="task-card"
 						:class="getStatusClass(task.status)" @click="navigateToDetail(task)"
@@ -56,23 +53,12 @@
 
 		<AppFab @click="navigateToCreatePage" />
 
-		<AppModal v-model:visible="showStoreModal" title="选择门店">
-			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
-				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
-		</AppModal>
-
-		<AppModal v-model:visible="showUserMenu">
-			<view class="list-item" style="border: none; padding: 10px 15px" @click="userStore.logout()">退出登录
-			</view>
-		</AppModal>
-
 		<AppModal v-model:visible="showTaskActionsModal" title="任务操作">
 			<view class="list-item" @click="handleCancelTaskFromModal">
 				取消任务
 			</view>
 		</AppModal>
 
-		<CustomTabBar />
 	</view>
 </template>
 
@@ -81,28 +67,27 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
+	import { useUiStore } from '@/store/ui'; // [核心新增]
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
-	import CustomTabBar from '@/components/CustomTabBar.vue';
+	// [核心删除] 不再需要 CustomTabBar
 	import type { ProductionTaskDto } from '@/types/api';
 	import { updateTaskStatus } from '@/api/tasks';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
+	const uiStore = useUiStore(); // [核心新增]
 
 	const isLoading = ref(false);
-	const showStoreModal = ref(false);
-	const showUserMenu = ref(false);
+	// [核心删除] 移除 showStoreModal 和 showUserMenu 的 ref
 	const showTaskActionsModal = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 
 	onShow(async () => {
-		// isLoading.value = true; // [修改] 删除此行，不再显示加载中状态
 		await dataStore.fetchProductionData();
-		// isLoading.value = false; // [修改] 删除此行
 	});
 
-	// 将配方统计数据转换为图表所需格式，并按降序排序
+	// ... (其余的 computed 和 methods 保持不变)
 	const recipeStatsForChart = computed(() => {
 		return dataStore.recipeStats
 			.map(item => ({
@@ -227,18 +212,6 @@
 		});
 	};
 
-	const handleSelectTenant = async (tenantId : string) => {
-		if (dataStore.currentTenantId === tenantId) {
-			showStoreModal.value = false;
-			return;
-		}
-		isLoading.value = true;
-		await dataStore.selectTenant(tenantId);
-		showStoreModal.value = false;
-		await dataStore.fetchProductionData();
-		isLoading.value = false;
-	};
-
 	const alert = (msg : string) => {
 		uni.showToast({ title: msg, icon: 'none' });
 	};
@@ -247,9 +220,7 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.page-with-custom-tabbar {
-		padding-bottom: 130px;
-	}
+	/* [核心删除] .page-with-custom-tabbar 不再需要，因为 main.vue 已经处理了 */
 
 	.summary-card {
 		display: flex;

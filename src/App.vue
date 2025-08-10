@@ -12,9 +12,9 @@
 			try {
 				await userStore.fetchUserInfo();
 				await dataStore.fetchTenants();
-				// [核心修改] 使用 reLaunch 代替 switchTab
+				// [核心修改] 启动页跳转到新的 main 页面
 				uni.reLaunch({
-					url: '/pages/production/production',
+					url: '/pages/main/main',
 				});
 			} catch (error) {
 				uni.reLaunch({

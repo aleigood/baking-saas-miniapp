@@ -31,8 +31,8 @@
 			await userStore.fetchUserInfo();
 			await dataStore.fetchTenants();
 			uni.showToast({ title: '登录成功', icon: 'success' });
-			// [核心修改] 使用 reLaunch 代替 switchTab
-			uni.reLaunch({ url: '/pages/production/production' });
+			// [核心修改] 登录成功后跳转到新的 main 页面
+			uni.reLaunch({ url: '/pages/main/main' });
 		}
 		loading.value = false;
 	};

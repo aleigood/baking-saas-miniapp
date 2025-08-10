@@ -1,24 +1,6 @@
 {
 	"pages": [{
-			"path": "pages/production/production",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/ingredients/ingredients",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/recipes/recipes",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/personnel/personnel",
+			"path": "pages/main/main",
 			"style": {
 				"navigationStyle": "custom"
 			}

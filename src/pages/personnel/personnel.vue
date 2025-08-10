@@ -1,9 +1,11 @@
 <template>
-	<view class="page-container page-with-custom-tabbar">
+	<!-- [核心修改] 页面不再是独立的 page-container -->
+	<view>
 		<view class="page-header">
-			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
+			<!-- [核心修改] 点击事件调用 uiStore 的方法 -->
+			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
-			<view class="user-avatar" @click="showUserMenu = true">{{
+			<view class="user-avatar" @click="uiStore.openModal('userMenu')">{{
         userStore.userInfo?.name?.[0] || '管'
       }}</view>
 		</view>
@@ -25,34 +27,10 @@
 			</template>
 		</view>
 
-		<AppFab v-if="canInvite" @click="showInviteModal = true" />
+		<!-- [核心修改] 点击事件调用 uiStore 的方法 -->
+		<AppFab v-if="canInvite" @click="uiStore.openModal('invite')" />
 
-		<AppModal v-model:visible="showStoreModal" title="选择门店">
-			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
-				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
-		</AppModal>
-
-		<AppModal v-model:visible="showUserMenu">
-			<view class="list-item" style="border: none; padding: 10px 15px" @click="userStore.logout()">退出登录
-			</view>
-		</AppModal>
-
-		<AppModal v-model:visible="showInviteModal" title="邀请新成员">
-			<FormItem label="被邀请人手机号">
-				<input class="input-field" type="tel" v-model="inviteePhone" placeholder="请输入手机号" />
-			</FormItem>
-			<view class="modal-actions">
-				<button class="btn btn-secondary" @click="showInviteModal = false">
-					取消
-				</button>
-				<button class="btn btn-primary" @click="handleInvite" :disabled="isCreatingInvite"
-					:loading="isCreatingInvite">
-					{{ isCreatingInvite ? '发送中...' : '确认邀请' }}
-				</button>
-			</view>
-		</AppModal>
-
-		<CustomTabBar />
+		<!-- [核心删除] 移除页面内部的所有 AppModal 和 CustomTabBar 组件 -->
 	</view>
 </template>
 
@@ -61,26 +39,23 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { createInvitation } from '@/api/invitations';
-	import AppModal from '@/components/AppModal.vue';
-	import FormItem from '@/components/FormItem.vue';
+	import { useUiStore } from '@/store/ui'; // [核心新增]
 	import AppFab from '@/components/AppFab.vue';
-	import CustomTabBar from '@/components/CustomTabBar.vue';
 	import type { Role } from '@/types/api';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
+	const uiStore = useUiStore(); // [核心新增]
 
-	const isSubmitting = ref(false);
-	const showStoreModal = ref(false);
-	const showUserMenu = ref(false);
-	const showInviteModal = ref(false);
-	const isCreatingInvite = ref(false);
-	const inviteePhone = ref('');
 	const isLoading = ref(false);
 
 	onShow(async () => {
-		await dataStore.fetchMembersData();
+		// [核心修改] 仅当数据未加载时才去获取
+		if (!dataStore.dataLoaded.members) {
+			isLoading.value = true;
+			await dataStore.fetchMembersData();
+			isLoading.value = false;
+		}
 	});
 
 	const currentUserRoleInTenant = computed(
@@ -106,55 +81,8 @@
 			url: `/pages/personnel/detail?memberId=${memberId}`,
 		});
 	};
-
-	const handleSelectTenant = async (tenantId : string) => {
-		if (dataStore.currentTenantId === tenantId) {
-			showStoreModal.value = false;
-			return;
-		}
-		isLoading.value = true;
-		await dataStore.selectTenant(tenantId);
-		showStoreModal.value = false;
-		await dataStore.fetchMembersData();
-		isLoading.value = false;
-	};
-
-	const handleInvite = async () => {
-		if (!inviteePhone.value) {
-			uni.showToast({ title: '请输入手机号', icon: 'none' });
-			return;
-		}
-		isCreatingInvite.value = true;
-		try {
-			await createInvitation(inviteePhone.value);
-			uni.showToast({ title: '邀请已发送', icon: 'success' });
-			showInviteModal.value = false;
-			inviteePhone.value = '';
-		} catch (error) {
-			console.error('Failed to create invitation:', error);
-		} finally {
-			isCreatingInvite.value = false;
-		}
-	};
 </script>
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-
-	.page-with-custom-tabbar {
-		padding-bottom: 130px;
-	}
-
-	.input-field,
-	.picker {
-		width: 100%;
-		height: 44px;
-		line-height: 44px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-	}
 </style>

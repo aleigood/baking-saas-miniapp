@@ -1,49 +1,44 @@
 <template>
 	<view class="custom-tab-bar">
-		<view v-for="item in list" :key="item.pagePath" class="tab-item" @click="switchTab(item)">
-			<image class="icon" :src="currentPath.includes(item.pagePath) ? item.selectedIconPath : item.iconPath" />
-			<view class="text" :class="{ 'text-active': currentPath.includes(item.pagePath) }">{{ item.text }}</view>
+		<view v-for="item in list" :key="item.key" class="tab-item" @click="switchTab(item)">
+			<image class="icon" :src="uiStore.activeTab === item.key ? item.selectedIconPath : item.iconPath" />
+			<view class="text" :class="{ 'text-active': uiStore.activeTab === item.key }">{{ item.text }}</view>
 		</view>
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref, onMounted } from 'vue';
+	import { ref } from 'vue';
+	import { useUiStore } from '@/store/ui'; // [核心新增] 引入 uiStore
 
-	// 获取当前页面路由
-	const pages = getCurrentPages();
-	const currentPage = pages[pages.length - 1];
-	const currentPath = currentPage.route;
+	const uiStore = useUiStore(); // [核心新增] 初始化 uiStore
 
+	// [核心修改] 为每个 tab 增加一个唯一的 key
 	const list = ref([{
-		pagePath: "pages/production/production",
+		key: "production",
 		text: "制作",
 		iconPath: "/static/tabbar/production.svg",
 		selectedIconPath: "/static/tabbar/production_active.svg"
 	}, {
-		pagePath: "pages/ingredients/ingredients",
+		key: "ingredients",
 		text: "原料",
 		iconPath: "/static/tabbar/ingredients.svg",
 		selectedIconPath: "/static/tabbar/ingredients_active.svg"
 	}, {
-		pagePath: "pages/recipes/recipes",
+		key: "recipes",
 		text: "配方",
 		iconPath: "/static/tabbar/recipes.svg",
 		selectedIconPath: "/static/tabbar/recipes_active.svg"
 	}, {
-		pagePath: "pages/personnel/personnel",
+		key: "personnel",
 		text: "人员",
 		iconPath: "/static/tabbar/personnel.svg",
 		selectedIconPath: "/static/tabbar/personnel_active.svg"
 	}]);
 
+	// [核心修改] 点击事件不再跳转页面，而是修改全局状态
 	const switchTab = (item) => {
-		const url = '/' + item.pagePath;
-		// [核心修改] 增加 animationType: 'none' 来消除页面切换动画，减少闪烁感
-		uni.reLaunch({
-			url,
-			animationType: 'none'
-		});
+		uiStore.setActiveTab(item.key);
 	};
 </script>
 
@@ -62,7 +57,8 @@
 		align-items: center;
 		border-top: 1px solid var(--border-color);
 		box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.04);
-		z-index: 1000;
+		/* [核心修改] 调整 z-index 层级，确保在页面内容之上，但在模态框之下 */
+		z-index: 9998;
 	}
 
 	.tab-item {

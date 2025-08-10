@@ -1,9 +1,11 @@
 <template>
-	<view class="page-container page-with-custom-tabbar">
+	<!-- [核心修改] 页面不再是独立的 page-container -->
+	<view>
 		<view class="page-header">
-			<view class="store-selector" @click="showStoreModal = true">{{ dataStore.currentTenant?.name }} &#9662;
+			<!-- [核心修改] 点击事件调用 uiStore 的方法 -->
+			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
-			<view class="user-avatar" @click="showUserMenu = true">{{
+			<view class="user-avatar" @click="uiStore.openModal('userMenu')">{{
         userStore.userInfo?.name?.[0] || '管'
       }}</view>
 		</view>
@@ -42,15 +44,7 @@
 		</view>
 		<AppFab @click="navigateToEditPage" />
 
-		<AppModal v-model:visible="showStoreModal" title="选择门店">
-			<view v-for="tenant in dataStore.tenants" :key="tenant.id" class="list-item"
-				@click="handleSelectTenant(tenant.id)">{{ tenant.name }}</view>
-		</AppModal>
-		<AppModal v-model:visible="showUserMenu">
-			<view class="list-item" style="border: none; padding: 10px 15px" @click="userStore.logout()">退出登录</view>
-		</AppModal>
-
-		<CustomTabBar />
+		<!-- [核心删除] 移除页面内部的所有 AppModal 和 CustomTabBar 组件 -->
 	</view>
 </template>
 <script setup lang="ts">
@@ -58,21 +52,24 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
+	import { useUiStore } from '@/store/ui'; // [核心新增]
 	import type { Ingredient } from '@/types/api';
-	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import BarChart from '@/components/BarChart.vue';
-	import CustomTabBar from '@/components/CustomTabBar.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
+	const uiStore = useUiStore(); // [核心新增]
 	const ingredientFilter = ref('all');
-	const showStoreModal = ref(false);
-	const showUserMenu = ref(false);
 	const isLoading = ref(false);
 
 	onShow(async () => {
-		await dataStore.fetchIngredientsData();
+		// [核心修改] 仅当数据未加载时才去获取，避免重复请求
+		if (!dataStore.dataLoaded.ingredients) {
+			isLoading.value = true;
+			await dataStore.fetchIngredientsData();
+			isLoading.value = false;
+		}
 	});
 
 	const ingredientStatsForChart = computed(() => {
@@ -98,18 +95,6 @@
 		return ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000).toFixed(2);
 	};
 
-	const handleSelectTenant = async (tenantId : string) => {
-		if (dataStore.currentTenantId === tenantId) {
-			showStoreModal.value = false;
-			return;
-		}
-		isLoading.value = true;
-		await dataStore.selectTenant(tenantId);
-		showStoreModal.value = false;
-		await dataStore.fetchIngredientsData();
-		isLoading.value = false;
-	};
-
 	const navigateToEditPage = () => {
 		uni.navigateTo({
 			url: '/pages/ingredients/edit',
@@ -124,10 +109,6 @@
 </script>
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-
-	.page-with-custom-tabbar {
-		padding-bottom: 130px;
-	}
 
 	.side-info .stock-low {
 		color: var(--danger-color);
