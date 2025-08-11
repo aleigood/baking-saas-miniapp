@@ -28,7 +28,7 @@
 
 				<view class="card card-full-bleed-list">
 					<view class="card-title-wrapper">
-						<span class="card-title">版本历史</span>
+						<span class="card-title">配方版本</span>
 					</view>
 					<view v-if="isLoadingVersions">加载中...</view>
 					<template v-else>
@@ -51,25 +51,32 @@
 					<AppButton v-if="canEditRecipe" type="text-link" @click="handleCreateVersion">+ 创建新版本</AppButton>
 				</view>
 
-				<!-- [核心重构] 配方详情卡片 -->
+				<!-- 配方详情卡片 -->
 				<view class="card">
 					<view class="card-title">{{ displayedVersion?.notes || `配方详情 (v${displayedVersion?.version})` }}
 					</view>
-					<view v-if="currentRecipeIngredients.length > 0">
+
+					<!-- [核心修改] 面团配方列表移到产品轮播之前 -->
+					<view v-if="currentRecipeDetails.length > 0">
 						<!-- 循环渲染每个面团的表格 -->
-						<view v-for="(dough, index) in currentRecipeIngredients" :key="index"
+						<view v-for="(dough, index) in currentRecipeDetails" :key="index"
 							class="recipe-table-container">
-							<view class="dough-title">{{ dough.name }}</view>
+							<!-- 标题后显示总价 -->
+							<view class="dough-title">{{ dough.name }}
+								<span v-if="dough.totalCost > 0">(合计: ¥{{ dough.totalCost.toFixed(2) }})</span>
+							</view>
 							<view class="recipe-table">
 								<view class="table-header">
 									<text class="col-ingredient">原料</text>
-									<text class="col-price">单价</text>
 									<text class="col-ratio">比例</text>
+									<text class="col-price">单价</text>
+									<text class="col-total">成本</text>
 								</view>
 								<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="table-row">
 									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-ratio">{{ ing.ratio.toFixed(1) }}%</text>
 									<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
-									<text class="col-ratio">{{ ing.ratio }}%</text>
+									<text class="col-total">¥{{ ing.cost.toFixed(2) }}</text>
 								</view>
 							</view>
 							<!-- 制作要点 -->
@@ -79,44 +86,71 @@
 									class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 							</view>
 						</view>
-						<view v-if="displayedVersion && displayedVersion.products.length > 0">
-							<swiper class="product-swiper" indicator-dots circular @change="onSwiperChange">
-								<swiper-item v-for="(product, index) in displayedVersion.products" :key="product.id">
-									<view class="product-card">
-										<view class="product-table">
-											<view class="product-table-row">
-												<text class="product-label">产品名称</text>
-												<text class="product-value">{{ product.name }}</text>
-											</view>
-											<view class="product-table-row">
-												<text class="product-label">面团克重</text>
-												<text class="product-value">{{ product.baseDoughWeight }}g</text>
-											</view>
-											<!-- 渲染附加原料 -->
-											<template v-for="pIng in product.ingredients" :key="pIng.id">
-												<view class="product-table-row">
-													<text
-														class="product-label">{{ getProductIngredientTypeName(pIng.type) }}</text>
-													<text class="product-value">{{ pIng.name }}
-														{{ pIng.weightInGrams }}g</text>
-												</view>
-											</template>
-										</view>
-										<!-- 产品制作要点 -->
-										<view v-if="product.procedure && product.procedure.length > 0"
-											class="procedure-notes">
-											<text class="notes-title">制作要点:</text>
-											<text v-for="(step, stepIndex) in product.procedure" :key="stepIndex"
-												class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
-										</view>
-									</view>
-								</swiper-item>
-							</swiper>
-						</view>
 					</view>
 					<view v-else class="empty-state" style="padding: 20px 0">
 						暂无原料信息
 					</view>
+
+					<!-- [核心修改] 最终产品卡片组移到面团配方之后 -->
+					<view v-if="displayedVersion && displayedVersion.products.length > 0"
+						class="product-swiper-container">
+						<!-- 指示器移到上方 -->
+						<view class="swiper-indicator">
+							<view class="indicator-dot" v-for="(product, index) in displayedVersion.products"
+								:key="product.id" :class="{ active: index === currentProductIndex }"></view>
+						</view>
+						<swiper class="product-swiper" circular @change="onSwiperChange">
+							<swiper-item v-for="(product) in displayedVersion.products" :key="product.id"
+								class="product-swiper-item">
+								<view class="product-card">
+									<!-- [核心修改] 产品名称后增加总成本 -->
+									<view class="product-title">{{ product.name }}
+										<span>(总成本: ¥{{ getProductCost(product.id).totalCost.toFixed(2) }})</span>
+									</view>
+									<!-- [核心修改] 产品原料改为表格展示 -->
+									<view class="product-ingredient-table">
+										<view class="table-header">
+											<text class="col-ingredient">原料</text>
+											<text class="col-usage">用量</text>
+											<text class="col-cost">成本</text>
+										</view>
+										<!-- 面团行 -->
+										<view class="table-row">
+											<text class="col-ingredient">面团</text>
+											<text class="col-usage">{{ product.baseDoughWeight }}g</text>
+											<text class="col-cost">¥{{ getProductCost(product.id).doughCost.toFixed(2)
+												}}</text>
+										</view>
+										<!-- 附加原料行 -->
+										<template v-for="pIng in getProductCost(product.id).extraIngredients"
+											:key="pIng.id">
+											<view class="table-row">
+												<text class="col-ingredient">{{ pIng.name }} ({{ pIng.type }})</text>
+												<!-- [核心修改] 搅拌原料显示比例和克重 -->
+												<text class="col-usage">
+													<template v-if="pIng.type === '搅拌原料'">
+														{{ pIng.ratio }}% ({{ pIng.weightInGrams.toFixed(1) }}g)
+													</template>
+													<template v-else>
+														{{ pIng.weightInGrams }}g
+													</template>
+												</text>
+												<text class="col-cost">¥{{ pIng.cost.toFixed(2) }}</text>
+											</view>
+										</template>
+									</view>
+									<!-- 产品制作要点 -->
+									<view v-if="product.procedure && product.procedure.length > 0"
+										class="procedure-notes">
+										<text class="notes-title">制作要点:</text>
+										<text v-for="(step, stepIndex) in product.procedure" :key="stepIndex"
+											class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+									</view>
+								</view>
+							</swiper-item>
+						</swiper>
+					</view>
+
 				</view>
 			</view>
 		</view>
@@ -146,7 +180,7 @@
 	import { onLoad, onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import type { RecipeFamily, RecipeVersion, IngredientSKU, DoughIngredient, ProductIngredient } from '@/types/api';
+	import type { RecipeFamily, RecipeVersion, Ingredient, DoughIngredient, ProductIngredient, Product } from '@/types/api';
 	import { getRecipeFamily, activateRecipeVersion } from '@/api/recipes';
 	import { getProductCostHistory, getProductCostBreakdown } from '@/api/costing';
 	import AppFab from '@/components/AppFab.vue';
@@ -166,7 +200,7 @@
 	const isLoadingVersions = ref(false);
 	const recipeFamily = ref<RecipeFamily | null>(null);
 	const recipeVersions = ref<RecipeVersion[]>([]);
-	const currentProductIndex = ref(0); // [核心新增] 用于swiper指示器
+	const currentProductIndex = ref(0); // 用于swiper指示器
 
 	const displayedVersionId = ref<string | null>(null);
 	const showVersionActionsModal = ref(false);
@@ -194,32 +228,35 @@
 	const loadRecipeData = async (id : string) => {
 		isLoading.value = true;
 		try {
-			await Promise.all([
-				(async () => {
-					const fullFamilyData = await getRecipeFamily(id);
-					recipeFamily.value = fullFamilyData;
-					recipeVersions.value = fullFamilyData.versions.sort((a, b) => b.version - a.version);
-					const currentActiveVersion = recipeVersions.value.find(v => v.isActive);
-					if (currentActiveVersion) {
-						if (!displayedVersionId.value || !recipeVersions.value.some(v => v.id === displayedVersionId.value)) {
-							displayedVersionId.value = currentActiveVersion.id;
-						}
+			// 确保在加载配方信息前，原料数据已准备好
+			if (!dataStore.dataLoaded.ingredients) {
+				await dataStore.fetchIngredientsData();
+			}
+			const fullFamilyData = await getRecipeFamily(id);
+			recipeFamily.value = fullFamilyData;
+			recipeVersions.value = fullFamilyData.versions.sort((a, b) => b.version - a.version);
+			const currentActiveVersion = recipeVersions.value.find(v => v.isActive);
 
-						if (currentActiveVersion.products && currentActiveVersion.products.length > 0) {
-							const firstProductId = currentActiveVersion.products[0].id;
-							const [historyData, breakdownData] = await Promise.all([
-								getProductCostHistory(firstProductId),
-								getProductCostBreakdown(firstProductId)
-							]);
-							costHistory.value = historyData;
-							costBreakdown.value = breakdownData;
-						}
-					} else if (recipeVersions.value.length > 0) {
-						displayedVersionId.value = recipeVersions.value[0].id;
-					}
-				})(),
-				dataStore.fetchIngredientsData(),
-			]);
+			if (currentActiveVersion) {
+				if (!displayedVersionId.value || !recipeVersions.value.some(v => v.id === displayedVersionId.value)) {
+					displayedVersionId.value = currentActiveVersion.id;
+				}
+
+				if (currentActiveVersion.products && currentActiveVersion.products.length > 0) {
+					// 默认加载第一个产品的成本数据
+					const firstProductId = currentActiveVersion.products[0].id;
+					const [historyData, breakdownData] = await Promise.all([
+						getProductCostHistory(firstProductId),
+						getProductCostBreakdown(firstProductId)
+					]);
+					costHistory.value = historyData;
+					costBreakdown.value = breakdownData;
+				}
+			} else if (recipeVersions.value.length > 0) {
+				// 如果没有激活版本，默认显示最新版本
+				displayedVersionId.value = recipeVersions.value[0].id;
+			}
+
 		} catch (error) {
 			console.error('Failed to fetch recipe details:', error);
 			uni.showToast({ title: '获取配方详情失败', icon: 'none' });
@@ -227,6 +264,7 @@
 			isLoading.value = false;
 		}
 	};
+
 
 	const activeVersion = computed(() => {
 		return recipeVersions.value.find(v => v.isActive);
@@ -243,15 +281,16 @@
 		return recipeVersions.value.find(v => v.id === displayedVersionId.value);
 	});
 
-	const currentRecipeIngredients = computed(() => {
-		if (!displayedVersion.value || !displayedVersion.value.doughs) {
-			return [];
-		}
+	// 计算当前选中产品和配方版本的详细信息，包括成本
+	const currentRecipeDetails = computed(() => {
+		if (!displayedVersion.value || !displayedVersion.value.products.length) return [];
+		const currentProduct = displayedVersion.value.products[currentProductIndex.value];
+		if (!currentProduct) return [];
 
-		type IngredientWithPrice = DoughIngredient & { pricePerKg : string };
-		type DoughGroup = { name : string; ingredients : IngredientWithPrice[]; procedure ?: string[] };
+		type IngredientWithCost = DoughIngredient & { pricePerKg : string; cost : number; };
+		type DoughGroup = { name : string; ingredients : IngredientWithCost[]; procedure ?: string[]; totalCost : number };
 
-		const finalDoughGroups : DoughGroup[] = [];
+		const preDoughGroups : DoughGroup[] = [];
 		const mainDoughGroups : DoughGroup[] = [];
 
 		for (const dough of displayedVersion.value.doughs) {
@@ -259,45 +298,62 @@
 				name: dough.name,
 				ingredients: [],
 				procedure: dough.procedure,
+				totalCost: 0
 			};
 
+			const mainDoughTotalFlourRatio = dough.ingredients.filter(i => i.isFlour).reduce((sum, i) => sum + i.ratio, 0) || 100;
+			const weightPerMainRatioPoint = currentProduct.baseDoughWeight / mainDoughTotalFlourRatio;
+
 			for (const ingredient of dough.ingredients) {
-				// @ts-ignore
+				// @ts-ignore 后端返回了此字段，但TS类型未定义
 				const linkedPreDough = ingredient.linkedPreDough;
 
 				if (linkedPreDough && linkedPreDough.versions && linkedPreDough.versions.length > 0) {
-					const preDoughActiveVersion = linkedPreDough.versions[0];
+					const preDoughActiveVersion = linkedPreDough.versions.find((v : RecipeVersion) => v.isActive) || linkedPreDough.versions[0];
 					const preDough = preDoughActiveVersion.doughs[0];
 
 					if (preDough && preDough.ingredients) {
-						const preDoughTotalRatio = preDough.ingredients.reduce((sum, ing) => sum + ing.ratio, 0);
+						const preDoughTotalRatio = preDough.ingredients.reduce((sum : number, ing : DoughIngredient) => sum + ing.ratio, 0);
 
 						if (preDoughTotalRatio > 0) {
 							const preDoughGroupForDisplay : DoughGroup = {
 								name: `${linkedPreDough.name} (用量: ${ingredient.ratio}%)`,
 								ingredients: [],
 								procedure: preDough.procedure,
+								totalCost: 0
 							};
 
+							const totalPreDoughWeight = weightPerMainRatioPoint * ingredient.ratio;
+
 							for (const preDoughIngredient of preDough.ingredients) {
-								const finalRatio = (ingredient.ratio * preDoughIngredient.ratio) / preDoughTotalRatio;
 								const ingredientInfo = dataStore.ingredients.find(i => i.name === preDoughIngredient.name);
+								const pricePerKg = getPricePerKg(ingredientInfo);
+								const weightInGrams = (preDoughIngredient.ratio / preDoughTotalRatio) * totalPreDoughWeight;
+								const cost = (parseFloat(pricePerKg) / 1000) * weightInGrams;
 
 								preDoughGroupForDisplay.ingredients.push({
 									...preDoughIngredient,
-									ratio: parseFloat(finalRatio.toFixed(2)),
-									pricePerKg: getPricePerKg(ingredientInfo?.activeSku || null),
+									ratio: preDoughIngredient.ratio,
+									pricePerKg,
+									cost,
 								});
+								preDoughGroupForDisplay.totalCost += cost;
 							}
-							finalDoughGroups.push(preDoughGroupForDisplay);
+							preDoughGroups.push(preDoughGroupForDisplay);
 						}
 					}
 				} else {
 					const ingredientInfo = dataStore.ingredients.find(i => i.name === ingredient.name);
+					const pricePerKg = getPricePerKg(ingredientInfo);
+					const weightInGrams = weightPerMainRatioPoint * ingredient.ratio;
+					const cost = (parseFloat(pricePerKg) / 1000) * weightInGrams;
+
 					mainDoughGroup.ingredients.push({
 						...ingredient,
-						pricePerKg: getPricePerKg(ingredientInfo?.activeSku || null),
+						pricePerKg,
+						cost,
 					});
+					mainDoughGroup.totalCost += cost;
 				}
 			}
 
@@ -306,18 +362,102 @@
 			}
 		}
 
-		return [...finalDoughGroups, ...mainDoughGroups];
+		return [...preDoughGroups, ...mainDoughGroups];
 	});
 
-
-	const getPricePerKg = (sku : IngredientSKU | null) => {
-		if (!sku || !sku.specWeightInGrams || !sku.currentPricePerPackage) {
-			return '0.00';
+	// [核心重构] 计算产品总成本和附加原料的详细信息
+	const getProductCost = (productId : string) => {
+		const product = displayedVersion.value?.products.find(p => p.id === productId);
+		if (!product || !displayedVersion.value) {
+			return { doughCost: 0, extraIngredients: [], totalCost: 0 };
 		}
-		return ((Number(sku.currentPricePerPackage) / sku.specWeightInGrams) * 1000).toFixed(2);
+
+		let totalDoughCost = 0;
+		let totalFlourWeight = 0; // [核心新增] 计算总粉量
+
+		// 第一次遍历：计算总粉量和基础面团成本
+		for (const dough of displayedVersion.value.doughs) {
+			const mainDoughTotalFlourRatio = dough.ingredients.filter(i => i.isFlour).reduce((sum, i) => sum + i.ratio, 0) || 100;
+			const weightPerMainRatioPoint = product.baseDoughWeight / mainDoughTotalFlourRatio;
+
+			for (const ingredient of dough.ingredients) {
+				const weightInGrams = weightPerMainRatioPoint * ingredient.ratio;
+				if (ingredient.isFlour) {
+					totalFlourWeight += weightInGrams;
+				}
+
+				// @ts-ignore
+				const linkedPreDough = ingredient.linkedPreDough;
+				if (linkedPreDough && linkedPreDough.versions?.length > 0) {
+					const preDoughVersion = linkedPreDough.versions.find((v : RecipeVersion) => v.isActive) || linkedPreDough.versions[0];
+					const preDough = preDoughVersion.doughs[0];
+					if (preDough?.ingredients) {
+						const preDoughTotalRatio = preDough.ingredients.reduce((sum : number, ing : DoughIngredient) => sum + ing.ratio, 0);
+						if (preDoughTotalRatio > 0) {
+							const totalPreDoughWeight = weightPerMainRatioPoint * ingredient.ratio;
+							for (const preDoughIngredient of preDough.ingredients) {
+								const ingredientInfo = dataStore.ingredients.find(i => i.name === preDoughIngredient.name);
+								const pricePerKg = getPricePerKg(ingredientInfo);
+								const preDoughIngWeight = (preDoughIngredient.ratio / preDoughTotalRatio) * totalPreDoughWeight;
+								totalDoughCost += (parseFloat(pricePerKg) / 1000) * preDoughIngWeight;
+								if (preDoughIngredient.isFlour) {
+									totalFlourWeight += preDoughIngWeight;
+								}
+							}
+						}
+					}
+				} else {
+					const ingredientInfo = dataStore.ingredients.find(i => i.name === ingredient.name);
+					const pricePerKg = getPricePerKg(ingredientInfo);
+					totalDoughCost += (parseFloat(pricePerKg) / 1000) * weightInGrams;
+				}
+			}
+		}
+
+		let totalExtraCost = 0;
+		const extraIngredients = (product.ingredients || []).map(ing => {
+			const ingredientInfo = dataStore.ingredients.find(i => i.name === ing.name);
+			const pricePerKg = getPricePerKg(ingredientInfo);
+			let finalWeightInGrams = ing.weightInGrams;
+
+			// [核心修改] 如果是搅拌原料，则根据总粉量计算实际克重
+			if (ing.type === 'MIX_IN') {
+				// 假设ing.weightInGrams此时存的是百分比
+				finalWeightInGrams = (ing.weightInGrams / 100) * totalFlourWeight;
+			}
+
+			const cost = (parseFloat(pricePerKg) / 1000) * finalWeightInGrams;
+			totalExtraCost += cost;
+
+			return {
+				...ing,
+				type: getProductIngredientTypeName(ing.type),
+				cost: cost || 0,
+				ratio: ing.type === 'MIX_IN' ? ing.weightInGrams : undefined, // 保留原始比例
+				weightInGrams: finalWeightInGrams, // 使用计算后的克重
+			};
+		});
+
+		return {
+			doughCost: totalDoughCost,
+			extraIngredients,
+			totalCost: totalDoughCost + totalExtraCost,
+		};
 	};
 
-	// [核心新增] 获取产品附加原料的中文名称
+
+	// 从 dataStore 中获取原料信息并计算单价
+	const getPricePerKg = (ingredient : Ingredient | undefined | null) => {
+		if (!ingredient || !ingredient.activeSku || !ingredient.currentPricePerPackage) {
+			return '0.00';
+		}
+		const sku = ingredient.activeSku;
+		if (!sku.specWeightInGrams || sku.specWeightInGrams === 0) return '0.00';
+		return ((Number(ingredient.currentPricePerPackage) / sku.specWeightInGrams) * 1000).toFixed(2);
+	};
+
+
+	// 获取产品附加原料的中文名称
 	const getProductIngredientTypeName = (type : ProductIngredient['type']) => {
 		const map = {
 			MIX_IN: '搅拌原料',
@@ -367,6 +507,8 @@
 
 	const handleVersionClick = (versionToDisplay : RecipeVersion) => {
 		displayedVersionId.value = versionToDisplay.id;
+		// 切换版本时，重置产品滑动卡片到第一个
+		currentProductIndex.value = 0;
 	};
 
 	const handleVersionLongPressAction = (versionToActivate : RecipeVersion) => {
@@ -403,7 +545,7 @@
 		}
 	};
 
-	// [核心新增] Swiper 切换事件处理
+	// Swiper 切换事件处理
 	const onSwiperChange = (e : any) => {
 		currentProductIndex.value = e.detail.current;
 	};
@@ -436,7 +578,7 @@
 		}
 	}
 
-	/* [核心新增] 表格化配方详情样式 */
+	/* 表格化配方详情样式 */
 	.recipe-table-container {
 		background-color: #faf8f5;
 		/* 与图表背景色一致 */
@@ -451,11 +593,125 @@
 		margin-bottom: 10px;
 		padding-bottom: 10px;
 		border-bottom: 1px solid var(--border-color);
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 	}
 
 	.recipe-table {
 		width: 100%;
 		font-size: 14px;
+
+		.table-header,
+		.table-row {
+			display: grid;
+			grid-template-columns: 2fr 1.2fr 1.5fr 1.2fr;
+			padding: 8px 0;
+			align-items: center;
+		}
+
+		.table-header {
+			color: var(--text-secondary);
+			font-weight: 500;
+			border-bottom: 1px solid var(--border-color);
+		}
+
+		.table-row {
+			color: var(--text-primary);
+			border-bottom: 1px solid var(--border-color);
+
+			&:last-child {
+				border-bottom: none;
+			}
+		}
+
+		.col-price,
+		.col-ratio,
+		.col-total {
+			text-align: right;
+		}
+	}
+
+	.procedure-notes {
+		margin-top: 15px;
+		font-size: 12px;
+		color: var(--text-secondary);
+		line-height: 1.6;
+
+		.notes-title {
+			font-weight: 600;
+			display: block;
+			margin-bottom: 5px;
+		}
+
+		.note-item {
+			display: block;
+		}
+	}
+
+	/* 产品滑动卡片组样式 */
+	.product-swiper-container {
+		margin-top: 20px;
+	}
+
+	/* 指示器样式 */
+	.swiper-indicator {
+		display: flex;
+		justify-content: center;
+		margin-bottom: 10px;
+	}
+
+	.indicator-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background-color: #e6b89c;
+		margin: 0 4px;
+		transition: background-color 0.3s;
+	}
+
+	.indicator-dot.active {
+		background-color: var(--primary-color);
+	}
+
+	/* [核心修复] 为swiper设置一个足以容纳新表格的高度 */
+	.product-swiper {
+		height: 320px;
+	}
+
+	/* 为 swiper-item 添加间距 */
+	.product-swiper-item {
+		padding: 0 5px;
+		box-sizing: border-box;
+	}
+
+	.product-card {
+		background-color: #faf8f5;
+		border-radius: 16px;
+		padding: 15px;
+		box-sizing: border-box;
+		width: 100%;
+		height: 100%; // 确保卡片填满swiper-item
+	}
+
+	/* 产品名称标题样式 */
+	.product-title {
+		font-weight: 600;
+		font-size: 15px;
+		margin-bottom: 10px;
+		padding-bottom: 10px;
+		border-bottom: 1px solid var(--border-color);
+		text-align: center;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	/* [核心新增] 产品原料表格样式 */
+	.product-ingredient-table {
+		width: 100%;
+		font-size: 14px;
+		margin-bottom: 15px;
 
 		.table-header,
 		.table-row {
@@ -480,78 +736,10 @@
 			}
 		}
 
-		.col-price,
-		.col-ratio {
+		.col-usage,
+		.col-cost {
 			text-align: right;
 		}
-	}
-
-	.procedure-notes {
-		margin-top: 15px;
-		font-size: 12px;
-		color: var(--text-secondary);
-		line-height: 1.6;
-
-		.notes-title {
-			font-weight: 600;
-			display: block;
-			margin-bottom: 5px;
-		}
-
-		.note-item {
-			display: block;
-		}
-	}
-
-	/* [核心新增] 产品滑动卡片样式 */
-	.product-swiper-container {
-		padding-bottom: 30px;
-		/* 为指示器留出空间 */
-	}
-
-	.product-swiper {
-		height: 220px;
-	}
-
-	.product-card {
-		background-color: #faf8f5;
-		border-radius: 16px;
-		padding: 15px;
-		height: 100%;
-		box-sizing: border-box;
-	}
-
-	.product-table {
-		font-size: 14px;
-
-		.product-table-row {
-			display: flex;
-			justify-content: space-between;
-			padding: 6px 0;
-			border-bottom: 1px solid var(--border-color);
-
-			&:last-of-type {
-				border-bottom: none;
-			}
-		}
-
-		.product-label {
-			color: var(--text-secondary);
-		}
-
-		.product-value {
-			color: var(--text-primary);
-			font-weight: 500;
-		}
-	}
-
-	/* [核心新增] 自定义swiper指示器样式 */
-	::v-deep .uni-swiper-dot {
-		background-color: #e6b89c;
-	}
-
-	::v-deep .uni-swiper-dot-active {
-		background-color: var(--primary-color);
 	}
 
 
