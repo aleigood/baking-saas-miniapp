@@ -38,7 +38,6 @@
 							<view class="main-info">
 								<view class="name">{{ version.notes || `版本 ${version.version}` }}
 									(v{{ version.version }})</view>
-								<!-- [核心修改] 使用统一的日期格式化函数 -->
 								<view class="desc">创建于:
 									{{ formatChineseDate(version.createdAt)
 									}}
@@ -52,37 +51,79 @@
 					<AppButton v-if="canEditRecipe" type="text-link" @click="handleCreateVersion">+ 创建新版本</AppButton>
 				</view>
 
+				<!-- [核心重构] 配方详情卡片 -->
 				<view class="card">
 					<view class="card-title">{{ displayedVersion?.notes || `配方详情 (v${displayedVersion?.version})` }}
 					</view>
 					<view v-if="currentRecipeIngredients.length > 0">
-						<view v-for="dough in currentRecipeIngredients" :key="dough.name" class="dough-group">
+						<!-- 循环渲染每个面团的表格 -->
+						<view v-for="(dough, index) in currentRecipeIngredients" :key="index"
+							class="recipe-table-container">
 							<view class="dough-title">{{ dough.name }}</view>
-							<view v-for="ing in dough.ingredients" :key="ing.name" class="ingredient-item">
-								<view class="main-info">
-									<view class="name">{{ ing.name }}</view>
-									<view class="desc">
-										单价: ¥{{ ing.pricePerKg }}/kg
-									</view>
+							<view class="recipe-table">
+								<view class="table-header">
+									<text class="col-ingredient">原料</text>
+									<text class="col-price">单价</text>
+									<text class="col-ratio">比例</text>
 								</view>
-								<view class="side-info">
-									<view class="value">{{ ing.ratio }}%</view>
+								<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="table-row">
+									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
+									<text class="col-ratio">{{ ing.ratio }}%</text>
 								</view>
 							</view>
+							<!-- 制作要点 -->
+							<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes">
+								<text class="notes-title">制作要点:</text>
+								<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex"
+									class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+							</view>
+						</view>
+						<view v-if="displayedVersion && displayedVersion.products.length > 0">
+							<swiper class="product-swiper" indicator-dots circular @change="onSwiperChange">
+								<swiper-item v-for="(product, index) in displayedVersion.products" :key="product.id">
+									<view class="product-card">
+										<view class="product-table">
+											<view class="product-table-row">
+												<text class="product-label">产品名称</text>
+												<text class="product-value">{{ product.name }}</text>
+											</view>
+											<view class="product-table-row">
+												<text class="product-label">面团克重</text>
+												<text class="product-value">{{ product.baseDoughWeight }}g</text>
+											</view>
+											<!-- 渲染附加原料 -->
+											<template v-for="pIng in product.ingredients" :key="pIng.id">
+												<view class="product-table-row">
+													<text
+														class="product-label">{{ getProductIngredientTypeName(pIng.type) }}</text>
+													<text class="product-value">{{ pIng.name }}
+														{{ pIng.weightInGrams }}g</text>
+												</view>
+											</template>
+										</view>
+										<!-- 产品制作要点 -->
+										<view v-if="product.procedure && product.procedure.length > 0"
+											class="procedure-notes">
+											<text class="notes-title">制作要点:</text>
+											<text v-for="(step, stepIndex) in product.procedure" :key="stepIndex"
+												class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+										</view>
+									</view>
+								</swiper-item>
+							</swiper>
 						</view>
 					</view>
 					<view v-else class="empty-state" style="padding: 20px 0">
 						暂无原料信息
 					</view>
 				</view>
-
 			</view>
 		</view>
 		<view class="loading-spinner" v-else>
 			<text>加载中...</text>
 		</view>
 
-		<!-- [核心修改] 重构版本操作模态框 -->
 		<AppModal v-model:visible="showVersionActionsModal" title="设为使用中">
 			<view class="modal-prompt-text">
 				要将这个版本设为当前使用的配方吗？
@@ -105,7 +146,7 @@
 	import { onLoad, onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import type { RecipeFamily, RecipeVersion, IngredientSKU, DoughIngredient } from '@/types/api';
+	import type { RecipeFamily, RecipeVersion, IngredientSKU, DoughIngredient, ProductIngredient } from '@/types/api';
 	import { getRecipeFamily, activateRecipeVersion } from '@/api/recipes';
 	import { getProductCostHistory, getProductCostBreakdown } from '@/api/costing';
 	import AppFab from '@/components/AppFab.vue';
@@ -116,15 +157,16 @@
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 	import AppButton from '@/components/AppButton.vue';
-	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
+	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const isLoading = ref(true);
-	const isSubmitting = ref(false); // [核心新增]
+	const isSubmitting = ref(false);
 	const isLoadingVersions = ref(false);
 	const recipeFamily = ref<RecipeFamily | null>(null);
 	const recipeVersions = ref<RecipeVersion[]>([]);
+	const currentProductIndex = ref(0); // [核心新增] 用于swiper指示器
 
 	const displayedVersionId = ref<string | null>(null);
 	const showVersionActionsModal = ref(false);
@@ -206,13 +248,17 @@
 			return [];
 		}
 
-		const finalDoughGroups : { name : string, ingredients : (DoughIngredient & { pricePerKg : string })[] }[] = [];
-		const mainDoughGroups : { name : string, ingredients : (DoughIngredient & { pricePerKg : string })[] }[] = [];
+		type IngredientWithPrice = DoughIngredient & { pricePerKg : string };
+		type DoughGroup = { name : string; ingredients : IngredientWithPrice[]; procedure ?: string[] };
+
+		const finalDoughGroups : DoughGroup[] = [];
+		const mainDoughGroups : DoughGroup[] = [];
 
 		for (const dough of displayedVersion.value.doughs) {
-			const mainDoughGroup = {
+			const mainDoughGroup : DoughGroup = {
 				name: dough.name,
-				ingredients: [] as (DoughIngredient & { pricePerKg : string })[],
+				ingredients: [],
+				procedure: dough.procedure,
 			};
 
 			for (const ingredient of dough.ingredients) {
@@ -227,9 +273,10 @@
 						const preDoughTotalRatio = preDough.ingredients.reduce((sum, ing) => sum + ing.ratio, 0);
 
 						if (preDoughTotalRatio > 0) {
-							const preDoughGroupForDisplay = {
+							const preDoughGroupForDisplay : DoughGroup = {
 								name: `${linkedPreDough.name} (用量: ${ingredient.ratio}%)`,
-								ingredients: [] as (DoughIngredient & { pricePerKg : string })[],
+								ingredients: [],
+								procedure: preDough.procedure,
 							};
 
 							for (const preDoughIngredient of preDough.ingredients) {
@@ -269,6 +316,16 @@
 		}
 		return ((Number(sku.currentPricePerPackage) / sku.specWeightInGrams) * 1000).toFixed(2);
 	};
+
+	// [核心新增] 获取产品附加原料的中文名称
+	const getProductIngredientTypeName = (type : ProductIngredient['type']) => {
+		const map = {
+			MIX_IN: '搅拌原料',
+			FILLING: '馅料',
+			TOPPING: '表面装饰'
+		};
+		return map[type] || '附加原料';
+	}
 
 	const recipeTypeMap = {
 		MAIN: '主面团',
@@ -329,7 +386,7 @@
 	const activateVersionAction = async (versionToActivate : RecipeVersion) => {
 		if (!recipeFamily.value) return;
 
-		isSubmitting.value = true; // [核心新增]
+		isSubmitting.value = true;
 		try {
 			await activateRecipeVersion(recipeFamily.value.id, versionToActivate.id);
 			uni.showToast({ title: '设置成功', icon: 'success' });
@@ -341,9 +398,14 @@
 			console.error('Failed to activate version:', error);
 			uni.showToast({ title: '设置失败，请重试', icon: 'none' });
 		} finally {
-			isSubmitting.value = false; // [核心新增]
+			isSubmitting.value = false;
 			showVersionActionsModal.value = false;
 		}
+	};
+
+	// [核心新增] Swiper 切换事件处理
+	const onSwiperChange = (e : any) => {
+		currentProductIndex.value = e.detail.current;
 	};
 </script>
 
@@ -374,8 +436,13 @@
 		}
 	}
 
-	.dough-group {
-		margin-bottom: 20px;
+	/* [核心新增] 表格化配方详情样式 */
+	.recipe-table-container {
+		background-color: #faf8f5;
+		/* 与图表背景色一致 */
+		border-radius: 16px;
+		padding: 15px;
+		margin-bottom: 15px;
 	}
 
 	.dough-title {
@@ -386,18 +453,111 @@
 		border-bottom: 1px solid var(--border-color);
 	}
 
-	.ingredient-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 8px 0;
+	.recipe-table {
+		width: 100%;
+		font-size: 14px;
+
+		.table-header,
+		.table-row {
+			display: grid;
+			grid-template-columns: 2fr 1.5fr 1fr;
+			padding: 8px 0;
+			align-items: center;
+		}
+
+		.table-header {
+			color: var(--text-secondary);
+			font-weight: 500;
+			border-bottom: 1px solid var(--border-color);
+		}
+
+		.table-row {
+			color: var(--text-primary);
+			border-bottom: 1px solid var(--border-color);
+
+			&:last-child {
+				border-bottom: none;
+			}
+		}
+
+		.col-price,
+		.col-ratio {
+			text-align: right;
+		}
 	}
+
+	.procedure-notes {
+		margin-top: 15px;
+		font-size: 12px;
+		color: var(--text-secondary);
+		line-height: 1.6;
+
+		.notes-title {
+			font-weight: 600;
+			display: block;
+			margin-bottom: 5px;
+		}
+
+		.note-item {
+			display: block;
+		}
+	}
+
+	/* [核心新增] 产品滑动卡片样式 */
+	.product-swiper-container {
+		padding-bottom: 30px;
+		/* 为指示器留出空间 */
+	}
+
+	.product-swiper {
+		height: 220px;
+	}
+
+	.product-card {
+		background-color: #faf8f5;
+		border-radius: 16px;
+		padding: 15px;
+		height: 100%;
+		box-sizing: border-box;
+	}
+
+	.product-table {
+		font-size: 14px;
+
+		.product-table-row {
+			display: flex;
+			justify-content: space-between;
+			padding: 6px 0;
+			border-bottom: 1px solid var(--border-color);
+
+			&:last-of-type {
+				border-bottom: none;
+			}
+		}
+
+		.product-label {
+			color: var(--text-secondary);
+		}
+
+		.product-value {
+			color: var(--text-primary);
+			font-weight: 500;
+		}
+	}
+
+	/* [核心新增] 自定义swiper指示器样式 */
+	::v-deep .uni-swiper-dot {
+		background-color: #e6b89c;
+	}
+
+	::v-deep .uni-swiper-dot-active {
+		background-color: var(--primary-color);
+	}
+
 
 	.list-item {
 		position: relative;
-		/* #ifdef H5 */
 		cursor: pointer;
-		/* #endif */
 		transition: background-color 0.2s ease;
 	}
 
@@ -437,7 +597,6 @@
 		padding-right: 20px;
 	}
 
-	/* [核心新增] 与其他模态框统一的样式 */
 	.modal-prompt-text {
 		font-size: 16px;
 		color: var(--text-primary);

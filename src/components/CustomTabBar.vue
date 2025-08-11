@@ -111,13 +111,15 @@
 		right: 0;
 		height: calc(env(safe-area-inset-bottom) + 60px);
 		padding-bottom: env(safe-area-inset-bottom);
-		background-color: #ffffff;
 		display: flex;
 		justify-content: space-around;
 		align-items: center;
-		border-top: 1px solid var(--border-color);
-		box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.04);
-		/* [核心修改] 移除静态 z-index，改为动态绑定 */
+		/* [核心修改] 添加毛玻璃效果和背景色，与顶部栏统一 */
+		backdrop-filter: saturate(180%) blur(20px);
+		background-color: rgba(253, 248, 242, 0.85);
+		/* [核心修改] 调整边框和阴影以适应毛玻璃效果 */
+		border-top: 1px solid rgba(0, 0, 0, 0.08);
+		box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 	}
 
 	.tab-item {
