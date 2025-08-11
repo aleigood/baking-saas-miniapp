@@ -1,6 +1,5 @@
 <template>
 	<view class="page-container">
-		<!-- 页面头部 -->
 		<view class="page-header">
 			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
@@ -11,29 +10,21 @@
 			</view>
 		</view>
 
-		<view class="page-content" v-if="!isLoading && ingredient">
+		<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
 			<view class="detail-page">
-				<!-- 1. 核心信息区 -->
 				<view class="tag-group">
 					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
 					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
 					<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
 				</view>
 
-				<!-- 2. 数据洞察区 -->
 				<view class="card">
-					<FilterTabs style="margin-bottom: 20px; justify-content: center;">
-						<FilterTab :active="detailChartTab === 'price'" @click="detailChartTab = 'price'">价格走势
-						</FilterTab>
-						<FilterTab :active="detailChartTab === 'usage'" @click="detailChartTab = 'usage'">用量走势
-						</FilterTab>
-					</FilterTabs>
+					<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
 					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
 						unit-suffix="kg" />
 				</view>
 
-				<!-- 3. 品牌与规格管理区 -->
 				<view class="card card-full-bleed-list">
 					<view class="card-title-wrapper">
 						<span class="card-title">品牌与规格 (SKU)</span>
@@ -52,11 +43,9 @@
 					<AppButton type="text-link" @click="openAddSkuModal">+ 新增品牌规格</AppButton>
 				</view>
 
-				<!-- 4. 采购记录卡片 -->
 				<view class="card" v-if="selectedSku">
 					<view class="card-title">{{ selectedSku.brand || '无品牌' }} - {{ selectedSku.specName }} 的采购记录
 					</view>
-					<!-- [核心修改] 重构采购记录为表格化展示 -->
 					<view class="procurement-list">
 						<view class="list-header">
 							<text class="col-date">采购日期</text>
@@ -199,10 +188,10 @@
 	import AppFab from '@/components/AppFab.vue';
 	import LineChart from '@/components/LineChart.vue';
 	import ListItem from '@/components/ListItem.vue';
-	import FilterTabs from '@/components/FilterTabs.vue';
-	import FilterTab from '@/components/FilterTab.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
+	// [核心新增] 引入 AnimatedTabs 组件
+	import AnimatedTabs from '@/components/AnimatedTabs.vue';
 	import { formatChineseDate } from '@/utils/format';
 
 	const dataStore = useDataStore();
@@ -211,6 +200,11 @@
 	const isSubmitting = ref(false);
 	const ingredient = ref<Ingredient | null>(null);
 	const detailChartTab = ref<'price' | 'usage'>('price');
+	// [核心新增] 为 AnimatedTabs 定义 tab 数据
+	const chartTabs = ref([
+		{ key: 'price', label: '价格走势' },
+		{ key: 'usage', label: '用量走势' },
+	]);
 	const showAddSkuModal = ref(false);
 	const newSkuForm = ref({
 		brand: '',
@@ -501,10 +495,6 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-
-	.page-content {
-		padding-bottom: 106px;
-	}
 
 	.header-icon {
 		width: 24px;

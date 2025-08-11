@@ -8,7 +8,7 @@
 				{{ userStore.userInfo?.name?.[0] || '管' }}
 			</IconButton>
 		</view>
-		<view class="page-content page-content-with-fab">
+		<view class="page-content page-content-with-tabbar-fab">
 			<view class="loading-spinner" v-if="isLoading">
 				<text>加载中...</text>
 			</view>

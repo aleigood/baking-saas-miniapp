@@ -9,13 +9,18 @@
 }
 .page-content {
 	padding: 15px;
-	/* [核心修改] 减小页面底部默认间距 */
+	/* [核心修改] 规范页面与屏幕底部边缘的距离 (第三种情况：无 FAB 和 TabBar) */
 	padding-bottom: 20px;
 }
 
-.page-content-with-fab {
-	/* [核心修改] 调整带FAB按钮的页面底部间距 */
+/* [核心修改] 规范页面与屏幕底部边缘的距离 (第一种情况：带 TabBar 和 FAB 按钮) */
+.page-content-with-tabbar-fab {
 	padding-bottom: 150px;
+}
+
+/* [核心修改] 规范页面与屏幕底部边缘的距离 (第二种情况：仅带 FAB 按钮，无 TabBar) */
+.page-content-with-fab {
+	padding-bottom: 90px;
 }
 
 
