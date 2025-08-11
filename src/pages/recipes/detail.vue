@@ -34,7 +34,7 @@
 					<AppButton v-if="canEditRecipe" type="text-link" @click="handleCreateVersion">+ 创建新版本</AppButton>
 				</view>
 
-				<!-- [核心修改] 产品切换标签，移至版本卡片下方 -->
+				<!-- 产品切换标签 -->
 				<view class="product-tabs-wrapper">
 					<FilterTabs v-if="displayedVersion && displayedVersion.products.length > 0">
 						<FilterTab v-for="product in displayedVersion.products" :key="product.id"
@@ -48,17 +48,8 @@
 				<view class="card" v-if="selectedProduct">
 					<!-- 数据分析区域 -->
 					<view class="data-analysis-section">
-						<!-- [核心修改] 图表切换标签改为文本+下划线样式 -->
-						<view class="chart-tabs">
-							<view class="chart-tab-item" :class="{ active: detailChartTab === 'trend' }"
-								@click="detailChartTab = 'trend'">
-								成本走势
-							</view>
-							<view class="chart-tab-item" :class="{ active: detailChartTab === 'breakdown' }"
-								@click="detailChartTab = 'breakdown'">
-								原料成本
-							</view>
-						</view>
+						<!-- [核心修改] 使用新的 AnimatedTabs 组件 -->
+						<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
 
 						<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
 						<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
@@ -221,6 +212,8 @@
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 	import AppButton from '@/components/AppButton.vue';
+	// [核心新增] 引入新的 AnimatedTabs 组件
+	import AnimatedTabs from '@/components/AnimatedTabs.vue';
 	import {
 		formatChineseDate,
 		formatNumber
@@ -244,6 +237,11 @@
 	const selectedVersionForAction = ref<RecipeVersion | null>(null);
 
 	const detailChartTab = ref<'trend' | 'breakdown'>('trend');
+	// [核心新增] 为新组件定义 tab 数据
+	const chartTabs = ref([
+		{ key: 'trend', label: '成本走势' },
+		{ key: 'breakdown', label: '原料成本' },
+	]);
 	const costHistory = ref<{
 		cost : number
 	}[]>([]);
@@ -788,18 +786,15 @@
 		}
 	}
 
-	/* [核心新增] 产品切换标签的容器样式 */
 	.product-tabs-wrapper {
-		/* [核心修改] 移除内边距，使其与父容器对齐 */
+		// [需求 1] 左对齐：移除左右内边距
 		padding: 0;
-		/* [核心修改] 增加与下方卡片的间距 */
+		// [需求 2] 增加与下方卡片的间距
 		margin-bottom: 20px;
 
-		/* 目标是让内部的 FilterTabs 组件可以换行 */
 		:deep(.filter-tabs) {
 			flex-wrap: wrap;
 			margin-bottom: 0;
-			/* 覆盖组件自带的 margin-bottom */
 		}
 	}
 
@@ -807,50 +802,7 @@
 		margin-bottom: 20px;
 	}
 
-	/* [核心新增] 图表切换标签的新样式 */
-	.chart-tabs {
-		display: flex;
-		justify-content: center;
-		gap: 20px;
-		margin-bottom: 20px;
-	}
-
-	.chart-tab-item {
-		font-size: 14px;
-		color: var(--text-secondary);
-		padding: 8px 0;
-		position: relative;
-		cursor: pointer;
-		/* [核心修改] 为颜色变化添加过渡效果 */
-		transition: color 0.3s ease-in-out;
-
-		&::after {
-			content: '';
-			position: absolute;
-			bottom: 0;
-			left: 0;
-			width: 100%;
-			height: 3px;
-			background-color: var(--primary-color);
-			border-radius: 2px;
-			/* [核心修改] 初始状态下横线缩放为0 */
-			transform: scaleX(0);
-			/* [核心修改] 为 transform 属性添加过渡动画 */
-			transition: transform 0.3s ease-in-out;
-		}
-
-		&.active {
-			/* [核心修改] 激活状态下文本颜色使用主题色 */
-			color: var(--primary-color);
-			font-weight: 600;
-
-			&::after {
-				/* [核心修改] 激活状态下横线完全显示 */
-				transform: scaleX(1);
-			}
-		}
-	}
-
+	/* [核心删除] 移除旧的 chart-tabs 样式 */
 
 	.product-ingredient-table {
 		display: table;
