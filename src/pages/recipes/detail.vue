@@ -62,7 +62,7 @@
 						<view v-for="(dough, index) in currentRecipeDetails" :key="dough.name + index"
 							class="dough-section">
 							<view class="group-title" @click="toggleCollapse(dough.name)">
-								<span>{{ dough.name }} (总成本: ¥{{ dough.totalCost.toFixed(2) }})</span>
+								<span>{{ dough.name }}</span>
 								<span class="arrow"
 									:class="{ collapsed: collapsedSections.has(dough.name) }">&#10094;</span>
 							</view>
@@ -72,6 +72,7 @@
 										<view class="table-header">
 											<text class="col-ingredient">原料</text>
 											<text class="col-ratio">比例</text>
+											<text class="col-usage">用量</text>
 											<text class="col-price">单价</text>
 											<text class="col-total">成本</text>
 										</view>
@@ -79,6 +80,7 @@
 											class="table-row">
 											<text class="col-ingredient">{{ ing.name }}</text>
 											<text class="col-ratio">{{ ing.ratio.toFixed(1) }}%</text>
+											<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
 											<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
 											<text class="col-total">¥{{ ing.cost.toFixed(2) }}</text>
 										</view>
@@ -99,7 +101,7 @@
 
 					<view class="other-ingredients-section">
 						<view class="group-title" @click="toggleCollapse('otherIngredients')">
-							<span>其他原料 (总成本: ¥{{ productCostDetails.extraCost.toFixed(2) }})</span>
+							<span>原料汇总 (总成本: ¥{{ productCostDetails.totalCost.toFixed(2) }})</span>
 							<span class="arrow"
 								:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10094;</span>
 						</view>
@@ -113,14 +115,15 @@
 										<text class="col-cost">成本</text>
 									</view>
 									<template v-for="pIng in productCostDetails.extraIngredients" :key="pIng.id">
-										<view class="table-row">
-											<text class="col-ingredient">{{ pIng.name }} ({{ pIng.type }})</text>
+										<view class="table-row" :class="{'dough-summary-row': pIng.name === '面团'}">
+											<text class="col-ingredient">{{ pIng.name }}
+												{{ pIng.type ? `(${pIng.type})` : '' }}</text>
 											<text class="col-usage">
 												<template v-if="pIng.type === '搅拌原料'">
 													{{ pIng.ratio }}% ({{ pIng.weightInGrams.toFixed(1) }}g)
 												</template>
 												<template v-else>
-													{{ pIng.weightInGrams }}g
+													{{ pIng.weightInGrams.toFixed(1) }}g
 												</template>
 											</text>
 											<text class="col-cost">¥{{ pIng.cost.toFixed(2) }}</text>
@@ -278,12 +281,11 @@
 		return displayedVersion.value.products.find(p => p.id === selectedProductId.value);
 	});
 
-	// [核心重构] 恢复了对预制面团的独立处理逻辑
 	const currentRecipeDetails = computed(() => {
 		if (!displayedVersion.value || !selectedProduct.value) return [];
 		const currentProduct = selectedProduct.value;
 
-		type IngredientWithCost = DoughIngredient & { pricePerKg : string; cost : number; };
+		type IngredientWithCost = DoughIngredient & { pricePerKg : string; cost : number; weightInGrams : number; };
 		type DoughGroup = { name : string; ingredients : IngredientWithCost[]; procedure ?: string[]; totalCost : number };
 
 		const preDoughGroups : DoughGroup[] = [];
@@ -298,7 +300,6 @@
 				// @ts-ignore 后端返回了此字段，但TS类型未定义
 				const linkedPreDough = ingredient.linkedPreDough;
 
-				// 检查这个原料是不是一个预制面团
 				if (linkedPreDough && linkedPreDough.versions && linkedPreDough.versions.length > 0) {
 					const preDoughActiveVersion = linkedPreDough.versions.find((v : RecipeVersion) => v.isActive) || linkedPreDough.versions[0];
 					const preDough = preDoughActiveVersion.doughs[0];
@@ -320,19 +321,19 @@
 								const weightInGrams = (preDoughIngredient.ratio / preDoughTotalRatio) * totalPreDoughWeight;
 								const cost = (parseFloat(pricePerKg) / 1000) * weightInGrams;
 
-								preDoughGroupForDisplay.ingredients.push({ ...preDoughIngredient, ratio: preDoughIngredient.ratio, pricePerKg, cost });
+								preDoughGroupForDisplay.ingredients.push({ ...preDoughIngredient, ratio: preDoughIngredient.ratio, pricePerKg, cost, weightInGrams });
 								preDoughGroupForDisplay.totalCost += cost;
 							}
 							preDoughGroups.push(preDoughGroupForDisplay);
 						}
 					}
-				} else { // 如果是普通原料
+				} else {
 					const ingredientInfo = dataStore.ingredients.find(i => i.name === ingredient.name);
 					const pricePerKg = getPricePerKg(ingredientInfo);
 					const weightInGrams = weightPerMainRatioPoint * ingredient.ratio;
 					const cost = (parseFloat(pricePerKg) / 1000) * weightInGrams;
 
-					mainDoughGroup.ingredients.push({ ...ingredient, pricePerKg, cost });
+					mainDoughGroup.ingredients.push({ ...ingredient, pricePerKg, cost, weightInGrams });
 					mainDoughGroup.totalCost += cost;
 				}
 			}
@@ -341,10 +342,8 @@
 				mainDoughGroups.push(mainDoughGroup);
 			}
 		}
-		// 保证预制面团在前，主面团在后
 		return [...preDoughGroups, ...mainDoughGroups];
 	});
-
 
 	const productCostDetails = computed(() => {
 		if (!selectedProductId.value || !displayedVersion.value) {
@@ -354,6 +353,7 @@
 		if (!product) return { doughCost: 0, extraCost: 0, extraIngredients: [], totalCost: 0 };
 
 		let totalDoughCost = 0;
+		let totalDoughWeight = 0; // [新增] 计算总面团重量
 		let totalFlourWeight = 0;
 
 		for (const dough of displayedVersion.value.doughs) {
@@ -362,6 +362,8 @@
 
 			for (const ingredient of dough.ingredients) {
 				const weightInGrams = weightPerMainRatioPoint * ingredient.ratio;
+				totalDoughWeight += weightInGrams; // [新增] 累加到总面团重量
+
 				if (ingredient.isFlour) {
 					totalFlourWeight += weightInGrams;
 				}
@@ -414,10 +416,21 @@
 			};
 		});
 
+		// [新增] 创建面团汇总行
+		const doughSummary = {
+			id: 'dough-summary',
+			name: '面团',
+			type: '',
+			cost: totalDoughCost,
+			weightInGrams: totalDoughWeight,
+			ratio: undefined,
+		};
+
 		return {
 			doughCost: totalDoughCost,
 			extraCost: totalExtraCost,
-			extraIngredients,
+			// [修改] 将面团汇总行添加到数组最前面
+			extraIngredients: [doughSummary, ...extraIngredients],
 			totalCost: totalDoughCost + totalExtraCost,
 		};
 	});
@@ -588,7 +601,8 @@
 		.table-header,
 		.table-row {
 			display: grid;
-			grid-template-columns: 2fr 1.2fr 1.5fr 1.2fr;
+			/* [修改] 调整列的比例以适应新布局 */
+			grid-template-columns: 2fr 1.2fr 1.5fr 1.5fr 1.2fr;
 			padding: 8px 0;
 			align-items: center;
 		}
@@ -610,6 +624,7 @@
 
 		.col-price,
 		.col-ratio,
+		.col-usage,
 		.col-total {
 			text-align: right;
 		}
@@ -635,8 +650,6 @@
 	.product-ingredient-table {
 		width: 100%;
 		font-size: 14px;
-		// [核心修改] 移除外边距，因为现在由父容器 .recipe-table-container 控制
-		// margin-top: 15px; 
 
 		.table-header,
 		.table-row {
@@ -655,6 +668,12 @@
 		.table-row {
 			color: var(--text-primary);
 			border-bottom: 1px solid var(--border-color);
+
+			/* [新增] 为面团汇总行增加特殊样式 */
+			&.dough-summary-row {
+				font-weight: 600;
+				color: var(--text-primary);
+			}
 
 			&:last-child {
 				border-bottom: none;
