@@ -1,13 +1,18 @@
 <template>
 	<button class="btn ripple-container" :class="buttonClasses" :disabled="disabled || loading"
 		@touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
-		<!-- [核心修改] 使用 v-show 和 visibility 来防止布局变化 -->
-		<view v-if="loading" class="loading-spinner-wrapper">
-			<view class="loading-spinner"></view>
-		</view>
+
+		<!-- 这个容器通过 visibility: hidden 来占据空间，以保持按钮尺寸在加载时不变 -->
 		<view class="content-wrapper" :style="{ visibility: loading ? 'hidden' : 'visible' }">
 			<slot></slot>
 		</view>
+
+		<!-- 加载状态的内容，使用绝对定位，因此不影响按钮布局 -->
+		<view v-if="loading" class="loading-content-wrapper">
+			<!-- 在加载时也显示 slot 内容，此时父组件应传入 "登录中..." 之类的文字 -->
+			<slot></slot>
+		</view>
+
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 	</button>
 </template>
@@ -50,6 +55,7 @@
 		'btn-sm': props.size === 'sm',
 		'btn-xs': props.size === 'xs',
 		'btn-full-width': props.fullWidth,
+		'loading': props.loading,
 	}));
 
 	// 水波纹效果逻辑
@@ -102,7 +108,6 @@
 	@import '@/styles/common.scss';
 
 	.btn {
-		/* [核心修改] 确保按钮有最小高度，防止内容为空时塌陷 */
 		min-height: 50px;
 		box-sizing: border-box;
 		display: flex;
@@ -111,8 +116,14 @@
 		position: relative;
 	}
 
-	/* [核心新增] 加载动画的容器，用于绝对定位 */
-	.loading-spinner-wrapper {
+	.content-wrapper {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		width: 100%;
+	}
+
+	.loading-content-wrapper {
 		position: absolute;
 		top: 0;
 		left: 0;
@@ -121,30 +132,14 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
+		gap: 8px;
 	}
 
-	/* 加载中动画 */
-	.loading-spinner {
-		width: 16px;
-		height: 16px;
-		border: 2px solid rgba(255, 255, 255, 0.3);
-		border-top-color: #ffffff;
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-	}
+	/* [核心修改] 移除了 .loading-spinner 和 @keyframes spin 相关的所有样式 */
 
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	/* 为不同背景色的按钮调整 loading 颜色 */
-	.btn-secondary .loading-spinner,
-	.btn-dashed .loading-spinner,
-	.btn-text-link .loading-spinner {
-		border-color: rgba(0, 0, 0, 0.2);
-		border-top-color: var(--primary-color);
+	.btn-primary.loading {
+		background-color: #7d4f33;
+		opacity: 1;
 	}
 
 	/* 水波纹颜色 */

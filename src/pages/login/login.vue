@@ -7,7 +7,8 @@
 			<input class="input-field" v-model="form.phone" placeholder="请输入手机号" type="tel" />
 			<input class="input-field" v-model="form.password" type="password" placeholder="请输入密码" />
 			<AppButton type="primary" full-width :loading="loading" @click="handleLogin">
-				{{ loading ? '' : '登 录' }}
+				<!-- [核心修改] 根据加载状态切换按钮文字 -->
+				{{ loading ? '登录中...' : '登 录' }}
 			</AppButton>
 		</view>
 	</view>
