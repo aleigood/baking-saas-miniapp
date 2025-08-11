@@ -1,6 +1,6 @@
 /**
  * 文件路径: src/utils/format.ts
- * 文件描述: [新增] 提供统一的格式化函数，解决日期在不同设备上显示不一致的问题。
+ * 文件描述: 提供统一的格式化函数。
  */
 
 /**
@@ -26,4 +26,21 @@ export function formatChineseDate(dateInput : string | Date | null | undefined) 
 		console.error('Invalid date input for formatChineseDate:', dateInput);
 		return '';
 	}
+}
+
+/**
+ * [核心新增] 格式化数字，移除末尾多余的零
+ * @param num - 需要格式化的数字
+ * @returns 格式化后的字符串
+ */
+export function formatNumber(num : number | string | null | undefined) : string {
+	if (num === null || num === undefined) {
+		return '0';
+	}
+	const number = Number(num);
+	if (isNaN(number)) {
+		return '0';
+	}
+	// 使用 Number() 构造函数和 toFixed() 来处理浮点数精度问题并移除末尾的零
+	return String(Number(number.toFixed(2)));
 }

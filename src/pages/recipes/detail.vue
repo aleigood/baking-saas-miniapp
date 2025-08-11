@@ -33,30 +33,31 @@
 					<AppButton v-if="canEditRecipe" type="text-link" @click="handleCreateVersion">+ 创建新版本</AppButton>
 				</view>
 
-				<view class="product-tabs-container">
-					<FilterTabs v-if="displayedVersion && displayedVersion.products.length > 0">
-						<FilterTab v-for="product in displayedVersion.products" :key="product.id"
-							:active="selectedProductId === product.id" @click="handleProductClick(product.id)">
-							{{ product.name }}
-						</FilterTab>
-					</FilterTabs>
-					<view v-else class="empty-state" style="padding: 10px 0;">
-						当前版本暂无产品
-					</view>
-				</view>
-
-
 				<view class="card" v-if="selectedProduct">
-					<FilterTabs style="justify-content: center;">
-						<FilterTab :active="detailChartTab === 'trend'" @click="detailChartTab = 'trend'">
-							成本走势
-						</FilterTab>
-						<FilterTab :active="detailChartTab === 'breakdown'" @click="detailChartTab = 'breakdown'">
-							原料成本
-						</FilterTab>
-					</FilterTabs>
-					<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
-					<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
+					<view class="product-tabs-header">
+						<FilterTabs v-if="displayedVersion && displayedVersion.products.length > 0">
+							<FilterTab v-for="product in displayedVersion.products" :key="product.id"
+								:active="selectedProductId === product.id" @click="handleProductClick(product.id)">
+								{{ product.name }}
+							</FilterTab>
+						</FilterTabs>
+						<view v-else class="empty-state" style="padding: 10px 0;">
+							当前版本暂无产品
+						</view>
+					</view>
+
+					<view class="data-analysis-section">
+						<FilterTabs style="justify-content: center;">
+							<FilterTab :active="detailChartTab === 'trend'" @click="detailChartTab = 'trend'">
+								成本走势
+							</FilterTab>
+							<FilterTab :active="detailChartTab === 'breakdown'" @click="detailChartTab = 'breakdown'">
+								原料成本
+							</FilterTab>
+						</FilterTabs>
+						<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
+						<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
+					</view>
 
 					<view v-if="currentRecipeDetails.length > 0">
 						<view v-for="(dough, index) in currentRecipeDetails" :key="dough.name + index"
@@ -79,10 +80,10 @@
 										<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex"
 											class="table-row">
 											<text class="col-ingredient">{{ ing.name }}</text>
-											<text class="col-ratio">{{ ing.ratio.toFixed(1) }}%</text>
-											<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
+											<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
+											<text class="col-usage">{{ formatNumber(ing.weightInGrams) }}g</text>
 											<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
-											<text class="col-total">¥{{ ing.cost.toFixed(2) }}</text>
+											<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
 										</view>
 									</view>
 									<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes">
@@ -101,7 +102,7 @@
 
 					<view class="other-ingredients-section">
 						<view class="group-title" @click="toggleCollapse('otherIngredients')">
-							<span>原料汇总 (总成本: ¥{{ productCostDetails.totalCost.toFixed(2) }})</span>
+							<span>原料汇总 (总成本: ¥{{ formatNumber(productCostDetails.totalCost) }})</span>
 							<span class="arrow"
 								:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10094;</span>
 						</view>
@@ -110,31 +111,34 @@
 								<view v-if="productCostDetails.extraIngredients.length > 0"
 									class="product-ingredient-table">
 									<view class="table-header">
+										<text class="col-group">类型</text>
 										<text class="col-ingredient">原料</text>
 										<text class="col-usage">用量</text>
 										<text class="col-cost">成本</text>
 									</view>
-									<!-- [核心修改] 使用新的模板渲染逻辑来展示分组后的原料 -->
-									<template v-for="(pIng, index) in productCostDetails.extraIngredients"
-										:key="pIng.id + index">
-										<!-- 普通原料行 -->
-										<view class="table-row" v-if="!pIng.isGroupHeader">
-											<text class="col-ingredient" :class="{'indented': pIng.isGroupedItem}">
-												{{ pIng.name }}
+									<template v-for="(group, groupName) in productCostDetails.groupedExtraIngredients"
+										:key="groupName">
+										<view v-for="(pIng, index) in group" :key="pIng.id" class="table-row">
+											<text v-if="index === 0" class="col-group"
+												:style="{ 'vertical-align': group.length > 1 ? 'top' : 'middle' }">
+												{{ groupName }}
 											</text>
-											<text class="col-usage">
-												<template v-if="pIng.type === '搅拌原料'">
-													{{ pIng.ratio }}% ({{ pIng.weightInGrams.toFixed(1) }}g)
-												</template>
-												<template v-else>
-													{{ pIng.weightInGrams.toFixed(1) }}g
-												</template>
-											</text>
-											<text class="col-cost">¥{{ pIng.cost.toFixed(2) }}</text>
-										</view>
-										<!-- 分组标题行 -->
-										<view class="table-group-header" v-else>
+											<text v-else class="col-group"></text>
 											<text class="col-ingredient">{{ pIng.name }}</text>
+											<text class="col-usage">
+												<template v-if="pIng.id === 'dough-summary'">
+													{{ formatNumber(pIng.weightInGrams) }}g
+												</template>
+												<template v-else-if="pIng.type === '搅拌原料'">
+													{{ formatNumber(pIng.ratio) }}% ({{
+														formatNumber(pIng.weightInGrams)
+													}}g)
+												</template>
+												<template v-else-if="pIng.weightInGrams != null">
+													{{ formatNumber(pIng.weightInGrams) }}g
+												</template>
+											</text>
+											<text class="col-cost">¥{{ formatNumber(pIng.cost) }}</text>
 										</view>
 									</template>
 								</view>
@@ -209,7 +213,8 @@
 	import FilterTab from '@/components/FilterTab.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import {
-		formatChineseDate
+		formatChineseDate,
+		formatNumber
 	} from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -248,16 +253,11 @@
 
 	onShow(async () => {
 		if (familyId.value && !isLoading.value) {
-			// [核心修复] 重新进入页面时，确保 ingredients 数据是最新的
 			await dataStore.fetchIngredientsData();
 			await loadRecipeData(familyId.value);
 		}
 	});
 
-	/**
-	 * [核心修复] 将成本数据获取逻辑封装成一个独立的函数
-	 * @param {string | null} productId - 产品ID
-	 */
 	const fetchCostData = async (productId : string | null) => {
 		if (!productId) {
 			costHistory.value = [];
@@ -305,12 +305,11 @@
 				} else {
 					selectedProductId.value = null;
 				}
-				// [核心修复] 在页面数据加载完成后，立即获取图表数据
 				await fetchCostData(selectedProductId.value);
 			} else {
 				displayedVersionId.value = null;
 				selectedProductId.value = null;
-				await fetchCostData(null); // 清空图表数据
+				await fetchCostData(null);
 			}
 		} catch (error) {
 			console.error('Failed to fetch recipe details:', error);
@@ -323,7 +322,6 @@
 		}
 	};
 
-	// [核心修复] 监听ID变化，用于处理用户在页面内的切换操作
 	watch(selectedProductId, (newProductId) => {
 		fetchCostData(newProductId);
 	});
@@ -355,12 +353,11 @@
 		const preDoughGroups : DoughGroup[] = [];
 		const mainDoughGroups : DoughGroup[] = [];
 
-		// [核心修正] 计算总比例，将 baseDoughWeight 分配到所有原料中
 		let totalRatioSum = 0;
 		for (const dough of displayedVersion.value.doughs) {
 			totalRatioSum += dough.ingredients.reduce((sum, i) => sum + i.ratio, 0);
 		}
-		if (totalRatioSum === 0) totalRatioSum = 1; // 防止除零
+		if (totalRatioSum === 0) totalRatioSum = 1;
 		const weightPerRatioPoint = currentProduct.baseDoughWeight / totalRatioSum;
 
 
@@ -373,7 +370,7 @@
 			};
 
 			for (const ingredient of dough.ingredients) {
-				// @ts-ignore 后端返回了此字段
+				// @ts-ignore
 				const linkedPreDough = ingredient.linkedPreDough;
 
 				if (linkedPreDough && linkedPreDough.versions && linkedPreDough.versions.length > 0) {
@@ -382,14 +379,13 @@
 					const preDough = preDoughActiveVersion.doughs[0];
 
 					if (preDough && preDough.ingredients) {
-						// 预制面团的总重量由其在主面团中的比例决定
 						const totalPreDoughWeight = weightPerRatioPoint * ingredient.ratio;
 						const preDoughTotalRatio = preDough.ingredients.reduce((sum : number, ing : DoughIngredient) => sum + ing
 							.ratio, 0);
 
 						if (preDoughTotalRatio > 0) {
 							const preDoughGroupForDisplay : DoughGroup = {
-								name: `${linkedPreDough.name} (用量: ${totalPreDoughWeight.toFixed(1)}g)`,
+								name: `${linkedPreDough.name} (用量: ${formatNumber(totalPreDoughWeight)}g)`,
 								ingredients: [],
 								procedure: preDough.procedure,
 								totalCost: 0
@@ -403,7 +399,7 @@
 
 								preDoughGroupForDisplay.ingredients.push({
 									...preDoughIngredient,
-									ratio: preDoughIngredient.ratio, // 保留其在预制面团内部的比例
+									ratio: preDoughIngredient.ratio,
 									pricePerKg,
 									cost,
 									weightInGrams
@@ -414,14 +410,12 @@
 						}
 					}
 				} else {
-					// 普通原料
 					const ingredientInfo = dataStore.ingredients.find(i => i.name === ingredient.name);
 					const pricePerKg = getPricePerKg(ingredientInfo);
 					const weightInGrams = weightPerRatioPoint * ingredient.ratio;
 					const cost = (parseFloat(pricePerKg) / 1000) * weightInGrams;
 
 					mainDoughGroup.ingredients.push({
-
 						...ingredient,
 						pricePerKg,
 						cost,
@@ -438,154 +432,121 @@
 		return [...preDoughGroups, ...mainDoughGroups];
 	});
 
+	// [核心重构] 彻底重写成本计算逻辑，以支持递归计算和更清晰的数据结构
 	const productCostDetails = computed(() => {
-		if (!selectedProductId.value || !displayedVersion.value) {
+		if (!selectedProduct.value || !displayedVersion.value) {
 			return {
-				doughCost: 0,
-				extraCost: 0,
+				totalCost: 0,
 				extraIngredients: [],
-				totalCost: 0
+				groupedExtraIngredients: {}
 			};
 		}
-		const product = displayedVersion.value.products.find(p => p.id === selectedProductId.value);
-		if (!product) {
-			return {
-				doughCost: 0,
-				extraCost: 0,
-				extraIngredients: [],
-				totalCost: 0
-			};
-		}
+		const product = selectedProduct.value;
 
-		// --- 1. 计算面团信息 ---
-		let totalDoughCost = 0;
-		let totalDoughWeight = 0;
-		let totalFlourWeight = 0;
+		// 递归函数，用于解析面团并返回其基础原料列表和总成本
+		const parseDough = (doughIngredients : DoughIngredient[], totalDoughWeight : number) => {
+			let totalCost = 0;
+			let totalFlourWeight = 0;
+			let baseIngredients : any[] = [];
 
-		// [核心修正] 1.1 计算总比例，以 baseDoughWeight 作为最终面团总重
-		let totalRatioSum = 0;
-		for (const dough of displayedVersion.value.doughs) {
-			totalRatioSum += dough.ingredients.reduce((sum, i) => sum + i.ratio, 0);
-		}
-		if (totalRatioSum === 0) totalRatioSum = 1; // 防止除零
-		const weightPerRatioPoint = product.baseDoughWeight / totalRatioSum;
-
-		for (const dough of displayedVersion.value.doughs) {
-			if (!dataStore.ingredients || dataStore.ingredients.length === 0) return {
-				doughCost: 0,
-				extraCost: 0,
-				extraIngredients: [],
-				totalCost: 0
+			const totalRatio = doughIngredients.reduce((sum, i) => sum + i.ratio, 0);
+			if (totalRatio === 0) return {
+				totalCost,
+				totalFlourWeight,
+				baseIngredients
 			};
 
-			for (const ingredient of dough.ingredients) {
+			const weightPerRatioPoint = totalDoughWeight / totalRatio;
+
+			for (const ingredient of doughIngredients) {
+				const weight = weightPerRatioPoint * ingredient.ratio;
+				// @ts-ignore
 				const linkedPreDough = ingredient.linkedPreDough;
+
 				if (linkedPreDough && linkedPreDough.versions?.length > 0) {
 					const preDoughVersion = linkedPreDough.versions.find((v : any) => v.isActive) || linkedPreDough.versions[0];
 					const preDough = preDoughVersion.doughs[0];
 					if (preDough?.ingredients) {
-						const totalPreDoughWeight = weightPerRatioPoint * ingredient.ratio;
-						const preDoughTotalRatio = preDough.ingredients.reduce((sum : number, ing : any) => sum + ing.ratio,
-							0);
-						if (preDoughTotalRatio > 0) {
-							for (const preDoughIngredient of preDough.ingredients) {
-								const weightInGrams = (preDoughIngredient.ratio / preDoughTotalRatio) * totalPreDoughWeight;
-								totalDoughWeight += weightInGrams;
-								const ingInfo = dataStore.ingredients.find(i => i.name === preDoughIngredient.name);
-								if (ingInfo?.isFlour) {
-									totalFlourWeight += weightInGrams;
-								}
-								const pricePerKg = getPricePerKg(ingInfo);
-								totalDoughCost += (parseFloat(pricePerKg) / 1000) * weightInGrams;
-							}
-						}
+						// 递归解析预制面团
+						const nestedResult = parseDough(preDough.ingredients, weight);
+						totalCost += nestedResult.totalCost;
+						totalFlourWeight += nestedResult.totalFlourWeight;
+						baseIngredients = baseIngredients.concat(nestedResult.baseIngredients);
 					}
 				} else {
-					const weightInGrams = weightPerRatioPoint * ingredient.ratio;
-					totalDoughWeight += weightInGrams;
+					// 基础原料
 					const ingredientInfo = dataStore.ingredients.find(i => i.name === ingredient.name);
-					if (ingredientInfo?.isFlour) {
-						totalFlourWeight += weightInGrams;
-					}
 					const pricePerKg = getPricePerKg(ingredientInfo);
-					totalDoughCost += (parseFloat(pricePerKg) / 1000) * weightInGrams;
+					const cost = (parseFloat(pricePerKg) / 1000) * weight;
+
+					totalCost += cost;
+					if (ingredientInfo?.isFlour) {
+						totalFlourWeight += weight;
+					}
+					baseIngredients.push({
+						name: ingredient.name,
+						weightInGrams: weight,
+						cost: cost
+					});
 				}
 			}
-		}
+			return {
+				totalCost,
+				totalFlourWeight,
+				baseIngredients
+			};
+		};
 
-		// --- 2. 计算附加原料 ---
+		// --- 1. 计算主面团的总成本和总面粉量 ---
+		const mainDoughResult = parseDough(displayedVersion.value.doughs.flatMap(d => d.ingredients), product.baseDoughWeight);
+
+		// --- 2. 计算附加原料的成本 ---
 		let totalExtraCost = 0;
-		const productIngredients = product.ingredients || [];
-
-		const extraIngredients = productIngredients.map((ing : any) => {
+		const extraIngredients = (product.ingredients || []).map((ing : any) => {
 			const ingredientInfo = dataStore.ingredients.find(i => i.name === ing.name);
 			const pricePerKg = getPricePerKg(ingredientInfo);
 			let finalWeightInGrams = 0;
-			let displayRatio;
-
 			if (ing.type === 'MIX_IN') {
-				const ratio = ing.ratio;
-				finalWeightInGrams = (ratio / 100) * totalFlourWeight;
-				displayRatio = ratio;
+				finalWeightInGrams = (ing.ratio / 100) * mainDoughResult.totalFlourWeight;
 			} else {
 				finalWeightInGrams = ing.weightInGrams;
 			}
-
 			const cost = (parseFloat(pricePerKg) / 1000) * finalWeightInGrams;
 			totalExtraCost += cost;
 
 			return {
-
 				...ing,
 				type: getProductIngredientTypeName(ing.type),
 				cost: cost || 0,
-				ratio: displayRatio,
 				weightInGrams: finalWeightInGrams
 			};
 		});
 
 		// --- 3. 组合最终结果 ---
-		const doughSummary = {
+		const allIngredients = [{
 			id: 'dough-summary',
-			name: '面团',
-			type: '',
-			cost: totalDoughCost,
-			weightInGrams: totalDoughWeight,
-			ratio: undefined
-		};
+			name: '所有面团',
+			type: '面团',
+			cost: mainDoughResult.totalCost,
+			weightInGrams: product.baseDoughWeight // 面团总重就是产品设定的基础面团重
+		}, ...extraIngredients,];
 
-		// [核心修改] 为原料汇总分组
-		const groupedExtras : any[] = [];
-		const extrasByType = extraIngredients.reduce((acc, ing) => {
+		const groupedExtraIngredients = allIngredients.reduce((acc, ing) => {
 			const typeKey = ing.type || '其他';
-			if (!acc[typeKey]) acc[typeKey] = [];
+			if (!acc[typeKey]) {
+				acc[typeKey] = [];
+			}
 			acc[typeKey].push(ing);
 			return acc;
 		}, {} as Record<string, any[]>);
 
-		Object.keys(extrasByType).forEach(typeKey => {
-			groupedExtras.push({
-				id: `header-${typeKey}`,
-				name: typeKey,
-				isGroupHeader: true
-			});
-			extrasByType[typeKey].forEach(item => {
-				groupedExtras.push({
-
-					...item,
-					isGroupedItem: true
-				});
-			});
-		});
-
-
 		return {
-			doughCost: totalDoughCost,
-			extraCost: totalExtraCost,
-			extraIngredients: [doughSummary, ...groupedExtras],
-			totalCost: totalDoughCost + totalExtraCost,
+			totalCost: mainDoughResult.totalCost + totalExtraCost,
+			extraIngredients: allIngredients,
+			groupedExtraIngredients
 		};
 	});
+
 
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
@@ -610,10 +571,11 @@
 	};
 
 	const getPricePerKg = (ingredient : Ingredient | undefined | null) => {
-		if (!ingredient || !ingredient.activeSku || !ingredient.currentPricePerPackage) return '0.00';
+		if (!ingredient || !ingredient.activeSku || !ingredient.currentPricePerPackage) return '0';
 		const sku = ingredient.activeSku;
-		if (!sku.specWeightInGrams || sku.specWeightInGrams === 0) return '0.00';
-		return ((Number(ingredient.currentPricePerPackage) / sku.specWeightInGrams) * 1000).toFixed(2);
+		if (!sku.specWeightInGrams || sku.specWeightInGrams === 0) return '0';
+		const price = ((Number(ingredient.currentPricePerPackage) / sku.specWeightInGrams) * 1000);
+		return formatNumber(price);
 	};
 
 	const getProductIngredientTypeName = (type : ProductIngredient['type']) => {
@@ -697,15 +659,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.product-tabs-container {
-		padding: 0 5px 15px;
-
-		.filter-tabs {
-			flex-wrap: wrap;
-			margin-bottom: 0;
-		}
-	}
-
 	.status-tag {
 		padding: 4px 12px;
 		border-radius: 15px;
@@ -722,7 +675,7 @@
 		background-color: #faf8f5;
 		border-radius: 16px;
 		padding: 15px;
-		margin-top: 15px; // 为容器增加上边距
+		margin-top: 15px;
 	}
 
 	.group-title {
@@ -761,22 +714,19 @@
 	}
 
 	.recipe-table {
+		display: table;
 		width: 100%;
 		font-size: 14px;
+		border-collapse: collapse;
 
 		.table-header,
 		.table-row {
-			display: grid;
-			/* [修改] 调整列的比例以适应新布局 */
-			grid-template-columns: 2fr 1.2fr 1.5fr 1.5fr 1.2fr;
-			padding: 8px 0;
-			align-items: center;
+			display: table-row;
 		}
 
 		.table-header {
 			color: var(--text-secondary);
 			font-weight: 500;
-			border-bottom: 1px solid var(--border-color);
 		}
 
 		.table-row {
@@ -788,11 +738,27 @@
 			}
 		}
 
-		.col-price,
+		.col-ingredient,
 		.col-ratio,
 		.col-usage,
+		.col-price,
+		.col-total {
+			display: table-cell;
+			padding: 8px 4px;
+			vertical-align: middle;
+		}
+
+		.col-ratio,
+		.col-usage,
+		.col-price,
 		.col-total {
 			text-align: right;
+			white-space: nowrap;
+		}
+
+		.col-ingredient {
+			min-width: 80px;
+			word-break: break-word;
 		}
 	}
 
@@ -813,52 +779,70 @@
 		}
 	}
 
+	.product-tabs-header {
+		padding-bottom: 20px;
+		margin-bottom: 20px;
+		border-bottom: 1px solid var(--border-color);
+
+		.filter-tabs {
+			margin-bottom: 0;
+			justify-content: center;
+		}
+	}
+
+	.data-analysis-section {
+		margin-bottom: 20px;
+	}
+
 	.product-ingredient-table {
+		display: table;
 		width: 100%;
 		font-size: 14px;
 
 		.table-header,
 		.table-row {
-			display: grid;
-			grid-template-columns: 2fr 1.5fr 1fr;
-			padding: 8px 0;
-			align-items: center;
+			display: table-row;
 		}
 
 		.table-header {
 			color: var(--text-secondary);
 			font-weight: 500;
-			border-bottom: 1px solid var(--border-color);
 		}
 
 		.table-row {
 			color: var(--text-primary);
 			border-bottom: 1px solid var(--border-color);
-
-			// [核心修正] 移除面团汇总行的加粗样式
-			&.dough-summary-row {
-				font-weight: 500;
-			}
-
-			.indented {
-				padding-left: 15px;
-			}
 
 			&:last-child {
 				border-bottom: none;
 			}
 		}
 
-		.table-group-header {
-			padding: 10px 0 2px;
-			font-weight: 600;
-			color: var(--text-primary);
-			font-size: 14px;
+		.col-group,
+		.col-ingredient,
+		.col-usage,
+		.col-cost {
+			display: table-cell;
+			padding: 8px 4px;
+			vertical-align: middle;
+		}
+
+		.col-group {
+			width: 25%;
+			word-break: break-word;
+			font-weight: 500;
+			color: var(--text-secondary);
+		}
+
+		.col-ingredient {
+			width: 35%;
+			word-break: break-word;
 		}
 
 		.col-usage,
 		.col-cost {
 			text-align: right;
+			white-space: nowrap;
 		}
 	}
 
