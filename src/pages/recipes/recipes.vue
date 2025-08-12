@@ -18,11 +18,9 @@
 					<BarChart :chart-data="recipeStatsForChart" unit="次" />
 				</view>
 
-				<!-- [核心修改] 替换为 FilterTabs 和 FilterTab 组件 -->
 				<FilterTabs>
-					<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">主面团</FilterTab>
-					<FilterTab :active="recipeFilter === 'PRE_DOUGH'" @click="recipeFilter = 'PRE_DOUGH'">面种</FilterTab>
-					<FilterTab :active="recipeFilter === 'EXTRA'" @click="recipeFilter = 'EXTRA'">馅料</FilterTab>
+					<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">面团</FilterTab>
+					<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
 				</FilterTabs>
 
 				<template v-if="filteredRecipes.length > 0">
@@ -67,18 +65,18 @@
 	import AppFab from '@/components/AppFab.vue';
 	import BarChart from '@/components/BarChart.vue';
 	import ListItem from '@/components/ListItem.vue';
-	import FilterTabs from '@/components/FilterTabs.vue'; // 引入新组件
-	import FilterTab from '@/components/FilterTab.vue'; // 引入新组件
+	import FilterTabs from '@/components/FilterTabs.vue';
+	import FilterTab from '@/components/FilterTab.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 
 	const isLoading = ref(false);
-	const recipeFilter = ref<'MAIN' | 'PRE_DOUGH' | 'EXTRA'>('MAIN');
+	const recipeFilter = ref<'MAIN' | 'OTHER'>('MAIN');
 
 	const recipeTypeMap = {
-		MAIN: '主面团',
+		MAIN: '面团',
 		PRE_DOUGH: '面种',
 		EXTRA: '馅料',
 	};
@@ -109,19 +107,20 @@
 		if (family.type !== 'MAIN' || !family.versions || family.versions.length === 0) {
 			return 0;
 		}
+		// 总是取第一个版本（通常是激活的）来计算
 		return family.versions[0].products?.length || 0;
 	};
 
+	// [FIXED] 修复原料数量计算逻辑
 	const getIngredientCount = (family : RecipeFamily) => {
 		if (family.type === 'MAIN' || !family.versions || family.versions.length === 0) {
 			return 0;
 		}
+		// 累加激活版本中所有面团的原料数量
 		return family.versions[0].doughs.reduce((sum, dough) => sum + (dough._count?.ingredients || 0), 0);
 	};
 
-	// [REFACTORED] 制作次数的计算逻辑被极大简化
 	const getFamilyProductionCount = (family : RecipeFamily) => {
-		// 直接从后端返回的数据中获取制作次数，如果不存在则默认为0
 		return family.productionCount || 0;
 	};
 
@@ -132,13 +131,23 @@
 		return '4.5';
 	};
 
+	// [REFACTORED] 更新筛选和排序逻辑
 	const filteredRecipes = computed(() => {
 		if (!dataStore.recipes) {
 			return [];
 		}
-		return dataStore.recipes.filter(
-			(family) => family.type === recipeFilter.value,
-		);
+		const recipesCopy = [...dataStore.recipes];
+		if (recipeFilter.value === 'MAIN') {
+			// 筛选出主面团并按制作次数降序排序
+			return recipesCopy
+				.filter((family) => family.type === 'MAIN')
+				.sort((a, b) => (b.productionCount || 0) - (a.productionCount || 0));
+		} else {
+			// 筛选出其他类型（面种和馅料）并按名称字母顺序排序
+			return recipesCopy
+				.filter((family) => family.type === 'PRE_DOUGH' || family.type === 'EXTRA')
+				.sort((a, b) => a.name.localeCompare(b.name));
+		}
 	});
 
 	const currentUserRoleInTenant = computed(
