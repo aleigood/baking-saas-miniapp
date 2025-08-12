@@ -8,6 +8,7 @@
 		</view>
 		<view class="page-content" v-if="!isLoading && recipeFamily">
 			<view class="detail-page">
+				<!-- 配方版本选择卡片 -->
 				<view class="card card-full-bleed-list">
 					<view class="card-title-wrapper">
 						<span class="card-title">配方版本</span>
@@ -33,6 +34,7 @@
 					<AppButton v-if="canEditRecipe" type="text-link" @click="handleCreateVersion">+ 创建新版本</AppButton>
 				</view>
 
+				<!-- 产品切换标签 -->
 				<view class="product-tabs-wrapper">
 					<FilterTabs v-if="displayedVersion && displayedVersion.products.length > 0">
 						<FilterTab v-for="product in displayedVersion.products" :key="product.id"
@@ -42,14 +44,18 @@
 					</FilterTabs>
 				</view>
 
+				<!-- 主内容卡片 -->
 				<view class="card" v-if="selectedProduct">
+					<!-- 数据分析区域 -->
 					<view class="data-analysis-section">
+						<!-- [核心修改] 使用新的 AnimatedTabs 组件 -->
 						<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
 
 						<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
-						<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdownForChart" />
+						<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
 					</view>
 
+					<!-- 原料与流程详情 -->
 					<view v-if="currentRecipeDetails.length > 0">
 						<view v-for="(dough, index) in currentRecipeDetails" :key="dough.name + index"
 							class="dough-section">
@@ -266,13 +272,16 @@
 			return;
 		}
 		try {
-			const [historyData] = await Promise.all([
+			const [historyData, breakdownData] = await Promise.all([
 				getProductCostHistory(productId),
+				getProductCostBreakdown(productId)
 			]);
 			costHistory.value = historyData;
+			costBreakdown.value = breakdownData;
 		} catch (error) {
 			console.error('Failed to fetch cost data for product:', error);
 			costHistory.value = [];
+			costBreakdown.value = [];
 		}
 	};
 
@@ -336,124 +345,6 @@
 		// @ts-ignore
 		return displayedVersion.value.products.find(p => p.id === selectedProductId.value);
 	});
-
-	/**
-	 * [核心重构] 新的计算属性，用于在前端计算精准的、包含所有成分的总成本构成，供饼图使用
-	 * 这个算法会递归地解析所有嵌套的预制面团和馅料配方，将它们分解为最基础的原材料，并汇总成本。
-	 */
-	const costBreakdownForChart = computed(() => {
-		if (!selectedProduct.value || !displayedVersion.value) {
-			return [];
-		}
-
-		// 使用 Map 来聚合所有基础原材料的最终成本
-		const ingredientCostMap = new Map<string, number>();
-
-		/**
-		 * 递归函数，用于解析任何面团（主面团、预制面团等）并累加其原料成本
-		 * @param doughIngredients - 面团的原料数组
-		 * @param totalDoughWeight - 该面团在最终产品中的总重量
-		 */
-		const parseDoughAndAggregate = (doughIngredients : DoughIngredient[], totalDoughWeight : number) => {
-			const totalRatio = doughIngredients.reduce((sum, i) => sum + i.ratio, 0);
-			if (totalRatio === 0) return;
-
-			const weightPerRatioPoint = totalDoughWeight / totalRatio;
-
-			for (const ingredient of doughIngredients) {
-				const weight = weightPerRatioPoint * ingredient.ratio;
-				const linkedPreDough = (ingredient as any).linkedPreDough;
-
-				// 如果是预制面团（例如：烫种），则递归处理
-				if (linkedPreDough && linkedPreDough.versions?.length > 0) {
-					const preDoughVersion = linkedPreDough.versions.find((v : any) => v.isActive) || linkedPreDough.versions[0];
-					const preDough = preDoughVersion.doughs[0];
-					if (preDough?.ingredients) {
-						parseDoughAndAggregate(preDough.ingredients, weight);
-					}
-				} else {
-					// 如果是基础原料，计算成本并累加到 Map 中
-					const ingredientInfo = dataStore.ingredients.find(i => i.name === ingredient.name);
-					const pricePerKg = parseFloat(getPricePerKg(ingredientInfo));
-					const cost = (pricePerKg / 1000) * weight;
-
-					if (!isNaN(cost)) {
-						ingredientCostMap.set(ingredient.name, (ingredientCostMap.get(ingredient.name) || 0) + cost);
-					}
-				}
-			}
-		};
-
-		/**
-		 * 递归函数，用于计算总面粉量（为计算“搅拌原料”的用量做准备）
-		 * @param doughIngredients - 面团的原料数组
-		 * @param totalDoughWeight - 该面团的总重量
-		 */
-		const getTotalFlourWeight = (doughIngredients : DoughIngredient[], totalDoughWeight : number) : number => {
-			let totalFlour = 0;
-			const totalRatio = doughIngredients.reduce((sum, i) => sum + i.ratio, 0);
-			if (totalRatio === 0) return 0;
-			const weightPerRatioPoint = totalDoughWeight / totalRatio;
-
-			for (const ingredient of doughIngredients) {
-				const weight = weightPerRatioPoint * ingredient.ratio;
-				const linkedPreDough = (ingredient as any).linkedPreDough;
-				if (linkedPreDough && linkedPreDough.versions?.length > 0) {
-					const preDoughVersion = linkedPreDough.versions.find((v : any) => v.isActive) || linkedPreDough.versions[0];
-					totalFlour += getTotalFlourWeight(preDoughVersion.doughs[0].ingredients, weight);
-				} else {
-					const ingredientInfo = dataStore.ingredients.find(i => i.name === ingredient.name);
-					if (ingredientInfo?.isFlour) {
-						totalFlour += weight;
-					}
-				}
-			}
-			return totalFlour;
-		};
-
-		// --- 1. 计算所有基础面团的成本 ---
-		parseDoughAndAggregate(displayedVersion.value.doughs.flatMap(d => d.ingredients), selectedProduct.value.baseDoughWeight);
-
-		// --- 2. 计算所有附加原料（馅料、装饰等）的成本 ---
-		const totalFlourWeightForMixins = getTotalFlourWeight(displayedVersion.value.doughs.flatMap(d => d.ingredients), selectedProduct.value.baseDoughWeight);
-
-		if (selectedProduct.value.ingredients) {
-			for (const ing of (selectedProduct.value.ingredients as any[])) {
-				// [核心修正] 检查附加原料本身是否为一个配方（例如卡仕达酱）
-				if (ing.linkedExtraId) {
-					const extraRecipeFamily = dataStore.recipes.find(r => r.id === ing.linkedExtraId);
-					if (extraRecipeFamily && extraRecipeFamily.versions.length > 0) {
-						const activeVersion = extraRecipeFamily.versions.find(v => v.isActive) || extraRecipeFamily.versions[0];
-						if (activeVersion.doughs.length > 0) {
-							// 递归解析这个作为馅料的配方
-							parseDoughAndAggregate(activeVersion.doughs.flatMap(d => d.ingredients), ing.weightInGrams);
-						}
-					}
-				} else {
-					// 如果是普通的基础原料
-					const ingredientInfo = dataStore.ingredients.find(i => i.name === ing.name);
-					const pricePerKg = parseFloat(getPricePerKg(ingredientInfo));
-					let finalWeightInGrams = 0;
-					if (ing.type === 'MIX_IN') {
-						finalWeightInGrams = (ing.ratio / 100) * totalFlourWeightForMixins;
-					} else {
-						finalWeightInGrams = ing.weightInGrams;
-					}
-					const cost = (pricePerKg / 1000) * finalWeightInGrams;
-					if (!isNaN(cost)) {
-						ingredientCostMap.set(ing.name, (ingredientCostMap.get(ing.name) || 0) + cost);
-					}
-				}
-			}
-		}
-
-		// --- 3. 将聚合后的 Map 转换为数组格式以供图表使用 ---
-		return Array.from(ingredientCostMap.entries()).map(([name, value]) => ({
-			name,
-			value,
-		}));
-	});
-
 
 	const currentRecipeDetails = computed(() => {
 		if (!displayedVersion.value || !selectedProduct.value) return [];
@@ -548,6 +439,7 @@
 		return [...preDoughGroups, ...mainDoughGroups];
 	});
 
+	// [核心重构] 彻底重写成本计算逻辑，以支持递归计算和更清晰的数据结构
 	const productCostDetails = computed(() => {
 		if (!selectedProduct.value || !displayedVersion.value) {
 			return {
