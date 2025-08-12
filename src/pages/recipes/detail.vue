@@ -8,7 +8,7 @@
 		</view>
 		<view class="page-content" v-if="!isLoading && recipeFamily">
 			<view class="detail-page">
-				<!-- 配方版本选择卡片 -->
+				<!-- 配方版本选择卡片 (所有类型配方都显示) -->
 				<view class="card card-full-bleed-list">
 					<view class="card-title-wrapper">
 						<span class="card-title">配方版本</span>
@@ -35,121 +35,149 @@
 					<AppButton v-if="canEditRecipe" type="text-link" @click="handleCreateVersion">+ 创建新版本</AppButton>
 				</view>
 
-				<!-- 产品切换标签 -->
-				<view class="product-tabs-wrapper">
-					<FilterTabs v-if="displayedVersion && displayedVersion.products.length > 0">
-						<FilterTab v-for="product in displayedVersion.products" :key="product.id"
-							:active="selectedProductId === product.id" @click="handleProductClick(product.id)">
-							{{ product.name }}
-						</FilterTab>
-					</FilterTabs>
-				</view>
-
-				<!-- 主内容卡片 -->
-				<view class="card" v-if="selectedProduct && recipeDetails">
-					<!-- 数据分析区域 -->
-					<view class="data-analysis-section">
-						<!-- [核心修改] 使用新的 AnimatedTabs 组件 -->
-						<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
-
-						<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
-						<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
+				<!-- ============================================================ -->
+				<!--               仅 主面团(MAIN) 类型配方显示的内容             -->
+				<!-- ============================================================ -->
+				<template v-if="recipeFamily.type === 'MAIN'">
+					<!-- 产品切换标签 -->
+					<view class="product-tabs-wrapper">
+						<FilterTabs v-if="displayedVersion && displayedVersion.products.length > 0">
+							<FilterTab v-for="product in displayedVersion.products" :key="product.id"
+								:active="selectedProductId === product.id" @click="handleProductClick(product.id)">
+								{{ product.name }}
+							</FilterTab>
+						</FilterTabs>
 					</view>
 
-					<!-- 原料与流程详情 -->
-					<view v-if="recipeDetails.doughGroups.length > 0">
-						<view v-for="(dough, index) in recipeDetails.doughGroups" :key="dough.name + index"
-							class="dough-section">
-							<view class="group-title" @click="toggleCollapse(dough.name)">
-								<span>{{ dough.name }}</span>
-								<span class="arrow"
-									:class="{ collapsed: collapsedSections.has(dough.name) }">&#10094;</span>
-							</view>
-							<view v-show="!collapsedSections.has(dough.name)">
-								<view class="recipe-table-container">
-									<view class="recipe-table">
-										<view class="table-header">
-											<text class="col-ingredient">原料</text>
-											<text class="col-ratio">比例</text>
-											<text class="col-usage">用量</text>
-											<text class="col-price">单价</text>
-											<text class="col-total">成本</text>
+					<!-- 主内容卡片 -->
+					<view class="card" v-if="selectedProduct && recipeDetails">
+						<!-- 数据分析区域 -->
+						<view class="data-analysis-section">
+							<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
+							<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
+							<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
+						</view>
+
+						<!-- 原料与流程详情 -->
+						<view v-if="recipeDetails.doughGroups.length > 0">
+							<view v-for="(dough, index) in recipeDetails.doughGroups" :key="dough.name + index"
+								class="dough-section">
+								<view class="group-title" @click="toggleCollapse(dough.name)">
+									<span>{{ dough.name }}</span>
+									<span class="arrow"
+										:class="{ collapsed: collapsedSections.has(dough.name) }">&#10094;</span>
+								</view>
+								<view v-show="!collapsedSections.has(dough.name)">
+									<view class="recipe-table-container">
+										<view class="recipe-table">
+											<view class="table-header">
+												<text class="col-ingredient">原料</text>
+												<text class="col-ratio">比例</text>
+												<text class="col-usage">用量</text>
+												<text class="col-price">单价</text>
+												<text class="col-total">成本</text>
+											</view>
+											<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex"
+												class="table-row">
+												<text class="col-ingredient">{{ ing.name }}</text>
+												<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
+												<text class="col-usage">{{ formatNumber(ing.weightInGrams) }}g</text>
+												<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
+												<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+											</view>
 										</view>
-										<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex"
-											class="table-row">
-											<text class="col-ingredient">{{ ing.name }}</text>
-											<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
-											<text class="col-usage">{{ formatNumber(ing.weightInGrams) }}g</text>
-											<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
-											<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+										<view v-if="dough.procedure && dough.procedure.length > 0"
+											class="procedure-notes">
+											<text class="notes-title">制作要点:</text>
+											<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex"
+												class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 										</view>
-									</view>
-									<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes">
-										<text class="notes-title">制作要点:</text>
-										<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex"
-											class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 									</view>
 								</view>
 							</view>
 						</view>
-					</view>
-					<view v-else class="empty-state" style="padding: 20px 0">
-						暂无面团原料信息
-					</view>
-
-
-					<view class="other-ingredients-section">
-						<view class="group-title" @click="toggleCollapse('otherIngredients')">
-							<span>原料汇总 (总成本: ¥{{ formatNumber(recipeDetails.totalCost) }})</span>
-							<span class="arrow"
-								:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10094;</span>
+						<view v-else class="empty-state" style="padding: 20px 0">
+							暂无面团原料信息
 						</view>
-						<view v-show="!collapsedSections.has('otherIngredients')">
-							<view class="recipe-table-container">
-								<view v-if="recipeDetails.extraIngredients.length > 0" class="product-ingredient-table">
-									<view class="table-header">
-										<text class="col-group">类型</text>
-										<text class="col-ingredient">原料</text>
-										<text class="col-usage">用量</text>
-										<text class="col-cost">成本</text>
-									</view>
-									<template v-for="(group, groupName) in recipeDetails.groupedExtraIngredients"
-										:key="groupName">
-										<view v-for="(pIng, index) in group" :key="pIng.id" class="table-row">
-											<text v-if="index === 0" class="col-group"
-												:style="{ 'vertical-align': group.length > 1 ? 'top' : 'middle' }">
-												{{ groupName }}
-											</text>
-											<text v-else class="col-group"></text>
-											<text class="col-ingredient">{{ pIng.name }}</text>
-											<text class="col-usage">
-												<template v-if="pIng.id === 'dough-summary'">
-													{{ formatNumber(pIng.weightInGrams) }}g
-												</template>
-												<template v-else-if="pIng.type === '搅拌原料'">
-													{{ formatNumber(pIng.ratio) }}% ({{
+
+
+						<view class="other-ingredients-section">
+							<view class="group-title" @click="toggleCollapse('otherIngredients')">
+								<span>原料汇总 (总成本: ¥{{ formatNumber(recipeDetails.totalCost) }})</span>
+								<span class="arrow"
+									:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10094;</span>
+							</view>
+							<view v-show="!collapsedSections.has('otherIngredients')">
+								<view class="recipe-table-container">
+									<view v-if="recipeDetails.extraIngredients.length > 0"
+										class="product-ingredient-table">
+										<view class="table-header">
+											<text class="col-group">类型</text>
+											<text class="col-ingredient">原料</text>
+											<text class="col-usage">用量</text>
+											<text class="col-cost">成本</text>
+										</view>
+										<template v-for="(group, groupName) in recipeDetails.groupedExtraIngredients"
+											:key="groupName">
+											<view v-for="(pIng, index) in group" :key="pIng.id" class="table-row">
+												<text v-if="index === 0" class="col-group"
+													:style="{ 'vertical-align': group.length > 1 ? 'top' : 'middle' }">
+													{{ groupName }}
+												</text>
+												<text v-else class="col-group"></text>
+												<text class="col-ingredient">{{ pIng.name }}</text>
+												<text class="col-usage">
+													<template v-if="pIng.id === 'dough-summary'">
+														{{ formatNumber(pIng.weightInGrams) }}g
+													</template>
+													<template v-else-if="pIng.type === '搅拌原料'">
+														{{ formatNumber(pIng.ratio) }}% ({{
 														formatNumber(pIng.weightInGrams)
 													}}g)
-												</template>
-												<template v-else-if="pIng.weightInGrams != null">
-													{{ formatNumber(pIng.weightInGrams) }}g
-												</template>
-											</text>
-											<text class="col-cost">¥{{ formatNumber(pIng.cost) }}</text>
-										</view>
-									</template>
-								</view>
-								<view v-else class="empty-state" style="padding: 20px 0;">
-									暂无其他原料
+													</template>
+													<template v-else-if="pIng.weightInGrams != null">
+														{{ formatNumber(pIng.weightInGrams) }}g
+													</template>
+												</text>
+												<text class="col-cost">¥{{ formatNumber(pIng.cost) }}</text>
+											</view>
+										</template>
+									</view>
+									<view v-else class="empty-state" style="padding: 20px 0;">
+										暂无其他原料
+									</view>
 								</view>
 							</view>
 						</view>
 					</view>
-				</view>
-				<view v-else-if="displayedVersion && displayedVersion.products.length === 0" class="empty-state">
-					当前版本暂无产品
-				</view>
+					<view v-else-if="displayedVersion && displayedVersion.products.length === 0" class="empty-state">
+						当前版本暂无产品
+					</view>
+				</template>
 
+				<!-- ============================================================ -->
+				<!--           仅 非面团(PRE_DOUGH / EXTRA) 类型配方显示的内容      -->
+				<!-- ============================================================ -->
+				<template v-else>
+					<view class="card">
+						<view class="card-title">原料列表</view>
+						<view class="recipe-table-container">
+							<view class="recipe-table simple-table">
+								<view class="table-header">
+									<text class="col-ingredient">原料名称</text>
+									<text class="col-ratio">比例</text>
+									<text class="col-price">单价</text>
+								</view>
+								<view v-for="(ing, ingIndex) in nonMainRecipeIngredients" :key="ingIndex"
+									class="table-row">
+									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
+									<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
+								</view>
+							</view>
+						</view>
+					</view>
+				</template>
 			</view>
 		</view>
 		<view class="loading-spinner" v-else>
@@ -189,7 +217,6 @@
 	import {
 		useDataStore
 	} from '@/store/data';
-	// [修改] 导入新的 RecipeDetails 类型
 	import type {
 		RecipeFamily,
 		RecipeVersion,
@@ -200,7 +227,6 @@
 		getRecipeFamily,
 		activateRecipeVersion
 	} from '@/api/recipes';
-	// [修改] 导入新的 getRecipeDetails API
 	import {
 		getProductCostHistory,
 		getProductCostBreakdown,
@@ -213,7 +239,6 @@
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 	import AppButton from '@/components/AppButton.vue';
-	// [核心新增] 引入新的 AnimatedTabs 组件
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
 	import {
 		formatChineseDate,
@@ -227,7 +252,6 @@
 	const isLoadingVersions = ref(false);
 	const recipeFamily = ref<RecipeFamily | null>(null);
 	const recipeVersions = ref<RecipeVersion[]>([]);
-	// [新增] 用于存储从后端获取的计算好的配方详情
 	const recipeDetails = ref<RecipeDetails | null>(null);
 
 
@@ -241,11 +265,13 @@
 	const selectedVersionForAction = ref<RecipeVersion | null>(null);
 
 	const detailChartTab = ref<'trend' | 'breakdown'>('trend');
-	// [核心新增] 为新组件定义 tab 数据
-	const chartTabs = ref([
-		{ key: 'trend', label: '成本走势' },
-		{ key: 'breakdown', label: '原料成本' },
-	]);
+	const chartTabs = ref([{
+		key: 'trend',
+		label: '成本走势'
+	}, {
+		key: 'breakdown',
+		label: '原料成本'
+	},]);
 	const costHistory = ref<{
 		cost : number
 	}[]>([]);
@@ -270,27 +296,27 @@
 	});
 
 	const fetchCostData = async (productId : string | null) => {
-		if (!productId) {
+		// 仅当配方类型为主面团且有产品ID时才获取成本数据
+		if (!productId || recipeFamily.value?.type !== 'MAIN') {
 			costHistory.value = [];
 			costBreakdown.value = [];
-			recipeDetails.value = null; // [新增] 清空配方详情
+			recipeDetails.value = null;
 			return;
 		}
 		try {
-			// [修改] 并行获取所有数据
 			const [historyData, breakdownData, detailsData] = await Promise.all([
 				getProductCostHistory(productId),
 				getProductCostBreakdown(productId),
-				getRecipeDetails(productId) // [新增] 调用新API获取计算好的详情
+				getRecipeDetails(productId)
 			]);
 			costHistory.value = historyData;
 			costBreakdown.value = breakdownData;
-			recipeDetails.value = detailsData; // [新增] 保存配方详情
+			recipeDetails.value = detailsData;
 		} catch (error) {
 			console.error('Failed to fetch cost data for product:', error);
 			costHistory.value = [];
 			costBreakdown.value = [];
-			recipeDetails.value = null; // [新增] 出错时清空
+			recipeDetails.value = null;
 		}
 	};
 
@@ -311,17 +337,24 @@
 				if (!displayedVersionId.value || !recipeVersions.value.some(v => v.id === displayedVersionId.value)) {
 					displayedVersionId.value = versionToShow.id;
 				}
-				// @ts-ignore
-				const products = versionToShow.products;
-				if (products && products.length > 0) {
-					const currentProductIsValid = products.some(p => p.id === selectedProductId.value);
-					if (!selectedProductId.value || !currentProductIsValid) {
-						selectedProductId.value = products[0].id;
+				// 只有主面团配方才需要处理产品
+				if (fullFamilyData.type === 'MAIN') {
+					// @ts-ignore
+					const products = versionToShow.products;
+					if (products && products.length > 0) {
+						const currentProductIsValid = products.some(p => p.id === selectedProductId.value);
+						if (!selectedProductId.value || !currentProductIsValid) {
+							selectedProductId.value = products[0].id;
+						}
+					} else {
+						selectedProductId.value = null;
 					}
+					await fetchCostData(selectedProductId.value);
 				} else {
+					// 非主面团配方，不需要产品和成本计算
 					selectedProductId.value = null;
+					await fetchCostData(null);
 				}
-				await fetchCostData(selectedProductId.value);
 			} else {
 				displayedVersionId.value = null;
 				selectedProductId.value = null;
@@ -355,8 +388,25 @@
 		return displayedVersion.value.products.find(p => p.id === selectedProductId.value);
 	});
 
-	// [删除] 移除 currentRecipeDetails 计算属性，其逻辑已移至后端
-	// [删除] 移除 productCostDetails 计算属性，其逻辑已移至后端
+	// [核心新增] 为非面团类型配方计算原料列表
+	const nonMainRecipeIngredients = computed(() => {
+		if (!displayedVersion.value || recipeFamily.value?.type === 'MAIN') {
+			return [];
+		}
+		// 非面团配方通常只有一个 dough 定义
+		const dough = displayedVersion.value.doughs[0];
+		if (!dough || !dough.ingredients) {
+			return [];
+		}
+		return dough.ingredients.map(ing => {
+			const ingredientData = dataStore.ingredients.find(i => i.name === ing.name);
+			const pricePerKg = ingredientData ? getPricePerKg(ingredientData) : '0.00';
+			return {
+				...ing,
+				pricePerKg,
+			};
+		});
+	});
 
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
@@ -369,6 +419,14 @@
 	});
 
 	// --- Methods ---
+	// [核心新增] 辅助函数，用于查找并计算原料单价
+	const getPricePerKg = (ing : Ingredient) => {
+		if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
+			return '0.00';
+		}
+		return ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000).toFixed(2);
+	};
+
 
 	const toggleCollapse = (sectionName : string) => {
 		const newSet = new Set(collapsedSections.value);
@@ -379,9 +437,6 @@
 		}
 		collapsedSections.value = newSet;
 	};
-
-	// [删除] 移除 getPricePerKg 方法，因为价格已由后端计算
-	// [删除] 移除 getProductIngredientTypeName 方法，因为类型已由后端处理
 
 	const navigateBack = () => {
 		uni.navigateBack();
@@ -403,12 +458,14 @@
 
 	const handleVersionClick = (versionToDisplay : RecipeVersion) => {
 		displayedVersionId.value = versionToDisplay.id;
-		// @ts-ignore
-		const products = versionToDisplay.products;
-		if (products && products.length > 0) {
-			selectedProductId.value = products[0].id;
-		} else {
-			selectedProductId.value = null;
+		if (recipeFamily.value?.type === 'MAIN') {
+			// @ts-ignore
+			const products = versionToDisplay.products;
+			if (products && products.length > 0) {
+				selectedProductId.value = products[0].id;
+			} else {
+				selectedProductId.value = null;
+			}
 		}
 	};
 
@@ -556,6 +613,21 @@
 			min-width: 80px;
 			word-break: break-word;
 		}
+
+		/* [核心新增] 为非面团配方的简单表格调整列宽 */
+		&.simple-table {
+			.col-ingredient {
+				width: 50%;
+			}
+
+			.col-ratio {
+				width: 25%;
+			}
+
+			.col-price {
+				width: 25%;
+			}
+		}
 	}
 
 	.procedure-notes {
@@ -576,9 +648,7 @@
 	}
 
 	.product-tabs-wrapper {
-		// [需求 1] 左对齐：移除左右内边距
 		padding: 0;
-		// [需求 2] 增加与下方卡片的间距
 		margin-bottom: 20px;
 
 		:deep(.filter-tabs) {
@@ -590,8 +660,6 @@
 	.data-analysis-section {
 		margin-bottom: 20px;
 	}
-
-	/* [核心删除] 移除旧的 chart-tabs 样式 */
 
 	.product-ingredient-table {
 		display: table;
