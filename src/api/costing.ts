@@ -3,6 +3,21 @@
  * 文件描述: [新增] 封装所有与成本计算(Costing)相关的API请求。
  */
 import { request } from '@/utils/request';
+// [新增] 导入新的配方详情类型
+import type { RecipeDetails } from '@/types/api';
+
+
+/**
+ * [新增] 获取计算后的产品配方详情，用于客户端展示
+ * @param productId 产品的ID
+ * @returns 返回结构化的配方详情，包含用量和成本
+ */
+export function getRecipeDetails(productId : string) : Promise<RecipeDetails> {
+	return request<RecipeDetails>({
+		url: `/costing/products/${productId}/details`,
+	});
+}
+
 
 /**
  * [新增] 获取单个产品成本的历史变化记录

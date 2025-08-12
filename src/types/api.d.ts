@@ -87,6 +87,36 @@ export interface ProductListItem {
 	familyId : string; // 这是 RecipeFamily 的 ID
 }
 
+// [新增] 服务端计算后的配方详情 DTO
+export interface CalculatedIngredientInfo {
+	name : string;
+	ratio : number;
+	weightInGrams : number;
+	pricePerKg : string;
+	cost : number;
+}
+export interface CalculatedDoughGroup {
+	name : string;
+	ingredients : CalculatedIngredientInfo[];
+	procedure ?: string[];
+	totalCost : number;
+}
+export interface CalculatedExtraIngredientInfo {
+	id : string;
+	name : string;
+	type : string;
+	cost : number;
+	weightInGrams : number;
+	ratio ?: number;
+}
+export interface RecipeDetails {
+	totalCost : number;
+	doughGroups : CalculatedDoughGroup[];
+	extraIngredients : CalculatedExtraIngredientInfo[];
+	groupedExtraIngredients : Record<string, CalculatedExtraIngredientInfo[]>;
+}
+
+
 // --- 原料与库存 ---
 export interface Ingredient {
 	id : string;
