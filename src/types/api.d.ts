@@ -40,6 +40,7 @@ export interface RecipeFamily {
 	name : string;
 	type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	versions : RecipeVersion[]; // 包含了该家族下的版本信息
+	productionCount ?: number; // [ADDED] 新增字段，用于存储总制作次数
 }
 
 // 配方的具体版本

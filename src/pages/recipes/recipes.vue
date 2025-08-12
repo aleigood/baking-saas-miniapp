@@ -119,18 +119,10 @@
 		return family.versions[0].doughs.reduce((sum, dough) => sum + (dough._count?.ingredients || 0), 0);
 	};
 
+	// [REFACTORED] 制作次数的计算逻辑被极大简化
 	const getFamilyProductionCount = (family : RecipeFamily) => {
-		if (!family || !dataStore.recipeStats) return 0;
-		if (family.type === 'MAIN') {
-			const productNames =
-				family.versions?.[0]?.products?.map(p => p.name) || [];
-			if (productNames.length === 0) return 0;
-			return dataStore.recipeStats
-				.filter(stat => productNames.includes(stat.name))
-				.reduce((sum, stat) => sum + stat.count, 0);
-		}
-		const stat = dataStore.recipeStats.find(s => s.name === family.name);
-		return stat ? stat.count : 0;
+		// 直接从后端返回的数据中获取制作次数，如果不存在则默认为0
+		return family.productionCount || 0;
 	};
 
 	const getRating = (count : number) => {
