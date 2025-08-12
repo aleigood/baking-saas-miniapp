@@ -13,11 +13,8 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<view class="card">
-					<view class="card-title"><span>本月消耗排行</span></view>
-					<BarChart :chart-data="ingredientStatsForChart" unit="kg" />
-				</view>
-				<!-- [核心修改] 替换为 FilterTabs 和 FilterTab 组件 -->
+				<!-- [DELETED] 移除原料消耗排行图表 -->
+
 				<FilterTabs>
 					<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
 					<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
@@ -28,11 +25,23 @@
 						<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
 					</view>
 					<view class="side-info">
-						<!-- [REFACTORED] 显示可供应天数，并根据天数判断是否库存紧张 -->
-						<view class="value" :class="{ 'stock-low': ing.daysOfSupply < 7 }">
-							{{ getDaysOfSupplyText(ing.daysOfSupply) }}
-						</view>
-						<view class="desc">库存: {{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg</view>
+						<!-- [REFACTORED] 根据不同的筛选条件，展示不同的数据布局 -->
+						<template v-if="ingredientFilter === 'low'">
+							<!-- “库存紧张”视图：优先显示剩余天数 -->
+							<view class="value-tag" :class="getStockStatusClass(ing.daysOfSupply)">
+								{{ getDaysOfSupplyText(ing.daysOfSupply) }}
+							</view>
+							<view class="desc">库存: {{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg</view>
+						</template>
+						<template v-else>
+							<!-- “全部”视图：优先显示库存量，并附带总消耗量 -->
+							<view class="value">
+								{{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg
+							</view>
+							<view v-if="ing.totalConsumptionInGrams > 0" class="desc consumption">
+								已消耗: {{ (ing.totalConsumptionInGrams / 1000).toFixed(2) }} kg
+							</view>
+						</template>
 					</view>
 				</ListItem>
 			</template>
@@ -68,28 +77,23 @@
 		}
 	});
 
-	const ingredientStatsForChart = computed(() => {
-		return dataStore.ingredientStats
-			.map(item => ({
-				name: item.name,
-				value: item.consumedGrams / 1000,
-			}))
-			.sort((a, b) => b.value - a.value);
-	});
-
+	// [REFACTORED] 重构 filteredIngredients 计算属性以支持新的排序逻辑
 	const filteredIngredients = computed(() => {
+		// 创建一个新数组副本以进行排序而不改变原始store状态
+		const ingredientsCopy = [...dataStore.ingredients];
+
 		if (ingredientFilter.value === 'low') {
-			// [REFACTORED] 按可供应天数筛选和排序
-			return [...dataStore.ingredients] // 创建一个新数组以避免直接修改store
+			// 按可供应天数筛选和排序
+			return ingredientsCopy
 				.filter((ing) => ing.daysOfSupply < 7) // 筛选出供应天数少于7天的原料
 				.sort((a, b) => a.daysOfSupply - b.daysOfSupply); // 按天数升序排列
 		}
-		return dataStore.ingredients;
+
+		// 默认（'all'）按总消耗量降序排序
+		return ingredientsCopy.sort((a, b) => b.totalConsumptionInGrams - a.totalConsumptionInGrams);
 	});
 
-	// [DELETED] getPricePerKg 方法不再在列表页使用，可以移除
 
-	// [ADDED] 新增一个辅助函数来格式化显示可供应天数
 	const getDaysOfSupplyText = (days : number) => {
 		if (!isFinite(days) || days > 365) {
 			return '充足';
@@ -101,6 +105,17 @@
 			return '已用尽';
 		}
 		return `约剩 ${Math.floor(days)} 天`;
+	};
+
+	// [ADDED] 新增一个方法来根据剩余天数返回对应的CSS类
+	const getStockStatusClass = (days : number) => {
+		if (days <= 0) {
+			return 'stock-danger'; // 已用尽
+		}
+		if (days < 7) {
+			return 'stock-warning'; // 库存紧张
+		}
+		return ''; // 正常
 	};
 
 	const navigateToEditPage = () => {
@@ -118,8 +133,39 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.side-info .stock-low {
-		color: var(--danger-color);
-		font-weight: bold;
+	/* [DELETED] 移除旧的 .stock-low 样式 */
+
+	/* [ADDED] 为消耗量文本添加一点额外的上边距 */
+	.side-info .consumption {
+		margin-top: 2px;
+	}
+
+	/* [ADDED] 新增库存状态标签的样式 */
+	.value-tag {
+		font-size: 12px;
+		/* 字体稍小一些 */
+		font-weight: 500;
+		/* 字体不过于粗 */
+		padding: 3px 8px;
+		border-radius: 6px;
+		color: var(--text-secondary);
+		background-color: #f3f4f6;
+		/* 默认灰色背景 */
+		display: inline-block;
+		/* 使其成为块级元素以便应用padding */
+	}
+
+	.value-tag.stock-warning {
+		background-color: #fef3c7;
+		/* 柔和的黄色背景 */
+		color: #92400e;
+		/* 深琥珀色文字 */
+	}
+
+	.value-tag.stock-danger {
+		background-color: #fee2e2;
+		/* 柔和的红色背景 */
+		color: #991b1b;
+		/* 深红色文字 */
 	}
 </style>

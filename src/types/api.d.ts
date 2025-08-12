@@ -134,6 +134,7 @@ export interface Ingredient {
 	// [ADDED] 新增字段，用于存储可供应天数和日均消耗
 	daysOfSupply : number;
 	avgDailyConsumption : number;
+	totalConsumptionInGrams : number; // [ADDED] 新增总消耗量字段
 }
 
 export interface IngredientSKU {
