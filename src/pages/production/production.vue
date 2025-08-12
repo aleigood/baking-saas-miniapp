@@ -16,11 +16,11 @@
 			<template v-else>
 				<view class="summary-card">
 					<div>
-						<view class="value">{{ totalPendingBreadCount }}</view>
+						<view class="value">{{ homeStats.pendingCount }}</view>
 						<view class="label">待完成</view>
 					</div>
 					<div>
-						<view class="value">{{ thisWeeksCompletedBreadCount }}</view>
+						<view class="value">{{ homeStats.completedThisWeekCount }}</view>
 						<view class="label">本周已完成</view>
 					</div>
 				</view>
@@ -33,9 +33,7 @@
 					</IconButton>
 				</view>
 
-				<!-- 任务列表 -->
 				<view v-if="activeTasks.length > 0">
-					<!-- [核心修改] 添加 vibrate-on-long-press 属性，因为这里的长按总是有菜单 -->
 					<ListItem v-for="task in activeTasks" :key="task.id" @click="navigateToDetail(task)"
 						@longpress="handleLongPressAction(task)" :vibrate-on-long-press="true" class="task-card"
 						:class="getStatusClass(task.status)">
@@ -56,7 +54,6 @@
 
 		<AppFab @click="navigateToCreatePage" />
 
-		<!-- [核心修改] 优化取消任务的模态框，使用按钮并增加提示 -->
 		<AppModal v-model:visible="uiStore.showTaskActionsModal" title="取消任务">
 			<view class="modal-prompt-text">
 				确定要取消这个任务吗？
@@ -75,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, computed } from 'vue';
+	import { ref, computed, reactive } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
@@ -84,48 +81,52 @@
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import IconButton from '@/components/IconButton.vue';
-	import AppButton from '@/components/AppButton.vue'; // [核心新增] 引入 AppButton
+	import AppButton from '@/components/AppButton.vue';
 	import type { ProductionTaskDto } from '@/types/api';
 	import { updateTaskStatus } from '@/api/tasks';
-	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
+	import { getProductionHomeStats } from '@/api/stats';
+	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 
 	const isLoading = ref(false);
-	const isSubmitting = ref(false); // [核心新增]
+	const isSubmitting = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 
+	const homeStats = reactive({
+		pendingCount: 0,
+		completedThisWeekCount: 0,
+	});
+
+	// [修正] 将函数定义移动到 onShow 钩子之前，以避免初始化错误
+	const fetchHomeStats = async () => {
+		try {
+			const stats = await getProductionHomeStats();
+			homeStats.pendingCount = stats.pendingCount;
+			homeStats.completedThisWeekCount = stats.completedThisWeekCount;
+		} catch (error) {
+			console.error('Failed to fetch home stats:', error);
+			// 可以在这里添加用户提示，例如
+			uni.showToast({ title: '加载统计数据失败', icon: 'none' });
+		}
+	};
+
 	onShow(async () => {
-		await dataStore.fetchProductionData();
+		isLoading.value = true;
+		// 现在可以安全地调用 fetchHomeStats
+		await Promise.all([
+			dataStore.fetchProductionData(),
+			fetchHomeStats()
+		]);
+		isLoading.value = false;
 	});
 
 	const activeTasks = computed(() => {
 		return dataStore.production.filter(
 			task => task.status === 'PENDING' || task.status === 'IN_PROGRESS'
 		);
-	});
-
-	const totalPendingBreadCount = computed(() => {
-		return activeTasks.value
-			.reduce((sum, task) => sum + getTotalQuantity(task), 0);
-	});
-
-	const thisWeeksCompletedBreadCount = computed(() => {
-		const now = new Date();
-		const dayOfWeek = now.getDay();
-		const startOfWeek = new Date(now);
-		startOfWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-		startOfWeek.setHours(0, 0, 0, 0);
-
-		return dataStore.production
-			.filter(task => {
-				if (task.status !== 'COMPLETED') return false;
-				const completedDate = new Date(task.plannedDate);
-				return completedDate >= startOfWeek;
-			})
-			.reduce((sum, task) => sum + getTotalQuantity(task), 0);
 	});
 
 	const hasCompletedTasks = computed(() => {
@@ -145,7 +146,6 @@
 	};
 
 	const getTaskDetails = (task : ProductionTaskDto) => {
-		// [核心修改] 使用统一的日期格式化函数
 		const formattedDate = formatChineseDate(task.plannedDate);
 		const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
 		const totalQuantity = getTotalQuantity(task);
@@ -192,7 +192,7 @@
 	const handleCancelTaskFromModal = async () => {
 		if (!selectedTaskForAction.value) return;
 
-		isSubmitting.value = true; // [核心新增]
+		isSubmitting.value = true;
 		try {
 			await updateTaskStatus(selectedTaskForAction.value.id, 'CANCELLED');
 			uni.showToast({ title: '任务已取消', icon: 'success' });
@@ -201,7 +201,7 @@
 			console.error('Failed to cancel task:', error);
 			uni.showToast({ title: '操作失败，请重试', icon: 'none' });
 		} finally {
-			isSubmitting.value = false; // [核心新增]
+			isSubmitting.value = false;
 			uiStore.closeModal('taskActions');
 			selectedTaskForAction.value = null;
 		}
@@ -319,7 +319,6 @@
 		background-color: #a8a8a8;
 	}
 
-	/* [核心新增] 删除确认模态框的特定样式 */
 	.modal-prompt-text {
 		font-size: 16px;
 		color: var(--text-primary);

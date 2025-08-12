@@ -6,6 +6,16 @@ import { request } from '@/utils/request';
 import type { RecipeStatDto, IngredientStatDto } from '@/types/api';
 
 /**
+ * [新增] 获取生产主页的核心统计数据
+ */
+export function getProductionHomeStats() : Promise<{ pendingCount : number; completedThisWeekCount : number }> {
+	return request<{ pendingCount : number; completedThisWeekCount : number }>({
+		url: '/stats/production-home',
+	});
+}
+
+
+/**
  * 获取配方制作排行统计
  * @param startDate 开始日期 'YYYY-MM-DD'
  * @param endDate 结束日期 'YYYY-MM-DD'
