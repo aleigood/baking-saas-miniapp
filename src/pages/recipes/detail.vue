@@ -17,7 +17,8 @@
 					<template v-else>
 						<ListItem v-for="version in recipeVersions" :key="version.id"
 							:class="{ 'item-selected': displayedVersionId === version.id }"
-							@click="handleVersionClick(version)" @longpress="handleVersionLongPressAction(version)">
+							@click="handleVersionClick(version)" @longpress="handleVersionLongPressAction(version)"
+							:vibrate-on-long-press="canEditRecipe && !version.isActive">
 							<view class="main-info">
 								<view class="name">{{ version.notes || `版本 ${version.version}` }}
 									(v{{ version.version }})</view>

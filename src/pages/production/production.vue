@@ -35,8 +35,10 @@
 
 				<!-- 任务列表 -->
 				<view v-if="activeTasks.length > 0">
+					<!-- [核心修改] 添加 vibrate-on-long-press 属性，因为这里的长按总是有菜单 -->
 					<ListItem v-for="task in activeTasks" :key="task.id" @click="navigateToDetail(task)"
-						@longpress="handleLongPressAction(task)" class="task-card" :class="getStatusClass(task.status)">
+						@longpress="handleLongPressAction(task)" :vibrate-on-long-press="true" class="task-card"
+						:class="getStatusClass(task.status)">
 						<view class="task-info">
 							<view class="title">{{ getTaskTitle(task) }}</view>
 							<view class="details">{{ getTaskDetails(task) }}</view>

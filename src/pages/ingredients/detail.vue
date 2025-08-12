@@ -1,5 +1,6 @@
 <template>
 	<view class="page-container">
+		<!-- 页面头部 -->
 		<view class="page-header">
 			<view class="detail-header">
 				<view class="back-btn" @click="navigateBack">&#10094;</view>
@@ -12,12 +13,14 @@
 
 		<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
 			<view class="detail-page">
+				<!-- 1. 核心信息区 -->
 				<view class="tag-group">
 					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
 					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
 					<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
 				</view>
 
+				<!-- 2. 数据洞察区 -->
 				<view class="card">
 					<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
@@ -25,13 +28,16 @@
 						unit-suffix="kg" />
 				</view>
 
+				<!-- 3. 品牌与规格管理区 -->
 				<view class="card card-full-bleed-list">
 					<view class="card-title-wrapper">
 						<span class="card-title">品牌与规格 (SKU)</span>
 					</view>
+					<!-- [核心修改] 动态绑定 vibrate-on-long-press 属性，只有在可以设为使用中时才震动 -->
 					<ListItem v-for="sku in ingredient.skus" :key="sku.id" class="sku-item"
 						:class="{ 'item-selected': selectedSkuId === sku.id }" @click="handleSkuClick(sku)"
-						@longpress="handleSkuLongPressAction(sku)">
+						@longpress="handleSkuLongPressAction(sku)"
+						:vibrate-on-long-press="ingredient.activeSkuId !== sku.id">
 						<view class="main-info">
 							<view class="name">{{ sku.brand || '无品牌' }} - {{ sku.specName }}</view>
 							<view class="desc">添加于: {{ formatChineseDate(sku.createdAt) }}</view>
@@ -43,6 +49,7 @@
 					<AppButton type="text-link" @click="openAddSkuModal">+ 新增品牌规格</AppButton>
 				</view>
 
+				<!-- 4. 采购记录卡片 -->
 				<view class="card" v-if="selectedSku">
 					<view class="card-title">{{ selectedSku.brand || '无品牌' }} - {{ selectedSku.specName }} 的采购记录
 					</view>
@@ -54,8 +61,10 @@
 							<text class="col-total">总价</text>
 						</view>
 						<view v-if="displayedProcurementRecords && displayedProcurementRecords.length > 0">
+							<!-- [核心修改] 添加 vibrate-on-long-press 属性，因为这里的长按总是有菜单 -->
 							<ListItem v-for="record in displayedProcurementRecords" :key="record.id"
-								class="procurement-item" @longpress="handleProcurementLongPress(record)">
+								class="procurement-item" @longpress="handleProcurementLongPress(record)"
+								:vibrate-on-long-press="true">
 								<text class="col-date">{{ formatChineseDate(record.purchaseDate) }}</text>
 								<text class="col-quantity">{{ record.packagesPurchased }} 包</text>
 								<text class="col-price">¥{{ Number(record.pricePerPackage).toFixed(2) }}</text>
@@ -190,7 +199,6 @@
 	import ListItem from '@/components/ListItem.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
-	// [核心新增] 引入 AnimatedTabs 组件
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
 	import { formatChineseDate } from '@/utils/format';
 
@@ -200,7 +208,6 @@
 	const isSubmitting = ref(false);
 	const ingredient = ref<Ingredient | null>(null);
 	const detailChartTab = ref<'price' | 'usage'>('price');
-	// [核心新增] 为 AnimatedTabs 定义 tab 数据
 	const chartTabs = ref([
 		{ key: 'price', label: '价格走势' },
 		{ key: 'usage', label: '用量走势' },
