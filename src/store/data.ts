@@ -17,7 +17,8 @@ import type {
 import { useUserStore } from './user';
 import { getTenants as getTenantsApi } from '@/api/tenants';
 import { switchTenant as switchTenantApi } from '@/api/auth';
-import { getTasks, getTasksByStatus } from '@/api/tasks'; // [新增] 引入 getTasksByStatus
+// [MODIFIED] 引入 getHistoricalTasks
+import { getTasks, getHistoricalTasks } from '@/api/tasks';
 import { getRecipes } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
 import { getMembers } from '@/api/members';
@@ -38,8 +39,14 @@ export const useDataStore = defineStore('data', () => {
 
 	// 业务数据
 	const production = ref<ProductionTaskDto[]>([]);
-	// [核心修改] 将 completedTasks 重命名为 historicalTasks
-	const historicalTasks = ref<ProductionTaskDto[]>([]);
+	// [MODIFIED] historicalTasks 现在存储由后端分组好的数据
+	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
+	// [ADDED] 新增用于管理历史任务分页的状态
+	const historicalTasksMeta = ref({
+		page: 1,
+		limit: 10, // 与后端保持一致
+		hasMore: true,
+	});
 	const recipes = ref<RecipeFamily[]>([]); // 更新为 RecipeFamily 数组
 	const ingredients = ref<Ingredient[]>([]);
 	const members = ref<Member[]>([]);
@@ -52,7 +59,7 @@ export const useDataStore = defineStore('data', () => {
 		recipes: false,
 		ingredients: false,
 		members: false,
-		historicalTasks: false, // [核心修改]
+		historicalTasks: false,
 	});
 
 	// Getters
@@ -118,19 +125,46 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	// [核心修改] 获取已完成和已取消的任务
-	async function fetchHistoricalTasks() {
-		if (!currentTenantId.value) return;
+	// [REFACTORED] 重构 fetchHistoricalTasks 以支持分页加载和增量更新
+	async function fetchHistoricalTasks(loadMore = false) {
+		// 如果正在加载中，或者没有更多数据了，则直接返回
+		if (!currentTenantId.value || (!loadMore && dataLoaded.value.historicalTasks) || !historicalTasksMeta.value.hasMore) {
+			return;
+		}
+
 		try {
-			const [completed, cancelled] = await Promise.all([
-				getTasksByStatus('COMPLETED'),
-				getTasksByStatus('CANCELLED')
-			]);
-			// 合并并按日期降序排序
-			historicalTasks.value = [...completed, ...cancelled].sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
+			let pageToFetch = 1;
+			if (loadMore) {
+				pageToFetch = historicalTasksMeta.value.page + 1;
+			} else {
+				// 首次加载，重置状态
+				resetHistoricalTasks();
+			}
+
+			const res = await getHistoricalTasks(pageToFetch, historicalTasksMeta.value.limit);
+
+			if (loadMore) {
+				// 加载更多：合并新数据到旧数据中
+				for (const date in res.data) {
+					if (historicalTasks.value[date]) {
+						historicalTasks.value[date].push(...res.data[date]);
+					} else {
+						historicalTasks.value[date] = res.data[date];
+					}
+				}
+			} else {
+				// 首次加载：直接替换数据
+				historicalTasks.value = res.data;
+			}
+
+			historicalTasksMeta.value.page = res.meta.page;
+			historicalTasksMeta.value.hasMore = res.meta.hasMore;
 			dataLoaded.value.historicalTasks = true;
+
 		} catch (error) {
 			console.error('Failed to fetch historical tasks', error);
+			// 出错时重置hasMore，防止无法再次加载
+			historicalTasksMeta.value.hasMore = false;
 		}
 	}
 
@@ -195,10 +229,16 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
+	// [ADDED] 用于重置历史任务分页状态的辅助函数
+	function resetHistoricalTasks() {
+		historicalTasks.value = {};
+		historicalTasksMeta.value = { page: 0, limit: 10, hasMore: true };
+		dataLoaded.value.historicalTasks = false;
+	}
+
 	// [新增] 用于重置业务数据和加载状态的辅助函数
 	function resetData() {
 		production.value = [];
-		historicalTasks.value = []; // [核心修改]
 		recipes.value = [];
 		ingredients.value = [];
 		members.value = [];
@@ -209,8 +249,9 @@ export const useDataStore = defineStore('data', () => {
 			recipes: false,
 			ingredients: false,
 			members: false,
-			historicalTasks: false, // [核心修改]
+			historicalTasks: false,
 		};
+		resetHistoricalTasks(); // [MODIFIED] 调用重置历史任务函数
 	}
 
 	function reset() {
@@ -224,7 +265,8 @@ export const useDataStore = defineStore('data', () => {
 		currentTenantId,
 		currentTenant,
 		production,
-		historicalTasks, // [核心修改]
+		historicalTasks,
+		historicalTasksMeta, // [ADDED] 暴露分页元数据
 		recipes,
 		productList, // 暴露转换后的产品列表
 		ingredients,
@@ -237,7 +279,7 @@ export const useDataStore = defineStore('data', () => {
 		reset,
 		// 暴露独立的加载函数
 		fetchProductionData,
-		fetchHistoricalTasks, // [核心修改]
+		fetchHistoricalTasks,
 		fetchRecipesData,
 		fetchIngredientsData,
 		fetchMembersData,

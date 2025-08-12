@@ -7,15 +7,15 @@
 			</view>
 		</view>
 		<view class="page-content">
-			<view class="loading-spinner" v-if="isLoading">
+			<!-- [MODIFIED] 修改加载状态判断逻辑，仅在首次加载时显示骨架屏 -->
+			<view class="loading-spinner" v-if="isLoading && !dataStore.dataLoaded.historicalTasks">
 				<text>加载中...</text>
 			</view>
 			<template v-else>
-				<!-- [核心修改] 使用新的 groupedTasks 计算属性进行渲染 -->
-				<view v-if="Object.keys(groupedTasks).length > 0">
-					<view v-for="(tasks, date) in groupedTasks" :key="date" class="task-group">
+				<!-- [REFACTORED] 直接使用从 store 获取并排序后的 groupedTasks 进行渲染 -->
+				<view v-if="Object.keys(sortedGroupedTasks).length > 0">
+					<view v-for="(tasks, date) in sortedGroupedTasks" :key="date" class="task-group">
 						<view class="date-header">{{ date }}</view>
-						<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
 						<ListItem v-for="task in tasks" :key="task.id" class="task-card"
 							:class="getStatusClass(task.status)" @click="navigateToDetail(task)">
 							<view class="task-info">
@@ -31,10 +31,10 @@
 				<view v-else class="empty-state">
 					<text>暂无历史任务</text>
 				</view>
-				<!-- [核心新增] 加载更多和没有更多的提示 -->
+				<!-- [MODIFIED] 加载更多和没有更多的提示 -->
 				<view class="load-more-container">
 					<view v-if="isLoadingMore" class="loading-spinner">加载中...</view>
-					<view v-if="!hasMoreTasks && !isLoading" class="no-more-tasks">没有更多了</view>
+					<view v-if="!dataStore.historicalTasksMeta.hasMore && !isLoading" class="no-more-tasks">没有更多了</view>
 				</view>
 			</template>
 		</view>
@@ -43,89 +43,57 @@
 
 <script setup lang="ts">
 	import { ref, computed } from 'vue';
-	// [核心修改] 引入 onReachBottom 钩子
 	import { onShow, onReachBottom } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import type { ProductionTaskDto } from '@/types/api';
-	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
-	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
+	import ListItem from '@/components/ListItem.vue';
+	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const isLoading = ref(true);
-
-	// [核心新增] 分页相关状态
-	const daysToShow = ref(3); // 初始加载3天的数据
-	const isLoadingMore = ref(false); // 是否正在加载更多
+	const isLoading = ref(false);
+	const isLoadingMore = ref(false);
 
 	onShow(async () => {
-		isLoading.value = true;
-		await dataStore.fetchHistoricalTasks();
-		isLoading.value = false;
+		// 只有在数据未加载时才显示全屏loading
+		if (!dataStore.dataLoaded.historicalTasks) {
+			isLoading.value = true;
+			await dataStore.fetchHistoricalTasks(false); // 首次加载
+			isLoading.value = false;
+		}
 	});
 
-	// [核心新增] 页面滚动到底部时触发加载更多
-	onReachBottom(() => {
-		if (hasMoreTasks.value && !isLoadingMore.value) {
+	// [MODIFIED] 页面滚动到底部时触发加载更多
+	onReachBottom(async () => {
+		if (dataStore.historicalTasksMeta.hasMore && !isLoadingMore.value) {
 			isLoadingMore.value = true;
-			// 模拟网络延迟
-			setTimeout(() => {
-				daysToShow.value += 3; // 每次多加载3天
-				isLoadingMore.value = false;
-			}, 500);
+			await dataStore.fetchHistoricalTasks(true); // 加载更多
+			isLoadingMore.value = false;
 		}
 	});
 
-	// [核心新增] 计算属性，将所有历史任务按日期分组
-	const allTasksByDate = computed(() => {
-		const groups : { [key : string] : ProductionTaskDto[] } = {};
-		for (const task of dataStore.historicalTasks) {
-			const date = new Date(task.plannedDate);
-			const day = date.getDate();
-			const month = date.getMonth() + 1;
-			const dayOfWeek = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][date.getDay()];
-			const key = `${month}月${day}日 ${dayOfWeek}`;
-
-			if (!groups[key]) {
-				groups[key] = [];
-			}
-			groups[key].push(task);
-		}
-		return groups;
-	});
-
-	// [核心新增] 获取所有日期的排序列表
-	const sortedDates = computed(() => {
-		return Object.keys(allTasksByDate.value).sort((a, b) => {
-			// 将 "M月d日" 格式转回日期对象进行比较
+	// [ADDED] 对从 store 中获取的已分组数据进行排序
+	const sortedGroupedTasks = computed(() => {
+		const tasksByDate = dataStore.historicalTasks;
+		// 获取所有日期键并进行排序
+		const sortedDates = Object.keys(tasksByDate).sort((a, b) => {
+			// 将 "M月d日 星期X" 格式转回日期对象进行比较
+			// 注意：这依赖于一个稳定的年份，如果跨年需要更复杂的逻辑
 			const dateA = new Date(new Date().getFullYear(), parseInt(a.split('月')[0]) - 1, parseInt(a.split('月')[1].split('日')[0]));
 			const dateB = new Date(new Date().getFullYear(), parseInt(b.split('月')[0]) - 1, parseInt(b.split('月')[1].split('日')[0]));
 			return dateB.getTime() - dateA.getTime();
 		});
-	});
 
-	// [核心新增] 计算当前需要展示的日期
-	const displayedDates = computed(() => {
-		return sortedDates.value.slice(0, daysToShow.value);
-	});
-
-	// [核心新增] 判断是否还有更多数据可以加载
-	const hasMoreTasks = computed(() => {
-		return displayedDates.value.length < sortedDates.value.length;
-	});
-
-	// [核心修改] groupedTasks 现在基于 displayedDates 来生成
-	const groupedTasks = computed(() => {
-		const groups : { [key : string] : ProductionTaskDto[] } = {};
-		for (const dateKey of displayedDates.value) {
-			groups[dateKey] = allTasksByDate.value[dateKey];
+		// 根据排序后的日期键创建一个新的有序对象
+		const sortedGroups : Record<string, ProductionTaskDto[]> = {};
+		for (const key of sortedDates) {
+			sortedGroups[key] = tasksByDate[key];
 		}
-		return groups;
+		return sortedGroups;
 	});
 
 
-	// [核心修改] 更新 getTaskTitle 逻辑以匹配主页
 	const getTaskTitle = (task : ProductionTaskDto) => {
 		if (!task.items || task.items.length === 0) {
 			return '未知任务';
@@ -139,7 +107,6 @@
 	};
 
 	const getTaskDetails = (task : ProductionTaskDto) => {
-		// [核心修改] 使用统一的日期格式化函数
 		const formattedDate = formatChineseDate(task.plannedDate);
 		const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
 		const totalQuantity = getTotalQuantity(task);
@@ -180,7 +147,7 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [核心新增] 日期分组样式 */
+	/* 日期分组样式 */
 	.task-group {
 		margin-bottom: 20px;
 	}
@@ -220,7 +187,6 @@
 		margin-right: 15px;
 	}
 
-	/* [核心修改] 更新标题样式以匹配主页，实现多行截断 */
 	.task-card .title {
 		font-size: 16px;
 		font-weight: 400;
@@ -256,7 +222,7 @@
 		background-color: #a8a8a8;
 	}
 
-	/* [核心新增] 加载更多提示样式 */
+	/* 加载更多提示样式 */
 	.load-more-container {
 		padding: 15px;
 		text-align: center;

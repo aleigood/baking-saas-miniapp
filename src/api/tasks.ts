@@ -6,13 +6,19 @@ import { request } from '@/utils/request';
 import type { ProductionTaskDto } from '@/types/api';
 
 /**
- * [核心新增] 根据状态获取任务列表
- * @param status 任务状态
+ * [REFACTORED] 根据状态获取历史任务列表，并支持分页
+ * @param page 页码
+ * @param limit 每页数量
  */
-export function getTasksByStatus(status : 'COMPLETED' | 'CANCELLED') : Promise<ProductionTaskDto[]> {
-	return request<ProductionTaskDto[]>({
+export function getHistoricalTasks(page : number, limit : number) : Promise<any> {
+	return request<any>({
 		url: '/production-tasks',
-		data: { status },
+		data: {
+			// 后端现在支持接收状态数组
+			status: ['COMPLETED', 'CANCELLED'],
+			page: String(page),
+			limit: String(limit)
+		},
 	});
 }
 
