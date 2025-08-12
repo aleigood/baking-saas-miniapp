@@ -131,6 +131,9 @@ export interface Ingredient {
 	currentStockInGrams : number;
 	currentPricePerPackage : number;
 	avgConsumptionPerTask : number;
+	// [ADDED] 新增字段，用于存储可供应天数和日均消耗
+	daysOfSupply : number;
+	avgDailyConsumption : number;
 }
 
 export interface IngredientSKU {

@@ -28,11 +28,11 @@
 						<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
 					</view>
 					<view class="side-info">
-						<view class="value"
-							:class="{ 'stock-low': ing.currentStockInGrams < ing.avgConsumptionPerTask }">
-							{{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg
+						<!-- [REFACTORED] 显示可供应天数，并根据天数判断是否库存紧张 -->
+						<view class="value" :class="{ 'stock-low': ing.daysOfSupply < 7 }">
+							{{ getDaysOfSupplyText(ing.daysOfSupply) }}
 						</view>
-						<view class="desc">¥ {{ getPricePerKg(ing) }}/kg</view>
+						<view class="desc">库存: {{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg</view>
 					</view>
 				</ListItem>
 			</template>
@@ -79,16 +79,28 @@
 
 	const filteredIngredients = computed(() => {
 		if (ingredientFilter.value === 'low') {
-			return dataStore.ingredients.filter((ing) => ing.avgConsumptionPerTask > 0 && ing.currentStockInGrams < ing.avgConsumptionPerTask);
+			// [REFACTORED] 按可供应天数筛选和排序
+			return [...dataStore.ingredients] // 创建一个新数组以避免直接修改store
+				.filter((ing) => ing.daysOfSupply < 7) // 筛选出供应天数少于7天的原料
+				.sort((a, b) => a.daysOfSupply - b.daysOfSupply); // 按天数升序排列
 		}
 		return dataStore.ingredients;
 	});
 
-	const getPricePerKg = (ing : Ingredient) => {
-		if (!ing.activeSku || !ing.activeSku.specWeightInGrams || !ing.currentPricePerPackage) {
-			return '0.00';
+	// [DELETED] getPricePerKg 方法不再在列表页使用，可以移除
+
+	// [ADDED] 新增一个辅助函数来格式化显示可供应天数
+	const getDaysOfSupplyText = (days : number) => {
+		if (!isFinite(days) || days > 365) {
+			return '充足';
 		}
-		return ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000).toFixed(2);
+		if (days < 1 && days > 0) {
+			return '不足1天';
+		}
+		if (days <= 0) {
+			return '已用尽';
+		}
+		return `约剩 ${Math.floor(days)} 天`;
 	};
 
 	const navigateToEditPage = () => {
