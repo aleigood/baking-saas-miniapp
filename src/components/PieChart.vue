@@ -67,18 +67,8 @@
 			'#e6b89c', '#7b4f32', '#b38a68', '#d9ae94'
 		];
 
-		// [核心新增] 数据处理逻辑：排序、取前5、合并“其他”
-		const sortedData = [...props.chartData].sort((a, b) => b.value - a.value);
-		let displayData = sortedData;
-		if (sortedData.length > 5) {
-			const top5 = sortedData.slice(0, 5);
-			const otherValue = sortedData.slice(5).reduce((sum, item) => sum + item.value, 0);
-			if (otherValue > 0) {
-				displayData = [...top5, { name: '其他', value: otherValue }];
-			} else {
-				displayData = top5;
-			}
-		}
+		// [核心修改] 数据处理逻辑现在由后端完成，前端直接使用传入的数据
+		const displayData = props.chartData;
 
 		const total = displayData.reduce((sum, d) => sum + d.value, 0);
 		if (total === 0) return;
