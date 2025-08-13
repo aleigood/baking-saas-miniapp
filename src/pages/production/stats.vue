@@ -42,7 +42,7 @@
 					</div>
 					<div>
 						<view class="value">{{ kpi.varietyCount }}</view>
-						<view class="label">生产品种</view>
+						<view class="label">面包种类</view>
 					</div>
 					<!-- [核心新增] 新增“任务总数”KPI -->
 					<div>
