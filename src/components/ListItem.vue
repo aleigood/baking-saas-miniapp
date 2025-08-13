@@ -71,11 +71,18 @@
 		longPressTimer.value = setTimeout(() => {
 			if (!touchMoved.value) {
 				longPressTriggered.value = true;
-				// [核心修改] 只有在 vibrateOnLongPress 为 true 时才震动
-				if (props.vibrateOnLongPress) {
-					uni.vibrateShort({});
-				}
 				emit('longpress');
+				// [核心修复] 在 longpress 事件触发时调用振动
+				if (props.vibrateOnLongPress) {
+					uni.vibrateShort({
+						success() {
+							console.log('Vibrate success');
+						},
+						fail(err) {
+							console.error('Vibrate failed', err);
+						}
+					});
+				}
 			}
 		}, LONG_PRESS_DURATION);
 	};
