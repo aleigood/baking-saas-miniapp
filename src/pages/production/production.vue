@@ -42,8 +42,8 @@
 			<view v-if="isInitialLoad" class="loading-spinner">
 				<text>加载中...</text>
 			</view>
-			<view v-else-if="activeTasks.length > 0">
-				<ListItem v-for="task in activeTasks" :key="task.id" @click="navigateToDetail(task)"
+			<view v-else-if="sortedTasks.length > 0">
+				<ListItem v-for="task in sortedTasks" :key="task.id" @click="navigateToDetail(task)"
 					@longpress="handleLongPressAction(task)" :vibrate-on-long-press="true" class="task-card"
 					:class="getStatusClass(task.status)">
 					<view class="task-info">
@@ -139,10 +139,22 @@
 		}
 	});
 
-	const activeTasks = computed(() => {
-		return dataStore.production.filter(
+	// [核心修改] 重新组织任务列表的排序逻辑
+	const sortedTasks = computed(() => {
+		const activeTasks = dataStore.production.filter(
 			task => task.status === 'PENDING' || task.status === 'IN_PROGRESS'
 		);
+
+		// 将任务分为进行中和待开始两组
+		const inProgressTasks = activeTasks.filter(task => task.status === 'IN_PROGRESS');
+		const pendingTasks = activeTasks.filter(task => task.status === 'PENDING');
+
+		// 对两组任务分别按创建时间倒序排序
+		inProgressTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
+		pendingTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
+
+		// 合并并返回排序后的任务列表
+		return [...inProgressTasks, ...pendingTasks];
 	});
 
 	const hasCompletedTasks = computed(() => {
