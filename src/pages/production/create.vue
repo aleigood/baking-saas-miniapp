@@ -19,25 +19,25 @@
 					<view v-show="!collapsedGroups.has(groupName)" class="product-list">
 						<view v-for="product in group" :key="product.id" class="product-item">
 							<view class="product-name">{{ product.name }}</view>
+							<!-- [核心修改] 将步进器代码直接内置在模板中 -->
 							<view class="quantity-control">
-								<!-- [核心修改] 替换为 StepperButton 组件 -->
-								<StepperButton @touchstart.prevent="startChangingQuantity(product.id, 'decrease')"
-									@touchend="stopChangingQuantity">
+								<!-- 减号按钮 -->
+								<view class="btn-stepper" @click="decreaseQuantity(product.id)">
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13H5v-2h14v2z'/%3E%3C/svg%3E" />
-								</StepperButton>
+								</view>
+								<!-- 输入框 -->
 								<input class="input-stepper" type="number"
 									v-model.number="taskQuantities[product.id]" />
-								<StepperButton @touchstart.prevent="startChangingQuantity(product.id, 'increase')"
-									@touchend="stopChangingQuantity">
+								<!-- 加号按钮 -->
+								<view class="btn-stepper" @click="increaseQuantity(product.id)">
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
-								</StepperButton>
+								</view>
 							</view>
 						</view>
 					</view>
 				</view>
-				<!-- [核心修改] 替换为 AppButton 组件 -->
 				<AppButton type="primary" full-width :disabled="!hasTasksToCreate" @click="handleCreateTasks"
 					:loading="isCreating">
 					{{ isCreating ? '' : '创建任务' }}
@@ -52,17 +52,16 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
 	import { createTask } from '@/api/tasks';
-	import AppButton from '@/components/AppButton.vue'; // 引入 AppButton
-	import StepperButton from '@/components/StepperButton.vue'; // 引入 StepperButton
+	import AppButton from '@/components/AppButton.vue';
+	// [核心修改] 移除对 StepperButton 的引用
+	// import StepperButton from '@/components/StepperButton.vue';
+	import type { ProductionTaskDto } from '@/types/api';
 
 	const dataStore = useDataStore();
 	const isLoading = ref(false);
 	const isCreating = ref(false);
 	const taskQuantities = reactive<Record<string, number>>({});
 	const collapsedGroups = reactive(new Set<string>());
-
-	const quantityInterval = ref<any>(null);
-	const quantityTimeout = ref<any>(null);
 
 	onShow(async () => {
 		isLoading.value = true;
@@ -98,6 +97,7 @@
 		return Object.values(taskQuantities).some(qty => qty > 0);
 	});
 
+	// [核心修改] 将加减数量的逻辑直接内置，不再依赖外部组件事件
 	const increaseQuantity = (productId : string) => {
 		taskQuantities[productId]++;
 	};
@@ -105,28 +105,6 @@
 		if (taskQuantities[productId] > 0) {
 			taskQuantities[productId]--;
 		}
-	};
-
-	const startChangingQuantity = (productId : string, direction : 'increase' | 'decrease') => {
-		if (direction === 'increase') {
-			increaseQuantity(productId);
-		} else {
-			decreaseQuantity(productId);
-		}
-		const repeat = () => {
-			if (direction === 'increase') {
-				increaseQuantity(productId);
-			} else {
-				decreaseQuantity(productId);
-			}
-			quantityInterval.value = setTimeout(repeat, 100);
-		};
-		quantityTimeout.value = setTimeout(repeat, 500);
-	};
-
-	const stopChangingQuantity = () => {
-		clearTimeout(quantityTimeout.value);
-		clearTimeout(quantityInterval.value);
 	};
 
 	const handleCreateTasks = async () => {
@@ -213,12 +191,27 @@
 
 	.product-name {
 		font-size: 15px;
+		flex: 1;
+		margin-right: 10px;
 	}
 
 	.quantity-control {
 		display: flex;
 		align-items: center;
 		gap: 5px;
+	}
+
+	// [新增] 内置的步进器按钮样式
+	.btn-stepper {
+		width: 30px;
+		height: 30px;
+		padding: 0;
+		background-color: #f3e9e3;
+		border-radius: 50%;
+		border: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.stepper-icon {
