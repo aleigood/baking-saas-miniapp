@@ -41,6 +41,7 @@ export interface RecipeFamily {
 	type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	versions : RecipeVersion[]; // 包含了该家族下的版本信息
 	productionCount ?: number; // [ADDED] 新增字段，用于存储总制作次数
+	productionTaskCount ?: number; // [核心新增] 新增字段，用于存储制作任务次数
 }
 
 // 配方的具体版本
@@ -172,6 +173,7 @@ export interface ProductionTaskDto {
 			baseDoughWeight : number; // [新增] 基础面团重量
 			recipeVersion : {
 				family : {
+					id : string; // [核心新增] 增加 familyId
 					name : string;
 				};
 				// [新增] 完整的面团和原料信息

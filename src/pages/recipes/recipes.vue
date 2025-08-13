@@ -3,6 +3,7 @@
 		<view class="page-header">
 			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
+			<!-- [核心修改] 使用 IconButton 组件包裹用户头像 -->
 			<IconButton circle class="user-avatar" @click="uiStore.openModal('userMenu')">
 				{{ userStore.userInfo?.name?.[0] || '管' }}
 			</IconButton>
@@ -14,6 +15,7 @@
 			<template v-else>
 				<view class="card">
 					<view class="card-title"><span>本周制作排行</span></view>
+					<!-- [核心修改] 使用新的文本排名列表 -->
 					<view class="ranking-list">
 						<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
 							class="ranking-item">
@@ -42,8 +44,9 @@
 						</view>
 						<view class="side-info">
 							<template v-if="family.type === 'MAIN'">
-								<view class="rating">★ {{ getRating(getFamilyProductionCount(family)) }}</view>
-								<view class="desc">{{ getFamilyProductionCount(family) }} 次制作</view>
+								<!-- [核心修改] 直接使用后端返回的 productionTaskCount 字段 -->
+								<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
+								<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
 							</template>
 							<template v-else>
 								<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
@@ -125,14 +128,10 @@
 		return family.versions[0].doughs.reduce((sum, dough) => sum + (dough._count?.ingredients || 0), 0);
 	};
 
-	const getFamilyProductionCount = (family : RecipeFamily) => {
-		return family.productionCount || 0;
-	};
-
 	const getRating = (count : number) => {
-		if (count > 100) return '4.9';
-		if (count > 50) return '4.8';
-		if (count > 10) return '4.7';
+		if (count > 20) return '4.9'; // 根据任务数调整评级标准
+		if (count > 10) return '4.8';
+		if (count > 3) return '4.7';
 		return '4.5';
 	};
 
@@ -143,10 +142,10 @@
 		}
 		const recipesCopy = [...dataStore.recipes];
 		if (recipeFilter.value === 'MAIN') {
-			// 筛选出主面团并按制作次数降序排序
+			// [核心修改] 筛选出主面团并按制作任务次数降序排序
 			return recipesCopy
 				.filter((family) => family.type === 'MAIN')
-				.sort((a, b) => (b.productionCount || 0) - (a.productionCount || 0));
+				.sort((a, b) => (b.productionTaskCount || 0) - (a.productionTaskCount || 0));
 		} else {
 			// 筛选出其他类型（面种和馅料）并按名称字母顺序排序
 			return recipesCopy
@@ -185,12 +184,10 @@
 		font-weight: bold;
 	}
 
-	/* [核心新增] 新的文本排名列表样式 */
 	.ranking-list {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 15px 25px;
-		/* [样式调整] 设置行间距为15px，列间距为25px */
 		padding-top: 10px;
 	}
 
@@ -210,7 +207,6 @@
 	.name {
 		flex-grow: 1;
 		margin: 0 8px 0 4px;
-		/* [样式调整] 减小左边距，让数字和名称更靠近 */
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
