@@ -27,10 +27,18 @@
 
 				<view class="card-title-wrapper">
 					<span class="card-title">进行中的任务</span>
-					<IconButton v-if="hasCompletedTasks" @click="navigateToHistory">
-						<image class="header-icon"
-							src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z'/%3E%3C/svg%3E" />
-					</IconButton>
+					<!-- [核心修改] 将两个图标按钮放在一个容器中 -->
+					<view class="header-actions">
+						<IconButton v-if="hasCompletedTasks" @click="navigateToHistory">
+							<image class="header-icon"
+								src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z'/%3E%3C/svg%3E" />
+						</IconButton>
+						<!-- [核心新增] 新增统计页面入口图标 -->
+						<IconButton @click="navigateToStats">
+							<image class="header-icon"
+								src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z'/%3E%3C/svg%3E" />
+						</IconButton>
+					</view>
 				</view>
 
 				<view v-if="activeTasks.length > 0">
@@ -100,7 +108,6 @@
 		completedThisWeekCount: 0,
 	});
 
-	// [修正] 将函数定义移动到 onShow 钩子之前，以避免初始化错误
 	const fetchHomeStats = async () => {
 		try {
 			const stats = await getProductionHomeStats();
@@ -108,14 +115,12 @@
 			homeStats.completedThisWeekCount = stats.completedThisWeekCount;
 		} catch (error) {
 			console.error('Failed to fetch home stats:', error);
-			// 可以在这里添加用户提示，例如
 			uni.showToast({ title: '加载统计数据失败', icon: 'none' });
 		}
 	};
 
 	onShow(async () => {
 		isLoading.value = true;
-		// 现在可以安全地调用 fetchHomeStats
 		await Promise.all([
 			dataStore.fetchProductionData(),
 			fetchHomeStats()
@@ -181,6 +186,13 @@
 	const navigateToHistory = () => {
 		uni.navigateTo({
 			url: '/pages/production/history'
+		});
+	};
+
+	// [核心新增] 跳转到统计页面的方法
+	const navigateToStats = () => {
+		uni.navigateTo({
+			url: '/pages/production/stats'
 		});
 	};
 
@@ -287,6 +299,12 @@
 	.task-card .details {
 		color: var(--text-secondary);
 		font-size: 14px;
+	}
+
+	/* [核心新增] 新增 header-actions 容器样式 */
+	.header-actions {
+		display: flex;
+		gap: 8px;
 	}
 
 	.header-icon {

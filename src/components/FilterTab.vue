@@ -64,11 +64,15 @@
 	@import '@/styles/common.scss';
 
 	.filter-tab {
-		padding: 8px 18px;
+		padding: 8px 12px;
+		/* [样式调整] 减小水平内边距 */
 		border-radius: 20px;
 		background: #f3e9e3;
 		color: var(--text-secondary);
-		font-size: 14px;
+		font-size: 13px;
+		/* [样式调整] 减小字体大小 */
+		white-space: nowrap;
+		/* [样式调整] 防止文字换行 */
 		/* 添加水波纹容器样式 */
 		position: relative;
 		overflow: hidden;

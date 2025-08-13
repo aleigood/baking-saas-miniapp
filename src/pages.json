@@ -30,6 +30,12 @@
 			}
 		},
 		{
+			"path": "pages/production/stats",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/recipes/edit",
 			"style": {
 				"navigationStyle": "custom"
