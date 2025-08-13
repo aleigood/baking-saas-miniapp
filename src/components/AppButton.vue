@@ -114,6 +114,24 @@
 		justify-content: center;
 		align-items: center;
 		position: relative;
+
+		&::after {
+			border: none;
+		}
+
+		// [新增] 禁用状态样式
+		&[disabled] {
+			background-color: #f3e9e3 !important; // 使用淡色背景
+			color: #b0a8a2 !important; // 使用更浅的文字颜色
+			box-shadow: none !important;
+			opacity: 1 !important;
+			cursor: not-allowed;
+		}
+
+		&.btn-primary[disabled] {
+			background-color: #f3e9e3 !important;
+		}
+
 	}
 
 	.content-wrapper {

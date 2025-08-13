@@ -3,7 +3,6 @@
 		<view v-if="!chartData || chartData.length === 0" class="chart-placeholder">
 			暂无成本构成数据
 		</view>
-		<!-- [核心修正] 移除 type="2d" 属性，使用旧版 Canvas API -->
 		<canvas v-else :id="canvasId" :canvas-id="canvasId" class="chart-canvas"></canvas>
 	</view>
 </template>
@@ -67,7 +66,6 @@
 			'#e6b89c', '#7b4f32', '#b38a68', '#d9ae94'
 		];
 
-		// [核心修改] 数据处理逻辑现在由后端完成，前端直接使用传入的数据
 		const displayData = props.chartData;
 
 		const total = displayData.reduce((sum, d) => sum + d.value, 0);
@@ -81,10 +79,13 @@
 
 		let startAngle = -0.5 * Math.PI;
 
-		// 绘制环形图扇区和标签
-		displayData.forEach((item, index) => {
+		const labelPositions : { y : number, height : number }[] = [];
+		const LABEL_PADDING = 15; // 标签之间的最小垂直间距
+
+		const labelsToDraw = displayData.map((item, index) => {
 			const sliceAngle = (item.value / total) * 2 * Math.PI;
 			const endAngle = startAngle + sliceAngle;
+			const midAngle = startAngle + sliceAngle / 2;
 
 			// 绘制扇区
 			ctx!.beginPath();
@@ -94,36 +95,64 @@
 			ctx!.setFillStyle(colors[index % colors.length]);
 			ctx!.fill();
 
-			// [核心重构] 绘制引线和文本标签
-			const midAngle = startAngle + sliceAngle / 2;
+			startAngle = endAngle;
+
+			// 收集标签信息
+			return {
+				item,
+				index,
+				midAngle,
+			};
+		});
+
+		// 绘制标签和引线
+		labelsToDraw.forEach(({ item, index, midAngle }) => {
 			const isRightSide = midAngle > -0.5 * Math.PI && midAngle < 0.5 * Math.PI;
 
 			const lineStartX = centerX + Math.cos(midAngle) * radius;
 			const lineStartY = centerY + Math.sin(midAngle) * radius;
-			const lineEndX = centerX + Math.cos(midAngle) * (radius + 10);
-			const lineEndY = centerY + Math.sin(midAngle) * (radius + 10);
-			const textStartX = lineEndX + (isRightSide ? 5 : -5);
+			const lineMidX = centerX + Math.cos(midAngle) * (radius + 5);
+			const lineMidY = centerY + Math.sin(midAngle) * (radius + 5);
 
-			ctx!.beginPath();
-			ctx!.moveTo(lineStartX, lineStartY);
-			ctx!.lineTo(lineEndX, lineEndY);
-			ctx!.lineTo(textStartX, lineEndY);
-			ctx!.setStrokeStyle(colors[index % colors.length]);
-			ctx!.stroke();
+			const lineHeight = 14;
+			let finalLabelY = lineMidY;
+
+			// 检查并调整标签的垂直位置以避免重叠
+			let isOverlapping = true;
+			while (isOverlapping) {
+				isOverlapping = false;
+				for (const pos of labelPositions) {
+					if (Math.abs(finalLabelY - pos.y) < pos.height + 5) { // 5px额外的间距
+						isOverlapping = true;
+						finalLabelY += (finalLabelY > pos.y) ? (pos.height + 5) : -(pos.height + 5);
+						break;
+					}
+				}
+			}
+			labelPositions.push({ y: finalLabelY, height: lineHeight });
 
 			const percentage = ((item.value / total) * 100).toFixed(1);
 			const text = `${item.name} ${percentage}%`;
-			// [核心优化] 文本颜色与引线、扇区颜色保持一致
+
+			const textWidth = ctx!.measureText(text).width;
+			// 确保文本不会超出画布边界
+			const textX = isRightSide ? Math.min(canvasWidth - 5, lineMidX + 10) : Math.max(5, lineMidX - 10 - textWidth);
+
+			// 绘制引线
+			ctx!.beginPath();
+			ctx!.moveTo(lineStartX, lineStartY);
+			ctx!.lineTo(isRightSide ? lineMidX + 5 : lineMidX - 5, finalLabelY);
+			ctx!.setStrokeStyle(colors[index % colors.length]);
+			ctx!.stroke();
+
+			// 绘制文本
 			ctx!.setFillStyle(colors[index % colors.length]);
 			ctx!.setFontSize(12);
 			ctx!.setTextAlign(isRightSide ? 'left' : 'right');
 			ctx!.setTextBaseline('middle');
-			ctx!.fillText(text, textStartX, lineEndY);
-
-			startAngle = endAngle;
+			ctx!.fillText(text, isRightSide ? lineMidX + 5 : lineMidX - 5, finalLabelY);
 		});
 
-		// [核心修正] 调用 draw() 方法将所有绘制操作渲染到 canvas 上
 		ctx.draw();
 	};
 </script>
