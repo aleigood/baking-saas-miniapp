@@ -3,7 +3,6 @@
 		<view class="page-header">
 			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
-			<!-- [核心修改] 使用 IconButton 组件包裹用户头像 -->
 			<IconButton circle class="user-avatar" @click="uiStore.openModal('userMenu')">
 				{{ userStore.userInfo?.name?.[0] || '管' }}
 			</IconButton>
@@ -15,7 +14,14 @@
 			<template v-else>
 				<view class="card">
 					<view class="card-title"><span>本周制作排行</span></view>
-					<BarChart :chart-data="recipeStatsForChart" unit="次" />
+					<view class="ranking-list">
+						<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
+							class="ranking-item">
+							<text class="rank">{{ index + 1 }}</text>
+							<text class="name">{{ item.name }}</text>
+							<text class="count">{{ item.value }} 个</text>
+						</view>
+					</view>
 				</view>
 
 				<FilterTabs>
@@ -63,7 +69,6 @@
 	import { useUiStore } from '@/store/ui';
 	import type { RecipeFamily } from '@/types/api';
 	import AppFab from '@/components/AppFab.vue';
-	import BarChart from '@/components/BarChart.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
@@ -178,5 +183,42 @@
 	.rating {
 		color: var(--accent-color);
 		font-weight: bold;
+	}
+
+	/* [核心新增] 新的文本排名列表样式 */
+	.ranking-list {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 15px 25px;
+		/* [样式调整] 设置行间距为15px，列间距为25px */
+		padding-top: 10px;
+	}
+
+	.ranking-item {
+		display: flex;
+		align-items: center;
+		font-size: 14px;
+	}
+
+	.rank {
+		font-style: italic;
+		font-weight: bold;
+		width: 12px;
+		color: var(--accent-color);
+	}
+
+	.name {
+		flex-grow: 1;
+		margin: 0 8px 0 4px;
+		/* [样式调整] 减小左边距，让数字和名称更靠近 */
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		color: var(--text-primary);
+	}
+
+	.count {
+		color: var(--text-secondary);
+		font-size: 13px;
 	}
 </style>
