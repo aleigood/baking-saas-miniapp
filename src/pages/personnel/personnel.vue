@@ -10,10 +10,8 @@
 			</IconButton>
 		</view>
 		<view class="page-content page-content-with-tabbar-fab">
-			<view class="loading-spinner" v-if="isLoading">
-				<text>加载中...</text>
-			</view>
-			<template v-else>
+			<!-- [重构] 移除全屏加载动画，直接展示页面布局 -->
+			<view v-if="dataStore.members.length > 0">
 				<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
 				<ListItem v-for="member in dataStore.members" :key="member.id" @click="navigateToDetail(member.id)">
 					<view class="main-info">
@@ -25,7 +23,10 @@
 						<view class="value">{{ getRoleName(member.role) }}</view>
 					</view>
 				</ListItem>
-			</template>
+			</view>
+			<view v-else class="empty-state">
+				<text>暂无人员信息</text>
+			</view>
 		</view>
 
 		<!-- [核心修改] 点击事件调用 uiStore 的方法 -->
@@ -47,18 +48,16 @@
 	import type { Role } from '@/types/api';
 	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
 
+	// [核心修改] 移除 isLoading 状态，改为在 onShow 钩子中直接加载数据
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const uiStore = useUiStore(); // [核心新增]
 
-	const isLoading = ref(false);
 
 	onShow(async () => {
-		// [核心修改] 仅当数据未加载时才去获取
+		// [重构] 仅当数据未加载时才去获取，不再使用全屏 loading
 		if (!dataStore.dataLoaded.members) {
-			isLoading.value = true;
 			await dataStore.fetchMembersData();
-			isLoading.value = false;
 		}
 	});
 

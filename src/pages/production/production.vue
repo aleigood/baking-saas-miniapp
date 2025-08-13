@@ -10,54 +10,54 @@
 		</view>
 
 		<view class="page-content page-content-with-tabbar-fab">
-			<view class="loading-spinner" v-if="isLoading">
+			<!-- [重构] 移除全屏加载动画，直接显示页面布局 -->
+			<view class="summary-card">
+				<div>
+					<view class="value">{{ homeStats.pendingCount }}</view>
+					<view class="label">待完成</view>
+				</div>
+				<div>
+					<view class="value">{{ homeStats.completedThisWeekCount }}</view>
+					<view class="label">本周已完成</view>
+				</div>
+			</view>
+
+			<view class="card-title-wrapper">
+				<span class="card-title">进行中的任务</span>
+				<!-- [核心修改] 将两个图标按钮放在一个容器中 -->
+				<view class="header-actions">
+					<IconButton v-if="hasCompletedTasks" @click="navigateToHistory">
+						<image class="header-icon"
+							src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z'/%3E%3C/svg%3E" />
+					</IconButton>
+					<!-- [核心新增] 新增统计页面入口图标 -->
+					<IconButton @click="navigateToStats">
+						<image class="header-icon"
+							src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z'/%3E%3C/svg%3E" />
+					</IconButton>
+				</view>
+			</view>
+
+			<!-- [重构] 根据是否有任务来显示列表或占位符 -->
+			<view v-if="isInitialLoad" class="loading-spinner">
 				<text>加载中...</text>
 			</view>
-			<template v-else>
-				<view class="summary-card">
-					<div>
-						<view class="value">{{ homeStats.pendingCount }}</view>
-						<view class="label">待完成</view>
-					</div>
-					<div>
-						<view class="value">{{ homeStats.completedThisWeekCount }}</view>
-						<view class="label">本周已完成</view>
-					</div>
-				</view>
-
-				<view class="card-title-wrapper">
-					<span class="card-title">进行中的任务</span>
-					<!-- [核心修改] 将两个图标按钮放在一个容器中 -->
-					<view class="header-actions">
-						<IconButton v-if="hasCompletedTasks" @click="navigateToHistory">
-							<image class="header-icon"
-								src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z'/%3E%3C/svg%3E" />
-						</IconButton>
-						<!-- [核心新增] 新增统计页面入口图标 -->
-						<IconButton @click="navigateToStats">
-							<image class="header-icon"
-								src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z'/%3E%3C/svg%3E" />
-						</IconButton>
+			<view v-else-if="activeTasks.length > 0">
+				<ListItem v-for="task in activeTasks" :key="task.id" @click="navigateToDetail(task)"
+					@longpress="handleLongPressAction(task)" :vibrate-on-long-press="true" class="task-card"
+					:class="getStatusClass(task.status)">
+					<view class="task-info">
+						<view class="title">{{ getTaskTitle(task) }}</view>
+						<view class="details">{{ getTaskDetails(task) }}</view>
 					</view>
-				</view>
-
-				<view v-if="activeTasks.length > 0">
-					<ListItem v-for="task in activeTasks" :key="task.id" @click="navigateToDetail(task)"
-						@longpress="handleLongPressAction(task)" :vibrate-on-long-press="true" class="task-card"
-						:class="getStatusClass(task.status)">
-						<view class="task-info">
-							<view class="title">{{ getTaskTitle(task) }}</view>
-							<view class="details">{{ getTaskDetails(task) }}</view>
-						</view>
-						<view class="status-tag" :class="getStatusClass(task.status)">
-							{{ getStatusText(task.status) }}
-						</view>
-					</ListItem>
-				</view>
-				<view v-else class="empty-state">
-					<text>暂无进行中的任务</text>
-				</view>
-			</template>
+					<view class="status-tag" :class="getStatusClass(task.status)">
+						{{ getStatusText(task.status) }}
+					</view>
+				</ListItem>
+			</view>
+			<view v-else class="empty-state">
+				<text>暂无进行中的任务</text>
+			</view>
 		</view>
 
 		<AppFab @click="navigateToCreatePage" />
@@ -99,7 +99,6 @@
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 
-	const isLoading = ref(false);
 	const isSubmitting = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 
@@ -107,6 +106,9 @@
 		pendingCount: 0,
 		completedThisWeekCount: 0,
 	});
+
+	// [新增] 用于在页面数据首次加载时显示一个占位符的标志
+	const isInitialLoad = ref(true);
 
 	const fetchHomeStats = async () => {
 		try {
@@ -120,12 +122,21 @@
 	};
 
 	onShow(async () => {
-		isLoading.value = true;
-		await Promise.all([
-			dataStore.fetchProductionData(),
-			fetchHomeStats()
-		]);
-		isLoading.value = false;
+		// [重构] 移除主页面的全屏加载动画，改用异步加载数据
+		// 同时检查数据是否已加载，如果未加载，设置 isInitialLoad 为 true
+		if (!dataStore.dataLoaded.production) {
+			isInitialLoad.value = true;
+			await Promise.all([
+				dataStore.fetchProductionData(),
+				fetchHomeStats()
+			]);
+			isInitialLoad.value = false;
+		} else {
+			// 如果数据已加载，仍然需要更新统计信息
+			await fetchHomeStats();
+			// 如果数据已经加载过，直接将初始加载状态设置为 false
+			isInitialLoad.value = false;
+		}
 	});
 
 	const activeTasks = computed(() => {
@@ -223,10 +234,6 @@
 		uni.navigateTo({
 			url: '/pages/production/create',
 		});
-	};
-
-	const alert = (msg : string) => {
-		uni.showToast({ title: msg, icon: 'none' });
 	};
 </script>
 

@@ -9,16 +9,14 @@
 			</IconButton>
 		</view>
 		<view class="page-content page-content-with-tabbar-fab">
-			<view class="loading-spinner" v-if="isLoading">
-				<text>加载中...</text>
-			</view>
-			<template v-else>
-				<!-- [DELETED] 移除原料消耗排行图表 -->
+			<!-- [重构] 移除全屏加载动画，直接展示页面布局 -->
+			<FilterTabs>
+				<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
+				<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
+			</FilterTabs>
 
-				<FilterTabs>
-					<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
-					<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
-				</FilterTabs>
+			<!-- [重构] 根据是否有数据来显示列表或占位符 -->
+			<view v-if="filteredIngredients.length > 0">
 				<ListItem v-for="ing in filteredIngredients" :key="ing.id" @click="navigateToDetail(ing.id)">
 					<view class="main-info">
 						<view class="name">{{ ing.name }}</view>
@@ -44,7 +42,10 @@
 						</template>
 					</view>
 				</ListItem>
-			</template>
+			</view>
+			<view v-else class="empty-state">
+				<text>暂无原料信息</text>
+			</view>
 		</view>
 		<AppFab @click="navigateToEditPage" />
 	</view>
@@ -67,13 +68,14 @@
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 	const ingredientFilter = ref('all');
-	const isLoading = ref(false);
+
+	// [核心修改] 移除 isLoading 状态，改为在 onShow 钩子中直接加载数据
+	// const isLoading = ref(false);
 
 	onShow(async () => {
 		if (!dataStore.dataLoaded.ingredients) {
-			isLoading.value = true;
+			// [重构] 直接在 onShow 中触发数据加载，不再使用全屏 loading
 			await dataStore.fetchIngredientsData();
-			isLoading.value = false;
 		}
 	});
 

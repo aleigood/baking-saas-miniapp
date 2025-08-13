@@ -9,55 +9,56 @@
 			</IconButton>
 		</view>
 		<view class="page-content page-content-with-tabbar-fab">
-			<view class="loading-spinner" v-if="isLoading">
-				<text>加载中...</text>
-			</view>
-			<template v-else>
-				<view class="card">
-					<view class="card-title"><span>本周制作排行</span></view>
-					<!-- [核心修改] 使用新的文本排名列表 -->
-					<view class="ranking-list">
-						<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
-							class="ranking-item">
-							<text class="rank">{{ index + 1 }}</text>
-							<text class="name">{{ item.name }}</text>
-							<text class="count">{{ item.value }} 个</text>
-						</view>
+			<!-- [重构] 移除全屏加载动画，直接展示页面布局 -->
+			<view class="card">
+				<view class="card-title"><span>本周制作排行</span></view>
+				<!-- [核心修改] 使用新的文本排名列表 -->
+				<view v-if="recipeStatsForChart.length > 0" class="ranking-list">
+					<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
+						class="ranking-item">
+						<text class="rank">{{ index + 1 }}</text>
+						<text class="name">{{ item.name }}</text>
+						<text class="count">{{ item.value }} 个</text>
 					</view>
 				</view>
-
-				<FilterTabs>
-					<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">面团</FilterTab>
-					<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
-				</FilterTabs>
-
-				<template v-if="filteredRecipes.length > 0">
-					<ListItem v-for="family in filteredRecipes" :key="family.id" @click="navigateToDetail(family.id)">
-						<view class="main-info">
-							<view class="name">{{ family.name }}</view>
-							<view v-if="family.type === 'MAIN'" class="desc">
-								{{ getProductCount(family) }} 种面包
-							</view>
-							<view v-else class="desc">
-								类型: {{ getRecipeTypeDisplay(family.type) }}
-							</view>
-						</view>
-						<view class="side-info">
-							<template v-if="family.type === 'MAIN'">
-								<!-- [核心修改] 直接使用后端返回的 productionTaskCount 字段 -->
-								<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
-								<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
-							</template>
-							<template v-else>
-								<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
-							</template>
-						</view>
-					</ListItem>
-				</template>
+				<!-- [新增] 当没有排行数据时显示占位符 -->
 				<view v-else class="empty-state">
-					<text>暂无配方信息</text>
+					<text>暂无排行信息</text>
 				</view>
+			</view>
+
+			<FilterTabs>
+				<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">面团</FilterTab>
+				<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
+			</FilterTabs>
+
+			<!-- [重构] 根据是否有数据来显示列表或占位符 -->
+			<template v-if="filteredRecipes.length > 0">
+				<ListItem v-for="family in filteredRecipes" :key="family.id" @click="navigateToDetail(family.id)">
+					<view class="main-info">
+						<view class="name">{{ family.name }}</view>
+						<view v-if="family.type === 'MAIN'" class="desc">
+							{{ getProductCount(family) }} 种面包
+						</view>
+						<view v-else class="desc">
+							类型: {{ getRecipeTypeDisplay(family.type) }}
+						</view>
+					</view>
+					<view class="side-info">
+						<template v-if="family.type === 'MAIN'">
+							<!-- [核心修改] 直接使用后端返回的 productionTaskCount 字段 -->
+							<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
+							<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
+						</template>
+						<template v-else>
+							<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
+						</template>
+					</view>
+				</ListItem>
 			</template>
+			<view v-else class="empty-state">
+				<text>暂无配方信息</text>
+			</view>
 		</view>
 		<AppFab v-if="canEditRecipe" @click="navigateToEditPage(null)" />
 	</view>
@@ -80,7 +81,7 @@
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 
-	const isLoading = ref(false);
+	// [核心修改] 移除 isLoading 状态，改为在 onShow 钩子中直接加载数据
 	const recipeFilter = ref<'MAIN' | 'OTHER'>('MAIN');
 
 	const recipeTypeMap = {
@@ -91,9 +92,8 @@
 
 	onShow(async () => {
 		if (!dataStore.dataLoaded.recipes) {
-			isLoading.value = true;
+			// [重构] 直接在 onShow 中触发数据加载，不再使用全屏 loading
 			await dataStore.fetchRecipesData();
-			isLoading.value = false;
 		}
 	});
 
@@ -216,5 +216,12 @@
 	.count {
 		color: var(--text-secondary);
 		font-size: 13px;
+	}
+
+	/* [新增] 为空状态的占位符添加样式 */
+	.empty-state {
+		text-align: center;
+		padding: 50px 20px;
+		color: var(--text-secondary);
 	}
 </style>
