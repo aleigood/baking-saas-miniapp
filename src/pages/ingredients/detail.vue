@@ -188,8 +188,9 @@
 			<view class="modal-prompt-text">
 				确定要删除这个品牌规格吗？
 			</view>
+			<!-- [修改] 更新警告文本 -->
 			<view class="modal-warning-text">
-				删除后，相关的采购记录也会被一并删除，并返还库存。此操作不可撤销。
+				存在采购记录的品牌规格无法删除，此操作不可撤销。
 			</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showDeleteSkuConfirmModal = false">取消</AppButton>
@@ -235,7 +236,7 @@
 	import { useUiStore } from '@/store/ui';
 	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
 	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteProcurement, deleteSku } from
-		'@/api/ingredients'; // 新增 deleteSku 导入
+		'@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
@@ -276,7 +277,7 @@
 	const showActivateSkuConfirmModal = ref(false);
 	const showSkuOptionsModal = ref(false);
 	const showDeleteSkuConfirmModal = ref(false);
-	const showProcurementOptionsModal = ref(false); // [新增] 采购记录操作选项对话框
+	const showProcurementOptionsModal = ref(false);
 	const selectedSkuForAction = ref<IngredientSKU | null>(null);
 	const selectedSkuId = ref<string | null>(null);
 	const selectedProcurementForAction = ref<ProcurementRecord | null>(null);
@@ -455,7 +456,6 @@
 	};
 
 	const handleSkuLongPressAction = (sku : IngredientSKU) => {
-		// [修改] 仅当长按的SKU不是当前使用中的SKU时，才弹出操作菜单
 		if (sku.id === ingredient.value?.activeSkuId) {
 			return;
 		}
@@ -463,7 +463,6 @@
 		showSkuOptionsModal.value = true;
 	};
 
-	// [新增] 处理选项：“设为使用中”
 	const handleActivateSkuOption = () => {
 		showSkuOptionsModal.value = false;
 		if (selectedSkuForAction.value?.id !== ingredient.value?.activeSkuId) {
@@ -473,28 +472,26 @@
 		}
 	};
 
-	// [新增] 处理选项：“删除”
 	const handleDeleteSkuOption = () => {
 		showSkuOptionsModal.value = false;
 		showDeleteSkuConfirmModal.value = true;
 	};
 
-	// [新增] 确认删除SKU
 	const handleConfirmDeleteSku = async () => {
 		if (!selectedSkuForAction.value || !ingredient.value) return;
 		isSubmitting.value = true;
 		try {
 			await deleteSku(selectedSkuForAction.value.id);
 			uni.showToast({ title: '删除成功', icon: 'success' });
+			showDeleteSkuConfirmModal.value = false;
+			selectedSkuForAction.value = null;
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
-			console.error('Failed to delete SKU:', error);
-			uni.showToast({ title: '删除失败', icon: 'none' });
+			showDeleteSkuConfirmModal.value = false;
+			// 错误提示已由 src/utils/request.ts 统一处理
 		} finally {
 			isSubmitting.value = false;
-			showDeleteSkuConfirmModal.value = false;
-			selectedSkuForAction.value = null;
 		}
 	};
 
@@ -561,12 +558,10 @@
 	};
 
 	const handleProcurementLongPress = (record : ProcurementRecord) => {
-		// [修改] 长按时打开新的选项对话框
 		selectedProcurementForAction.value = record;
 		showProcurementOptionsModal.value = true;
 	};
 
-	// [新增] 处理从选项对话框中点击“删除采购记录”
 	const handleDeleteProcurementOption = () => {
 		showProcurementOptionsModal.value = false;
 		uiStore.openModal('procurementActions');
@@ -582,8 +577,8 @@
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
-			console.error("Failed to delete procurement record:", error);
-			uni.showToast({ title: '删除失败', icon: 'none' });
+			uiStore.closeModal('procurementActions');
+			// 错误提示已由 src/utils/request.ts 统一处理
 		} finally {
 			isSubmitting.value = false;
 			selectedProcurementForAction.value = null;

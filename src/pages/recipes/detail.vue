@@ -60,7 +60,7 @@
 				确定要删除这个配方版本吗？
 			</view>
 			<view class="modal-warning-text">
-				此操作不可撤销。
+				已被生产任务使用的配方无法删除，此操作不可撤销。
 			</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showDeleteVersionConfirmModal = false">取消</AppButton>
@@ -210,7 +210,6 @@
 			dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to activate version:', error);
-			uni.showToast({ title: '设置失败，请重试', icon: 'none' });
 		} finally {
 			isSubmitting.value = false;
 			showActivateVersionConfirmModal.value = false;
@@ -223,15 +222,15 @@
 		try {
 			await deleteRecipeVersion(familyId.value, selectedVersionForAction.value.id);
 			uni.showToast({ title: '删除成功', icon: 'success' });
+			showDeleteVersionConfirmModal.value = false;
+			selectedVersionForAction.value = null;
 			await loadRecipeData(familyId.value);
 			await dataStore.fetchRecipesData();
 		} catch (error) {
-			console.error('Failed to delete recipe version:', error);
-			uni.showToast({ title: '删除失败，请重试', icon: 'none' });
+			showDeleteVersionConfirmModal.value = false;
+			// 错误提示已由 src/utils/request.ts 统一处理，此处无需额外操作
 		} finally {
 			isSubmitting.value = false;
-			showDeleteVersionConfirmModal.value = false;
-			selectedVersionForAction.value = null;
 		}
 	};
 </script>
