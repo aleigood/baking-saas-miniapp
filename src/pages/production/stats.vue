@@ -22,11 +22,11 @@
 			<!-- [核心新增] 自定义日期选择器 -->
 			<view v-if="activeDateRange === 'custom'" class="custom-date-picker card">
 				<picker mode="date" :value="customDate.start" @change="handleCustomDateChange($event, 'start')">
-					<view class="picker-item">从 {{ customDate.start }}</view>
+					<view class="picker-item">{{ customDate.start }}</view>
 				</picker>
 				<view class="date-separator">至</view>
 				<picker mode="date" :value="customDate.end" @change="handleCustomDateChange($event, 'end')">
-					<view class="picker-item">到 {{ customDate.end }}</view>
+					<view class="picker-item">{{ customDate.end }}</view>
 				</picker>
 			</view>
 
@@ -219,7 +219,7 @@
 
 	.picker-item {
 		background-color: #f8f9fa;
-		padding: 8px 12px;
+		padding: 8px 18px;
 		border-radius: 8px;
 		border: 1px solid var(--border-color);
 	}
