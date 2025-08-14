@@ -1,5 +1,5 @@
 <template>
-	<view>
+	<view class="page-container-flex">
 		<view class="page-header">
 			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
@@ -8,7 +8,7 @@
 				{{ userStore.userInfo?.name?.[0] || '管' }}
 			</IconButton>
 		</view>
-		<view class="page-content page-content-with-tabbar-fab">
+		<view class="page-content page-content-with-tabbar-fab page-content-swiper">
 			<!-- [重构] 移除全屏加载动画，直接展示页面布局 -->
 			<view class="card">
 				<view class="card-title"><span>本周制作排行</span></view>
@@ -32,41 +32,63 @@
 				<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
 			</FilterTabs>
 
-			<!-- [重构] 根据是否有数据来显示列表或占位符 -->
-			<template v-if="filteredRecipes.length > 0">
-				<ListItem v-for="family in filteredRecipes" :key="family.id" @click="navigateToDetail(family.id)">
-					<view class="main-info">
-						<view class="name">{{ family.name }}</view>
-						<view v-if="family.type === 'MAIN'" class="desc">
-							{{ getProductCount(family) }} 种面包
-						</view>
-						<view v-else class="desc">
-							类型: {{ getRecipeTypeDisplay(family.type) }}
-						</view>
-					</view>
-					<view class="side-info">
-						<template v-if="family.type === 'MAIN'">
-							<!-- [核心修改] 直接使用后端返回的 productionTaskCount 字段 -->
-							<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
-							<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
+			<!-- [新增] 使用 swiper 组件实现滑动切换 -->
+			<swiper class="swiper-container" :current="currentTabIndex" @change="onSwiperChange">
+				<!-- 面团列表 -->
+				<swiper-item>
+					<scroll-view scroll-y class="swiper-scroll-view">
+						<template v-if="mainRecipes.length > 0">
+							<ListItem v-for="family in mainRecipes" :key="family.id"
+								@click="navigateToDetail(family.id)">
+								<view class="main-info">
+									<view class="name">{{ family.name }}</view>
+									<view class="desc">
+										{{ getProductCount(family) }} 种面包
+									</view>
+								</view>
+								<view class="side-info">
+									<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
+									<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
+								</view>
+							</ListItem>
 						</template>
-						<template v-else>
-							<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
+						<view v-else class="empty-state">
+							<text>暂无面团配方信息</text>
+						</view>
+					</scroll-view>
+				</swiper-item>
+
+				<!-- 其他配方列表 -->
+				<swiper-item>
+					<scroll-view scroll-y class="swiper-scroll-view">
+						<template v-if="otherRecipes.length > 0">
+							<ListItem v-for="family in otherRecipes" :key="family.id"
+								@click="navigateToDetail(family.id)">
+								<view class="main-info">
+									<view class="name">{{ family.name }}</view>
+									<view class="desc">
+										类型: {{ getRecipeTypeDisplay(family.type) }}
+									</view>
+								</view>
+								<view class="side-info">
+									<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
+								</view>
+							</ListItem>
 						</template>
-					</view>
-				</ListItem>
-			</template>
-			<view v-else class="empty-state">
-				<text>暂无配方信息</text>
-			</view>
+						<view v-else class="empty-state">
+							<text>暂无其他配方信息</text>
+						</view>
+					</scroll-view>
+				</swiper-item>
+			</swiper>
 		</view>
 		<AppFab v-if="canEditRecipe" @click="navigateToEditPage(null)" />
 	</view>
 </template>
 
 <script setup lang="ts">
-	import IconButton from '@/components/IconButton.vue'; // 引入 IconButton 组件
-	import { ref, computed } from 'vue';
+	import IconButton from '@/components/IconButton.vue';
+	import { ref, computed, watch } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
@@ -81,8 +103,8 @@
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 
-	// [核心修改] 移除 isLoading 状态，改为在 onShow 钩子中直接加载数据
 	const recipeFilter = ref<'MAIN' | 'OTHER'>('MAIN');
+	const currentTabIndex = ref(0); // [新增] 用于swiper的索引
 
 	const recipeTypeMap = {
 		MAIN: '面团',
@@ -92,10 +114,21 @@
 
 	onShow(async () => {
 		if (!dataStore.dataLoaded.recipes) {
-			// [重构] 直接在 onShow 中触发数据加载，不再使用全屏 loading
 			await dataStore.fetchRecipesData();
 		}
 	});
+
+	// [新增] 监听 recipeFilter 变化，同步更新 swiper 的 currentTabIndex
+	watch(recipeFilter, (newVal) => {
+		currentTabIndex.value = newVal === 'MAIN' ? 0 : 1;
+	});
+
+	// [新增] swiper 滑动事件处理
+	const onSwiperChange = (e : any) => {
+		const newIndex = e.detail.current;
+		currentTabIndex.value = newIndex;
+		recipeFilter.value = newIndex === 0 ? 'MAIN' : 'OTHER';
+	};
 
 	const recipeStatsForChart = computed(() => {
 		return dataStore.recipeStats
@@ -106,6 +139,20 @@
 			.sort((a, b) => b.value - a.value);
 	});
 
+	// [新增] 将原来的 filteredRecipes 拆分为两个独立的 computed 属性
+	const mainRecipes = computed(() => {
+		if (!dataStore.recipes) return [];
+		return [...dataStore.recipes]
+			.filter((family) => family.type === 'MAIN')
+			.sort((a, b) => (b.productionTaskCount || 0) - (a.productionTaskCount || 0));
+	});
+
+	const otherRecipes = computed(() => {
+		if (!dataStore.recipes) return [];
+		return [...dataStore.recipes]
+			.filter((family) => family.type === 'PRE_DOUGH' || family.type === 'EXTRA')
+			.sort((a, b) => a.name.localeCompare(b.name));
+	});
 
 	const getRecipeTypeDisplay = (type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA') => {
 		return recipeTypeMap[type] || type;
@@ -115,44 +162,22 @@
 		if (family.type !== 'MAIN' || !family.versions || family.versions.length === 0) {
 			return 0;
 		}
-		// 总是取第一个版本（通常是激活的）来计算
 		return family.versions[0].products?.length || 0;
 	};
 
-	// [FIXED] 修复原料数量计算逻辑
 	const getIngredientCount = (family : RecipeFamily) => {
 		if (family.type === 'MAIN' || !family.versions || family.versions.length === 0) {
 			return 0;
 		}
-		// 累加激活版本中所有面团的原料数量
 		return family.versions[0].doughs.reduce((sum, dough) => sum + (dough._count?.ingredients || 0), 0);
 	};
 
 	const getRating = (count : number) => {
-		if (count > 20) return '4.9'; // 根据任务数调整评级标准
+		if (count > 20) return '4.9';
 		if (count > 10) return '4.8';
 		if (count > 3) return '4.7';
 		return '4.5';
 	};
-
-	// [REFACTORED] 更新筛选和排序逻辑
-	const filteredRecipes = computed(() => {
-		if (!dataStore.recipes) {
-			return [];
-		}
-		const recipesCopy = [...dataStore.recipes];
-		if (recipeFilter.value === 'MAIN') {
-			// [核心修改] 筛选出主面团并按制作任务次数降序排序
-			return recipesCopy
-				.filter((family) => family.type === 'MAIN')
-				.sort((a, b) => (b.productionTaskCount || 0) - (a.productionTaskCount || 0));
-		} else {
-			// 筛选出其他类型（面种和馅料）并按名称字母顺序排序
-			return recipesCopy
-				.filter((family) => family.type === 'PRE_DOUGH' || family.type === 'EXTRA')
-				.sort((a, b) => a.name.localeCompare(b.name));
-		}
-	});
 
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
@@ -178,6 +203,29 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	// [新增] 页面和Swiper相关样式
+	.page-container-flex {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
+
+	.page-content-swiper {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
+	}
+
+	.swiper-container {
+		flex: 1;
+		height: 100%;
+	}
+
+	.swiper-scroll-view {
+		height: 100%;
+	}
 
 	.rating {
 		color: var(--accent-color);
@@ -218,7 +266,6 @@
 		font-size: 13px;
 	}
 
-	/* [新增] 为空状态的占位符添加样式 */
 	.empty-state {
 		text-align: center;
 		padding: 50px 20px;
