@@ -15,7 +15,7 @@
 
 				<!-- 根据配方类型动态渲染详情组件 -->
 				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" />
-				<SimpleRecipeDetail v-else :version="displayedVersion" />
+				<SimpleRecipeDetail v-else :version="diAsplayedVersion" />
 			</view>
 		</view>
 		<view class="loading-spinner" v-else>
@@ -78,7 +78,7 @@
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import type { RecipeFamily, RecipeVersion } from '@/types/api';
-	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion } from '@/api/recipes'; // [修改] 引入 deleteRecipeVersion
+	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion } from '@/api/recipes';
 
 	// 引入子组件
 	import RecipeVersionList from '@/components/RecipeVersionList.vue';
@@ -88,7 +88,7 @@
 	// 引入通用组件
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
-	import ListItem from '@/components/ListItem.vue'; // [新增] 引入ListItem组件
+	import ListItem from '@/components/ListItem.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -100,9 +100,9 @@
 	// 状态管理
 	const familyId = ref<string | null>(null);
 	const displayedVersionId = ref<string | null>(null);
-	const showActivateVersionConfirmModal = ref(false); // [修改] 变量名
-	const showVersionOptionsModal = ref(false); // [新增] 版本操作选项对话框
-	const showDeleteVersionConfirmModal = ref(false); // [新增] 删除版本确认对话框
+	const showActivateVersionConfirmModal = ref(false);
+	const showVersionOptionsModal = ref(false);
+	const showDeleteVersionConfirmModal = ref(false);
 	const selectedVersionForAction = ref<RecipeVersion | null>(null);
 
 	onLoad(async (options) => {
@@ -114,7 +114,7 @@
 
 	onShow(async () => {
 		if (familyId.value && !isLoading.value) {
-			await dataStore.fetchIngredientsData(); // 确保原料数据是最新的，用于计算单价
+			await dataStore.fetchIngredientsData();
 			await loadRecipeData(familyId.value);
 		}
 	});
@@ -126,12 +126,10 @@
 			recipeFamily.value = fullFamilyData;
 			recipeVersions.value = fullFamilyData.versions.sort((a, b) => b.version - a.version);
 
-			// 决定默认显示的配方版本
 			const currentActiveVersion = recipeVersions.value.find(v => v.isActive);
 			let versionToShow = currentActiveVersion || (recipeVersions.value.length > 0 ? recipeVersions.value[0] : null);
 
 			if (versionToShow) {
-				// 只有当 displayedVersionId 无效时才更新它，以保持用户当前的选择
 				if (!displayedVersionId.value || !recipeVersions.value.some(v => v.id === displayedVersionId.value)) {
 					displayedVersionId.value = versionToShow.id;
 				}
@@ -146,7 +144,6 @@
 		}
 	};
 
-	// --- Computed Properties ---
 	const displayedVersion = computed(() => {
 		return recipeVersions.value.find(v => v.id === displayedVersionId.value) || null;
 	});
@@ -159,7 +156,6 @@
 		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
 
-	// --- Methods ---
 	const navigateBack = () => {
 		uni.navigateBack();
 	};
@@ -174,7 +170,6 @@
 		});
 	};
 
-	// --- Event Handlers ---
 	const handleCreateVersion = () => {
 		if (recipeFamily.value) navigateToEditPage(recipeFamily.value.id);
 	};
@@ -184,25 +179,22 @@
 	};
 
 	const handleVersionLongPressAction = (version : RecipeVersion) => {
-		// [修改] 仅当长按的版本不是当前使用中的版本时，才弹出操作菜单
 		if (!canEditRecipe.value || version.isActive || !recipeFamily.value) return;
 		selectedVersionForAction.value = version;
 		showVersionOptionsModal.value = true;
 	};
 
-	// [新增] 处理从选项对话框中点击“设为使用中”
 	const handleActivateVersionOption = () => {
 		showVersionOptionsModal.value = false;
 		showActivateVersionConfirmModal.value = true;
 	};
 
-	// [新增] 处理从选项对话框中点击“删除配方版本”
 	const handleDeleteVersionOption = () => {
 		showVersionOptionsModal.value = false;
 		showDeleteVersionConfirmModal.value = true;
 	};
 
-	const handleConfirmActivateVersion = () => { // [修改] 方法名
+	const handleConfirmActivateVersion = () => {
 		if (selectedVersionForAction.value) {
 			activateVersionAction(selectedVersionForAction.value);
 		}
@@ -215,17 +207,16 @@
 			await activateRecipeVersion(recipeFamily.value.id, versionToActivate.id);
 			uni.showToast({ title: '设置成功', icon: 'success' });
 			await loadRecipeData(recipeFamily.value.id);
-			dataStore.fetchRecipesData(); // 刷新列表页的数据
+			dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to activate version:', error);
 			uni.showToast({ title: '设置失败，请重试', icon: 'none' });
 		} finally {
 			isSubmitting.value = false;
-			showActivateVersionConfirmModal.value = false; // [修改] 关闭正确的对话框
+			showActivateVersionConfirmModal.value = false;
 		}
 	};
 
-	// [新增] 确认删除配方版本的逻辑
 	const handleConfirmDeleteVersion = async () => {
 		if (!selectedVersionForAction.value || !familyId.value) return;
 		isSubmitting.value = true;
@@ -233,7 +224,7 @@
 			await deleteRecipeVersion(familyId.value, selectedVersionForAction.value.id);
 			uni.showToast({ title: '删除成功', icon: 'success' });
 			await loadRecipeData(familyId.value);
-			await dataStore.fetchRecipesData(); // 刷新列表页的数据
+			await dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to delete recipe version:', error);
 			uni.showToast({ title: '删除失败，请重试', icon: 'none' });
@@ -267,37 +258,5 @@
 		text-align: center;
 		margin-bottom: 20px;
 		line-height: 1.5;
-	}
-
-	/* [修改] 选项对话框样式 */
-	.options-list {
-		.option-item {
-			padding: 15px 0;
-			text-align: center;
-			cursor: pointer;
-
-			&:not(:last-child)::after {
-				left: 0;
-				right: 0;
-			}
-
-			&:active {
-				background-color: #f9f9f9;
-			}
-
-			:deep(.main-info) {
-				width: 100%;
-				justify-content: center;
-			}
-
-			:deep(.name) {
-				font-size: 18px;
-				font-weight: 500;
-			}
-
-			:deep(.desc) {
-				display: none;
-			}
-		}
 	}
 </style>

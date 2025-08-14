@@ -2,7 +2,6 @@
 .page-container { }
 .page-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px 20px; padding-top: calc(var(--status-bar-height) + 20px); background: transparent; position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(180%) blur(20px); background-color: rgba(253, 248, 242, 0.85); }
 .store-selector { font-size: 18px; font-weight: 600; }
-/* [修改] 调整用户头像尺寸 */
 .user-avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; background-color: var(--primary-color); }
 /* [核心新增] 当 IconButton 组件被用作头像时，移除其内边距以保持原始尺寸 */
 .icon-button.user-avatar {
@@ -217,6 +216,43 @@
 /* Modal Styles */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; backdrop-filter: blur(4px); background: rgba(0,0,0,0.2); z-index: 99; display: flex; justify-content: center; align-items: center; }
 .modal-content { background: white; border-radius: 20px; width: 80%; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+
+/* [新增] 选项对话框列表样式 */
+.options-list {
+	.option-item {
+		padding: 15px 0;
+		text-align: center;
+		cursor: pointer;
+
+		&:not(:last-child)::after {
+			left: 0;
+			right: 0;
+		}
+
+		&:active {
+			background-color: #f9f9f9;
+		}
+
+		:deep(.main-info) {
+			width: 100%;
+			justify-content: center;
+		}
+
+		:deep(.name) {
+			font-size: 18px;
+			font-weight: 500;
+		}
+
+		.danger-text {
+			color: var(--danger-color);
+		}
+
+		:deep(.desc) {
+			display: none;
+		}
+	}
+}
+
 
 /* Loading and Empty State */
 .loading-spinner { display: flex; justify-content: center; align-items: center; padding-top: 100px; }

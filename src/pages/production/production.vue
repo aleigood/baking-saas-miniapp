@@ -379,41 +379,4 @@
 	.status-tag.status-cancelled {
 		background-color: #a8a8a8;
 	}
-
-	/* [移除] 旧的模态框样式已被删除 */
-
-	/* [新增] 为新的选项对话框中的列表项添加特定样式 */
-	.options-list {
-		.option-item {
-			padding: 15px 0;
-			text-align: center;
-			cursor: pointer;
-
-			&:not(:last-child)::after {
-				left: 0;
-				right: 0;
-			}
-
-			&:active {
-				background-color: #f9f9f9;
-			}
-
-			/* 使用 :deep() 选择器来修改 ListItem 子组件内的样式 */
-			:deep(.main-info) {
-				width: 100%;
-				justify-content: center;
-			}
-
-			:deep(.name) {
-				font-size: 18px;
-				/* 设置更大的字体 */
-				font-weight: 500;
-			}
-
-			:deep(.desc) {
-				display: none;
-				/* 隐藏描述文字 */
-			}
-		}
-	}
 </style>

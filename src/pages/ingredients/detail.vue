@@ -754,40 +754,4 @@
 		margin-bottom: 20px;
 		line-height: 1.5;
 	}
-
-	// [新增] 选项对话框样式
-	.options-list {
-		.option-item {
-			padding: 15px 0;
-			text-align: center;
-			cursor: pointer;
-
-			&:not(:last-child)::after {
-				left: 0;
-				right: 0;
-			}
-
-			&:active {
-				background-color: #f9f9f9;
-			}
-
-			:deep(.main-info) {
-				width: 100%;
-				justify-content: center;
-			}
-
-			:deep(.name) {
-				font-size: 18px;
-				font-weight: 500;
-			}
-
-			.danger-text {
-				color: var(--danger-color);
-			}
-
-			:deep(.desc) {
-				display: none;
-			}
-		}
-	}
 </style>

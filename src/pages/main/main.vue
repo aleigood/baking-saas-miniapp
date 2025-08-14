@@ -134,23 +134,18 @@
 		margin-bottom: 25px;
 	}
 
-	/* [新增] 为选择门店列表添加与任务选项对话框一致的样式 */
+	/* [修改] 覆盖通用样式，以实现左对齐 */
 	.options-list {
 		.option-item {
-			/* 上下边距，让列表项更舒展 */
-			padding-top: 15px;
-			padding-bottom: 15px;
-			cursor: pointer;
+			text-align: left;
 
-			/* 激活时的背景色反馈 */
-			&:active {
-				background-color: #f9f9f9;
+			:deep(.main-info) {
+				justify-content: flex-start;
 			}
 
-			/* 覆盖 ListItem 内部 name 的字体样式 */
-			:deep(.name) {
-				font-size: 18px;
-				font-weight: 500;
+			:deep(.desc) {
+				display: block;
+				/* 覆盖通用样式中的 display: none */
 			}
 
 			/* 当前选中项的对勾图标样式 */
