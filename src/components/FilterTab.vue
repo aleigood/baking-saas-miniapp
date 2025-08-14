@@ -69,8 +69,8 @@
 		border-radius: 20px;
 		background: #f3e9e3;
 		color: var(--text-secondary);
-		font-size: 13px;
-		/* [样式调整] 减小字体大小 */
+		/* [修改] 调整字体大小 */
+		font-size: 14px;
 		white-space: nowrap;
 		/* [样式调整] 防止文字换行 */
 		/* 添加水波纹容器样式 */

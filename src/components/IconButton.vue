@@ -71,8 +71,9 @@
 		position: relative;
 		overflow: hidden;
 		transform: translateZ(0);
-		/* [核心新增] 设置内边距，扩大点击区域，同时让水波纹效果更完整 */
-		padding: 5px;
+		/* [修改] 调整内边距和圆角 */
+		padding: 8px;
+		border-radius: 12px;
 		/* [核心新增] 使其内容（如图片）垂直居中 */
 		display: flex;
 		align-items: center;
