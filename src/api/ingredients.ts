@@ -65,6 +65,17 @@ export function createSku(ingredientId : string, data : { brand ?: string; specN
 }
 
 /**
+ * [新增] 删除一个SKU
+ * @param skuId SKU的ID
+ */
+export function deleteSku(skuId : string) : Promise<any> {
+	return request({
+		url: `/ingredients/skus/${skuId}`,
+		method: 'DELETE',
+	});
+}
+
+/**
  * [新增] 创建一条采购记录
  * @param data 包含SKU ID、采购数量和价格
  */

@@ -151,7 +151,24 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showSkuActionsModal" title="设为使用中">
+		<!-- [新增] SKU操作选项对话框 -->
+		<AppModal v-model:visible="showSkuOptionsModal" title="品牌与规格" :no-header-line="true">
+			<view class="options-list">
+				<ListItem class="option-item" @click="handleActivateSkuOption">
+					<view class="main-info">
+						<view class="name">设为使用中</view>
+					</view>
+				</ListItem>
+				<ListItem class="option-item" @click="handleDeleteSkuOption">
+					<view class="main-info">
+						<view class="name">删除此品牌</view>
+					</view>
+				</ListItem>
+			</view>
+		</AppModal>
+
+		<!-- [修改] “设为使用中”的确认对话框 -->
+		<AppModal v-model:visible="showActivateSkuConfirmModal" title="设为使用中">
 			<view class="modal-prompt-text">
 				要将此规格设为当前使用的吗？
 			</view>
@@ -159,13 +176,41 @@
 				后续的采购和成本计算将默认使用此规格。
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="showSkuActionsModal = false">取消</AppButton>
+				<AppButton type="secondary" @click="showActivateSkuConfirmModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleActivateFromModal" :loading="isSubmitting">
 					{{ isSubmitting ? '设置中...' : '确认设置' }}
 				</AppButton>
 			</view>
 		</AppModal>
 
+		<!-- [新增] 删除SKU的确认对话框 -->
+		<AppModal v-model:visible="showDeleteSkuConfirmModal" title="确认删除">
+			<view class="modal-prompt-text">
+				确定要删除这个品牌规格吗？
+			</view>
+			<view class="modal-warning-text">
+				删除后，相关的采购记录也会被一并删除，并返还库存。此操作不可撤销。
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showDeleteSkuConfirmModal = false">取消</AppButton>
+				<AppButton type="danger" @click="handleConfirmDeleteSku" :loading="isSubmitting">
+					{{ isSubmitting ? '删除中...' : '确认删除' }}
+				</AppButton>
+			</view>
+		</AppModal>
+
+		<!-- [新增] 采购记录操作选项对话框 -->
+		<AppModal v-model:visible="showProcurementOptionsModal" title="采购记录" :no-header-line="true">
+			<view class="options-list">
+				<ListItem class="option-item" @click="handleDeleteProcurementOption">
+					<view class="main-info">
+						<view class="name">删除采购记录</view>
+					</view>
+				</ListItem>
+			</view>
+		</AppModal>
+
+		<!-- [修改] 采购记录删除确认对话框 -->
 		<AppModal v-model:visible="uiStore.showProcurementActionsModal" title="确认删除">
 			<view class="modal-prompt-text">
 				确定要删除这条采购记录吗？
@@ -189,8 +234,8 @@
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
 	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
-	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteProcurement } from
-		'@/api/ingredients';
+	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteProcurement, deleteSku } from
+		'@/api/ingredients'; // 新增 deleteSku 导入
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
@@ -228,7 +273,10 @@
 
 	const costHistory = ref<{ cost : number }[]>([]);
 	const usageHistory = ref<{ cost : number }[]>([]);
-	const showSkuActionsModal = ref(false);
+	const showActivateSkuConfirmModal = ref(false);
+	const showSkuOptionsModal = ref(false);
+	const showDeleteSkuConfirmModal = ref(false);
+	const showProcurementOptionsModal = ref(false); // [新增] 采购记录操作选项对话框
 	const selectedSkuForAction = ref<IngredientSKU | null>(null);
 	const selectedSkuId = ref<string | null>(null);
 	const selectedProcurementForAction = ref<ProcurementRecord | null>(null);
@@ -407,11 +455,47 @@
 	};
 
 	const handleSkuLongPressAction = (sku : IngredientSKU) => {
-		if (!ingredient.value || sku.id === ingredient.value.activeSkuId) {
+		// [修改] 仅当长按的SKU不是当前使用中的SKU时，才弹出操作菜单
+		if (sku.id === ingredient.value?.activeSkuId) {
 			return;
 		}
 		selectedSkuForAction.value = sku;
-		showSkuActionsModal.value = true;
+		showSkuOptionsModal.value = true;
+	};
+
+	// [新增] 处理选项：“设为使用中”
+	const handleActivateSkuOption = () => {
+		showSkuOptionsModal.value = false;
+		if (selectedSkuForAction.value?.id !== ingredient.value?.activeSkuId) {
+			showActivateSkuConfirmModal.value = true;
+		} else {
+			uni.showToast({ title: '该规格已在使用中', icon: 'none' });
+		}
+	};
+
+	// [新增] 处理选项：“删除”
+	const handleDeleteSkuOption = () => {
+		showSkuOptionsModal.value = false;
+		showDeleteSkuConfirmModal.value = true;
+	};
+
+	// [新增] 确认删除SKU
+	const handleConfirmDeleteSku = async () => {
+		if (!selectedSkuForAction.value || !ingredient.value) return;
+		isSubmitting.value = true;
+		try {
+			await deleteSku(selectedSkuForAction.value.id);
+			uni.showToast({ title: '删除成功', icon: 'success' });
+			await loadIngredientData(ingredient.value.id);
+			await dataStore.fetchIngredientsData();
+		} catch (error) {
+			console.error('Failed to delete SKU:', error);
+			uni.showToast({ title: '删除失败', icon: 'none' });
+		} finally {
+			isSubmitting.value = false;
+			showDeleteSkuConfirmModal.value = false;
+			selectedSkuForAction.value = null;
+		}
 	};
 
 	const handleActivateFromModal = async () => {
@@ -427,7 +511,7 @@
 			console.error('Failed to activate SKU:', error);
 		} finally {
 			isSubmitting.value = false;
-			showSkuActionsModal.value = false;
+			showActivateSkuConfirmModal.value = false;
 		}
 	};
 
@@ -477,7 +561,14 @@
 	};
 
 	const handleProcurementLongPress = (record : ProcurementRecord) => {
+		// [修改] 长按时打开新的选项对话框
 		selectedProcurementForAction.value = record;
+		showProcurementOptionsModal.value = true;
+	};
+
+	// [新增] 处理从选项对话框中点击“删除采购记录”
+	const handleDeleteProcurementOption = () => {
+		showProcurementOptionsModal.value = false;
 		uiStore.openModal('procurementActions');
 	};
 
@@ -662,5 +753,41 @@
 		text-align: center;
 		margin-bottom: 20px;
 		line-height: 1.5;
+	}
+
+	// [新增] 选项对话框样式
+	.options-list {
+		.option-item {
+			padding: 15px 0;
+			text-align: center;
+			cursor: pointer;
+
+			&:not(:last-child)::after {
+				left: 0;
+				right: 0;
+			}
+
+			&:active {
+				background-color: #f9f9f9;
+			}
+
+			:deep(.main-info) {
+				width: 100%;
+				justify-content: center;
+			}
+
+			:deep(.name) {
+				font-size: 18px;
+				font-weight: 500;
+			}
+
+			.danger-text {
+				color: var(--danger-color);
+			}
+
+			:deep(.desc) {
+				display: none;
+			}
+		}
 	}
 </style>

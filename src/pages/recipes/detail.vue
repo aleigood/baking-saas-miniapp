@@ -22,8 +22,24 @@
 			<text>加载中...</text>
 		</view>
 
-		<!-- 模态框仍然保留在父组件中 -->
-		<AppModal v-model:visible="showVersionActionsModal" title="设为使用中">
+		<!-- [新增] 版本操作选项对话框 -->
+		<AppModal v-model:visible="showVersionOptionsModal" title="配方版本" :no-header-line="true">
+			<view class="options-list">
+				<ListItem class="option-item" @click="handleActivateVersionOption">
+					<view class="main-info">
+						<view class="name">设为使用中</view>
+					</view>
+				</ListItem>
+				<ListItem class="option-item" @click="handleDeleteVersionOption">
+					<view class="main-info">
+						<view class="name">删除配方版本</view>
+					</view>
+				</ListItem>
+			</view>
+		</AppModal>
+
+		<!-- [修改] “设为使用中”的确认对话框 -->
+		<AppModal v-model:visible="showActivateVersionConfirmModal" title="设为使用中">
 			<view class="modal-prompt-text">
 				要将这个版本设为当前使用的配方吗？
 			</view>
@@ -31,9 +47,25 @@
 				后续创建生产任务时将默认使用此版本配方。
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="showVersionActionsModal = false">取消</AppButton>
-				<AppButton type="primary" @click="handleActivateFromModal" :loading="isSubmitting">
+				<AppButton type="secondary" @click="showActivateVersionConfirmModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleConfirmActivateVersion" :loading="isSubmitting">
 					{{ isSubmitting ? '设置中...' : '确认设置' }}
+				</AppButton>
+			</view>
+		</AppModal>
+
+		<!-- [新增] 删除配方版本的确认对话框 -->
+		<AppModal v-model:visible="showDeleteVersionConfirmModal" title="确认删除">
+			<view class="modal-prompt-text">
+				确定要删除这个配方版本吗？
+			</view>
+			<view class="modal-warning-text">
+				此操作不可撤销。
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showDeleteVersionConfirmModal = false">取消</AppButton>
+				<AppButton type="danger" @click="handleConfirmDeleteVersion" :loading="isSubmitting">
+					{{ isSubmitting ? '删除中...' : '确认删除' }}
 				</AppButton>
 			</view>
 		</AppModal>
@@ -46,7 +78,7 @@
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import type { RecipeFamily, RecipeVersion } from '@/types/api';
-	import { getRecipeFamily, activateRecipeVersion } from '@/api/recipes';
+	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion } from '@/api/recipes'; // [修改] 引入 deleteRecipeVersion
 
 	// 引入子组件
 	import RecipeVersionList from '@/components/RecipeVersionList.vue';
@@ -56,6 +88,7 @@
 	// 引入通用组件
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
+	import ListItem from '@/components/ListItem.vue'; // [新增] 引入ListItem组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -67,7 +100,9 @@
 	// 状态管理
 	const familyId = ref<string | null>(null);
 	const displayedVersionId = ref<string | null>(null);
-	const showVersionActionsModal = ref(false);
+	const showActivateVersionConfirmModal = ref(false); // [修改] 变量名
+	const showVersionOptionsModal = ref(false); // [新增] 版本操作选项对话框
+	const showDeleteVersionConfirmModal = ref(false); // [新增] 删除版本确认对话框
 	const selectedVersionForAction = ref<RecipeVersion | null>(null);
 
 	onLoad(async (options) => {
@@ -148,13 +183,26 @@
 		displayedVersionId.value = versionToDisplay.id;
 	};
 
-	const handleVersionLongPressAction = (versionToActivate : RecipeVersion) => {
-		if (!canEditRecipe.value || versionToActivate.isActive || !recipeFamily.value) return;
-		selectedVersionForAction.value = versionToActivate;
-		showVersionActionsModal.value = true;
+	const handleVersionLongPressAction = (version : RecipeVersion) => {
+		// [修改] 仅当长按的版本不是当前使用中的版本时，才弹出操作菜单
+		if (!canEditRecipe.value || version.isActive || !recipeFamily.value) return;
+		selectedVersionForAction.value = version;
+		showVersionOptionsModal.value = true;
 	};
 
-	const handleActivateFromModal = () => {
+	// [新增] 处理从选项对话框中点击“设为使用中”
+	const handleActivateVersionOption = () => {
+		showVersionOptionsModal.value = false;
+		showActivateVersionConfirmModal.value = true;
+	};
+
+	// [新增] 处理从选项对话框中点击“删除配方版本”
+	const handleDeleteVersionOption = () => {
+		showVersionOptionsModal.value = false;
+		showDeleteVersionConfirmModal.value = true;
+	};
+
+	const handleConfirmActivateVersion = () => { // [修改] 方法名
 		if (selectedVersionForAction.value) {
 			activateVersionAction(selectedVersionForAction.value);
 		}
@@ -173,7 +221,26 @@
 			uni.showToast({ title: '设置失败，请重试', icon: 'none' });
 		} finally {
 			isSubmitting.value = false;
-			showVersionActionsModal.value = false;
+			showActivateVersionConfirmModal.value = false; // [修改] 关闭正确的对话框
+		}
+	};
+
+	// [新增] 确认删除配方版本的逻辑
+	const handleConfirmDeleteVersion = async () => {
+		if (!selectedVersionForAction.value || !familyId.value) return;
+		isSubmitting.value = true;
+		try {
+			await deleteRecipeVersion(familyId.value, selectedVersionForAction.value.id);
+			uni.showToast({ title: '删除成功', icon: 'success' });
+			await loadRecipeData(familyId.value);
+			await dataStore.fetchRecipesData(); // 刷新列表页的数据
+		} catch (error) {
+			console.error('Failed to delete recipe version:', error);
+			uni.showToast({ title: '删除失败，请重试', icon: 'none' });
+		} finally {
+			isSubmitting.value = false;
+			showDeleteVersionConfirmModal.value = false;
+			selectedVersionForAction.value = null;
 		}
 	};
 </script>
@@ -200,5 +267,37 @@
 		text-align: center;
 		margin-bottom: 20px;
 		line-height: 1.5;
+	}
+
+	/* [修改] 选项对话框样式 */
+	.options-list {
+		.option-item {
+			padding: 15px 0;
+			text-align: center;
+			cursor: pointer;
+
+			&:not(:last-child)::after {
+				left: 0;
+				right: 0;
+			}
+
+			&:active {
+				background-color: #f9f9f9;
+			}
+
+			:deep(.main-info) {
+				width: 100%;
+				justify-content: center;
+			}
+
+			:deep(.name) {
+				font-size: 18px;
+				font-weight: 500;
+			}
+
+			:deep(.desc) {
+				display: none;
+			}
+		}
 	}
 </style>

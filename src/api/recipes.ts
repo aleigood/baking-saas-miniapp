@@ -77,3 +77,15 @@ export function activateRecipeVersion(familyId : string, versionId : string) : P
 		method: 'PATCH',
 	});
 }
+
+/**
+ * [新增] 删除一个指定的配方版本
+ * @param familyId 配方家族的ID
+ * @param versionId 要删除的版本ID
+ */
+export function deleteRecipeVersion(familyId : string, versionId : string) : Promise<any> {
+	return request({
+		url: `/recipes/${familyId}/versions/${versionId}`,
+		method: 'DELETE',
+	});
+}
