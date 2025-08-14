@@ -1,7 +1,7 @@
 <template>
 	<view v-if="visible" class="modal-overlay" @click="closeModal" @touchmove.stop.prevent="() => {}">
 		<view class="modal-content" :style="{ width: width }" @click.stop>
-			<view class="modal-header" v-if="title">
+			<view class="modal-header" :class="{ 'no-line': noHeaderLine }" v-if="title">
 				<h3 class="modal-title">{{ title }}</h3>
 			</view>
 			<slot></slot>
@@ -10,7 +10,9 @@
 </template>
 
 <script setup lang="ts">
-	import { watch } from 'vue';
+	import {
+		watch
+	} from 'vue';
 
 	const props = defineProps({
 		visible: {
@@ -23,8 +25,12 @@
 		},
 		width: {
 			type: String,
-			default: '80%', // [核心修改] 将默认宽度从 85% 改为 80%
+			default: '80%',
 		},
+		noHeaderLine: {
+			type: Boolean,
+			default: false,
+		}
 	});
 
 	const emit = defineEmits(['update:visible']);
@@ -55,6 +61,22 @@
 		box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 		max-height: 80vh;
 		overflow-y: auto;
+
+		/* [核心修改] 只设置左右的负外边距，移除底部的负外边距 */
+		:deep(.options-list) {
+			margin: 0 -25px;
+			/* 这将使列表在水平方向上延伸，但会保留父容器的垂直内边距 */
+		}
+
+		:deep(.options-list .option-item) {
+			text-align: left;
+			padding-left: 25px;
+			padding-right: 25px;
+
+			.main-info {
+				justify-content: flex-start;
+			}
+		}
 	}
 
 	.modal-header {
@@ -65,6 +87,13 @@
 		padding-bottom: 15px;
 		border-bottom: 1px solid var(--border-color);
 	}
+
+	.modal-header.no-line {
+		border-bottom: none;
+		padding-bottom: 0;
+		margin-bottom: 15px;
+	}
+
 
 	.modal-title {
 		font-size: 18px;

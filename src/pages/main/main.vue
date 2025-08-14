@@ -7,9 +7,18 @@
 
 		<CustomTabBar />
 
-		<AppModal v-model:visible="uiStore.showStoreModal" title="选择门店">
-			<ListItem v-for="tenant in dataStore.tenants" :key="tenant.id" @click="handleSelectTenant(tenant.id)">{{
-        tenant.name }}</ListItem>
+		<AppModal v-model:visible="uiStore.showStoreModal" title="选择门店" :no-header-line="true">
+			<view class="options-list">
+				<ListItem v-for="tenant in dataStore.tenants" :key="tenant.id" @click="handleSelectTenant(tenant.id)"
+					class="option-item">
+					<view class="main-info">
+						<view class="name">{{ tenant.name }}</view>
+					</view>
+					<view class="side-info" v-if="dataStore.currentTenant?.id === tenant.id">
+						<view class="value checkmark-icon">✓</view>
+					</view>
+				</ListItem>
+			</view>
 		</AppModal>
 
 		<AppModal v-model:visible="uiStore.showUserMenu" title="退出登录">
@@ -27,7 +36,6 @@
 				<input class="input-field" type="tel" v-model="inviteePhone" placeholder="请输入手机号" />
 			</FormItem>
 			<view class="modal-actions">
-				<!-- [核心修改] 替换为 AppButton 组件 -->
 				<AppButton type="secondary" @click="uiStore.closeModal('invite')">
 					取消
 				</AppButton>
@@ -124,5 +132,33 @@
 		color: var(--text-primary);
 		text-align: center;
 		margin-bottom: 25px;
+	}
+
+	/* [新增] 为选择门店列表添加与任务选项对话框一致的样式 */
+	.options-list {
+		.option-item {
+			/* 上下边距，让列表项更舒展 */
+			padding-top: 15px;
+			padding-bottom: 15px;
+			cursor: pointer;
+
+			/* 激活时的背景色反馈 */
+			&:active {
+				background-color: #f9f9f9;
+			}
+
+			/* 覆盖 ListItem 内部 name 的字体样式 */
+			:deep(.name) {
+				font-size: 18px;
+				font-weight: 500;
+			}
+
+			/* 当前选中项的对勾图标样式 */
+			.checkmark-icon {
+				color: var(--primary-color);
+				font-weight: bold;
+				font-size: 18px;
+			}
+		}
 	}
 </style>
