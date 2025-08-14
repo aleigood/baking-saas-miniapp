@@ -1,6 +1,6 @@
 <template>
-	<!-- [核心修改] 动态绑定 z-index -->
-	<view class="custom-tab-bar" :style="{ zIndex: uiStore.isAnyModalOpen ? 90 : 9998 }">
+	<!-- [核心修改] 移除了动态绑定的 :style 属性 -->
+	<view class="custom-tab-bar">
 		<view v-for="(item, index) in list" :key="item.key" class="tab-item ripple-container"
 			@touchstart="handleTouchStart($event, item, index)" @touchmove="handleTouchMove"
 			@touchend="handleTouchEnd(item)">
@@ -120,6 +120,8 @@
 		/* [核心修改] 调整边框和阴影以适应毛玻璃效果 */
 		border-top: 1px solid rgba(0, 0, 0, 0.08);
 		box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+		/* [主要修改] 遵循新的全局层级规范，将 z-index 固定为 98 */
+		z-index: 98;
 	}
 
 	.tab-item {
