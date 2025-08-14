@@ -226,5 +226,7 @@
 		border: none;
 		background-color: var(--bg-color);
 		font-size: 16px;
+		border-radius: 8px;
+		/* [新增] 为输入框添加圆角 */
 	}
 </style>
