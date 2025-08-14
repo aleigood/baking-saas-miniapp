@@ -15,7 +15,7 @@
 
 				<!-- 根据配方类型动态渲染详情组件 -->
 				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" />
-				<SimpleRecipeDetail v-else :version="diAsplayedVersion" />
+				<SimpleRecipeDetail v-else :version="displayedVersion" />
 			</view>
 		</view>
 		<view class="loading-spinner" v-else>

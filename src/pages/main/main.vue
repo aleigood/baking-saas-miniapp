@@ -21,12 +21,24 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="uiStore.showUserMenu" title="退出登录">
+		<!-- [新增] 用户操作选项对话框 -->
+		<AppModal v-model:visible="uiStore.showUserOptionsModal" title="账户操作" :no-header-line="true">
+			<view class="options-list">
+				<ListItem class="option-item" @click="handleOpenLogoutConfirm">
+					<view class="main-info">
+						<view class="name">退出登录</view>
+					</view>
+				</ListItem>
+			</view>
+		</AppModal>
+
+		<!-- [修改] 退出登录确认对话框 -->
+		<AppModal v-model:visible="uiStore.showLogoutConfirmModal" title="退出登录">
 			<view class="modal-prompt-text">
 				您确定要退出登录吗？
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal('userMenu')">取消</AppButton>
+				<AppButton type="secondary" @click="uiStore.closeModal('logoutConfirm')">取消</AppButton>
 				<AppButton type="danger" @click="handleLogout">确认退出</AppButton>
 			</view>
 		</AppModal>
@@ -90,7 +102,13 @@
 
 	const handleLogout = () => {
 		userStore.logout();
-		uiStore.closeModal('userMenu');
+		uiStore.closeModal('logoutConfirm');
+	};
+
+	// [新增] 打开退出登录确认框的逻辑
+	const handleOpenLogoutConfirm = () => {
+		uiStore.closeModal('userOptions');
+		uiStore.openModal('logoutConfirm');
 	};
 
 	const handleInvite = async () => {

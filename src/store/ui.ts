@@ -8,15 +8,15 @@ export const useUiStore = defineStore('ui', () => {
 
 	// 全局模态框的显示状态
 	const showStoreModal = ref(false);
-	const showUserMenu = ref(false);
+	const showUserOptionsModal = ref(false); // [修改] 从 showUserMenu 重命名
+	const showLogoutConfirmModal = ref(false); // [新增] 退出登录确认框状态
 	const showInviteModal = ref(false);
 	const showTaskActionsModal = ref(false);
-	// [核心新增] 为采购记录操作模态框添加全局状态
 	const showProcurementActionsModal = ref(false);
 
 
-	// [核心修改] isAnyModalOpen 现在也会追踪 showProcurementActionsModal 的状态
-	const isAnyModalOpen = computed(() => showStoreModal.value || showUserMenu.value || showInviteModal.value || showTaskActionsModal.value || showProcurementActionsModal.value);
+	// [修改] isAnyModalOpen 现在也会追踪新的模态框状态
+	const isAnyModalOpen = computed(() => showStoreModal.value || showUserOptionsModal.value || showLogoutConfirmModal.value || showInviteModal.value || showTaskActionsModal.value || showProcurementActionsModal.value);
 
 	/**
 	 * 设置当前激活的 Tab
@@ -26,18 +26,20 @@ export const useUiStore = defineStore('ui', () => {
 		activeTab.value = tabKey;
 	}
 
-	// [核心修改] openModal 和 closeModal 现在也能处理 'procurementActions' 模态框
-	function openModal(modalName : 'store' | 'userMenu' | 'invite' | 'taskActions' | 'procurementActions') {
+	// [修改] openModal 和 closeModal 现在也能处理 'userOptions' 和 'logoutConfirm' 模态框
+	function openModal(modalName : 'store' | 'userOptions' | 'logoutConfirm' | 'invite' | 'taskActions' | 'procurementActions') {
 		if (modalName === 'store') showStoreModal.value = true;
-		if (modalName === 'userMenu') showUserMenu.value = true;
+		if (modalName === 'userOptions') showUserOptionsModal.value = true;
+		if (modalName === 'logoutConfirm') showLogoutConfirmModal.value = true;
 		if (modalName === 'invite') showInviteModal.value = true;
 		if (modalName === 'taskActions') showTaskActionsModal.value = true;
 		if (modalName === 'procurementActions') showProcurementActionsModal.value = true;
 	}
 
-	function closeModal(modalName : 'store' | 'userMenu' | 'invite' | 'taskActions' | 'procurementActions') {
+	function closeModal(modalName : 'store' | 'userOptions' | 'logoutConfirm' | 'invite' | 'taskActions' | 'procurementActions') {
 		if (modalName === 'store') showStoreModal.value = false;
-		if (modalName === 'userMenu') showUserMenu.value = false;
+		if (modalName === 'userOptions') showUserOptionsModal.value = false;
+		if (modalName === 'logoutConfirm') showLogoutConfirmModal.value = false;
 		if (modalName === 'invite') showInviteModal.value = false;
 		if (modalName === 'taskActions') showTaskActionsModal.value = false;
 		if (modalName === 'procurementActions') showProcurementActionsModal.value = false;
@@ -49,10 +51,11 @@ export const useUiStore = defineStore('ui', () => {
 		setActiveTab,
 		// 暴露状态和方法
 		showStoreModal,
-		showUserMenu,
+		showUserOptionsModal,
+		showLogoutConfirmModal,
 		showInviteModal,
 		showTaskActionsModal,
-		showProcurementActionsModal, // 暴露新状态
+		showProcurementActionsModal,
 		openModal,
 		closeModal,
 		isAnyModalOpen,

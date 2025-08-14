@@ -4,7 +4,7 @@
 			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
 			<!-- [核心修改] 使用 IconButton 组件包裹用户头像 -->
-			<IconButton circle class="user-avatar" @click="uiStore.openModal('userMenu')">
+			<IconButton circle class="user-avatar" @click="uiStore.openModal('userOptions')">
 				{{ userStore.userInfo?.name?.[0] || '管' }}
 			</IconButton>
 		</view>

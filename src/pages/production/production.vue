@@ -4,7 +4,7 @@
 			<view class="store-selector" @click="uiStore.openModal('store')">
 				{{ dataStore.currentTenant?.name || '请选择店铺' }} &#9662;
 			</view>
-			<IconButton circle class="user-avatar" @click="uiStore.openModal('userMenu')">
+			<IconButton circle class="user-avatar" @click="uiStore.openModal('userOptions')">
 				{{ userStore.userInfo?.name?.[0] || '管' }}
 			</IconButton>
 		</view>
