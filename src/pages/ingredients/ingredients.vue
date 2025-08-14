@@ -1,7 +1,6 @@
 <template>
 	<view>
 		<view class="page-header">
-			<!-- [核心修改] 使用 IconButton 组件包裹用户头像 -->
 			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
 			<IconButton circle class="user-avatar" @click="uiStore.openModal('userMenu')">
@@ -9,30 +8,25 @@
 			</IconButton>
 		</view>
 		<view class="page-content page-content-with-tabbar-fab">
-			<!-- [重构] 移除全屏加载动画，直接展示页面布局 -->
 			<FilterTabs>
 				<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
 				<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
 			</FilterTabs>
 
-			<!-- [重构] 根据是否有数据来显示列表或占位符 -->
-			<view v-if="filteredIngredients.length > 0">
+			<template v-if="filteredIngredients.length > 0">
 				<ListItem v-for="ing in filteredIngredients" :key="ing.id" @click="navigateToDetail(ing.id)">
 					<view class="main-info">
 						<view class="name">{{ ing.name }}</view>
 						<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
 					</view>
 					<view class="side-info">
-						<!-- [REFACTORED] 根据不同的筛选条件，展示不同的数据布局 -->
 						<template v-if="ingredientFilter === 'low'">
-							<!-- “库存紧张”视图：优先显示剩余天数 -->
 							<view class="value-tag" :class="getStockStatusClass(ing.daysOfSupply)">
 								{{ getDaysOfSupplyText(ing.daysOfSupply) }}
 							</view>
 							<view class="desc">库存: {{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg</view>
 						</template>
 						<template v-else>
-							<!-- “全部”视图：优先显示库存量，并附带总消耗量 -->
 							<view class="value">
 								{{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg
 							</view>
@@ -42,7 +36,7 @@
 						</template>
 					</view>
 				</ListItem>
-			</view>
+			</template>
 			<view v-else class="empty-state">
 				<text>暂无原料信息</text>
 			</view>

@@ -1,8 +1,6 @@
 <template>
-	<!-- [核心修改] 页面不再是独立的 page-container -->
 	<view>
 		<view class="page-header">
-			<!-- [核心修改] 使用 IconButton 组件包裹用户头像 -->
 			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
 			<IconButton circle class="user-avatar" @click="uiStore.openModal('userMenu')">
@@ -10,29 +8,24 @@
 			</IconButton>
 		</view>
 		<view class="page-content page-content-with-tabbar-fab">
-			<!-- [重构] 移除全屏加载动画，直接展示页面布局 -->
-			<view v-if="dataStore.members.length > 0">
-				<!-- [核心修改] 使用 ListItem 组件来包裹列表项 -->
+			<template v-if="dataStore.members.length > 0">
 				<ListItem v-for="member in dataStore.members" :key="member.id" @click="navigateToDetail(member.id)">
 					<view class="main-info">
 						<view class="name">{{ member.name || member.phone }}</view>
-						<!-- [核心修改] 使用统一的日期格式化函数 -->
 						<view class="desc">加入于: {{ formatChineseDate(member.joinDate) }}</view>
 					</view>
 					<view class="side-info">
 						<view class="value">{{ getRoleName(member.role) }}</view>
 					</view>
 				</ListItem>
-			</view>
+			</template>
 			<view v-else class="empty-state">
 				<text>暂无人员信息</text>
 			</view>
 		</view>
 
-		<!-- [核心修改] 点击事件调用 uiStore 的方法 -->
 		<AppFab v-if="canInvite" @click="uiStore.openModal('invite')" />
 
-		<!-- [核心删除] 移除页面内部的所有 AppModal 和 CustomTabBar 组件 -->
 	</view>
 </template>
 
