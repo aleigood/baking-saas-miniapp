@@ -2,7 +2,7 @@
 	<view class="page-container">
 		<view class="page-header">
 			<view class="detail-header">
-				<view class="back-btn" @click="navigateBack">&#10094;</view>
+				<view class="back-btn" @click="navigateBack" v-ripple>&#10094;</view>
 				<h2 class="detail-title">新建生产任务</h2>
 			</view>
 		</view>
@@ -22,7 +22,7 @@
 							<!-- [核心修改] 将步进器代码直接内置在模板中 -->
 							<view class="quantity-control">
 								<!-- 减号按钮 -->
-								<view class="btn-stepper" @click="decreaseQuantity(product.id)">
+								<view class="btn-stepper" @click="decreaseQuantity(product.id)" v-ripple>
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13H5v-2h14v2z'/%3E%3C/svg%3E" />
 								</view>
@@ -30,7 +30,7 @@
 								<input class="input-stepper" type="number"
 									v-model.number="taskQuantities[product.id]" />
 								<!-- 加号按钮 -->
-								<view class="btn-stepper" @click="increaseQuantity(product.id)">
+								<view class="btn-stepper" @click="increaseQuantity(product.id)" v-ripple>
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
 								</view>
