@@ -1,18 +1,15 @@
 <template>
-	<view class="page-container-flex">
+	<view>
 		<view class="page-header">
 			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
 			</view>
-			<!-- [核心修改] 使用 IconButton 组件包裹用户头像 -->
 			<IconButton circle class="user-avatar" @click="uiStore.openModal('userOptions')">
 				{{ userStore.userInfo?.name?.[0] || '管' }}
 			</IconButton>
 		</view>
-		<view class="page-content page-content-with-tabbar-fab page-content-swiper">
-			<!-- [重构] 移除全屏加载动画，直接展示页面布局 -->
+		<view class="page-content page-content-with-tabbar-fab">
 			<view class="card">
 				<view class="card-title"><span>本周制作排行</span></view>
-				<!-- [核心修改] 使用新的文本排名列表 -->
 				<view v-if="recipeStatsForChart.length > 0" class="ranking-list">
 					<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
 						class="ranking-item">
@@ -21,7 +18,6 @@
 						<text class="count">{{ item.value }} 个</text>
 					</view>
 				</view>
-				<!-- [新增] 当没有排行数据时显示占位符 -->
 				<view v-else class="empty-state">
 					<text>暂无排行信息</text>
 				</view>
@@ -32,55 +28,49 @@
 				<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
 			</FilterTabs>
 
-			<!-- [新增] 使用 swiper 组件实现滑动切换 -->
-			<swiper class="swiper-container" :current="currentTabIndex" @change="onSwiperChange">
+			<!-- [修改] 为触摸事件的容器添加class和样式 -->
+			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
 				<!-- 面团列表 -->
-				<swiper-item>
-					<scroll-view scroll-y class="swiper-scroll-view">
-						<template v-if="mainRecipes.length > 0">
-							<ListItem v-for="family in mainRecipes" :key="family.id"
-								@click="navigateToDetail(family.id)">
-								<view class="main-info">
-									<view class="name">{{ family.name }}</view>
-									<view class="desc">
-										{{ getProductCount(family) }} 种面包
-									</view>
+				<template v-if="recipeFilter === 'MAIN'">
+					<template v-if="mainRecipes.length > 0">
+						<ListItem v-for="family in mainRecipes" :key="family.id" @click="navigateToDetail(family.id)">
+							<view class="main-info">
+								<view class="name">{{ family.name }}</view>
+								<view class="desc">
+									{{ getProductCount(family) }} 种面包
 								</view>
-								<view class="side-info">
-									<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
-									<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
-								</view>
-							</ListItem>
-						</template>
-						<view v-else class="empty-state">
-							<text>暂无面团配方信息</text>
-						</view>
-					</scroll-view>
-				</swiper-item>
+							</view>
+							<view class="side-info">
+								<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
+								<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
+							</view>
+						</ListItem>
+					</template>
+					<view v-else class="empty-state">
+						<text>暂无面团配方信息</text>
+					</view>
+				</template>
 
 				<!-- 其他配方列表 -->
-				<swiper-item>
-					<scroll-view scroll-y class="swiper-scroll-view">
-						<template v-if="otherRecipes.length > 0">
-							<ListItem v-for="family in otherRecipes" :key="family.id"
-								@click="navigateToDetail(family.id)">
-								<view class="main-info">
-									<view class="name">{{ family.name }}</view>
-									<view class="desc">
-										类型: {{ getRecipeTypeDisplay(family.type) }}
-									</view>
+				<template v-if="recipeFilter === 'OTHER'">
+					<template v-if="otherRecipes.length > 0">
+						<ListItem v-for="family in otherRecipes" :key="family.id" @click="navigateToDetail(family.id)">
+							<view class="main-info">
+								<view class="name">{{ family.name }}</view>
+								<view class="desc">
+									类型: {{ getRecipeTypeDisplay(family.type) }}
 								</view>
-								<view class="side-info">
-									<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
-								</view>
-							</ListItem>
-						</template>
-						<view v-else class="empty-state">
-							<text>暂无其他配方信息</text>
-						</view>
-					</scroll-view>
-				</swiper-item>
-			</swiper>
+							</view>
+							<view class="side-info">
+								<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
+							</view>
+						</ListItem>
+					</template>
+					<view v-else class="empty-state">
+						<text>暂无其他配方信息</text>
+					</view>
+				</template>
+			</view>
 		</view>
 		<AppFab v-if="canEditRecipe" @click="navigateToEditPage(null)" />
 	</view>
@@ -88,7 +78,7 @@
 
 <script setup lang="ts">
 	import IconButton from '@/components/IconButton.vue';
-	import { ref, computed, watch } from 'vue';
+	import { ref, computed } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
@@ -104,7 +94,9 @@
 	const uiStore = useUiStore();
 
 	const recipeFilter = ref<'MAIN' | 'OTHER'>('MAIN');
-	const currentTabIndex = ref(0); // [新增] 用于swiper的索引
+
+	const touchStartX = ref(0);
+	const touchStartY = ref(0);
 
 	const recipeTypeMap = {
 		MAIN: '面团',
@@ -118,16 +110,24 @@
 		}
 	});
 
-	// [新增] 监听 recipeFilter 变化，同步更新 swiper 的 currentTabIndex
-	watch(recipeFilter, (newVal) => {
-		currentTabIndex.value = newVal === 'MAIN' ? 0 : 1;
-	});
+	const handleTouchStart = (e : TouchEvent) => {
+		touchStartX.value = e.touches[0].clientX;
+		touchStartY.value = e.touches[0].clientY;
+	};
 
-	// [新增] swiper 滑动事件处理
-	const onSwiperChange = (e : any) => {
-		const newIndex = e.detail.current;
-		currentTabIndex.value = newIndex;
-		recipeFilter.value = newIndex === 0 ? 'MAIN' : 'OTHER';
+	const handleTouchEnd = (e : TouchEvent) => {
+		const touchEndX = e.changedTouches[0].clientX;
+		const touchEndY = e.changedTouches[0].clientY;
+		const deltaX = touchEndX - touchStartX.value;
+		const deltaY = touchEndY - touchStartY.value;
+
+		if (Math.abs(deltaX) > 50 && Math.abs(deltaY) < 50) {
+			if (deltaX < 0) {
+				recipeFilter.value = 'OTHER';
+			} else {
+				recipeFilter.value = 'MAIN';
+			}
+		}
 	};
 
 	const recipeStatsForChart = computed(() => {
@@ -139,7 +139,6 @@
 			.sort((a, b) => b.value - a.value);
 	});
 
-	// [新增] 将原来的 filteredRecipes 拆分为两个独立的 computed 属性
 	const mainRecipes = computed(() => {
 		if (!dataStore.recipes) return [];
 		return [...dataStore.recipes]
@@ -204,27 +203,23 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	// [新增] 页面和Swiper相关样式
-	.page-container-flex {
-		display: flex;
-		flex-direction: column;
-		height: 100vh;
+	/* [新增] 列表滑动容器样式 */
+	.list-wrapper {
+		min-height: 60vh;
+		/* 确保即使列表为空，也有足够的滑动区域 */
 	}
 
-	.page-content-swiper {
-		display: flex;
-		flex-direction: column;
-		flex: 1;
-		min-height: 0;
+	/* [新增] 通过wrapper类来定位ListItem，修复边距问题 */
+	.list-wrapper :deep(.list-item) {
+		margin-left: -15px;
+		margin-right: -15px;
+		padding-left: 20px;
+		padding-right: 20px;
 	}
 
-	.swiper-container {
-		flex: 1;
-		height: 100%;
-	}
-
-	.swiper-scroll-view {
-		height: 100%;
+	.list-wrapper :deep(.list-item:not(:last-child)::after) {
+		left: 20px;
+		right: 20px;
 	}
 
 	.rating {
