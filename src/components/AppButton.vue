@@ -1,12 +1,14 @@
 <template>
-	<button class="btn" :class="buttonClasses" :disabled="disabled || loading" v-ripple @click="handleClick">
+	<button class="btn ripple-container" :class="buttonClasses" :disabled="disabled || loading"
+		@touchstart="handleTouchStart" @click="handleClick">
+		<!-- 水波纹效果的容器 -->
+		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 
-		<!-- 这个容器通过 visibility: hidden 来占据空间，以保持按钮尺寸在加载时不变 -->
+		<!-- 按钮内容 -->
 		<view class="content-wrapper" :style="{ visibility: loading ? 'hidden' : 'visible' }">
 			<slot></slot>
 		</view>
 
-		<!-- 加载状态的内容，使用绝对定位，因此不影响按钮布局 -->
 		<view v-if="loading" class="loading-content-wrapper">
 			<slot></slot>
 		</view>
@@ -14,16 +16,16 @@
 </template>
 
 <script setup lang="ts">
-	import { computed } from 'vue';
+	import { computed, ref, getCurrentInstance } from 'vue';
 
 	const props = defineProps({
 		type: {
 			type: String,
-			default: 'primary', // primary, secondary, danger, dashed, text-link
+			default: 'primary',
 		},
 		size: {
 			type: String,
-			default: '', // sm, xs
+			default: '',
 		},
 		fullWidth: {
 			type: Boolean,
@@ -40,6 +42,36 @@
 	});
 
 	const emit = defineEmits(['click']);
+
+	// [新增] 水波纹效果逻辑
+	const ripples = ref<any[]>([]);
+	const instance = getCurrentInstance();
+	const handleTouchStart = (event : TouchEvent) => {
+		if (props.disabled || props.loading) return;
+		const touch = event.touches[0];
+		const query = uni.createSelectorQuery().in(instance);
+		query.select('.ripple-container').boundingClientRect(rect => {
+			if (rect) {
+				const x = touch.clientX - rect.left;
+				const y = touch.clientY - rect.top;
+				const size = Math.max(rect.width, rect.height) * 2;
+				const newRipple = {
+					id: Date.now(),
+					style: {
+						width: `${size}px`,
+						height: `${size}px`,
+						top: `${y - size / 2}px`,
+						left: `${x - size / 2}px`,
+					}
+				};
+				ripples.value.push(newRipple);
+				setTimeout(() => {
+					if (ripples.value.length > 0) ripples.value.shift();
+				}, 600);
+			}
+		}).exec();
+	};
+
 
 	const buttonClasses = computed(() => ({
 		'btn-primary': props.type === 'primary',
@@ -69,10 +101,8 @@
 		justify-content: center;
 		align-items: center;
 		position: relative;
-		/* [新增] 添加 overflow: hidden 以约束水波纹 */
 		overflow: hidden;
 		transform: translateZ(0);
-		/* 开启硬件加速，优化动画性能 */
 
 		&::after {
 			border: none;
@@ -97,6 +127,8 @@
 		justify-content: center;
 		align-items: center;
 		width: 100%;
+		/* [新增] 确保内容在水波纹之上 */
+		z-index: 1;
 	}
 
 	.loading-content-wrapper {
@@ -109,6 +141,7 @@
 		justify-content: center;
 		align-items: center;
 		gap: 8px;
+		z-index: 1;
 	}
 
 	.btn-primary.loading {
@@ -116,14 +149,14 @@
 		opacity: 1;
 	}
 
-	/* [修改] 通过伪元素定制水波纹颜色 */
-	:deep(.ripple) {
+	/* [修改] 样式现在直接作用于组件内的 .ripple */
+	.ripple {
 		background-color: rgba(255, 255, 255, 0.4);
 	}
 
-	.btn-secondary :deep(.ripple),
-	.btn-dashed :deep(.ripple),
-	.btn-text-link :deep(.ripple) {
+	.btn-secondary .ripple,
+	.btn-dashed .ripple,
+	.btn-text-link .ripple {
 		background-color: rgba(0, 0, 0, 0.1);
 	}
 </style>

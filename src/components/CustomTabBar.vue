@@ -1,6 +1,9 @@
 <template>
 	<view class="custom-tab-bar">
-		<view v-for="item in list" :key="item.key" class="tab-item" v-ripple @click="switchTab(item)">
+		<view v-for="item in list" :key="item.key" :id="'tab-item-' + item.key" class="tab-item ripple-container"
+			@touchstart="handleTouchStart($event, item.key)" @click="switchTab(item)">
+			<!-- 水波纹效果的容器 -->
+			<span v-for="ripple in ripples[item.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 			<image class="icon" :src="uiStore.activeTab === item.key ? item.selectedIconPath : item.iconPath" />
 			<view class="text" :class="{ 'text-active': uiStore.activeTab === item.key }">{{ item.text }}</view>
 		</view>
@@ -8,10 +11,11 @@
 </template>
 
 <script setup lang="ts">
-	import { ref } from 'vue';
+	import { ref, getCurrentInstance, reactive } from 'vue';
 	import { useUiStore } from '@/store/ui';
 
 	const uiStore = useUiStore();
+	const instance = getCurrentInstance();
 
 	const list = ref([{
 		key: "production",
@@ -34,6 +38,40 @@
 		iconPath: "/static/tabbar/personnel.svg",
 		selectedIconPath: "/static/tabbar/personnel_active.svg"
 	}]);
+
+	// [新增] 为每个tab项维护独立的水波纹数组
+	const ripples = reactive<Record<string, any[]>>({
+		production: [],
+		ingredients: [],
+		recipes: [],
+		personnel: [],
+	});
+
+	const handleTouchStart = (event : TouchEvent, key : string) => {
+		const touch = event.touches[0];
+		const query = uni.createSelectorQuery().in(instance);
+		// [修改] 使用动态ID来精确定位
+		query.select(`#tab-item-${key}`).boundingClientRect(rect => {
+			if (rect) {
+				const x = touch.clientX - rect.left;
+				const y = touch.clientY - rect.top;
+				const size = Math.max(rect.width, rect.height) * 2;
+				const newRipple = {
+					id: Date.now(),
+					style: {
+						width: `${size}px`,
+						height: `${size}px`,
+						top: `${y - size / 2}px`,
+						left: `${x - size / 2}px`,
+					}
+				};
+				ripples[key].push(newRipple);
+				setTimeout(() => {
+					if (ripples[key].length > 0) ripples[key].shift();
+				}, 600);
+			}
+		}).exec();
+	};
 
 	const switchTab = (item : { key : string }) => {
 		uiStore.setActiveTab(item.key);
@@ -73,18 +111,20 @@
 		width: 24px;
 		height: 24px;
 		margin-bottom: 4px;
+		z-index: 1;
 	}
 
 	.text {
 		font-size: 10px;
 		color: var(--text-secondary);
+		z-index: 1;
 	}
 
 	.text-active {
 		color: var(--primary-color);
 	}
 
-	:deep(.ripple) {
+	.ripple {
 		background-color: rgba(0, 0, 0, 0.1);
 	}
 </style>
