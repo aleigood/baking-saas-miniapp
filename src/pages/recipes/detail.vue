@@ -1,11 +1,12 @@
 <template>
 	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
 		<DetailHeader :title="recipeFamily?.name || '加载中...'" />
 		<view class="page-content" v-if="!isLoading && recipeFamily">
 			<view class="detail-page">
+				<!-- [修改] 传入配方状态 -->
 				<RecipeVersionList :versions="recipeVersions" :selected-version-id="displayedVersionId"
-					:can-edit="canEditRecipe" @select-version="handleVersionClick" @create-version="handleCreateVersion"
+					:can-edit="canEditRecipe" :is-discontinued="recipeFamily.deletedAt !== null"
+					@select-version="handleVersionClick" @create-version="handleCreateVersion"
 					@longpress-version="handleVersionLongPressAction" />
 
 				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" />
@@ -81,7 +82,7 @@
 	import AppButton from '@/components/AppButton.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import Toast from '@/components/Toast.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();

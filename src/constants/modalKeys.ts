@@ -10,6 +10,13 @@ export const MODAL_KEYS = {
 	INVITE: 'invite',
 	TASK_ACTIONS: 'taskActions',
 	PROCUREMENT_ACTIONS: 'procurementActions',
+	// [新增] 原料和配方操作相关的模态框
+	INGREDIENT_ACTIONS: 'ingredientActions',
+	DELETE_INGREDIENT_CONFIRM: 'deleteIngredientConfirm',
+	RECIPE_ACTIONS: 'recipeActions',
+	DISCONTINUE_RECIPE_CONFIRM: 'discontinueRecipeConfirm',
+	RESTORE_RECIPE_CONFIRM: 'restoreRecipeConfirm',
+	DELETE_RECIPE_CONFIRM: 'deleteRecipeConfirm',
 } as const;
 
 // 从常量对象中提取类型，用于类型安全检查

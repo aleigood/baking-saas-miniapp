@@ -20,7 +20,7 @@
 }
 
 
-/* [修改] Water ripple effect - 仅保留样式，逻辑移至指令 */
+/* Water ripple effect */
 .ripple {
 	position: absolute;
 	border-radius: 50%;
@@ -106,7 +106,6 @@
     box-shadow: 0 6px 20px rgba(140,90,59,0.3); 
     z-index: 20; 
     transform: translateZ(0);
-    /* [新增] 为 v-ripple 指令提供 overflow hidden */
     overflow: hidden;
 }
 .fab.fab-no-tab-bar {
@@ -198,8 +197,6 @@
     cursor: pointer; 
     margin-right: 10px; 
     color: var(--text-secondary); 
-    
-    /* [新增] 为水波纹效果改造样式 */
     position: relative;
     overflow: hidden;
     width: 40px; 
@@ -213,7 +210,6 @@
 }
 .detail-title { font-size: 20px; font-weight: 600; flex: 1; }
 
-/* [新增] 为返回按钮定制水波纹颜色 */
 .back-btn :deep(.ripple) {
 	background-color: rgba(0, 0, 0, 0.08);
 }
@@ -265,6 +261,22 @@
 			display: none;
 		}
 	}
+}
+
+/* [新增] 确认对话框的统一样式 */
+.modal-prompt-text {
+	font-size: 16px;
+	color: var(--text-primary);
+	text-align: center;
+	margin-bottom: 10px;
+}
+
+.modal-warning-text {
+	font-size: 13px;
+	color: var(--text-secondary);
+	text-align: center;
+	margin-bottom: 20px;
+	line-height: 1.5;
 }
 
 

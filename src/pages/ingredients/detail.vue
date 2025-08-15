@@ -8,14 +8,12 @@
 
 		<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
 			<view class="detail-page">
-				<!-- 1. 核心信息区 -->
 				<view class="tag-group">
 					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
 					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
 					<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
 				</view>
 
-				<!-- 2. 数据洞察区 -->
 				<view class="card">
 					<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
@@ -23,11 +21,9 @@
 						unit-suffix="kg" />
 				</view>
 
-				<!-- 3. 品牌与规格管理区 -->
 				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
 					@longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
 
-				<!-- 4. 采购记录卡片 -->
 				<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
 			</view>
 		</view>
@@ -157,7 +153,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [修复] 将 v-model:visible 拆分为 :visible 和 @update:visible -->
 		<AppModal :visible="uiStore.showProcurementActionsModal"
 			@update:visible="uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS)" title="确认删除">
 			<view class="modal-prompt-text">
@@ -200,7 +195,7 @@
 	import IngredientSkuList from '@/components/IngredientSkuList.vue';
 	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
-	import { MODAL_KEYS } from '@/constants/modalKeys'; // [新增] 引入常量
+	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { formatChineseDate } from '@/utils/format';
 
 	const dataStore = useDataStore();
@@ -564,20 +559,5 @@
 	.form-row .input-field {
 		width: 120px;
 		text-align: right;
-	}
-
-	.modal-prompt-text {
-		font-size: 16px;
-		color: var(--text-primary);
-		text-align: center;
-		margin-bottom: 10px;
-	}
-
-	.modal-warning-text {
-		font-size: 13px;
-		color: var(--text-secondary);
-		text-align: center;
-		margin-bottom: 20px;
-		line-height: 1.5;
 	}
 </style>

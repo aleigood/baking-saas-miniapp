@@ -1,8 +1,7 @@
 <template>
 	<view>
-		<!-- [修改] 使用 MainHeader 组件 -->
+		<!-- [重构] 使用 MainHeader 组件 -->
 		<MainHeader />
-
 		<view class="page-content page-content-with-tabbar-fab">
 			<view class="summary-card">
 				<div>
@@ -52,7 +51,8 @@
 
 		<AppFab @click="navigateToCreatePage" />
 
-		<AppModal v-model:visible="showTaskOptions" title="制作任务" :no-header-line="true">
+		<AppModal :visible="uiStore.showTaskActionsModal" @update:visible="uiStore.closeModal(MODAL_KEYS.TASK_ACTIONS)"
+			title="制作任务" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleOpenCancelConfirm">
 					<view class="main-info">
@@ -98,7 +98,8 @@
 		useUiStore
 	} from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
-	import MainHeader from '@/components/MainHeader.vue'; // [新增] 引入 MainHeader
+	import { MODAL_KEYS } from '@/constants/modalKeys';
+	import MainHeader from '@/components/MainHeader.vue'; // [新增]
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -125,7 +126,6 @@
 	const isSubmitting = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 
-	const showTaskOptions = ref(false);
 	const showCancelConfirmModal = ref(false);
 
 	const homeStats = reactive({
@@ -236,11 +236,11 @@
 
 	const openTaskActions = (task : ProductionTaskDto) => {
 		selectedTaskForAction.value = task;
-		showTaskOptions.value = true;
+		uiStore.openModal(MODAL_KEYS.TASK_ACTIONS);
 	};
 
 	const handleOpenCancelConfirm = () => {
-		showTaskOptions.value = false;
+		uiStore.closeModal(MODAL_KEYS.TASK_ACTIONS);
 		showCancelConfirmModal.value = true;
 	};
 
@@ -375,12 +375,5 @@
 
 	.status-tag.status-cancelled {
 		background-color: #a8a8a8;
-	}
-
-	.modal-prompt-text {
-		font-size: 16px;
-		color: var(--text-primary);
-		text-align: center;
-		margin-bottom: 25px;
 	}
 </style>

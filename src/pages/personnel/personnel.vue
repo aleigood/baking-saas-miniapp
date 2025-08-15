@@ -1,6 +1,6 @@
 <template>
 	<view>
-		<!-- [修改] 使用 MainHeader 组件 -->
+		<!-- [重构] 使用 MainHeader 组件 -->
 		<MainHeader />
 		<view class="page-content page-content-with-tabbar-fab">
 			<template v-if="dataStore.members.length > 0">
@@ -19,7 +19,7 @@
 			</view>
 		</view>
 
-		<AppFab v-if="canInvite" @click="uiStore.openModal('invite')" />
+		<AppFab v-if="canInvite" @click="uiStore.openModal(MODAL_KEYS.INVITE)" />
 
 	</view>
 </template>
@@ -30,7 +30,8 @@
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
-	import MainHeader from '@/components/MainHeader.vue'; // [新增] 引入 MainHeader
+	import { MODAL_KEYS } from '@/constants/modalKeys';
+	import MainHeader from '@/components/MainHeader.vue'; // [新增]
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import type { Role } from '@/types/api';
@@ -39,6 +40,7 @@
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
+
 
 	onShow(async () => {
 		if (!dataStore.dataLoaded.members) {
