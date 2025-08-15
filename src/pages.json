@@ -2,7 +2,8 @@
 	"pages": [{
 			"path": "pages/main/main",
 			"style": {
-				"navigationStyle": "custom"
+				"navigationStyle": "custom",
+				"enablePullDownRefresh": true
 			}
 		},
 		{

@@ -7,7 +7,6 @@
 
 		<CustomTabBar />
 
-		<!-- [修复] 将 v-model:visible 拆分为 :visible 和 @update:visible -->
 		<AppModal :visible="uiStore.showStoreModal" @update:visible="uiStore.closeModal(MODAL_KEYS.STORE)" title="选择门店"
 			:no-header-line="true">
 			<view class="options-list">
@@ -23,7 +22,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [修复] 将 v-model:visible 拆分为 :visible 和 @update:visible -->
 		<AppModal :visible="uiStore.showUserOptionsModal" @update:visible="uiStore.closeModal(MODAL_KEYS.USER_OPTIONS)"
 			title="账户操作" :no-header-line="true">
 			<view class="options-list">
@@ -35,7 +33,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [修复] 将 v-model:visible 拆分为 :visible 和 @update:visible -->
 		<AppModal :visible="uiStore.showLogoutConfirmModal"
 			@update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
 			<view class="modal-prompt-text">
@@ -47,7 +44,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [修复] 将 v-model:visible 拆分为 :visible 和 @update:visible -->
 		<AppModal :visible="uiStore.showInviteModal" @update:visible="uiStore.closeModal(MODAL_KEYS.INVITE)"
 			title="邀请新成员">
 			<FormItem label="被邀请人手机号">
@@ -70,6 +66,7 @@
 
 <script setup lang="ts">
 	import { ref } from 'vue';
+	import { onPullDownRefresh } from '@dcloudio/uni-app'; // [新增] 引入 onPullDownRefresh
 	import { useUiStore } from '@/store/ui';
 	import { useDataStore } from '@/store/data';
 	import { useUserStore } from '@/store/user';
@@ -97,6 +94,28 @@
 
 	const isCreatingInvite = ref(false);
 	const inviteePhone = ref('');
+
+	// [新增] 下拉刷新逻辑
+	onPullDownRefresh(async () => {
+		try {
+			switch (uiStore.activeTab) {
+				case 'production':
+					await dataStore.fetchProductionData();
+					break;
+				case 'ingredients':
+					await dataStore.fetchIngredientsData();
+					break;
+				case 'recipes':
+					await dataStore.fetchRecipesData();
+					break;
+				case 'personnel':
+					await dataStore.fetchMembersData();
+					break;
+			}
+		} finally {
+			uni.stopPullDownRefresh();
+		}
+	});
 
 	const handleSelectTenant = async (tenantId : string) => {
 		if (dataStore.currentTenantId === tenantId) {
