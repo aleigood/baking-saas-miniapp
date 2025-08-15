@@ -1,26 +1,20 @@
 <template>
 	<view class="page-container">
-		<!-- 页面头部 -->
-		<view class="page-header">
-			<view class="detail-header">
-				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">{{ ingredient?.name || '加载中...' }}</h2>
-				<IconButton @click="openEditModal">
-					<image class="header-icon" src="/static/icons/property.svg" />
-				</IconButton>
-			</view>
-		</view>
+		<!-- [修改] 使用 DetailHeader 组件 -->
+		<DetailHeader :title="ingredient?.name || '加载中...'">
+			<IconButton @click="openEditModal">
+				<image class="header-icon" src="/static/icons/property.svg" />
+			</IconButton>
+		</DetailHeader>
 
 		<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
 			<view class="detail-page">
-				<!-- 1. 核心信息区 -->
 				<view class="tag-group">
 					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
 					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
 					<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
 				</view>
 
-				<!-- 2. 数据洞察区 -->
 				<view class="card">
 					<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
@@ -28,11 +22,9 @@
 						unit-suffix="kg" />
 				</view>
 
-				<!-- 3. 品牌与规格管理区 -->
 				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
 					@longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
 
-				<!-- 4. 采购记录卡片 -->
 				<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
 			</view>
 		</view>
@@ -177,7 +169,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [新增] 添加Toast组件以显示提示信息 -->
 		<Toast />
 	</view>
 </template>
@@ -187,11 +178,12 @@
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
-	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
+	import { useToastStore } from '@/store/toast';
 	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
 	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteProcurement, deleteSku } from
 		'@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
+	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 	import AppFab from '@/components/AppFab.vue';
@@ -200,14 +192,14 @@
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
-	import Toast from '@/components/Toast.vue'; // [新增] 引入 Toast 组件
+	import Toast from '@/components/Toast.vue';
 	import IngredientSkuList from '@/components/IngredientSkuList.vue';
 	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
 	import { formatChineseDate } from '@/utils/format';
 
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
-	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
+	const toastStore = useToastStore();
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const ingredient = ref<Ingredient | null>(null);
@@ -468,7 +460,6 @@
 	};
 
 	const handleUpdateIngredient = async () => {
-		// [新增] 添加输入校验
 		if (!ingredientForm.name || !ingredientForm.name.trim()) {
 			toastStore.show({ message: '原料名称不能为空', type: 'error' });
 			return;

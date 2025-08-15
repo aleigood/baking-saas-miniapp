@@ -1,21 +1,14 @@
 <template>
 	<view>
-		<view class="page-header">
-			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
-			</view>
-			<IconButton circle class="user-avatar" @click="uiStore.openModal('userOptions')">
-				{{ userStore.userInfo?.name?.[0] || '管' }}
-			</IconButton>
-		</view>
+		<!-- [修改] 使用 MainHeader 组件 -->
+		<MainHeader />
 		<view class="page-content page-content-with-tabbar-fab">
 			<FilterTabs>
 				<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
 				<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
 			</FilterTabs>
 
-			<!-- [修改] 为触摸事件的容器添加class和样式 -->
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
-				<!-- 全部原料列表 -->
 				<template v-if="ingredientFilter === 'all'">
 					<template v-if="allIngredients.length > 0">
 						<ListItem v-for="ing in allIngredients" :key="ing.id" @click="navigateToDetail(ing.id)">
@@ -38,7 +31,6 @@
 					</view>
 				</template>
 
-				<!-- 库存紧张列表 -->
 				<template v-if="ingredientFilter === 'low'">
 					<template v-if="lowStockIngredients.length > 0">
 						<ListItem v-for="ing in lowStockIngredients" :key="ing.id" @click="navigateToDetail(ing.id)">
@@ -64,24 +56,19 @@
 	</view>
 </template>
 <script setup lang="ts">
-	import IconButton from '@/components/IconButton.vue';
 	import { ref, computed } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
-	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useUiStore } from '@/store/ui';
 	import type { Ingredient } from '@/types/api';
+	import MainHeader from '@/components/MainHeader.vue'; // [新增] 引入 MainHeader
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 
-	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const uiStore = useUiStore();
 	const ingredientFilter = ref('all');
 
-	// [新增] 用于记录滑动起始位置的变量
 	const touchStartX = ref(0);
 	const touchStartY = ref(0);
 
@@ -91,13 +78,11 @@
 		}
 	});
 
-	// [新增] 记录触摸开始的坐标
 	const handleTouchStart = (e : TouchEvent) => {
 		touchStartX.value = e.touches[0].clientX;
 		touchStartY.value = e.touches[0].clientY;
 	};
 
-	// [新增] 触摸结束时判断滑动方向并切换标签页
 	const handleTouchEnd = (e : TouchEvent) => {
 		const touchEndX = e.changedTouches[0].clientX;
 		const touchEndY = e.changedTouches[0].clientY;
@@ -106,10 +91,8 @@
 
 		if (Math.abs(deltaX) > 50 && Math.abs(deltaY) < 50) {
 			if (deltaX < 0) {
-				// 向左滑动
 				ingredientFilter.value = 'low';
 			} else {
-				// 向右滑动
 				ingredientFilter.value = 'all';
 			}
 		}
@@ -165,13 +148,10 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [新增] 列表滑动容器样式 */
 	.list-wrapper {
 		min-height: 60vh;
-		/* 确保即使列表为空，也有足够的滑动区域 */
 	}
 
-	/* [新增] 通过wrapper类来定位ListItem，修复边距问题 */
 	.list-wrapper :deep(.list-item) {
 		margin-left: -15px;
 		margin-right: -15px;

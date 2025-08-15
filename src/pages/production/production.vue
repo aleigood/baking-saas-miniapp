@@ -1,13 +1,7 @@
 <template>
 	<view>
-		<view class="page-header">
-			<view class="store-selector" @click="uiStore.openModal('store')">
-				{{ dataStore.currentTenant?.name || '请选择店铺' }} &#9662;
-			</view>
-			<IconButton circle class="user-avatar" @click="uiStore.openModal('userOptions')">
-				{{ userStore.userInfo?.name?.[0] || '管' }}
-			</IconButton>
-		</view>
+		<!-- [修改] 使用 MainHeader 组件 -->
+		<MainHeader />
 
 		<view class="page-content page-content-with-tabbar-fab">
 			<view class="summary-card">
@@ -68,7 +62,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [新增] 取消任务的确认对话框 -->
 		<AppModal v-model:visible="showCancelConfirmModal" title="确认取消">
 			<view class="modal-prompt-text">
 				确定要取消这个任务吗？
@@ -105,6 +98,7 @@
 		useUiStore
 	} from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
+	import MainHeader from '@/components/MainHeader.vue'; // [新增] 引入 MainHeader
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -132,7 +126,7 @@
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 
 	const showTaskOptions = ref(false);
-	const showCancelConfirmModal = ref(false); // [新增] 控制取消确认对话框的状态
+	const showCancelConfirmModal = ref(false);
 
 	const homeStats = reactive({
 		pendingCount: 0,
@@ -245,13 +239,11 @@
 		showTaskOptions.value = true;
 	};
 
-	// [新增] 从选项对话框打开确认对话框
 	const handleOpenCancelConfirm = () => {
 		showTaskOptions.value = false;
 		showCancelConfirmModal.value = true;
 	};
 
-	// [修改] 将原有的取消逻辑移到这里
 	const handleConfirmCancelTask = async () => {
 		if (!selectedTaskForAction.value) return;
 
@@ -267,7 +259,7 @@
 			console.error('Failed to cancel task:', error);
 		} finally {
 			isSubmitting.value = false;
-			showCancelConfirmModal.value = false; // 关闭确认对话框
+			showCancelConfirmModal.value = false;
 			selectedTaskForAction.value = null;
 		}
 	};
@@ -390,13 +382,5 @@
 		color: var(--text-primary);
 		text-align: center;
 		margin-bottom: 25px;
-	}
-
-	.modal-warning-text {
-		font-size: 13px;
-		color: var(--text-secondary);
-		text-align: center;
-		margin-bottom: 20px;
-		line-height: 1.5;
 	}
 </style>

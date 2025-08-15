@@ -1,11 +1,7 @@
 <template>
 	<view class="page-container">
-		<view class="page-header">
-			<view class="detail-header">
-				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">任务详情</h2>
-			</view>
-		</view>
+		<!-- [修改] 使用 DetailHeader 组件 -->
+		<DetailHeader title="任务详情" />
 		<view class="page-content" v-if="!isLoading && task">
 			<view class="detail-page">
 				<view class="tag-group">
@@ -72,15 +68,16 @@
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
+	import { useToastStore } from '@/store/toast';
 	import type { ProductionTaskDto } from '@/types/api';
 	import { getTask, updateTaskStatus, completeTask } from '@/api/tasks';
+	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
+	const toastStore = useToastStore();
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
@@ -235,10 +232,6 @@
 		if (!task.value) return 0;
 		return getTotalQuantity(task.value);
 	});
-
-	const navigateBack = () => {
-		uni.navigateBack();
-	};
 </script>
 
 <style scoped lang="scss">
