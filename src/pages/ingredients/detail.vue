@@ -28,56 +28,12 @@
 						unit-suffix="kg" />
 				</view>
 
-				<!-- 3. 品牌与规格管理区 -->
-				<view class="card card-full-bleed-list">
-					<view class="card-title-wrapper">
-						<span class="card-title">品牌与规格 (SKU)</span>
-					</view>
-					<!-- [核心修改] 动态绑定 vibrate-on-long-press 属性，只有在可以设为使用中时才震动 -->
-					<ListItem v-for="sku in ingredient.skus" :key="sku.id" class="sku-item"
-						:class="{ 'item-selected': selectedSkuId === sku.id }" @click="handleSkuClick(sku)"
-						@longpress="handleSkuLongPressAction(sku)"
-						:vibrate-on-long-press="ingredient.activeSkuId !== sku.id">
-						<view class="main-info">
-							<view class="name">{{ sku.brand || '无品牌' }} - {{ sku.specName }}</view>
-							<view class="desc">添加于: {{ formatChineseDate(sku.createdAt) }}</view>
-						</view>
-						<view class="side-info">
-							<span v-if="sku.id === ingredient.activeSkuId" class="status-tag active">使用中</span>
-						</view>
-					</ListItem>
-					<AppButton type="text-link" @click="openAddSkuModal">+ 新增品牌规格</AppButton>
-				</view>
+				<!-- 3. [修改] 使用 IngredientSkuList 组件 -->
+				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
+					@longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
 
-				<!-- 4. 采购记录卡片 -->
-				<view class="card" v-if="selectedSku">
-					<view class="card-title">{{ selectedSku.brand || '无品牌' }} - {{ selectedSku.specName }} 的采购记录
-					</view>
-					<view class="procurement-list">
-						<view class="list-header">
-							<text class="col-date">采购日期</text>
-							<text class="col-quantity">数量</text>
-							<text class="col-price">单价</text>
-							<text class="col-total">总价</text>
-						</view>
-						<view v-if="displayedProcurementRecords && displayedProcurementRecords.length > 0">
-							<!-- [核心修改] 添加 vibrate-on-long-press 属性，因为这里的长按总是有菜单 -->
-							<ListItem v-for="record in displayedProcurementRecords" :key="record.id"
-								class="procurement-item" @longpress="handleProcurementLongPress(record)"
-								:vibrate-on-long-press="true">
-								<text class="col-date">{{ formatChineseDate(record.purchaseDate) }}</text>
-								<text class="col-quantity">{{ record.packagesPurchased }} 包</text>
-								<text class="col-price">¥{{ Number(record.pricePerPackage).toFixed(2) }}</text>
-								<text
-									class="col-total">¥{{ (record.packagesPurchased * Number(record.pricePerPackage)).toFixed(2) }}</text>
-							</ListItem>
-						</view>
-						<view v-else class="empty-procurements">
-							无采购记录
-						</view>
-					</view>
-					<AppButton v-if="hasMoreRecords" type="text-link" @click="loadMoreRecords">加载更多</AppButton>
-				</view>
+				<!-- 4. [修改] 使用 IngredientProcurementList 组件 -->
+				<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
 			</view>
 		</view>
 		<view class="loading-spinner" v-else>
@@ -151,7 +107,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [新增] SKU操作选项对话框 -->
 		<AppModal v-model:visible="showSkuOptionsModal" title="品牌与规格" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleActivateSkuOption">
@@ -167,7 +122,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [修改] “设为使用中”的确认对话框 -->
 		<AppModal v-model:visible="showActivateSkuConfirmModal" title="设为使用中">
 			<view class="modal-prompt-text">
 				要将此规格设为当前使用的吗？
@@ -183,12 +137,10 @@
 			</view>
 		</AppModal>
 
-		<!-- [新增] 删除SKU的确认对话框 -->
 		<AppModal v-model:visible="showDeleteSkuConfirmModal" title="确认删除">
 			<view class="modal-prompt-text">
 				确定要删除这个品牌规格吗？
 			</view>
-			<!-- [修改] 更新警告文本 -->
 			<view class="modal-warning-text">
 				存在采购记录的品牌规格无法删除，此操作不可撤销。
 			</view>
@@ -200,7 +152,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [新增] 采购记录操作选项对话框 -->
 		<AppModal v-model:visible="showProcurementOptionsModal" title="采购记录" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleDeleteProcurementOption">
@@ -211,7 +162,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [修改] 采购记录删除确认对话框 -->
 		<AppModal v-model:visible="uiStore.showProcurementActionsModal" title="确认删除">
 			<view class="modal-prompt-text">
 				确定要删除这条采购记录吗？
@@ -247,6 +197,9 @@
 	import AppButton from '@/components/AppButton.vue';
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
 	import { formatChineseDate } from '@/utils/format';
+	// [新增] 引入新组件
+	import IngredientSkuList from '@/components/IngredientSkuList.vue';
+	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
 
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
@@ -282,7 +235,6 @@
 	const selectedSkuId = ref<string | null>(null);
 	const selectedProcurementForAction = ref<ProcurementRecord | null>(null);
 
-	const displayedRecordsCount = ref(10);
 	const showEditModal = ref(false);
 
 	const ingredientForm = reactive({
@@ -365,14 +317,6 @@
 		return ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000).toFixed(2);
 	};
 
-	const getSkuPricePerKg = (sku : IngredientSKU) => {
-		const latestRecord = sku.procurementRecords?.[0];
-		if (!latestRecord || !sku.specWeightInGrams) {
-			return 'N/A';
-		}
-		return ((Number(latestRecord.pricePerPackage) / sku.specWeightInGrams) * 1000).toFixed(2);
-	};
-
 	const navigateBack = () => {
 		uni.navigateBack();
 	};
@@ -452,7 +396,6 @@
 
 	const handleSkuClick = (sku : IngredientSKU) => {
 		selectedSkuId.value = sku.id;
-		displayedRecordsCount.value = 10;
 	};
 
 	const handleSkuLongPressAction = (sku : IngredientSKU) => {
@@ -489,7 +432,6 @@
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			showDeleteSkuConfirmModal.value = false;
-			// 错误提示已由 src/utils/request.ts 统一处理
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -516,20 +458,6 @@
 		if (!ingredient.value || !selectedSkuId.value) return null;
 		return ingredient.value.skus.find(s => s.id === selectedSkuId.value) || null;
 	});
-
-	const displayedProcurementRecords = computed(() => {
-		if (!selectedSku.value || !selectedSku.value.procurementRecords) return [];
-		return selectedSku.value.procurementRecords.slice(0, displayedRecordsCount.value);
-	});
-
-	const hasMoreRecords = computed(() => {
-		if (!selectedSku.value || !selectedSku.value.procurementRecords) return false;
-		return displayedRecordsCount.value < selectedSku.value.procurementRecords.length;
-	});
-
-	const loadMoreRecords = () => {
-		displayedRecordsCount.value += 10;
-	};
 
 	const onIsFlourChange = (e : any) => {
 		ingredientForm.isFlour = e.detail.value;
@@ -578,7 +506,6 @@
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			uiStore.closeModal('procurementActions');
-			// 错误提示已由 src/utils/request.ts 统一处理
 		} finally {
 			isSubmitting.value = false;
 			selectedProcurementForAction.value = null;
@@ -602,23 +529,6 @@
 		gap: 8px;
 	}
 
-	.sku-item .side-info {
-		display: flex;
-		align-items: center;
-	}
-
-	.status-tag {
-		padding: 4px 12px;
-		border-radius: 15px;
-		font-size: 13px;
-		color: white;
-		font-weight: 500;
-
-		&.active {
-			background-color: #5ac725;
-		}
-	}
-
 	.picker,
 	.input-field {
 		width: 100%;
@@ -636,86 +546,6 @@
 	.input-field[disabled] {
 		background-color: #e9ecef;
 		color: #6c757d;
-	}
-
-	/* [核心新增] 采购记录列表样式 */
-	.procurement-list {
-
-		.list-header,
-		.procurement-item {
-			display: grid;
-			grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr;
-			/* 调整列的比例 */
-			align-items: center;
-			padding: 8px 5px;
-			font-size: 13px;
-		}
-
-		.list-header {
-			font-weight: 600;
-			color: var(--primary-color);
-			border-bottom: 1px solid var(--border-color);
-			margin-bottom: 5px;
-		}
-
-		.procurement-item {
-			color: var(--text-secondary);
-		}
-
-		.col-quantity,
-		.col-price,
-		.col-total {
-			text-align: right;
-		}
-	}
-
-	.empty-procurements {
-		text-align: center;
-		color: #b0a8a2;
-		padding: 20px 0;
-		font-size: 13px;
-	}
-
-
-	.list-item {
-		position: relative;
-		cursor: pointer;
-		transition: background-color 0.2s ease;
-	}
-
-	.item-hover {
-		background-color: #f9f9f9;
-	}
-
-	.list-item.item-selected {
-		background-color: transparent;
-	}
-
-	.list-item.item-selected::before {
-		content: '';
-		position: absolute;
-		left: 0;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 4px;
-		height: 50%;
-		background-color: var(--primary-color);
-		border-radius: 0 4px 4px 0;
-	}
-
-	.card-full-bleed-list {
-		padding-left: 0;
-		padding-right: 0;
-	}
-
-	.card-full-bleed-list .card-title-wrapper {
-		padding-left: 20px;
-		padding-right: 20px;
-	}
-
-	.card-full-bleed-list .list-item {
-		padding-left: 20px;
-		padding-right: 20px;
 	}
 
 	.form-row {
