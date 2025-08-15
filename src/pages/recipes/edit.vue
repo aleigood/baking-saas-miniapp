@@ -1,11 +1,7 @@
 <template>
 	<view class="page-container">
-		<view class="page-header">
-			<view class="detail-header">
-				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">{{ isEditing ? '创建新版本' : '新建配方' }}</h2>
-			</view>
-		</view>
+		<!-- [重构] 使用 DetailHeader 组件 -->
+		<DetailHeader :title="isEditing ? '创建新版本' : '新建配方'" />
 		<view class="page-content">
 			<view class="card">
 				<FormItem label="配方家族名称">
@@ -62,13 +58,14 @@
 	import { onLoad, onUnload } from '@dcloudio/uni-app';
 	import { createRecipe, createRecipeVersion, getRecipeFamily } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
-	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
+	import { useToastStore } from '@/store/toast';
 	import FormItem from '@/components/FormItem.vue';
 	import AppButton from '@/components/AppButton.vue';
+	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
 	import type { RecipeVersion } from '@/types/api';
 
 	const dataStore = useDataStore();
-	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
+	const toastStore = useToastStore();
 	const isSubmitting = ref(false);
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
@@ -191,10 +188,6 @@
 		form.value.products.splice(index, 1);
 	};
 
-	const navigateBack = () => {
-		uni.navigateBack();
-	};
-
 	const handleSubmit = async () => {
 		isSubmitting.value = true;
 		try {
@@ -222,7 +215,6 @@
 				await createRecipe(payload);
 			}
 
-			// [修改] 使用新的 Toast 系统
 			toastStore.show({ message: '配方保存成功', type: 'success' });
 			await dataStore.fetchRecipesData();
 			uni.navigateBack();

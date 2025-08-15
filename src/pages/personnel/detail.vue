@@ -1,11 +1,7 @@
 <template>
 	<view class="page-container">
-		<view class="page-header">
-			<view class="detail-header">
-				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">{{ selectedMember?.name || selectedMember?.phone || '加载中...' }}</h2>
-			</view>
-		</view>
+		<!-- [重构] 使用 DetailHeader 组件 -->
+		<DetailHeader :title="selectedMember?.name || selectedMember?.phone || '加载中...'" />
 		<view class="page-content" v-if="!isLoading && selectedMember">
 			<view class="card">
 				<view class="card-title">人员信息</view>
@@ -48,16 +44,17 @@
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
+	import { useToastStore } from '@/store/toast';
 	import type { Member, Role } from '@/types/api';
 	import { updateMember, removeMember } from '@/api/members';
 	import FormItem from '@/components/FormItem.vue';
 	import AppButton from '@/components/AppButton.vue';
+	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
 	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
+	const toastStore = useToastStore();
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
@@ -172,10 +169,6 @@
 				}
 			},
 		});
-	};
-
-	const navigateBack = () => {
-		uni.navigateBack();
 	};
 </script>
 

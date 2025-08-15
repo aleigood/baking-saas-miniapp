@@ -1,6 +1,6 @@
 <template>
 	<view class="page-container">
-		<!-- [修改] 使用 DetailHeader 组件 -->
+		<!-- [重构] 使用 DetailHeader 组件 -->
 		<DetailHeader title="任务详情" />
 		<view class="page-content" v-if="!isLoading && task">
 			<view class="detail-page">
@@ -71,9 +71,9 @@
 	import { useToastStore } from '@/store/toast';
 	import type { ProductionTaskDto } from '@/types/api';
 	import { getTask, updateTaskStatus, completeTask } from '@/api/tasks';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
+	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();

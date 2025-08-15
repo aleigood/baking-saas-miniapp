@@ -1,11 +1,7 @@
 <template>
 	<view class="page-container">
-		<view class="page-header">
-			<view class="detail-header">
-				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">新建原料</h2>
-			</view>
-		</view>
+		<!-- [重构] 使用 DetailHeader 组件 -->
+		<DetailHeader title="新建原料" />
 		<view class="page-content">
 			<view class="card">
 				<view class="card-title">原料品类</view>
@@ -40,13 +36,11 @@
 				</FormItem>
 			</view>
 
-			<!-- [修改] 替换为 AppButton 组件 -->
 			<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting">
 				{{ isSubmitting ? '保存中...' : '保存并入库' }}
 			</AppButton>
 		</view>
 
-		<!-- [新增] 添加Toast组件以显示提示信息 -->
 		<Toast />
 	</view>
 </template>
@@ -57,8 +51,9 @@
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
 	import FormItem from '@/components/FormItem.vue';
-	import AppButton from '@/components/AppButton.vue'; // [新增] 引入 AppButton 组件
-	import Toast from '@/components/Toast.vue'; // [新增] 引入 Toast 组件
+	import AppButton from '@/components/AppButton.vue';
+	import Toast from '@/components/Toast.vue';
+	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
 
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
@@ -79,10 +74,6 @@
 		packagesPurchased: 0,
 		totalPrice: 0,
 	});
-
-	const navigateBack = () => {
-		uni.navigateBack();
-	};
 
 	const handleSubmit = async () => {
 		if (!ingredientForm.value.name || !skuForm.value.specName || skuForm.value.specWeightInGrams <= 0 || procurementForm.value.packagesPurchased <= 0 || procurementForm.value.totalPrice <= 0) {

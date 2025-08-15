@@ -1,6 +1,6 @@
 <template>
 	<view class="page-container">
-		<!-- [修改] 使用 DetailHeader 组件 -->
+		<!-- [重构] 使用 DetailHeader 组件 -->
 		<DetailHeader :title="ingredient?.name || '加载中...'">
 			<IconButton @click="openEditModal">
 				<image class="header-icon" src="/static/icons/property.svg" />
@@ -9,12 +9,14 @@
 
 		<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
 			<view class="detail-page">
+				<!-- 1. 核心信息区 -->
 				<view class="tag-group">
 					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
 					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
 					<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
 				</view>
 
+				<!-- 2. 数据洞察区 -->
 				<view class="card">
 					<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
@@ -22,9 +24,11 @@
 						unit-suffix="kg" />
 				</view>
 
+				<!-- 3. 品牌与规格管理区 -->
 				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
 					@longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
 
+				<!-- 4. 采购记录卡片 -->
 				<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
 			</view>
 		</view>
@@ -183,7 +187,6 @@
 	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteProcurement, deleteSku } from
 		'@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 	import AppFab from '@/components/AppFab.vue';
@@ -195,6 +198,7 @@
 	import Toast from '@/components/Toast.vue';
 	import IngredientSkuList from '@/components/IngredientSkuList.vue';
 	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
+	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
 	import { formatChineseDate } from '@/utils/format';
 
 	const dataStore = useDataStore();
@@ -311,10 +315,6 @@
 			return '0.00';
 		}
 		return ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000).toFixed(2);
-	};
-
-	const navigateBack = () => {
-		uni.navigateBack();
 	};
 
 	const openAddSkuModal = () => {
