@@ -16,7 +16,6 @@
 					<input class="input-field" type="text" :value="selectedMember.phone" readonly />
 				</FormItem>
 				<FormItem label="加入日期">
-					<!-- [核心修改] 使用统一的日期格式化函数 -->
 					<input class="input-field" type="text" :value="formatChineseDate(selectedMember.joinDate)"
 						readonly />
 				</FormItem>
@@ -28,7 +27,6 @@
                   }}</view>
 					</picker>
 				</FormItem>
-				<!-- [核心修改] 替换为 AppButton 组件 -->
 				<AppButton type="primary" full-width @click="handleUpdateMemberRole"
 					:disabled="!canEditRole || isSubmitting" :loading="isSubmitting">
 					{{ isSubmitting ? '' : '保存修改' }}
@@ -50,14 +48,16 @@
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
+	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
 	import type { Member, Role } from '@/types/api';
 	import { updateMember, removeMember } from '@/api/members';
 	import FormItem from '@/components/FormItem.vue';
-	import AppButton from '@/components/AppButton.vue'; // [核心新增]
-	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
+	import AppButton from '@/components/AppButton.vue';
+	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
+	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
@@ -140,7 +140,7 @@
 		isSubmitting.value = true;
 		try {
 			await updateMember(selectedMember.value.id, { role: editableMemberRole.value });
-			uni.showToast({ title: '角色更新成功', icon: 'success' });
+			toastStore.show({ message: '角色更新成功', type: 'success' });
 			await dataStore.fetchMembersData();
 			uni.navigateBack();
 		} catch (error : any) {
@@ -161,7 +161,7 @@
 					isSubmitting.value = true;
 					try {
 						await removeMember(selectedMember.value!.id);
-						uni.showToast({ title: '移除成功', icon: 'success' });
+						toastStore.show({ message: '移除成功', type: 'success' });
 						await dataStore.fetchMembersData();
 						uni.navigateBack();
 					} catch (error : any) {

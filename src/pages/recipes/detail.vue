@@ -69,6 +69,9 @@
 				</AppButton>
 			</view>
 		</AppModal>
+
+		<!-- [新增] 添加Toast组件以显示提示信息 -->
+		<Toast />
 	</view>
 </template>
 
@@ -77,6 +80,7 @@
 	import { onLoad, onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
+	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
 	import type { RecipeFamily, RecipeVersion } from '@/types/api';
 	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion } from '@/api/recipes';
 
@@ -89,9 +93,11 @@
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import ListItem from '@/components/ListItem.vue';
+	import Toast from '@/components/Toast.vue'; // [新增] 引入 Toast 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
+	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const recipeFamily = ref<RecipeFamily | null>(null);
@@ -138,7 +144,8 @@
 			}
 		} catch (error) {
 			console.error('Failed to fetch recipe details:', error);
-			uni.showToast({ title: '获取配方详情失败', icon: 'none' });
+			// [修改] 使用新的 Toast 系统
+			toastStore.show({ message: '获取配方详情失败', type: 'error' });
 		} finally {
 			isLoading.value = false;
 		}
@@ -205,7 +212,7 @@
 		isSubmitting.value = true;
 		try {
 			await activateRecipeVersion(recipeFamily.value.id, versionToActivate.id);
-			uni.showToast({ title: '设置成功', icon: 'success' });
+			toastStore.show({ message: '设置成功', type: 'success' });
 			await loadRecipeData(recipeFamily.value.id);
 			dataStore.fetchRecipesData();
 		} catch (error) {
@@ -221,14 +228,13 @@
 		isSubmitting.value = true;
 		try {
 			await deleteRecipeVersion(familyId.value, selectedVersionForAction.value.id);
-			uni.showToast({ title: '删除成功', icon: 'success' });
+			toastStore.show({ message: '删除成功', type: 'success' });
 			showDeleteVersionConfirmModal.value = false;
 			selectedVersionForAction.value = null;
 			await loadRecipeData(familyId.value);
 			await dataStore.fetchRecipesData();
 		} catch (error) {
 			showDeleteVersionConfirmModal.value = false;
-			// 错误提示已由 src/utils/request.ts 统一处理，此处无需额外操作
 		} finally {
 			isSubmitting.value = false;
 		}

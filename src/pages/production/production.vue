@@ -60,11 +60,27 @@
 
 		<AppModal v-model:visible="showTaskOptions" title="制作任务" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleCancelTaskFromModal">
+				<ListItem class="option-item" @click="handleOpenCancelConfirm">
 					<view class="main-info">
 						<view class="name">取消任务</view>
 					</view>
 				</ListItem>
+			</view>
+		</AppModal>
+
+		<!-- [新增] 取消任务的确认对话框 -->
+		<AppModal v-model:visible="showCancelConfirmModal" title="确认取消">
+			<view class="modal-prompt-text">
+				确定要取消这个任务吗？
+			</view>
+			<view class="modal-warning-text">
+				任务将被标记为已取消，此操作不会扣减任何原料库存。
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showCancelConfirmModal = false">返回</AppButton>
+				<AppButton type="danger" @click="handleConfirmCancelTask" :loading="isSubmitting">
+					{{ isSubmitting ? '取消中...' : '确认取消' }}
+				</AppButton>
 			</view>
 		</AppModal>
 	</view>
@@ -88,6 +104,7 @@
 	import {
 		useUiStore
 	} from '@/store/ui';
+	import { useToastStore } from '@/store/toast';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -109,19 +126,19 @@
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
+	const toastStore = useToastStore();
 
 	const isSubmitting = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 
-	// [新增] 用于控制新选项对话框显示的状态变量
 	const showTaskOptions = ref(false);
+	const showCancelConfirmModal = ref(false); // [新增] 控制取消确认对话框的状态
 
 	const homeStats = reactive({
 		pendingCount: 0,
 		completedThisWeekCount: 0,
 	});
 
-	// [新增] 用于在页面数据首次加载时显示一个占位符的标志
 	const isInitialLoad = ref(true);
 
 	const fetchHomeStats = async () => {
@@ -131,16 +148,10 @@
 			homeStats.completedThisWeekCount = stats.completedThisWeekCount;
 		} catch (error) {
 			console.error('Failed to fetch home stats:', error);
-			uni.showToast({
-				title: '加载统计数据失败',
-				icon: 'none'
-			});
 		}
 	};
 
 	onShow(async () => {
-		// [重构] 移除主页面的全屏加载动画，改用异步加载数据
-		// 同时检查数据是否已加载，如果未加载，设置 isInitialLoad 为 true
 		if (!dataStore.dataLoaded.production) {
 			isInitialLoad.value = true;
 			await Promise.all([
@@ -149,28 +160,22 @@
 			]);
 			isInitialLoad.value = false;
 		} else {
-			// 如果数据已加载，仍然需要更新统计信息
 			await fetchHomeStats();
-			// 如果数据已经加载过，直接将初始加载状态设置为 false
 			isInitialLoad.value = false;
 		}
 	});
 
-	// [核心修改] 重新组织任务列表的排序逻辑
 	const sortedTasks = computed(() => {
 		const activeTasks = dataStore.production.filter(
 			task => task.status === 'PENDING' || task.status === 'IN_PROGRESS'
 		);
 
-		// 将任务分为进行中和待开始两组
 		const inProgressTasks = activeTasks.filter(task => task.status === 'IN_PROGRESS');
 		const pendingTasks = activeTasks.filter(task => task.status === 'PENDING');
 
-		// 对两组任务分别按创建时间倒序排序
 		inProgressTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
 		pendingTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
 
-		// 合并并返回排序后的任务列表
 		return [...inProgressTasks, ...pendingTasks];
 	});
 
@@ -229,39 +234,40 @@
 		});
 	};
 
-	// [核心新增] 跳转到统计页面的方法
 	const navigateToStats = () => {
 		uni.navigateTo({
 			url: '/pages/production/stats'
 		});
 	};
 
-	// [修改] 此方法现在用于打开新的选项对话框
 	const openTaskActions = (task : ProductionTaskDto) => {
 		selectedTaskForAction.value = task;
-		showTaskOptions.value = true; // 触发新的对话框
+		showTaskOptions.value = true;
 	};
 
-	const handleCancelTaskFromModal = async () => {
+	// [新增] 从选项对话框打开确认对话框
+	const handleOpenCancelConfirm = () => {
+		showTaskOptions.value = false;
+		showCancelConfirmModal.value = true;
+	};
+
+	// [修改] 将原有的取消逻辑移到这里
+	const handleConfirmCancelTask = async () => {
 		if (!selectedTaskForAction.value) return;
 
 		isSubmitting.value = true;
 		try {
 			await updateTaskStatus(selectedTaskForAction.value.id, 'CANCELLED');
-			uni.showToast({
-				title: '任务已取消',
-				icon: 'success'
+			toastStore.show({
+				message: '任务已取消',
+				type: 'success'
 			});
 			await dataStore.fetchProductionData();
 		} catch (error) {
 			console.error('Failed to cancel task:', error);
-			uni.showToast({
-				title: '操作失败，请重试',
-				icon: 'none'
-			});
 		} finally {
 			isSubmitting.value = false;
-			showTaskOptions.value = false; // [修改] 关闭新的对话框
+			showCancelConfirmModal.value = false; // 关闭确认对话框
 			selectedTaskForAction.value = null;
 		}
 	};
@@ -344,7 +350,6 @@
 		font-size: 14px;
 	}
 
-	/* [核心新增] 新增 header-actions 容器样式 */
 	.header-actions {
 		display: flex;
 		gap: 8px;
@@ -378,5 +383,20 @@
 
 	.status-tag.status-cancelled {
 		background-color: #a8a8a8;
+	}
+
+	.modal-prompt-text {
+		font-size: 16px;
+		color: var(--text-primary);
+		text-align: center;
+		margin-bottom: 25px;
+	}
+
+	.modal-warning-text {
+		font-size: 13px;
+		color: var(--text-secondary);
+		text-align: center;
+		margin-bottom: 20px;
+		line-height: 1.5;
 	}
 </style>

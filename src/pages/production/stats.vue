@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 	import { ref, computed, onMounted, reactive } from 'vue';
-	// [核心修正] 引入正确的 getProductionStats 接口
+	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
 	import { getProductionStats } from '@/api/stats';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
@@ -97,6 +97,7 @@
 	const activeDateRange = ref<'week' | 'month' | '7days' | '30days' | 'custom'>('week');
 	const statsData = ref<{ name : string, value : number }[]>([]);
 	const totalTasks = ref(0);
+	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
 
 	const customDate = reactive({
 		start: new Date().toISOString().split('T')[0],
@@ -138,9 +139,7 @@
 		isLoading.value = true;
 		try {
 			const { startDate, endDate } = getDateRange(activeDateRange.value);
-			// [核心修正] 调用正确的 getProductionStats 接口
 			const data = await getProductionStats(startDate, endDate);
-			// [核心修正] 增加对返回数据和 productStats 属性的安全检查
 			if (data && data.productStats) {
 				statsData.value = data.productStats.sort((a, b) => b.count - a.count).map(item => ({ name: item.name, value: item.count }));
 				totalTasks.value = data.totalTasks;
@@ -150,7 +149,7 @@
 			}
 		} catch (error) {
 			console.error('Failed to fetch stats data:', error);
-			uni.showToast({ title: '加载数据失败', icon: 'none' });
+			// [修改] 移除局部的 uni.showToast 调用
 		} finally {
 			isLoading.value = false;
 		}
@@ -170,7 +169,7 @@
 			customDate.end = e.detail.value;
 		}
 		if (new Date(customDate.start) > new Date(customDate.end)) {
-			uni.showToast({ title: '开始日期不能晚于结束日期', icon: 'none' });
+			toastStore.show({ message: '开始日期不能晚于结束日期', type: 'error' }); // [修改] 使用统一的 toast
 			return;
 		}
 		fetchStatsData();

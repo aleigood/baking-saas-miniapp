@@ -28,11 +28,11 @@
 						unit-suffix="kg" />
 				</view>
 
-				<!-- 3. [修改] 使用 IngredientSkuList 组件 -->
+				<!-- 3. 品牌与规格管理区 -->
 				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
 					@longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
 
-				<!-- 4. [修改] 使用 IngredientProcurementList 组件 -->
+				<!-- 4. 采购记录卡片 -->
 				<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
 			</view>
 		</view>
@@ -167,7 +167,7 @@
 				确定要删除这条采购记录吗？
 			</view>
 			<view class="modal-warning-text">
-				请注意：删除此条采购记录将会相应减少该原料的库存量。此操作不可撤销。
+				删除此条采购记录将会相应减少该原料的库存量，此操作不可撤销。
 			</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="uiStore.closeModal('procurementActions')">取消</AppButton>
@@ -176,6 +176,9 @@
 				</AppButton>
 			</view>
 		</AppModal>
+
+		<!-- [新增] 添加Toast组件以显示提示信息 -->
+		<Toast />
 	</view>
 </template>
 
@@ -184,6 +187,7 @@
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
+	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
 	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
 	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteProcurement, deleteSku } from
 		'@/api/ingredients';
@@ -196,13 +200,14 @@
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
-	import { formatChineseDate } from '@/utils/format';
-	// [新增] 引入新组件
+	import Toast from '@/components/Toast.vue'; // [新增] 引入 Toast 组件
 	import IngredientSkuList from '@/components/IngredientSkuList.vue';
 	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
+	import { formatChineseDate } from '@/utils/format';
 
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
+	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const ingredient = ref<Ingredient | null>(null);
@@ -249,7 +254,7 @@
 		if (ingredientId) {
 			await loadIngredientData(ingredientId);
 		} else {
-			uni.showToast({ title: '无效的原料ID', icon: 'none' });
+			toastStore.show({ message: '无效的原料ID', type: 'error' });
 			isLoading.value = false;
 		}
 	});
@@ -279,7 +284,6 @@
 			}
 		} catch (error) {
 			console.error("Failed to load ingredient data:", error);
-			uni.showToast({ title: '数据加载失败', icon: 'none' });
 		} finally {
 			isLoading.value = false;
 		}
@@ -329,7 +333,7 @@
 	const handleCreateSku = async () => {
 		if (!ingredient.value) return;
 		if (!newSkuForm.value.specName || !newSkuForm.value.specWeightInGrams) {
-			uni.showToast({ title: '请填写规格名称和重量', icon: 'none' });
+			toastStore.show({ message: '请填写规格名称和重量', type: 'error' });
 			return;
 		}
 		isSubmitting.value = true;
@@ -341,7 +345,7 @@
 				await setActiveSku(ingredient.value.id, skuId);
 			}
 
-			uni.showToast({ title: '创建成功', icon: 'success' });
+			toastStore.show({ message: '创建成功', type: 'success' });
 			showAddSkuModal.value = false;
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
@@ -358,7 +362,7 @@
 
 	const openProcurementModal = () => {
 		if (!ingredient.value?.activeSkuId) {
-			uni.showToast({ title: '请先激活一个SKU才能进行采购', icon: 'none' });
+			toastStore.show({ message: '请先激活一个SKU才能进行采购', type: 'error' });
 			return;
 		}
 		procurementForm.value = {
@@ -372,7 +376,7 @@
 
 	const handleCreateProcurement = async () => {
 		if (!procurementForm.value.skuId || procurementForm.value.packagesPurchased <= 0 || procurementForm.value.totalPrice <= 0) {
-			uni.showToast({ title: '请填写所有有效的采购信息', icon: 'none' });
+			toastStore.show({ message: '请填写所有有效的采购信息', type: 'error' });
 			return;
 		}
 		isSubmitting.value = true;
@@ -385,7 +389,7 @@
 				pricePerPackage: pricePerPackage,
 				purchaseDate: procurementForm.value.purchaseDate,
 			});
-			uni.showToast({ title: '入库成功', icon: 'success' });
+			toastStore.show({ message: '入库成功', type: 'success' });
 			showProcurementModal.value = false;
 			await loadIngredientData(ingredient.value!.id);
 			await dataStore.fetchIngredientsData();
@@ -411,7 +415,7 @@
 		if (selectedSkuForAction.value?.id !== ingredient.value?.activeSkuId) {
 			showActivateSkuConfirmModal.value = true;
 		} else {
-			uni.showToast({ title: '该规格已在使用中', icon: 'none' });
+			toastStore.show({ message: '该规格已在使用中', type: 'info' });
 		}
 	};
 
@@ -425,7 +429,7 @@
 		isSubmitting.value = true;
 		try {
 			await deleteSku(selectedSkuForAction.value.id);
-			uni.showToast({ title: '删除成功', icon: 'success' });
+			toastStore.show({ message: '删除成功', type: 'success' });
 			showDeleteSkuConfirmModal.value = false;
 			selectedSkuForAction.value = null;
 			await loadIngredientData(ingredient.value.id);
@@ -443,7 +447,7 @@
 		isSubmitting.value = true;
 		try {
 			await setActiveSku(ingredient.value.id, sku.id);
-			uni.showToast({ title: '设置成功', icon: 'success' });
+			toastStore.show({ message: '设置成功', type: 'success' });
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
@@ -464,6 +468,11 @@
 	};
 
 	const handleUpdateIngredient = async () => {
+		// [新增] 添加输入校验
+		if (!ingredientForm.name || !ingredientForm.name.trim()) {
+			toastStore.show({ message: '原料名称不能为空', type: 'error' });
+			return;
+		}
 		if (!ingredient.value) return;
 		isSubmitting.value = true;
 		try {
@@ -473,13 +482,12 @@
 				isFlour: ingredientForm.isFlour,
 				waterContent: Number(ingredientForm.waterContent) || 0,
 			});
-			uni.showToast({ title: '保存成功', icon: 'success' });
+			toastStore.show({ message: '保存成功', type: 'success' });
 			showEditModal.value = false;
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			console.error("Failed to update ingredient properties:", error);
-			uni.showToast({ title: '保存失败', icon: 'none' });
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -500,7 +508,7 @@
 		isSubmitting.value = true;
 		try {
 			await deleteProcurement(selectedProcurementForAction.value.id);
-			uni.showToast({ title: '删除成功', icon: 'success' });
+			toastStore.show({ message: '删除成功', type: 'success' });
 			uiStore.closeModal('procurementActions');
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();

@@ -3,6 +3,7 @@
  * 文件描述: 封装网络请求函数，并从环境变量中读取 API 地址。
  */
 import { useUserStore } from '@/store/user';
+import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
 
 // 从 Vite 的环境变量中读取 API 基础地址
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -17,6 +18,7 @@ interface RequestOptions {
 export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 	return new Promise((resolve, reject) => {
 		const userStore = useUserStore();
+		const toastStore = useToastStore(); // [新增] 获取 toast store 实例
 
 		let url = BASE_URL + options.url;
 		let data = options.data || {};
@@ -59,17 +61,18 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 				if (res.statusCode >= 200 && res.statusCode < 300) {
 					resolve(res.data as T);
 				} else {
-					// 统一处理错误提示
+					// [修改] 使用新的 Toast 系统显示错误
 					const errorMessage = (res.data as any)?.message || '请求失败，请稍后重试';
-					uni.showToast({
-						title: Array.isArray(errorMessage) ? errorMessage.join(',') : errorMessage,
-						icon: 'none',
+					toastStore.show({
+						message: Array.isArray(errorMessage) ? errorMessage.join(',') : errorMessage,
+						type: 'error'
 					});
 					reject(res);
 				}
 			},
 			fail: (err) => {
-				uni.showToast({ title: '网络错误，请检查您的连接', icon: 'none' });
+				// [修改] 使用新的 Toast 系统显示错误
+				toastStore.show({ message: '网络错误，请检查您的连接', type: 'error' });
 				reject(err);
 			},
 		});

@@ -21,7 +21,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [新增] 用户操作选项对话框 -->
 		<AppModal v-model:visible="uiStore.showUserOptionsModal" title="账户操作" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleOpenLogoutConfirm">
@@ -32,7 +31,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [修改] 退出登录确认对话框 -->
 		<AppModal v-model:visible="uiStore.showLogoutConfirmModal" title="退出登录">
 			<view class="modal-prompt-text">
 				您确定要退出登录吗？
@@ -58,6 +56,7 @@
 			</view>
 		</AppModal>
 
+		<Toast />
 	</view>
 </template>
 
@@ -66,6 +65,7 @@
 	import { useUiStore } from '@/store/ui';
 	import { useDataStore } from '@/store/data';
 	import { useUserStore } from '@/store/user';
+	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
 	import { createInvitation } from '@/api/invitations';
 
 	import CustomTabBar from '@/components/CustomTabBar.vue';
@@ -73,6 +73,7 @@
 	import FormItem from '@/components/FormItem.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import AppButton from '@/components/AppButton.vue';
+	import Toast from '@/components/Toast.vue';
 
 	// 引入四个页面级组件
 	import ProductionPage from '@/pages/production/production.vue';
@@ -83,6 +84,7 @@
 	const uiStore = useUiStore();
 	const dataStore = useDataStore();
 	const userStore = useUserStore();
+	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
 
 	const isCreatingInvite = ref(false);
 	const inviteePhone = ref('');
@@ -105,7 +107,6 @@
 		uiStore.closeModal('logoutConfirm');
 	};
 
-	// [新增] 打开退出登录确认框的逻辑
 	const handleOpenLogoutConfirm = () => {
 		uiStore.closeModal('userOptions');
 		uiStore.openModal('logoutConfirm');
@@ -113,13 +114,15 @@
 
 	const handleInvite = async () => {
 		if (!inviteePhone.value) {
-			uni.showToast({ title: '请输入手机号', icon: 'none' });
+			// [修改] 使用新的 Toast 系统
+			toastStore.show({ message: '请输入手机号', type: 'error' });
 			return;
 		}
 		isCreatingInvite.value = true;
 		try {
 			await createInvitation(inviteePhone.value);
-			uni.showToast({ title: '邀请已发送', icon: 'success' });
+			// [修改] 使用新的 Toast 系统
+			toastStore.show({ message: '邀请已发送', type: 'success' });
 			uiStore.closeModal('invite');
 			inviteePhone.value = '';
 		} catch (error) {
@@ -152,7 +155,6 @@
 		margin-bottom: 25px;
 	}
 
-	/* [修改] 覆盖通用样式，以实现左对齐 */
 	.options-list {
 		.option-item {
 			text-align: left;
@@ -163,10 +165,8 @@
 
 			:deep(.desc) {
 				display: block;
-				/* 覆盖通用样式中的 display: none */
 			}
 
-			/* 当前选中项的对勾图标样式 */
 			.checkmark-icon {
 				color: var(--primary-color);
 				font-weight: bold;
