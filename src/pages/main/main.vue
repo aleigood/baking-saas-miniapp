@@ -7,7 +7,9 @@
 
 		<CustomTabBar />
 
-		<AppModal v-model:visible="uiStore.showStoreModal" title="选择门店" :no-header-line="true">
+		<!-- [修复] 将 v-model:visible 拆分为 :visible 和 @update:visible -->
+		<AppModal :visible="uiStore.showStoreModal" @update:visible="uiStore.closeModal(MODAL_KEYS.STORE)" title="选择门店"
+			:no-header-line="true">
 			<view class="options-list">
 				<ListItem v-for="tenant in dataStore.tenants" :key="tenant.id" @click="handleSelectTenant(tenant.id)"
 					class="option-item">
@@ -21,7 +23,9 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="uiStore.showUserOptionsModal" title="账户操作" :no-header-line="true">
+		<!-- [修复] 将 v-model:visible 拆分为 :visible 和 @update:visible -->
+		<AppModal :visible="uiStore.showUserOptionsModal" @update:visible="uiStore.closeModal(MODAL_KEYS.USER_OPTIONS)"
+			title="账户操作" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleOpenLogoutConfirm">
 					<view class="main-info">
@@ -31,22 +35,26 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="uiStore.showLogoutConfirmModal" title="退出登录">
+		<!-- [修复] 将 v-model:visible 拆分为 :visible 和 @update:visible -->
+		<AppModal :visible="uiStore.showLogoutConfirmModal"
+			@update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
 			<view class="modal-prompt-text">
 				您确定要退出登录吗？
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal('logoutConfirm')">取消</AppButton>
+				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)">取消</AppButton>
 				<AppButton type="danger" @click="handleLogout">确认退出</AppButton>
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="uiStore.showInviteModal" title="邀请新成员">
+		<!-- [修复] 将 v-model:visible 拆分为 :visible 和 @update:visible -->
+		<AppModal :visible="uiStore.showInviteModal" @update:visible="uiStore.closeModal(MODAL_KEYS.INVITE)"
+			title="邀请新成员">
 			<FormItem label="被邀请人手机号">
 				<input class="input-field" type="tel" v-model="inviteePhone" placeholder="请输入手机号" />
 			</FormItem>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal('invite')">
+				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.INVITE)">
 					取消
 				</AppButton>
 				<AppButton type="primary" @click="handleInvite" :disabled="isCreatingInvite"
@@ -65,8 +73,9 @@
 	import { useUiStore } from '@/store/ui';
 	import { useDataStore } from '@/store/data';
 	import { useUserStore } from '@/store/user';
-	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
+	import { useToastStore } from '@/store/toast';
 	import { createInvitation } from '@/api/invitations';
+	import { MODAL_KEYS } from '@/constants/modalKeys';
 
 	import CustomTabBar from '@/components/CustomTabBar.vue';
 	import AppModal from '@/components/AppModal.vue';
@@ -84,18 +93,18 @@
 	const uiStore = useUiStore();
 	const dataStore = useDataStore();
 	const userStore = useUserStore();
-	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
+	const toastStore = useToastStore();
 
 	const isCreatingInvite = ref(false);
 	const inviteePhone = ref('');
 
 	const handleSelectTenant = async (tenantId : string) => {
 		if (dataStore.currentTenantId === tenantId) {
-			uiStore.closeModal('store');
+			uiStore.closeModal(MODAL_KEYS.STORE);
 			return;
 		}
 		await dataStore.selectTenant(tenantId);
-		uiStore.closeModal('store');
+		uiStore.closeModal(MODAL_KEYS.STORE);
 		if (uiStore.activeTab === 'production') await dataStore.fetchProductionData();
 		if (uiStore.activeTab === 'ingredients') await dataStore.fetchIngredientsData();
 		if (uiStore.activeTab === 'recipes') await dataStore.fetchRecipesData();
@@ -104,26 +113,24 @@
 
 	const handleLogout = () => {
 		userStore.logout();
-		uiStore.closeModal('logoutConfirm');
+		uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM);
 	};
 
 	const handleOpenLogoutConfirm = () => {
-		uiStore.closeModal('userOptions');
-		uiStore.openModal('logoutConfirm');
+		uiStore.closeModal(MODAL_KEYS.USER_OPTIONS);
+		uiStore.openModal(MODAL_KEYS.LOGOUT_CONFIRM);
 	};
 
 	const handleInvite = async () => {
 		if (!inviteePhone.value) {
-			// [修改] 使用新的 Toast 系统
 			toastStore.show({ message: '请输入手机号', type: 'error' });
 			return;
 		}
 		isCreatingInvite.value = true;
 		try {
 			await createInvitation(inviteePhone.value);
-			// [修改] 使用新的 Toast 系统
 			toastStore.show({ message: '邀请已发送', type: 'success' });
-			uiStore.closeModal('invite');
+			uiStore.closeModal(MODAL_KEYS.INVITE);
 			inviteePhone.value = '';
 		} catch (error) {
 			console.error('Failed to create invitation:', error);

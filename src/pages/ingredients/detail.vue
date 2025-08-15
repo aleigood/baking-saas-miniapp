@@ -1,6 +1,5 @@
 <template>
 	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
 		<DetailHeader :title="ingredient?.name || '加载中...'">
 			<IconButton @click="openEditModal">
 				<image class="header-icon" src="/static/icons/property.svg" />
@@ -158,7 +157,9 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="uiStore.showProcurementActionsModal" title="确认删除">
+		<!-- [修复] 将 v-model:visible 拆分为 :visible 和 @update:visible -->
+		<AppModal :visible="uiStore.showProcurementActionsModal"
+			@update:visible="uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS)" title="确认删除">
 			<view class="modal-prompt-text">
 				确定要删除这条采购记录吗？
 			</view>
@@ -166,7 +167,7 @@
 				删除此条采购记录将会相应减少该原料的库存量，此操作不可撤销。
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal('procurementActions')">取消</AppButton>
+				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS)">取消</AppButton>
 				<AppButton type="danger" @click="handleDeleteProcurement" :loading="isSubmitting">
 					{{ isSubmitting ? '删除中...' : '确认删除' }}
 				</AppButton>
@@ -198,7 +199,8 @@
 	import Toast from '@/components/Toast.vue';
 	import IngredientSkuList from '@/components/IngredientSkuList.vue';
 	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
+	import { MODAL_KEYS } from '@/constants/modalKeys'; // [新增] 引入常量
 	import { formatChineseDate } from '@/utils/format';
 
 	const dataStore = useDataStore();
@@ -491,7 +493,7 @@
 
 	const handleDeleteProcurementOption = () => {
 		showProcurementOptionsModal.value = false;
-		uiStore.openModal('procurementActions');
+		uiStore.openModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
 	};
 
 	const handleDeleteProcurement = async () => {
@@ -500,11 +502,11 @@
 		try {
 			await deleteProcurement(selectedProcurementForAction.value.id);
 			toastStore.show({ message: '删除成功', type: 'success' });
-			uiStore.closeModal('procurementActions');
+			uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
-			uiStore.closeModal('procurementActions');
+			uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
 		} finally {
 			isSubmitting.value = false;
 			selectedProcurementForAction.value = null;
