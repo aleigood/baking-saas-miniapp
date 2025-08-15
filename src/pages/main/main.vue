@@ -66,7 +66,6 @@
 
 <script setup lang="ts">
 	import { ref } from 'vue';
-	import { onPullDownRefresh } from '@dcloudio/uni-app'; // [新增] 引入 onPullDownRefresh
 	import { useUiStore } from '@/store/ui';
 	import { useDataStore } from '@/store/data';
 	import { useUserStore } from '@/store/user';
@@ -94,28 +93,6 @@
 
 	const isCreatingInvite = ref(false);
 	const inviteePhone = ref('');
-
-	// [新增] 下拉刷新逻辑
-	onPullDownRefresh(async () => {
-		try {
-			switch (uiStore.activeTab) {
-				case 'production':
-					await dataStore.fetchProductionData();
-					break;
-				case 'ingredients':
-					await dataStore.fetchIngredientsData();
-					break;
-				case 'recipes':
-					await dataStore.fetchRecipesData();
-					break;
-				case 'personnel':
-					await dataStore.fetchMembersData();
-					break;
-			}
-		} finally {
-			uni.stopPullDownRefresh();
-		}
-	});
 
 	const handleSelectTenant = async (tenantId : string) => {
 		if (dataStore.currentTenantId === tenantId) {
