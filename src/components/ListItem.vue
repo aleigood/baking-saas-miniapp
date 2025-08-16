@@ -1,8 +1,10 @@
 <template>
 	<view class="list-item ripple-container" :class="{ 'card-mode': cardMode }" @touchstart="handleTouchStart"
 		@click="handleClick" @longpress="handleLongPress">
+		<!-- 水波纹效果的容器 -->
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
-		<view class="list-item-content">
+		<!-- [核心修改] 为内容容器增加一个动态类 :class="{ 'no-padding': noPadding }" -->
+		<view class="list-item-content" :class="{ 'no-padding': noPadding }">
 			<slot></slot>
 		</view>
 	</view>
@@ -17,6 +19,11 @@
 			default: false,
 		},
 		cardMode: {
+			type: Boolean,
+			default: false,
+		},
+		// [核心修改] 新增 noPadding 属性，用于控制是否移除内边距
+		noPadding: {
 			type: Boolean,
 			default: false,
 		}
@@ -73,39 +80,42 @@
 		user-select: none;
 		-webkit-tap-highlight-color: transparent;
 
-		/* [新增] 禁用小程序默认的点击态 */
 		&::after {
 			display: none;
 		}
 	}
 
-	/* [新增] 内容容器，负责内部元素的 flex 布局和内边距 */
 	.list-item-content {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
 		padding: 15px 5px;
-		/* [核心修改] 让此容器撑满父元素的宽度，使得 justify-content: space-between 生效 */
 		flex: 1;
-		/* [修改] 将 z-index 移到这里，确保内容在水波纹之上 */
 		position: relative;
 		z-index: 1;
+	}
+
+	/* [核心修改] 新增 .no-padding 类，用于移除内边距 */
+	.list-item-content.no-padding {
+		padding: 0;
 	}
 
 	.card-mode {
 		background: var(--card-bg);
 		padding: 0;
-		/* [修改] 移除根元素上的 padding */
 		border-radius: 20px;
 		margin-bottom: 15px;
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-		/* [修改] 使用 CSS 变量来设置边框颜色，并提供一个透明的默认值 */
 		border-left: 5px solid var(--card-border-color, transparent);
 	}
 
-	/* [修改] 当是卡片模式时，将内边距应用到内部容器上 */
 	.card-mode .list-item-content {
 		padding: 20px;
+	}
+
+	/* [核心修改] 当同时存在 card-mode 和 no-padding 时，确保 no-padding 优先 */
+	.card-mode .list-item-content.no-padding {
+		padding: 0;
 	}
 
 	.ripple {
