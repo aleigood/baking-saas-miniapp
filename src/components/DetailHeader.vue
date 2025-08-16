@@ -1,6 +1,6 @@
 <template>
-	<view class="page-header">
-		<view class="detail-header">
+	<view class="page-header" :style="headerStyle">
+		<view class="header-content" :style="contentStyle">
 			<view class="back-btn ripple-container" @touchstart="handleTouchStart" @click="navigateBack">
 				<!-- 水波纹效果的容器 -->
 				<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
@@ -15,7 +15,8 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, getCurrentInstance } from 'vue';
+	import { ref, computed, getCurrentInstance } from 'vue';
+	import { useSystemStore } from '@/store/system';
 
 	defineProps({
 		title: {
@@ -24,7 +25,20 @@
 		},
 	});
 
-	// [新增] 水波纹效果逻辑
+	const systemStore = useSystemStore();
+
+	// [修改] 计算整个 header 的动态高度
+	const headerStyle = computed(() => ({
+		height: `${systemStore.headerHeight}px`
+	}));
+
+	// [修改] 计算 header 内容区域的动态定位和高度
+	const contentStyle = computed(() => ({
+		top: `${systemStore.navBarContentTop}px`,
+		height: `${systemStore.navBarHeight}px`
+	}));
+
+	// 水波纹效果逻辑
 	const ripples = ref<any[]>([]);
 	const instance = getCurrentInstance();
 	const handleTouchStart = (event : TouchEvent) => {
@@ -58,7 +72,6 @@
 </script>
 
 <style scoped lang="scss">
-	// The styles for page-header and detail-header are already in common.scss
 	.actions {
 		display: flex;
 		align-items: center;

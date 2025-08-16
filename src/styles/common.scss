@@ -1,6 +1,27 @@
 /* Page layout */
 .page-container { }
-.page-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px 20px; padding-top: calc(var(--status-bar-height) + 20px); background: transparent; position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(180%) blur(20px); background-color: rgba(253, 248, 242, 0.85); }
+/* [修改] page-header 现在只作为占位和背景容器，高度由组件动态设置 */
+.page-header { 
+    background: transparent; 
+    position: sticky; 
+    top: 0; 
+    z-index: 10; 
+    backdrop-filter: saturate(180%) blur(20px); 
+    background-color: rgba(253, 248, 242, 0.85);
+    box-sizing: border-box;
+}
+/* [修改] header-content 改为绝对定位，其位置和大小由组件动态设置 */
+.header-content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
 .store-selector { font-size: 18px; font-weight: 600; }
 .user-avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; background-color: var(--primary-color); }
 .icon-button.user-avatar {
@@ -199,7 +220,6 @@
 }
 
 /* Detail Header */
-.detail-header { display: flex; align-items: center; width: 100%; }
 .back-btn { 
     font-size: 20px; 
     cursor: pointer; 

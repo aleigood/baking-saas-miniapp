@@ -2,11 +2,15 @@
 	import { onLaunch } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
+	import { useSystemStore } from '@/store/system'; // [新增] 引入 system store
 
 	onLaunch(async () => {
 		console.log('App Launch');
 		const userStore = useUserStore();
 		const dataStore = useDataStore();
+		const systemStore = useSystemStore(); // [新增] 获取 system store 实例
+
+		systemStore.initSystemInfo(); // [新增] 初始化系统信息
 
 		if (userStore.token) {
 			try {
