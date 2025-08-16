@@ -355,9 +355,8 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.list-wrapper {
-		min-height: 60vh;
-	}
+	/* [修改] 移除 min-height 属性 */
+	.list-wrapper {}
 
 	.list-wrapper :deep(.list-item) {
 		margin-left: -15px;
