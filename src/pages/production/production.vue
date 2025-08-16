@@ -1,6 +1,5 @@
 <template>
 	<view>
-		<!-- [重构] 使用 MainHeader 组件 -->
 		<MainHeader />
 		<view class="page-content page-content-with-tabbar-fab">
 			<view class="summary-card">
@@ -99,7 +98,7 @@
 	} from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
-	import MainHeader from '@/components/MainHeader.vue'; // [新增]
+	import MainHeader from '@/components/MainHeader.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -146,15 +145,19 @@
 	};
 
 	onShow(async () => {
-		if (!dataStore.dataLoaded.production) {
-			isInitialLoad.value = true;
-			await Promise.all([
-				dataStore.fetchProductionData(),
-				fetchHomeStats()
-			]);
-			isInitialLoad.value = false;
-		} else {
-			await fetchHomeStats();
+		try {
+			if (!dataStore.dataLoaded.production) {
+				isInitialLoad.value = true;
+				await Promise.all([
+					dataStore.fetchProductionData(),
+					fetchHomeStats()
+				]);
+			} else {
+				await fetchHomeStats();
+			}
+		} catch (error) {
+			console.error("Failed to load data on show:", error);
+		} finally {
 			isInitialLoad.value = false;
 		}
 	});

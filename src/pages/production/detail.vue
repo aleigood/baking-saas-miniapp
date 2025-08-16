@@ -1,6 +1,5 @@
 <template>
 	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
 		<DetailHeader title="任务详情" />
 		<view class="page-content" v-if="!isLoading && task">
 			<view class="detail-page">
@@ -73,7 +72,7 @@
 	import { getTask, updateTaskStatus, completeTask } from '@/api/tasks';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -98,7 +97,7 @@
 
 			if (task.value?.status === 'PENDING') {
 				await updateTaskStatus(taskId, 'IN_PROGRESS');
-				dataStore.fetchProductionData();
+				await dataStore.fetchProductionData(); // [修改] 确保状态更新后刷新数据
 			}
 
 			if (recipeCards.value.length > 0) {
@@ -205,6 +204,7 @@
 			await dataStore.fetchProductionData();
 			uni.navigateBack();
 		} catch (error) {
+			// [修改] 增加异常捕获
 			console.error('Failed to complete task:', error);
 		} finally {
 			isSubmitting.value = false;

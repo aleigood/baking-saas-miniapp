@@ -17,7 +17,6 @@
 				</view>
 			</view>
 
-			<!-- [修改] 增加 class 以调整间距 -->
 			<FilterTabs class="recipe-filter-tabs">
 				<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">面团</FilterTab>
 				<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
@@ -31,7 +30,6 @@
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}
-									<!-- [新增] 已停用状态标签 -->
 									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 								</view>
 								<view class="desc">
@@ -314,6 +312,8 @@
 			await discontinueRecipe(selectedRecipe.value.id);
 			toastStore.show({ message: '已停用', type: 'success' });
 			await dataStore.fetchRecipesData();
+		} catch (error) {
+			console.error('Failed to discontinue recipe:', error);
 		} finally {
 			isSubmitting.value = false;
 			uiStore.closeModal(MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM);
@@ -328,6 +328,8 @@
 			await restoreRecipe(selectedRecipe.value.id);
 			toastStore.show({ message: '已恢复', type: 'success' });
 			await dataStore.fetchRecipesData();
+		} catch (error) {
+			console.error('Failed to restore recipe:', error);
 		} finally {
 			isSubmitting.value = false;
 			uiStore.closeModal(MODAL_KEYS.RESTORE_RECIPE_CONFIRM);
@@ -342,6 +344,8 @@
 			await deleteRecipe(selectedRecipe.value.id);
 			toastStore.show({ message: '删除成功', type: 'success' });
 			await dataStore.fetchRecipesData();
+		} catch (error) {
+			console.error('Failed to delete recipe:', error);
 		} finally {
 			isSubmitting.value = false;
 			uiStore.closeModal(MODAL_KEYS.DELETE_RECIPE_CONFIRM);

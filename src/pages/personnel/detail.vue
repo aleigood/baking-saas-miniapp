@@ -1,6 +1,5 @@
 <template>
 	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
 		<DetailHeader :title="selectedMember?.name || selectedMember?.phone || '加载中...'" />
 		<view class="page-content" v-if="!isLoading && selectedMember">
 			<view class="card">
@@ -49,7 +48,7 @@
 	import { updateMember, removeMember } from '@/api/members';
 	import FormItem from '@/components/FormItem.vue';
 	import AppButton from '@/components/AppButton.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
 	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -141,6 +140,7 @@
 			await dataStore.fetchMembersData();
 			uni.navigateBack();
 		} catch (error : any) {
+			// [修改] 增加异常捕获
 			console.error('Failed to update role:', error);
 		} finally {
 			isSubmitting.value = false;
@@ -162,6 +162,7 @@
 						await dataStore.fetchMembersData();
 						uni.navigateBack();
 					} catch (error : any) {
+						// [修改] 增加异常捕获
 						console.error('Failed to remove member:', error);
 					} finally {
 						isSubmitting.value = false;

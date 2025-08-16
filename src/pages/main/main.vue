@@ -99,12 +99,16 @@
 			uiStore.closeModal(MODAL_KEYS.STORE);
 			return;
 		}
-		await dataStore.selectTenant(tenantId);
-		uiStore.closeModal(MODAL_KEYS.STORE);
-		if (uiStore.activeTab === 'production') await dataStore.fetchProductionData();
-		if (uiStore.activeTab === 'ingredients') await dataStore.fetchIngredientsData();
-		if (uiStore.activeTab === 'recipes') await dataStore.fetchRecipesData();
-		if (uiStore.activeTab === 'personnel') await dataStore.fetchMembersData();
+		try {
+			await dataStore.selectTenant(tenantId);
+			uiStore.closeModal(MODAL_KEYS.STORE);
+			if (uiStore.activeTab === 'production') await dataStore.fetchProductionData();
+			if (uiStore.activeTab === 'ingredients') await dataStore.fetchIngredientsData();
+			if (uiStore.activeTab === 'recipes') await dataStore.fetchRecipesData();
+			if (uiStore.activeTab === 'personnel') await dataStore.fetchMembersData();
+		} catch (error) {
+			console.error("Failed to select tenant:", error);
+		}
 	};
 
 	const handleLogout = () => {

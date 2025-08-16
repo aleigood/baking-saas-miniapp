@@ -58,7 +58,6 @@
 		<AppModal :visible="uiStore.showIngredientActionsModal"
 			@update:visible="uiStore.closeModal(MODAL_KEYS.INGREDIENT_ACTIONS)" title="原料操作" :no-header-line="true">
 			<view class="options-list">
-				<!-- [修改] 移除 danger-text class -->
 				<ListItem class="option-item" @click="handleDeleteIngredient">
 					<view class="main-info">
 						<view class="name">删除原料</view>
@@ -72,7 +71,6 @@
 			<view class="modal-prompt-text">
 				确定要删除 “{{ selectedIngredient?.name }}” 吗？
 			</view>
-			<!-- [修改] 更新警告信息文案 -->
 			<view class="modal-warning-text">
 				已被配方使用的原料将无法被删除。
 			</view>
@@ -215,6 +213,9 @@
 			await deleteIngredient(selectedIngredient.value.id);
 			toastStore.show({ message: '删除成功', type: 'success' });
 			await dataStore.fetchIngredientsData();
+		} catch (error) { // [新增] 捕获API请求可能抛出的错误
+			// 错误信息已在 request 工具函数中通过 toast 显示
+			console.error("Failed to delete ingredient:", error);
 		} finally {
 			isSubmitting.value = false;
 			uiStore.closeModal(MODAL_KEYS.DELETE_INGREDIENT_CONFIRM);
