@@ -69,7 +69,7 @@
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "烘焙SaaS",
-		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
+		"navigationBarBackgroundColor": "#fdf8f2",
+		"backgroundColor": "#fdf8f2"
 	}
 }
