@@ -72,6 +72,20 @@
 </script>
 
 <style scoped lang="scss">
+	/* [核心修改] 将标题样式直接定义在组件内部，以解决 shadow-root 隔离问题 */
+	.detail-title {
+		/* 使用主题预设的主要文本颜色 */
+		color: var(--text-primary);
+		/* 按要求设置字体大小 */
+		font-size: 18px;
+		font-weight: 600;
+		flex: 1;
+		/* [新增] 以下样式确保文本过长时能优雅地省略 */
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
 	.actions {
 		display: flex;
 		align-items: center;
