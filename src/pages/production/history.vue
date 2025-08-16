@@ -10,8 +10,9 @@
 				<view v-if="Object.keys(sortedGroupedTasks).length > 0">
 					<view v-for="(tasks, date) in sortedGroupedTasks" :key="date" class="task-group">
 						<view class="date-header">{{ date }}</view>
-						<ListItem v-for="task in tasks" :key="task.id" class="task-card"
-							:class="getStatusClass(task.status)" @click="navigateToDetail(task)">
+						<!-- [核心修改] 使用 ListItem 的 card-mode 属性，并通过 :style 动态绑定边框颜色 -->
+						<ListItem v-for="task in tasks" :key="task.id" card-mode :style="getTaskCardStyle(task)"
+							@click="navigateToDetail(task)">
 							<view class="task-info">
 								<view class="title">{{ getTaskTitle(task) }}</view>
 								<view class="details">{{ getTaskDetails(task) }}</view>
@@ -120,6 +121,18 @@
 		return map[status] || '';
 	};
 
+	// [新增] 方法：根据任务状态返回动态样式对象，与 production.vue 保持一致
+	const getTaskCardStyle = (task : ProductionTaskDto) => {
+		const colorMap = {
+			COMPLETED: '#a9c1de',
+			CANCELLED: '#a8a8a8',
+		};
+		const color = colorMap[task.status] || 'transparent';
+		return {
+			'--card-border-color': color
+		};
+	};
+
 	const navigateToDetail = (task : ProductionTaskDto) => {
 		uni.navigateTo({
 			url: `/pages/production/detail?taskId=${task.id}`
@@ -141,34 +154,15 @@
 		padding: 0 5px 15px;
 	}
 
-	.task-card {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		background: var(--card-bg);
-		padding: 20px;
-		border-radius: 20px;
-		margin-bottom: 15px;
-		cursor: pointer;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-		border-left: 5px solid;
-		border-bottom: none !important;
-	}
-
-	.task-card.status-completed {
-		border-color: #a9c1de;
-	}
-
-	.task-card.status-cancelled {
-		border-color: #a8a8a8;
-	}
+	/* [核心修改] 移除 .task-card 相关的所有样式，因为 ListItem 的 card-mode 已处理 */
 
 	.task-info {
 		flex: 1;
 		margin-right: 15px;
 	}
 
-	.task-card .title {
+	/* [核心修改] 将样式选择器从 .task-card .title 改为 .title，使其能作用于 ListItem 内的元素 */
+	.title {
 		font-size: 16px;
 		font-weight: 400;
 		margin-bottom: 8px;
@@ -181,7 +175,8 @@
 		line-height: 1.4;
 	}
 
-	.task-card .details {
+	/* [核心修改] 将样式选择器从 .task-card .details 改为 .details */
+	.details {
 		color: var(--text-secondary);
 		font-size: 14px;
 	}
