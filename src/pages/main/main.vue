@@ -1,10 +1,23 @@
 <template>
-	<view class="page-container page-with-custom-tabbar">
-		<ProductionPage v-show="uiStore.activeTab === 'production'" />
-		<IngredientsPage v-show="uiStore.activeTab === 'ingredients'" />
-		<RecipesPage v-show="uiStore.activeTab === 'recipes'" />
-		<PersonnelPage v-show="uiStore.activeTab === 'personnel'" />
+	<!-- 1. page-meta 必须是页面的第一个节点，用于从根源上禁止页面滚动 -->
+	<page-meta page-style="overflow: hidden;"></page-meta>
+	<!-- 2. 根 view 设置为 flex 布局的容器，并撑满整个屏幕 -->
+	<view class="main-page-container">
+		<!-- 3. 头部是固定的，不参与滚动 -->
+		<MainHeader />
 
+		<!-- 4. scroll-view 作为唯一的滚动容器，占据所有剩余空间 -->
+		<scroll-view :scroll-y="true" :show-scrollbar="false" class="scroll-area" enhanced>
+
+			<!-- 5. 四个页面的内容，现在被直接放置在 scroll-view 内部，通过 v-show 切换 -->
+			<ProductionPage v-show="uiStore.activeTab === 'production'" />
+			<IngredientsPage v-show="uiStore.activeTab === 'ingredients'" />
+			<RecipesPage v-show="uiStore.activeTab === 'recipes'" />
+			<PersonnelPage v-show="uiStore.activeTab === 'personnel'" />
+
+		</scroll-view>
+
+		<!-- 6. TabBar 和 Modal 保持在最外层，不参与滚动 -->
 		<CustomTabBar />
 
 		<AppModal :visible="uiStore.showStoreModal" @update:visible="uiStore.closeModal(MODAL_KEYS.STORE)" title="选择门店"
@@ -74,6 +87,7 @@
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 
 	import CustomTabBar from '@/components/CustomTabBar.vue';
+	import MainHeader from '@/components/MainHeader.vue'; // [新增] 引入 MainHeader
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -142,6 +156,24 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	.main-page-container {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+		width: 100%;
+		overflow: hidden;
+		/* 确保根容器本身不滚动 */
+	}
+
+	.scroll-area {
+		flex: 1;
+		/* 关键：让滚动区域占据所有剩余空间 */
+		min-height: 0;
+		/* 关键：在 flex 布局中，防止内容溢出导致父容器被撑开 */
+		width: 100%;
+		box-sizing: border-box;
+	}
 
 	.input-field {
 		width: 100%;

@@ -1,6 +1,5 @@
 <template>
 	<view>
-		<MainHeader />
 		<view class="page-content page-content-with-tabbar-fab">
 			<view class="card">
 				<view class="card-title"><span>本周制作排行</span></view>
@@ -161,7 +160,6 @@
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { discontinueRecipe, restoreRecipe, deleteRecipe } from '@/api/recipes';
 	import type { RecipeFamily } from '@/types/api';
-	import MainHeader from '@/components/MainHeader.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';

@@ -1,6 +1,6 @@
 <template>
+	<!-- [修改] 移除所有外层包裹和布局相关的class，只保留内容本身 -->
 	<view>
-		<MainHeader />
 		<view class="page-content page-content-with-tabbar-fab">
 			<view class="summary-card">
 				<div>

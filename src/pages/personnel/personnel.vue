@@ -1,7 +1,5 @@
 <template>
 	<view>
-		<!-- [重构] 使用 MainHeader 组件 -->
-		<MainHeader />
 		<view class="page-content page-content-with-tabbar-fab">
 			<template v-if="dataStore.members.length > 0">
 				<ListItem v-for="member in dataStore.members" :key="member.id" @click="navigateToDetail(member.id)">
@@ -31,7 +29,6 @@
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
-	import MainHeader from '@/components/MainHeader.vue'; // [新增]
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import type { Role } from '@/types/api';

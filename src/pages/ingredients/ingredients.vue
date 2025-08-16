@@ -1,6 +1,6 @@
 <template>
+	<!-- [修改] 移除 MainHeader 和外层 page-wrapper，因为布局已由 main.vue 控制 -->
 	<view>
-		<MainHeader />
 		<view class="page-content page-content-with-tabbar-fab">
 			<FilterTabs>
 				<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
@@ -95,7 +95,6 @@
 	import { deleteIngredient } from '@/api/ingredients';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import type { Ingredient } from '@/types/api';
-	import MainHeader from '@/components/MainHeader.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
