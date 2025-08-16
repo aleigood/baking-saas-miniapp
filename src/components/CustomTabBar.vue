@@ -84,7 +84,10 @@
 		bottom: 0;
 		left: 0;
 		right: 0;
-		height: calc(env(safe-area-inset-bottom) + 60px);
+		/* [删除] 移除固定的 height 计算，让 flex-item 的高度和 padding 自动撑开容器 */
+		/* height: calc(env(safe-area-inset-bottom) + 60px); */
+		/* [修改] 增加 constant() 以兼容旧版 iOS, 并只使用 padding 撑开安全区域 */
+		padding-bottom: constant(safe-area-inset-bottom);
 		padding-bottom: env(safe-area-inset-bottom);
 		display: flex;
 		justify-content: space-around;
