@@ -15,17 +15,13 @@
 						<view v-for="product in group" :key="product.id" class="product-item">
 							<view class="product-name">{{ product.name }}</view>
 							<view class="quantity-control">
-								<!-- [修改] 使用 StepperButton 组件替换带有 v-ripple 指令的 view -->
 								<StepperButton @click="decreaseQuantity(product.id)">
-									<image class="stepper-icon"
-										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13H5v-2h14v2z'/%3E%3C/svg%3E" />
+									<image class="stepper-icon" src="/static/icons/remove.svg" />
 								</StepperButton>
 								<input class="input-stepper" type="number"
 									v-model.number="taskQuantities[product.id]" />
-								<!-- [修改] 使用 StepperButton 组件替换带有 v-ripple 指令的 view -->
 								<StepperButton @click="increaseQuantity(product.id)">
-									<image class="stepper-icon"
-										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
+									<image class="stepper-icon" src="/static/icons/add.svg" />
 								</StepperButton>
 							</view>
 						</view>

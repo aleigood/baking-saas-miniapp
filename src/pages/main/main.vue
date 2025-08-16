@@ -1,6 +1,5 @@
 <template>
-	<!-- [修改] 在 page-meta 中增加 page-style 属性，强制设置页面背景色 -->
-	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<page-meta page-style="overflow: hidden;"></page-meta>
 	<!-- 根 view 设置为 flex 布局的容器，并撑满整个屏幕 -->
 	<view class="main-page-container">
 		<!-- 头部是固定的，不参与滚动 -->
@@ -163,7 +162,8 @@
 		height: 100vh;
 		width: 100%;
 		overflow: hidden;
-		/* 确保根容器本身不滚动 */
+		/* 直接使用颜色的硬编码值，确保在小程序中稳定生效 */
+		background-color: #fdf8f2;
 	}
 
 	.scroll-area {

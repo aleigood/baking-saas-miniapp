@@ -16,12 +16,10 @@
 				<span class="card-title">进行中的任务</span>
 				<view class="header-actions">
 					<IconButton v-if="hasCompletedTasks" @click="navigateToHistory">
-						<image class="header-icon"
-							src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z'/%3E%3C/svg%3E" />
+						<image class="header-icon" src="/static/icons/history.svg" />
 					</IconButton>
 					<IconButton @click="navigateToStats">
-						<image class="header-icon"
-							src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z'/%3E%3C/svg%3E" />
+						<image class="header-icon" src="/static/icons/stats.svg" />
 					</IconButton>
 				</view>
 			</view>
@@ -310,8 +308,6 @@
 		color: var(--text-secondary);
 		margin-top: 5px;
 	}
-
-	/* [删除] 移除之前无效的样式规则 */
 
 	.task-info {
 		flex: 1;

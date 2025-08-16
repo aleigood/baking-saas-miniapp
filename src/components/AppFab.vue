@@ -1,9 +1,7 @@
 <template>
 	<view class="fab ripple-container" @touchstart="handleTouchStart" @click="emit('click', $event)">
-		<!-- 水波纹效果的容器 -->
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
-		<image class="fab-icon"
-			src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
+		<image class="fab-icon" src="/static/icons/fab-add.svg" />
 	</view>
 </template>
 
