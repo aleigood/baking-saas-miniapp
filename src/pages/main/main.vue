@@ -1,15 +1,15 @@
 <template>
-	<!-- 1. page-meta 必须是页面的第一个节点，用于从根源上禁止页面滚动 -->
-	<page-meta page-style="overflow: hidden;"></page-meta>
-	<!-- 2. 根 view 设置为 flex 布局的容器，并撑满整个屏幕 -->
+	<!-- [修改] 在 page-meta 中增加 page-style 属性，强制设置页面背景色 -->
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<!-- 根 view 设置为 flex 布局的容器，并撑满整个屏幕 -->
 	<view class="main-page-container">
-		<!-- 3. 头部是固定的，不参与滚动 -->
+		<!-- 头部是固定的，不参与滚动 -->
 		<MainHeader />
 
-		<!-- 4. scroll-view 作为唯一的滚动容器，占据所有剩余空间 -->
+		<!-- scroll-view 作为唯一的滚动容器，占据所有剩余空间 -->
 		<scroll-view :scroll-y="true" :show-scrollbar="false" class="scroll-area" enhanced>
 
-			<!-- 5. 四个页面的内容，现在被直接放置在 scroll-view 内部，通过 v-show 切换 -->
+			<!-- 四个页面的内容，现在被直接放置在 scroll-view 内部，通过 v-show 切换 -->
 			<ProductionPage v-show="uiStore.activeTab === 'production'" />
 			<IngredientsPage v-show="uiStore.activeTab === 'ingredients'" />
 			<RecipesPage v-show="uiStore.activeTab === 'recipes'" />
@@ -17,7 +17,7 @@
 
 		</scroll-view>
 
-		<!-- 6. TabBar 和 Modal 保持在最外层，不参与滚动 -->
+		<!-- TabBar 和 Modal 保持在最外层，不参与滚动 -->
 		<CustomTabBar />
 
 		<AppModal :visible="uiStore.showStoreModal" @update:visible="uiStore.closeModal(MODAL_KEYS.STORE)" title="选择门店"
