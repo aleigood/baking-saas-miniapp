@@ -19,8 +19,10 @@ export const useSystemStore = defineStore('system', () => {
 	 */
 	const initSystemInfo = () => {
 		try {
-			const systemInfo = uni.getSystemInfoSync();
-			statusBarHeight.value = systemInfo.statusBarHeight || 0;
+			// [核心修改] 使用 uni.getWindowInfo() 替代已废弃的 uni.getSystemInfoSync()
+			// uni.getWindowInfo() 是一个更现代、更专注的 API，专门用于获取窗口信息，可以消除废弃API的警告
+			const windowInfo = uni.getWindowInfo();
+			statusBarHeight.value = windowInfo.statusBarHeight || 0;
 
 			// #ifdef MP-WEIXIN
 			const menuButtonInfo = uni.getMenuButtonBoundingClientRect();
@@ -38,8 +40,9 @@ export const useSystemStore = defineStore('system', () => {
 			// #ifndef MP-WEIXIN
 			// 为非微信小程序平台提供一个默认的导航栏高度
 			navBarHeight.value = 44;
-			headerHeight.value = (systemInfo.statusBarHeight || 0) + 44;
-			navBarContentTop.value = systemInfo.statusBarHeight || 0;
+			// [核心修改] 使用从 getWindowInfo 获取的状态栏高度
+			headerHeight.value = (windowInfo.statusBarHeight || 0) + 44;
+			navBarContentTop.value = windowInfo.statusBarHeight || 0;
 			// #endif
 
 		} catch (e) {

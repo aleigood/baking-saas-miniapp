@@ -68,14 +68,10 @@
 			/* 这将使列表在水平方向上延伸，但会保留父容器的垂直内边距 */
 		}
 
+		/* [修改] 移除不再需要的对齐方式覆盖，只保留内边距的设置 */
 		:deep(.options-list .option-item) {
-			text-align: left;
 			padding-left: 25px;
 			padding-right: 25px;
-
-			.main-info {
-				justify-content: flex-start;
-			}
 		}
 	}
 

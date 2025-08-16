@@ -2,7 +2,9 @@
 	<view class="list-item ripple-container" :class="{ 'card-mode': cardMode }" @touchstart="handleTouchStart"
 		@click="handleClick" @longpress="handleLongPress">
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
-		<slot></slot>
+		<view class="list-item-content">
+			<slot></slot>
+		</view>
 	</view>
 </template>
 
@@ -77,14 +79,33 @@
 		}
 	}
 
+	/* [新增] 内容容器，负责内部元素的 flex 布局和内边距 */
+	.list-item-content {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 15px 5px;
+		/* [核心修改] 让此容器撑满父元素的宽度，使得 justify-content: space-between 生效 */
+		flex: 1;
+		/* [修改] 将 z-index 移到这里，确保内容在水波纹之上 */
+		position: relative;
+		z-index: 1;
+	}
+
 	.card-mode {
 		background: var(--card-bg);
-		padding: 20px;
+		padding: 0;
+		/* [修改] 移除根元素上的 padding */
 		border-radius: 20px;
 		margin-bottom: 15px;
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 		/* [修改] 使用 CSS 变量来设置边框颜色，并提供一个透明的默认值 */
 		border-left: 5px solid var(--card-border-color, transparent);
+	}
+
+	/* [修改] 当是卡片模式时，将内边距应用到内部容器上 */
+	.card-mode .list-item-content {
+		padding: 20px;
 	}
 
 	.ripple {

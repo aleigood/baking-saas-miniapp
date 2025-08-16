@@ -22,7 +22,7 @@
     width: 100%;
     box-sizing: border-box;
 }
-.store-selector { font-size: 18px; font-weight: 600; }
+.store-selector { font-size: 18px; font-weight: 600; color: var(--text-primary); }
 .user-avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; background-color: var(--primary-color); }
 .icon-button.user-avatar {
 	padding: 0;
@@ -67,7 +67,7 @@
 .card { background: var(--card-bg); padding: 20px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
 /* [修改] 调整标题栏的 padding 和 margin-bottom 以统一间距 */
 .card-title-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 0 5px; margin-bottom: 20px; }
-.card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+.card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; color: var(--text-primary); }
 .card-title-wrapper .card-title { margin-bottom: 0; }
 .header-action { color: var(--primary-color); font-size: 14px; font-weight: 500; }
 
@@ -75,7 +75,6 @@
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 15px 5px;
 	position: relative;
 	border-bottom: none;
 }
@@ -216,7 +215,9 @@
 	margin-top: 30px;
 }
 
-.modal-actions .btn {
+/* [核心修改] 将 flex: 1 从 .btn 移到 app-button 组件选择器上 */
+/* 这样可以直接让 AppButton 组件本身在 flex 容器中伸展，解决了小程序 shadow-root 的样式穿透问题 */
+.modal-actions app-button {
 	flex: 1;
 }
 
@@ -260,7 +261,7 @@
 .options-list {
 	.option-item {
 		padding: 15px 0;
-		text-align: center;
+		text-align: left;
 		cursor: pointer;
 
 		&:not(:last-child)::after {
@@ -274,7 +275,7 @@
 
 		:deep(.main-info) {
 			width: 100%;
-			justify-content: center;
+			justify-content: flex-start;
 		}
 
 		:deep(.name) {
