@@ -215,34 +215,12 @@
 	margin-top: 30px;
 }
 
-/* [核心修改] 将 flex: 1 从 .btn 移到 app-button 组件选择器上 */
-/* 这样可以直接让 AppButton 组件本身在 flex 容器中伸展，解决了小程序 shadow-root 的样式穿透问题 */
-.modal-actions app-button {
+.modal-actions app-button,
+.modal-actions uni-button {
 	flex: 1;
 }
 
-/* Detail Header */
-.back-btn { 
-    font-size: 20px; 
-    cursor: pointer; 
-    margin-right: 10px; 
-    color: var(--text-secondary); 
-    position: relative;
-    overflow: hidden;
-    width: 40px; 
-    height: 40px;
-    border-radius: 50%; 
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transform: translateZ(0);
-    padding: 0;
-}
-.detail-title { font-size: 20px; font-weight: 600; flex: 1; }
-
-.back-btn :deep(.ripple) {
-	background-color: rgba(0, 0, 0, 0.08);
-}
+/* [核心修改] 移除 Detail Header 相关的样式，因为它们已被移入组件内部 */
 
 
 /* Common Components */

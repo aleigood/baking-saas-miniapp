@@ -72,26 +72,49 @@
 </script>
 
 <style scoped lang="scss">
-	/* [核心修改] 将标题样式直接定义在组件内部，以解决 shadow-root 隔离问题 */
+	.back-btn {
+		font-size: 20px;
+		cursor: pointer;
+		margin-right: 10px;
+		color: var(--text-secondary);
+		position: relative;
+		overflow: hidden;
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		transform: translateZ(0);
+		padding: 0;
+
+		/* [核心修改] 移除小程序和部分浏览器中的默认点击高亮效果 */
+		-webkit-user-select: none;
+		user-select: none;
+		-webkit-tap-highlight-color: transparent;
+
+		/* [核心修改] 移除 uni-app 可能为 view 添加的默认伪元素样式 */
+		&::after {
+			display: none;
+		}
+	}
+
 	.detail-title {
-		/* 使用主题预设的主要文本颜色 */
-		color: var(--text-primary);
-		/* 按要求设置字体大小 */
 		font-size: 18px;
 		font-weight: 600;
 		flex: 1;
-		/* [新增] 以下样式确保文本过长时能优雅地省略 */
+		color: var(--text-primary);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
+	.back-btn .ripple {
+		background-color: rgba(0, 0, 0, 0.08);
+	}
+
 	.actions {
 		display: flex;
 		align-items: center;
-	}
-
-	.back-btn .ripple {
-		background-color: rgba(0, 0, 0, 0.08);
 	}
 </style>
