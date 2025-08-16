@@ -83,6 +83,8 @@
 		'btn-xs': props.size === 'xs',
 		'btn-full-width': props.fullWidth,
 		'loading': props.loading,
+		// [新增] 增加一个 is-disabled 类来替代属性选择器
+		'is-disabled': props.disabled || props.loading,
 	}));
 
 	const handleClick = (event : Event) => {
@@ -108,7 +110,8 @@
 			border: none;
 		}
 
-		&[disabled] {
+		// [修改] 使用 is-disabled 类替代 [disabled] 属性选择器
+		&.is-disabled {
 			background-color: #f3e9e3 !important;
 			color: #b0a8a2 !important;
 			box-shadow: none !important;
@@ -116,7 +119,7 @@
 			cursor: not-allowed;
 		}
 
-		&.btn-primary[disabled] {
+		&.btn-primary.is-disabled {
 			background-color: #f3e9e3 !important;
 		}
 
