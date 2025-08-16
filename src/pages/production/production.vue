@@ -1,5 +1,4 @@
 <template>
-	<!-- [修改] 移除所有外层包裹和布局相关的class，只保留内容本身 -->
 	<view>
 		<view class="page-content page-content-with-tabbar-fab">
 			<view class="summary-card">
@@ -32,8 +31,8 @@
 			</view>
 			<view v-else-if="sortedTasks.length > 0">
 				<ListItem v-for="task in sortedTasks" :key="task.id" @click="navigateToDetail(task)"
-					@longpress="openTaskActions(task)" :vibrate-on-long-press="true" class="task-card"
-					:class="getStatusClass(task.status)">
+					@longpress="openTaskActions(task)" :vibrate-on-long-press="true" card-mode
+					:style="getTaskCardStyle(task)">
 					<view class="task-info">
 						<view class="title">{{ getTaskTitle(task) }}</view>
 						<view class="details">{{ getTaskDetails(task) }}</view>
@@ -187,6 +186,18 @@
 		return task.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
 	};
 
+	// [新增] 方法：根据任务状态返回动态样式对象
+	const getTaskCardStyle = (task : ProductionTaskDto) => {
+		const colorMap = {
+			PENDING: '#d4a373',
+			IN_PROGRESS: '#27ae60',
+		};
+		const color = colorMap[task.status] || 'transparent';
+		return {
+			'--card-border-color': color
+		};
+	};
+
 	const getTotalQuantity = (task : ProductionTaskDto) => {
 		if (!task.items) return 0;
 		return task.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -300,34 +311,14 @@
 		margin-top: 5px;
 	}
 
-	.task-card {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		background: var(--card-bg);
-		padding: 20px;
-		border-radius: 20px;
-		margin-bottom: 15px;
-		cursor: pointer;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-		border-left: 5px solid;
-		border-bottom: none !important;
-	}
-
-	.task-card.status-pending {
-		border-color: #d4a373;
-	}
-
-	.task-card.status-inprogress {
-		border-color: #27ae60;
-	}
+	/* [删除] 移除之前无效的样式规则 */
 
 	.task-info {
 		flex: 1;
 		margin-right: 15px;
 	}
 
-	.task-card .title {
+	.title {
 		font-size: 16px;
 		font-weight: 400;
 		margin-bottom: 8px;
@@ -340,7 +331,7 @@
 		line-height: 1.4;
 	}
 
-	.task-card .details {
+	.details {
 		color: var(--text-secondary);
 		font-size: 14px;
 	}

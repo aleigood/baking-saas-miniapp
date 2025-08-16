@@ -1,7 +1,6 @@
 <template>
-	<view class="list-item ripple-container" @touchstart="handleTouchStart" @click="handleClick"
-		@longpress="handleLongPress">
-		<!-- 水波纹效果的容器 -->
+	<view class="list-item ripple-container" :class="{ 'card-mode': cardMode }" @touchstart="handleTouchStart"
+		@click="handleClick" @longpress="handleLongPress">
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 		<slot></slot>
 	</view>
@@ -15,11 +14,14 @@
 			type: Boolean,
 			default: false,
 		},
+		cardMode: {
+			type: Boolean,
+			default: false,
+		}
 	});
 
 	const emit = defineEmits(['click', 'longpress']);
 
-	// [新增] 水波纹效果逻辑
 	const ripples = ref<any[]>([]);
 	const instance = getCurrentInstance();
 	const handleTouchStart = (event : TouchEvent) => {
@@ -65,9 +67,26 @@
 	.list-item {
 		position: relative;
 		overflow: hidden;
+		-webkit-user-select: none;
+		user-select: none;
+		-webkit-tap-highlight-color: transparent;
+
+		/* [新增] 禁用小程序默认的点击态 */
+		&::after {
+			display: none;
+		}
 	}
 
-	/* [修改] 样式现在直接作用于组件内的 .ripple */
+	.card-mode {
+		background: var(--card-bg);
+		padding: 20px;
+		border-radius: 20px;
+		margin-bottom: 15px;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+		/* [修改] 使用 CSS 变量来设置边框颜色，并提供一个透明的默认值 */
+		border-left: 5px solid var(--card-border-color, transparent);
+	}
+
 	.ripple {
 		background-color: rgba(0, 0, 0, 0.15);
 	}
