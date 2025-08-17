@@ -3,16 +3,18 @@
 		<view class="card-title-wrapper">
 			<span class="card-title">品牌与规格 (SKU)</span>
 		</view>
+		<!-- [逻辑修复] 修正 activeSku 的属性访问方式，正确判断是否为使用中 -->
 		<ListItem v-for="(sku, index) in ingredient.skus" :key="sku.id" class="sku-item"
-			:selected="selectedSkuId === sku.id" @click="$emit('select', sku)" @longpress="$emit('longpress', sku)"
-			:vibrate-on-long-press="ingredient.activeSkuId !== sku.id" :bleed="true"
+			:selected="selectedSkuId === sku.id" @click="$emit('select', sku)" @longpress="$emit('longpress-sku', sku)"
+			:vibrate-on-long-press="ingredient.activeSku?.id !== sku.id" :bleed="true"
 			:divider="index < ingredient.skus.length - 1">
 			<view class="main-info">
 				<view class="name">{{ sku.brand || '无品牌' }} - {{ sku.specName }}</view>
 				<view class="desc">添加于: {{ formatChineseDate(sku.createdAt) }}</view>
 			</view>
 			<view class="side-info">
-				<span v-if="sku.id === ingredient.activeSkuId" class="status-tag active">使用中</span>
+				<!-- [逻辑修复] 同样修正 activeSku 的属性访问方式 -->
+				<span v-if="sku.id === ingredient.activeSku?.id" class="status-tag active">使用中</span>
 			</view>
 		</ListItem>
 		<AppButton type="text-link" @click="$emit('add')">+ 新增品牌规格</AppButton>
@@ -37,7 +39,8 @@
 		},
 	});
 
-	const emit = defineEmits(['select', 'longpress', 'add']);
+	// [架构修复] 将发出的事件重命名为 'longpress-sku' 以避免与原生事件冲突
+	const emit = defineEmits(['select', 'longpress-sku', 'add']);
 </script>
 
 <style scoped lang="scss">

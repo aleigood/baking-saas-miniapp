@@ -8,9 +8,7 @@
 		</DetailHeader>
 
 		<DetailPageLayout>
-			<!-- [核心修改] 移除 no-horizontal-padding 类 -->
 			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
-				<!-- [核心修改] 移除 content-padding 容器，让 .page-content 自身提供边距 -->
 				<view class="tag-group">
 					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
 					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
@@ -24,8 +22,9 @@
 						unit-suffix="kg" />
 				</view>
 
+				<!-- [架构修复] 将监听的事件从原生 @longpress 改为自定义的 @longpress-sku -->
 				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
-					@longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
+					@longpress-sku="handleSkuLongPressAction" @add="openAddSkuModal" />
 
 				<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
 			</view>
@@ -274,8 +273,8 @@
 			ingredientForm.waterContent = ingredientData.waterContent;
 
 
-			if (ingredientData.activeSkuId) {
-				selectedSkuId.value = ingredientData.activeSkuId;
+			if (ingredientData.activeSku?.id) {
+				selectedSkuId.value = ingredientData.activeSku.id;
 			} else if (ingredientData.skus.length > 0) {
 				selectedSkuId.value = ingredientData.skus[0].id;
 			}
@@ -354,12 +353,12 @@
 	});
 
 	const openProcurementModal = () => {
-		if (!ingredient.value?.activeSkuId) {
+		if (!ingredient.value?.activeSku?.id) {
 			toastStore.show({ message: '请先激活一个SKU才能进行采购', type: 'error' });
 			return;
 		}
 		procurementForm.value = {
-			skuId: ingredient.value.activeSkuId,
+			skuId: ingredient.value.activeSku.id,
 			packagesPurchased: 0,
 			totalPrice: 0,
 			purchaseDate: new Date().toISOString(),
@@ -396,7 +395,7 @@
 	};
 
 	const handleSkuLongPressAction = (sku : IngredientSKU) => {
-		if (sku.id === ingredient.value?.activeSkuId) {
+		if (sku.id === ingredient.value?.activeSku?.id) {
 			return;
 		}
 		selectedSkuForAction.value = sku;
@@ -405,7 +404,7 @@
 
 	const handleActivateSkuOption = () => {
 		showSkuOptionsModal.value = false;
-		if (selectedSkuForAction.value?.id !== ingredient.value?.activeSkuId) {
+		if (selectedSkuForAction.value?.id !== ingredient.value?.activeSku?.id) {
 			showActivateSkuConfirmModal.value = true;
 		} else {
 			toastStore.show({ message: '该规格已在使用中', type: 'info' });
@@ -529,7 +528,7 @@
 
 	.tag-group {
 		margin-bottom: 20px;
-		padding: 0 5px;
+		padding: 0 15px;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
