@@ -1,9 +1,7 @@
 <template>
-	<view class="list-item ripple-container" :class="{ 'card-mode': cardMode }" @touchstart="handleTouchStart"
-		@click="handleClick" @longpress="handleLongPress">
-		<!-- 水波纹效果的容器 -->
+	<view class="list-item ripple-container" :class="{ 'card-mode': cardMode, 'is-selected': selected }"
+		@touchstart="handleTouchStart" @click="handleClick" @longpress="handleLongPress">
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
-		<!-- [核心修改] 增加 :class="{ 'bleed-padding': bleed }" 以应用通栏模式下的特殊内边距 -->
 		<view class="list-item-content" :class="{ 'no-padding': noPadding, 'bleed-padding': bleed }">
 			<slot></slot>
 		</view>
@@ -28,6 +26,11 @@
 		},
 		// [核心修改] 新增 bleed 属性，用于通栏列表模式
 		bleed: {
+			type: Boolean,
+			default: false,
+		},
+		// [兼容性修复] 新增 selected 属性，用于控制选中状态
+		selected: {
 			type: Boolean,
 			default: false,
 		}
@@ -67,10 +70,11 @@
 	};
 
 	const handleLongPress = (event : Event) => {
+		// [逻辑优化] 只有在允许长按操作时（即 vibrateOnLongPress 为 true），才触发振动和 longpress 事件
 		if (props.vibrateOnLongPress) {
 			uni.vibrateShort({});
+			emit('longpress', event);
 		}
-		emit('longpress', event);
 	};
 </script>
 
@@ -127,5 +131,24 @@
 
 	.ripple {
 		background-color: rgba(0, 0, 0, 0.15);
+	}
+
+	/* [兼容性修复] 将选中状态的指示条样式移入组件内部 */
+	.list-item.is-selected {
+		background-color: transparent;
+	}
+
+	.list-item.is-selected::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 4px;
+		height: 50%;
+		background-color: var(--primary-color);
+		border-radius: 0 4px 4px 0;
+		/* [兼容性修复] 确保指示条在水波纹效果之上 */
+		z-index: 1;
 	}
 </style>

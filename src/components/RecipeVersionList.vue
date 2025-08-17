@@ -7,11 +7,9 @@
 			</view>
 		</view>
 		<template v-if="versions.length > 0">
-			<!-- [核心修改] 传入 :bleed="true" 属性 -->
-			<ListItem v-for="version in versions" :key="version.id"
-				:class="{ 'item-selected': selectedVersionId === version.id }" @click="$emit('select-version', version)"
-				@longpress="$emit('longpress-version', version)" :vibrate-on-long-press="canEdit && !version.isActive"
-				:bleed="true">
+			<ListItem v-for="version in versions" :key="version.id" :selected="selectedVersionId === version.id"
+				@click="$emit('select-version', version)" @longpress="$emit('longpress-version', version)"
+				:vibrate-on-long-press="canEdit && !version.isActive" :bleed="true">
 				<view class="main-info">
 					<view class="name">{{ version.notes || `版本 ${version.version}` }}
 						(v{{ version.version }})</view>
@@ -63,29 +61,7 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.list-item {
-		position: relative;
-		cursor: pointer;
-		transition: background-color 0.2s ease;
-	}
-
-	.list-item.item-selected {
-		background-color: transparent;
-	}
-
-	.list-item.item-selected::before {
-		content: '';
-		position: absolute;
-		left: 0;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 4px;
-		height: 50%;
-		background-color: var(--primary-color);
-		border-radius: 0 4px 4px 0;
-	}
-
-	/* [核心修改] 移除对子组件 ListItem 的样式穿透尝试 */
+	/* [兼容性修复] 移除外部对子组件的样式控制，相关样式已移入 ListItem.vue 内部 */
 	.card-full-bleed-list {
 		padding-left: 0;
 		padding-right: 0;
