@@ -1,48 +1,52 @@
 <template>
-	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<view class="page-wrapper">
 		<DetailHeader title="制作历史" />
-		<view class="page-content">
-			<view class="loading-spinner" v-if="isLoading && !dataStore.dataLoaded.historicalTasks">
-				<text>加载中...</text>
-			</view>
-			<template v-else>
-				<view v-if="Object.keys(sortedGroupedTasks).length > 0">
-					<view v-for="(tasks, date) in sortedGroupedTasks" :key="date" class="task-group">
-						<view class="date-header">{{ date }}</view>
-						<!-- [核心修改] 使用 ListItem 的 card-mode 属性，并通过 :style 动态绑定边框颜色 -->
-						<ListItem v-for="task in tasks" :key="task.id" card-mode :style="getTaskCardStyle(task)"
-							@click="navigateToDetail(task)">
-							<view class="task-info">
-								<view class="title">{{ getTaskTitle(task) }}</view>
-								<view class="details">{{ getTaskDetails(task) }}</view>
-							</view>
-							<view class="status-tag" :class="getStatusClass(task.status)">
-								{{ getStatusText(task.status) }}
-							</view>
-						</ListItem>
+		<!-- [核心修改] 监听 DetailPageLayout 派发出的 @scrolltolower 事件，并绑定 handleLoadMore 方法 -->
+		<DetailPageLayout @scrolltolower="handleLoadMore">
+			<view class="page-content">
+				<view class="loading-spinner" v-if="isLoading && !dataStore.dataLoaded.historicalTasks">
+					<text>加载中...</text>
+				</view>
+				<template v-else>
+					<view v-if="Object.keys(sortedGroupedTasks).length > 0">
+						<view v-for="(tasks, date) in sortedGroupedTasks" :key="date" class="task-group">
+							<view class="date-header">{{ date }}</view>
+							<ListItem v-for="task in tasks" :key="task.id" card-mode :style="getTaskCardStyle(task)"
+								@click="navigateToDetail(task)">
+								<view class="task-info">
+									<view class="title">{{ getTaskTitle(task) }}</view>
+									<view class="details">{{ getTaskDetails(task) }}</view>
+								</view>
+								<view class="status-tag" :class="getStatusClass(task.status)">
+									{{ getStatusText(task.status) }}
+								</view>
+							</ListItem>
+						</view>
 					</view>
-				</view>
-				<view v-else class="empty-state">
-					<text>暂无历史任务</text>
-				</view>
-				<view class="load-more-container">
-					<view v-if="isLoadingMore" class="loading-spinner">加载中...</view>
-					<view v-if="!dataStore.historicalTasksMeta.hasMore && !isLoading" class="no-more-tasks">没有更多了</view>
-				</view>
-			</template>
-		</view>
+					<view v-else class="empty-state">
+						<text>暂无历史任务</text>
+					</view>
+					<view class="load-more-container">
+						<view v-if="isLoadingMore" class="loading-spinner">加载中...</view>
+						<view v-if="!dataStore.historicalTasksMeta.hasMore && !isLoading" class="no-more-tasks">没有更多了
+						</view>
+					</view>
+				</template>
+			</view>
+		</DetailPageLayout>
 	</view>
 </template>
 
 <script setup lang="ts">
 	import { ref, computed } from 'vue';
-	import { onShow, onReachBottom } from '@dcloudio/uni-app';
+	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import type { ProductionTaskDto } from '@/types/api';
 	import ListItem from '@/components/ListItem.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -58,13 +62,16 @@
 		}
 	});
 
-	onReachBottom(async () => {
+	// [核心修改] 移除 onReachBottom，因为它不再被触发
+
+	// [核心修改] 新增 handleLoadMore 方法来处理加载逻辑
+	const handleLoadMore = async () => {
 		if (dataStore.historicalTasksMeta.hasMore && !isLoadingMore.value) {
 			isLoadingMore.value = true;
 			await dataStore.fetchHistoricalTasks(true);
 			isLoadingMore.value = false;
 		}
-	});
+	};
 
 	const sortedGroupedTasks = computed(() => {
 		const tasksByDate = dataStore.historicalTasks;
@@ -121,7 +128,6 @@
 		return map[status] || '';
 	};
 
-	// [新增] 方法：根据任务状态返回动态样式对象，与 production.vue 保持一致
 	const getTaskCardStyle = (task : ProductionTaskDto) => {
 		const colorMap = {
 			COMPLETED: '#a9c1de',
@@ -143,6 +149,12 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
+
 	.task-group {
 		margin-bottom: 20px;
 	}
@@ -154,14 +166,11 @@
 		padding: 0 5px 15px;
 	}
 
-	/* [核心修改] 移除 .task-card 相关的所有样式，因为 ListItem 的 card-mode 已处理 */
-
 	.task-info {
 		flex: 1;
 		margin-right: 15px;
 	}
 
-	/* [核心修改] 将样式选择器从 .task-card .title 改为 .title，使其能作用于 ListItem 内的元素 */
 	.title {
 		font-size: 16px;
 		font-weight: 400;
@@ -175,7 +184,6 @@
 		line-height: 1.4;
 	}
 
-	/* [核心修改] 将样式选择器从 .task-card .details 改为 .details */
 	.details {
 		color: var(--text-secondary);
 		font-size: 14px;

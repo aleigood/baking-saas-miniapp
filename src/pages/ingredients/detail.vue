@@ -1,35 +1,38 @@
 <template>
-	<view class="page-container">
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<view class="page-wrapper">
 		<DetailHeader :title="ingredient?.name || '加载中...'">
 			<IconButton @click="openEditModal">
 				<image class="header-icon" src="/static/icons/property.svg" />
 			</IconButton>
 		</DetailHeader>
 
-		<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
-			<view class="detail-page">
-				<view class="tag-group">
-					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
-					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
-					<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
+		<DetailPageLayout>
+			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
+				<view class="detail-page">
+					<view class="tag-group">
+						<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
+						<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
+						<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
+					</view>
+
+					<view class="card">
+						<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
+						<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
+						<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
+							unit-suffix="kg" />
+					</view>
+
+					<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId"
+						@select="handleSkuClick" @longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
+
+					<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
 				</view>
-
-				<view class="card">
-					<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
-					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
-					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
-						unit-suffix="kg" />
-				</view>
-
-				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
-					@longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
-
-				<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
 			</view>
-		</view>
-		<view class="loading-spinner" v-else>
-			<text>加载中...</text>
-		</view>
+			<view class="loading-spinner" v-else>
+				<text>加载中...</text>
+			</view>
+		</DetailPageLayout>
 
 		<AppFab @click="openProcurementModal" class="fab-no-tab-bar" />
 
@@ -195,6 +198,7 @@
 	import IngredientSkuList from '@/components/IngredientSkuList.vue';
 	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { formatChineseDate } from '@/utils/format';
 
@@ -511,6 +515,12 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
 
 	.header-icon {
 		width: 24px;

@@ -1,38 +1,44 @@
 <template>
-	<view class="page-container">
+	<!-- 1. 添加 page-meta -->
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<!-- 2. 根 view class 改为 page-wrapper -->
+	<view class="page-wrapper">
 		<DetailHeader title="新建生产任务" />
-		<view class="page-content">
-			<view class="loading-spinner" v-if="isLoading">
-				<text>加载中...</text>
-			</view>
-			<template v-else>
-				<view v-for="(group, groupName) in groupedProducts" :key="groupName" class="card product-group">
-					<view class="group-title" @click="toggleGroup(groupName)">
-						<span>{{ groupName }}</span>
-						<span class="arrow" :class="{ collapsed: collapsedGroups.has(groupName) }">&#10094;</span>
-					</view>
-					<view v-show="!collapsedGroups.has(groupName)" class="product-list">
-						<view v-for="product in group" :key="product.id" class="product-item">
-							<view class="product-name">{{ product.name }}</view>
-							<view class="quantity-control">
-								<StepperButton @click="decreaseQuantity(product.id)">
-									<image class="stepper-icon" src="/static/icons/remove.svg" />
-								</StepperButton>
-								<input class="input-stepper" type="number"
-									v-model.number="taskQuantities[product.id]" />
-								<StepperButton @click="increaseQuantity(product.id)">
-									<image class="stepper-icon" src="/static/icons/add.svg" />
-								</StepperButton>
+		<!-- 4. 使用 DetailPageLayout 包裹滚动内容 -->
+		<DetailPageLayout>
+			<view class="page-content">
+				<view class="loading-spinner" v-if="isLoading">
+					<text>加载中...</text>
+				</view>
+				<template v-else>
+					<view v-for="(group, groupName) in groupedProducts" :key="groupName" class="card product-group">
+						<view class="group-title" @click="toggleGroup(groupName)">
+							<span>{{ groupName }}</span>
+							<span class="arrow" :class="{ collapsed: collapsedGroups.has(groupName) }">&#10094;</span>
+						</view>
+						<view v-show="!collapsedGroups.has(groupName)" class="product-list">
+							<view v-for="product in group" :key="product.id" class="product-item">
+								<view class="product-name">{{ product.name }}</view>
+								<view class="quantity-control">
+									<StepperButton @click="decreaseQuantity(product.id)">
+										<image class="stepper-icon" src="/static/icons/remove.svg" />
+									</StepperButton>
+									<input class="input-stepper" type="number"
+										v-model.number="taskQuantities[product.id]" />
+									<StepperButton @click="increaseQuantity(product.id)">
+										<image class="stepper-icon" src="/static/icons/add.svg" />
+									</StepperButton>
+								</view>
 							</view>
 						</view>
 					</view>
-				</view>
-				<AppButton type="primary" full-width :disabled="!hasTasksToCreate" @click="handleCreateTasks"
-					:loading="isCreating">
-					{{ isCreating ? '' : '创建任务' }}
-				</AppButton>
-			</template>
-		</view>
+					<AppButton type="primary" full-width :disabled="!hasTasksToCreate" @click="handleCreateTasks"
+						:loading="isCreating">
+						{{ isCreating ? '' : '创建任务' }}
+					</AppButton>
+				</template>
+			</view>
+		</DetailPageLayout>
 	</view>
 </template>
 
@@ -43,8 +49,9 @@
 	import { createTask } from '@/api/tasks';
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
-	// [新增] 引入 StepperButton 组件
 	import StepperButton from '@/components/StepperButton.vue';
+	// 3. 引入 DetailPageLayout
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import type { ProductionTaskDto } from '@/types/api';
 
 	const dataStore = useDataStore();
@@ -133,8 +140,11 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.page-container {
-		padding-bottom: 20px;
+	/* 5. 添加 page-wrapper 样式 */
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
 	}
 
 	.product-group {
