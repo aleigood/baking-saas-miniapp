@@ -3,7 +3,6 @@
 		<view class="card-title-wrapper">
 			<span class="card-title">品牌与规格 (SKU)</span>
 		</view>
-		<!-- [逻辑修复] 修正 activeSku 的属性访问方式，正确判断是否为使用中 -->
 		<ListItem v-for="(sku, index) in ingredient.skus" :key="sku.id" class="sku-item"
 			:selected="selectedSkuId === sku.id" @click="$emit('select', sku)" @longpress="$emit('longpress-sku', sku)"
 			:vibrate-on-long-press="ingredient.activeSku?.id !== sku.id" :bleed="true"
@@ -13,7 +12,6 @@
 				<view class="desc">添加于: {{ formatChineseDate(sku.createdAt) }}</view>
 			</view>
 			<view class="side-info">
-				<!-- [逻辑修复] 同样修正 activeSku 的属性访问方式 -->
 				<span v-if="sku.id === ingredient.activeSku?.id" class="status-tag active">使用中</span>
 			</view>
 		</ListItem>
@@ -45,6 +43,9 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前组件作用域 */
+	@include list-item-content-style;
 
 	.sku-item .side-info {
 		display: flex;

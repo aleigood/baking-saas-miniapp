@@ -62,6 +62,9 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前组件作用域 */
+	@include list-item-content-style;
+
 	.card-full-bleed-list {
 		padding-left: 0;
 		padding-right: 0;
