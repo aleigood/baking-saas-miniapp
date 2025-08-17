@@ -18,7 +18,7 @@
 			:no-header-line="true">
 			<view class="options-list">
 				<ListItem v-for="tenant in dataStore.tenants" :key="tenant.id" @click="handleSelectTenant(tenant.id)"
-					class="option-item">
+					class="option-item" :bleed="true">
 					<view class="main-info">
 						<view class="name">{{ tenant.name }}</view>
 					</view>
@@ -32,7 +32,7 @@
 		<AppModal :visible="uiStore.showUserOptionsModal" @update:visible="uiStore.closeModal(MODAL_KEYS.USER_OPTIONS)"
 			title="账户操作" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleOpenLogoutConfirm">
+				<ListItem class="option-item" @click="handleOpenLogoutConfirm" :bleed="true">
 					<view class="main-info">
 						<view class="name">退出登录</view>
 					</view>
@@ -153,6 +153,8 @@
 
 	/* [兼容性修复] 引入 Mixin，确保模态框中的列表项样式正确 */
 	@include list-item-content-style;
+	/* [兼容性修复] 引入新增的 Mixin */
+	@include list-item-option-style;
 
 	.main-page-container {
 		display: flex;

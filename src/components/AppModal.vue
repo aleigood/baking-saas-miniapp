@@ -1,6 +1,6 @@
 <template>
 	<view v-if="visible" class="modal-overlay" @click="closeModal" @touchmove.stop.prevent="() => {}">
-		<view class="modal-content" :style="{ width: width }" @click.stop>
+		<view class="modal-content" :style="{ width: width }" :class="{ 'is-options-modal': noHeaderLine }" @click.stop>
 			<view class="modal-header" :class="{ 'no-line': noHeaderLine }" v-if="title">
 				<h3 class="modal-title">{{ title }}</h3>
 			</view>
@@ -63,6 +63,11 @@
 		overflow-y: auto;
 	}
 
+	/* [核心修复] 为选项列表模式的弹窗设置合适的垂直内边距，同时移除水平内边距 */
+	.modal-content.is-options-modal {
+		padding: 25px 0;
+	}
+
 	.modal-header {
 		display: flex;
 		justify-content: center;
@@ -70,6 +75,9 @@
 		margin-bottom: 20px;
 		padding-bottom: 15px;
 		border-bottom: 1px solid var(--border-color);
+		/* [核心修复] 确保标题区域有自己的水平内边距 */
+		padding-left: 25px;
+		padding-right: 25px;
 	}
 
 	.modal-header.no-line {

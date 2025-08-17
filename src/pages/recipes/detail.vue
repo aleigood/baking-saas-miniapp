@@ -3,14 +3,12 @@
 	<view class="page-wrapper">
 		<DetailHeader :title="recipeFamily?.name || '加载中...'" />
 		<DetailPageLayout>
-			<!-- [核心修改] 移除 no-horizontal-padding 类，恢复页面的正常边距 -->
 			<view class="page-content" v-if="!isLoading && recipeFamily">
 				<RecipeVersionList :versions="recipeVersions" :selected-version-id="displayedVersionId"
 					:can-edit="canEditRecipe" :is-discontinued="recipeFamily.deletedAt !== null"
 					@select-version="handleVersionClick" @create-version="handleCreateVersion"
 					@longpress-version="handleVersionLongPressAction" />
 
-				<!-- [核心修改] 移除 content-padding 容器 -->
 				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" />
 				<SimpleRecipeDetail v-else :version="displayedVersion" />
 			</view>
@@ -21,12 +19,12 @@
 
 		<AppModal v-model:visible="showVersionOptionsModal" title="配方版本" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleActivateVersionOption">
+				<ListItem class="option-item" @click="handleActivateVersionOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">设为使用中</view>
 					</view>
 				</ListItem>
-				<ListItem class="option-item" @click="handleDeleteVersionOption">
+				<ListItem class="option-item" @click="handleDeleteVersionOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除配方版本</view>
 					</view>
@@ -229,6 +227,9 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	/* [兼容性修复] 引入新增的 Mixin */
+	@include list-item-option-style;
 
 	.page-wrapper {
 		display: flex;

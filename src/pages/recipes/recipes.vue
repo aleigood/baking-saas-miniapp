@@ -82,20 +82,20 @@
 			@update:visible="uiStore.closeModal(MODAL_KEYS.RECIPE_ACTIONS)" title="配方操作" :no-header-line="true">
 			<view class="options-list">
 				<template v-if="selectedRecipe?.deletedAt === null">
-					<ListItem class="option-item" @click="handleDiscontinueRecipe">
+					<ListItem class="option-item" @click="handleDiscontinueRecipe" :bleed="true">
 						<view class="main-info">
 							<view class="name">停用配方</view>
 						</view>
 					</ListItem>
 				</template>
 				<template v-else>
-					<ListItem class="option-item" @click="handleRestoreRecipe">
+					<ListItem class="option-item" @click="handleRestoreRecipe" :bleed="true">
 						<view class="main-info">
 							<view class="name">恢复配方</view>
 						</view>
 					</ListItem>
 				</template>
-				<ListItem class="option-item" @click="handleDeleteRecipe">
+				<ListItem class="option-item" @click="handleDeleteRecipe" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除配方</view>
 					</view>
@@ -363,6 +363,8 @@
 
 	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前页面作用域 */
 	@include list-item-content-style;
+	/* [兼容性修复] 引入新增的 Mixin */
+	@include list-item-option-style;
 
 	.content-padding {
 		padding: 0 15px;

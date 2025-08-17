@@ -50,7 +50,7 @@
 		<AppModal :visible="uiStore.showTaskActionsModal" @update:visible="uiStore.closeModal(MODAL_KEYS.TASK_ACTIONS)"
 			title="制作任务" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleOpenCancelConfirm">
+				<ListItem class="option-item" @click="handleOpenCancelConfirm" :bleed="true">
 					<view class="main-info">
 						<view class="name">取消任务</view>
 					</view>
@@ -285,6 +285,8 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+	/* [兼容性修复] 引入新增的 Mixin */
+	@include list-item-option-style;
 
 	.summary-card {
 		display: flex;

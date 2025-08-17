@@ -62,7 +62,7 @@
 		<AppModal :visible="uiStore.showIngredientActionsModal"
 			@update:visible="uiStore.closeModal(MODAL_KEYS.INGREDIENT_ACTIONS)" title="原料操作" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleDeleteIngredient">
+				<ListItem class="option-item" @click="handleDeleteIngredient" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除原料</view>
 					</view>
@@ -231,6 +231,8 @@
 
 	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前页面作用域 */
 	@include list-item-content-style;
+	/* [核心修复] 修正 Mixin 的名称 */
+	@include list-item-option-style;
 
 	.content-padding {
 		padding: 0 15px;

@@ -19,6 +19,23 @@
 	}
 }
 
+/* [兼容性修复] 新增一个 Mixin，专门用于选项列表中的列表项样式 */
+@mixin list-item-option-style {
+	.options-list .option-item {
+		.main-info .name {
+			/* [核心修改] 增大选项文字大小并调整字重 */
+			font-size: 18px;
+			font-weight: 400;
+		}
+
+		/* [核心修改] 使用 :deep() 选择器确保在小程序中也能修改 ListItem 的内部样式 */
+		:deep(.list-item-content) {
+			/* [核心修改] 确保选项列表项有合适的内边距 */
+			padding: 15px 25px;
+		}
+	}
+}
+
 
 /* Page layout */
 .page-container { }

@@ -22,7 +22,6 @@
 						unit-suffix="kg" />
 				</view>
 
-				<!-- [架构修复] 将监听的事件从原生 @longpress 改为自定义的 @longpress-sku -->
 				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
 					@longpress-sku="handleSkuLongPressAction" @add="openAddSkuModal" />
 
@@ -102,12 +101,12 @@
 
 		<AppModal v-model:visible="showSkuOptionsModal" title="品牌与规格" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleActivateSkuOption">
+				<ListItem class="option-item" @click="handleActivateSkuOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">设为使用中</view>
 					</view>
 				</ListItem>
-				<ListItem class="option-item" @click="handleDeleteSkuOption">
+				<ListItem class="option-item" @click="handleDeleteSkuOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除此品牌</view>
 					</view>
@@ -147,7 +146,7 @@
 
 		<AppModal v-model:visible="showProcurementOptionsModal" title="采购记录" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleDeleteProcurementOption">
+				<ListItem class="option-item" @click="handleDeleteProcurementOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除采购记录</view>
 					</view>
@@ -514,6 +513,9 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	/* [兼容性修复] 引入新增的 Mixin */
+	@include list-item-option-style;
 
 	.page-wrapper {
 		display: flex;
