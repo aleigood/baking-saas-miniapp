@@ -317,6 +317,7 @@
 	}
 
 	.title {
+		color: var(--text-primary);
 		font-size: 16px;
 		font-weight: 400;
 		margin-bottom: 8px;

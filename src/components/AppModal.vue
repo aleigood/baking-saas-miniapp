@@ -63,7 +63,7 @@
 		overflow-y: auto;
 	}
 
-	/* [核心修复] 为选项列表模式的弹窗设置合适的垂直内边距，同时移除水平内边距 */
+	/* 恢复为移除水平内边距的策略，以确保通栏列表项的事件可以被完整触发 */
 	.modal-content.is-options-modal {
 		padding: 25px 0;
 	}
@@ -75,7 +75,7 @@
 		margin-bottom: 20px;
 		padding-bottom: 15px;
 		border-bottom: 1px solid var(--border-color);
-		/* [核心修复] 确保标题区域有自己的水平内边距 */
+		/* 当父级是 is-options-modal 时，其自身没有水平内边距，所以需要在这里补上 */
 		padding-left: 25px;
 		padding-right: 25px;
 	}

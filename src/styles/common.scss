@@ -23,15 +23,16 @@
 @mixin list-item-option-style {
 	.options-list .option-item {
 		.main-info .name {
-			/* [核心修改] 增大选项文字大小并调整字重 */
+		    color: var(--text-primary);
 			font-size: 18px;
 			font-weight: 400;
 		}
 
-		/* [核心修改] 使用 :deep() 选择器确保在小程序中也能修改 ListItem 的内部样式 */
+		/* 小程序大坑:deep() 选择器确保在小程序中也能修改 ListItem 的内部样式 */
+		/* 由于 AppModal 的 is-options-modal 模式移除了左右内边距，所以需要在这里为列表项内容补上 */
 		:deep(.list-item-content) {
-			/* [核心修改] 确保选项列表项有合适的内边距 */
-			padding: 15px 25px;
+			padding-left: 25px;
+			padding-right: 25px;
 		}
 	}
 }
@@ -39,7 +40,6 @@
 
 /* Page layout */
 .page-container { }
-/* [修改] page-header 现在只作为占位和背景容器，高度由组件动态设置 */
 .page-header { 
     background: transparent; 
     position: sticky; 
@@ -49,7 +49,6 @@
     background-color: rgba(253, 248, 242, 0.85);
     box-sizing: border-box;
 }
-/* [修改] header-content 改为绝对定位，其位置和大小由组件动态设置 */
 .header-content {
     position: absolute;
     left: 0;
@@ -71,20 +70,17 @@
 	padding-bottom: 20px;
 }
 
-/* [核心修改] 新增一个工具类，用于移除 page-content 的水平内边距 */
 .page-content.no-horizontal-padding {
 	padding-left: 0;
 	padding-right: 0;
 }
 
 .page-content-with-tabbar-fab {
-	/* [修改] 使用 calc 和 env() 适配 iPhone 底部安全区域，确保内容可完全滚动 */
 	padding-bottom: calc(150px + constant(safe-area-inset-bottom));
 	padding-bottom: calc(150px + env(safe-area-inset-bottom));
 }
 
 .page-content-with-fab {
-	/* [修改] 使用 calc 和 env() 适配 iPhone 底部安全区域，确保内容可完全滚动 */
 	padding-bottom: calc(90px + constant(safe-area-inset-bottom));
 	padding-bottom: calc(90px + env(safe-area-inset-bottom));
 }
@@ -110,7 +106,6 @@
 
 /* Card and List */
 .card { background: var(--card-bg); padding: 20px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-/* [修改] 调整标题栏的 padding 和 margin-bottom 以统一间距 */
 .card-title-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 0 5px; margin-bottom: 20px; }
 .card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; color: var(--text-primary); }
 .card-title-wrapper .card-title { margin-bottom: 0; }
@@ -145,7 +140,6 @@
 /* FAB */
 .fab { 
     position: fixed; 
-    /* [修改] 使用 calc 和 env() 适配 iPhone 底部安全区域 */
     bottom: calc(85px + constant(safe-area-inset-bottom));
     bottom: calc(85px + env(safe-area-inset-bottom));
     right: 20px; 
@@ -163,7 +157,6 @@
     overflow: hidden;
 }
 .fab.fab-no-tab-bar {
-	/* [修改] 使用 calc 和 env() 适配 iPhone 底部安全区域 */
 	bottom: calc(30px + constant(safe-area-inset-bottom));
 	bottom: calc(30px + env(safe-area-inset-bottom));
 }
