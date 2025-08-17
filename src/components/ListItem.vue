@@ -71,7 +71,10 @@
 	};
 
 	const handleClick = (event : Event) => {
-		emit('click', event);
+		// [体验优化] 增加 300ms 延迟，确保水波纹动画可见后再执行点击操作
+		setTimeout(() => {
+			emit('click', event);
+		}, 300);
 	};
 
 	const handleLongPress = (event : Event) => {

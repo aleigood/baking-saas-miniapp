@@ -1,6 +1,6 @@
 <template>
 	<view class="icon-button ripple-container" :class="{ circle: circle }" @touchstart="handleTouchStart"
-		@click="emit('click', $event)">
+		@click="handleClick">
 		<!-- 水波纹效果的容器 -->
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 		<slot></slot>
@@ -19,7 +19,6 @@
 
 	const emit = defineEmits(['click']);
 
-	// [新增] 水波纹效果逻辑
 	const ripples = ref<any[]>([]);
 	const instance = getCurrentInstance();
 	const handleTouchStart = (event : TouchEvent) => {
@@ -45,6 +44,14 @@
 				}, 600);
 			}
 		}).exec();
+	};
+
+	// [体验优化] 新增 handleClick 方法以延迟事件触发
+	const handleClick = (event : Event) => {
+		// [体验优化] 增加 300ms 延迟，确保水波纹动画可见后再执行点击操作
+		setTimeout(() => {
+			emit('click', event);
+		}, 300);
 	};
 </script>
 

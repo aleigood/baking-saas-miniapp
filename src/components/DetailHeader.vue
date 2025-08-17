@@ -1,7 +1,8 @@
 <template>
 	<view class="page-header" :style="headerStyle">
 		<view class="header-content" :style="contentStyle">
-			<view class="back-btn ripple-container" @touchstart="handleTouchStart" @click="navigateBack">
+			<view class="back-btn ripple-container" @touchstart="handleTouchStart" @click="handleClick">
+				<!-- 水波纹效果的容器 -->
 				<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 				&#10094;
 			</view>
@@ -26,18 +27,15 @@
 
 	const systemStore = useSystemStore();
 
-	// [修改] 计算整个 header 的动态高度
 	const headerStyle = computed(() => ({
 		height: `${systemStore.headerHeight}px`
 	}));
 
-	// [修改] 计算 header 内容区域的动态定位和高度
 	const contentStyle = computed(() => ({
 		top: `${systemStore.navBarContentTop}px`,
 		height: `${systemStore.navBarHeight}px`
 	}));
 
-	// 水波纹效果逻辑
 	const ripples = ref<any[]>([]);
 	const instance = getCurrentInstance();
 	const handleTouchStart = (event : TouchEvent) => {
@@ -68,6 +66,14 @@
 	const navigateBack = () => {
 		uni.navigateBack();
 	};
+
+	// [体验优化] 新增 handleClick 方法以延迟事件触发
+	const handleClick = () => {
+		// [体验优化] 增加 300ms 延迟，确保水波纹动画可见后再执行点击操作
+		setTimeout(() => {
+			navigateBack();
+		}, 300);
+	};
 </script>
 
 <style scoped lang="scss">
@@ -86,20 +92,16 @@
 		align-items: center;
 		transform: translateZ(0);
 		padding: 0;
-
-		/* [核心修改] 移除小程序和部分浏览器中的默认点击高亮效果 */
 		-webkit-user-select: none;
 		user-select: none;
 		-webkit-tap-highlight-color: transparent;
 
-		/* [核心修改] 移除 uni-app 可能为 view 添加的默认伪元素样式 */
 		&::after {
 			display: none;
 		}
 	}
 
 	.detail-title {
-		/* [字体大小调整] 按照要求将标题字体大小从 18px 调整为 20px */
 		font-size: 20px;
 		font-weight: 600;
 		flex: 1;

@@ -43,7 +43,6 @@
 
 	const emit = defineEmits(['click']);
 
-	// [新增] 水波纹效果逻辑
 	const ripples = ref<any[]>([]);
 	const instance = getCurrentInstance();
 	const handleTouchStart = (event : TouchEvent) => {
@@ -83,13 +82,15 @@
 		'btn-xs': props.size === 'xs',
 		'btn-full-width': props.fullWidth,
 		'loading': props.loading,
-		// [新增] 增加一个 is-disabled 类来替代属性选择器
 		'is-disabled': props.disabled || props.loading,
 	}));
 
 	const handleClick = (event : Event) => {
 		if (props.disabled || props.loading) return;
-		emit('click', event);
+		// [体验优化] 增加 300ms 延迟，确保水波纹动画可见后再执行点击操作
+		setTimeout(() => {
+			emit('click', event);
+		}, 300);
 	}
 </script>
 
@@ -110,7 +111,6 @@
 			border: none;
 		}
 
-		// [修改] 使用 is-disabled 类替代 [disabled] 属性选择器
 		&.is-disabled {
 			background-color: #f3e9e3 !important;
 			color: #b0a8a2 !important;
@@ -130,7 +130,6 @@
 		justify-content: center;
 		align-items: center;
 		width: 100%;
-		/* [新增] 确保内容在水波纹之上 */
 		z-index: 1;
 	}
 
@@ -152,7 +151,6 @@
 		opacity: 1;
 	}
 
-	/* [修改] 样式现在直接作用于组件内的 .ripple */
 	.ripple {
 		background-color: rgba(255, 255, 255, 0.4);
 	}
