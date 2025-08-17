@@ -209,19 +209,26 @@
 	font-size: 14px;
 }
 
+/* [核心修改] 使用条件编译为不同平台提供最佳布局方案 */
 .modal-actions {
-	display: flex;
 	gap: 10px;
 	margin-top: 30px;
+
+	/* 在小程序中使用 Grid 布局，因为它最稳定 */
+	/* #ifdef MP-WEIXIN */
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 1fr;
+	/* #endif */
+
+	/* 在 H5 和其他平台使用 Flex 布局 */
+	/* #ifndef MP-WEIXIN */
+	display: flex;
+	& > * {
+		flex: 1;
+	}
+	/* #endif */
 }
-
-.modal-actions app-button,
-.modal-actions uni-button {
-	flex: 1;
-}
-
-/* [核心修改] 移除 Detail Header 相关的样式，因为它们已被移入组件内部 */
-
 
 /* Common Components */
 .tag-group { margin-bottom: 20px; }
