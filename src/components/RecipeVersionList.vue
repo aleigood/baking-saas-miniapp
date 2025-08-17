@@ -1,16 +1,17 @@
 <template>
 	<view class="card card-full-bleed-list">
 		<view class="card-title-wrapper">
-			<!-- [修改] 将标题和标签放在一个容器中，以实现紧邻效果 -->
 			<view class="title-with-tag">
 				<span class="card-title">配方版本</span>
 				<span v-if="isDiscontinued" class="status-tag discontinued">已停用</span>
 			</view>
 		</view>
 		<template v-if="versions.length > 0">
+			<!-- [核心修改] 传入 :bleed="true" 属性 -->
 			<ListItem v-for="version in versions" :key="version.id"
 				:class="{ 'item-selected': selectedVersionId === version.id }" @click="$emit('select-version', version)"
-				@longpress="$emit('longpress-version', version)" :vibrate-on-long-press="canEdit && !version.isActive">
+				@longpress="$emit('longpress-version', version)" :vibrate-on-long-press="canEdit && !version.isActive"
+				:bleed="true">
 				<view class="main-info">
 					<view class="name">{{ version.notes || `版本 ${version.version}` }}
 						(v{{ version.version }})</view>
@@ -84,6 +85,7 @@
 		border-radius: 0 4px 4px 0;
 	}
 
+	/* [核心修改] 移除对子组件 ListItem 的样式穿透尝试 */
 	.card-full-bleed-list {
 		padding-left: 0;
 		padding-right: 0;
@@ -94,22 +96,14 @@
 		padding-right: 20px;
 	}
 
-	.card-full-bleed-list .list-item {
-		padding-left: 20px;
-		padding-right: 20px;
-	}
-
-	/* [新增] 标题和标签的容器样式 */
 	.title-with-tag {
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		/* 标题和标签之间的间距 */
 	}
 
 	.title-with-tag .card-title {
 		margin-bottom: 0;
-		/* 移除标题的下边距 */
 	}
 
 	.status-tag {

@@ -3,8 +3,8 @@
 		@click="handleClick" @longpress="handleLongPress">
 		<!-- 水波纹效果的容器 -->
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
-		<!-- [核心修改] 为内容容器增加一个动态类 :class="{ 'no-padding': noPadding }" -->
-		<view class="list-item-content" :class="{ 'no-padding': noPadding }">
+		<!-- [核心修改] 增加 :class="{ 'bleed-padding': bleed }" 以应用通栏模式下的特殊内边距 -->
+		<view class="list-item-content" :class="{ 'no-padding': noPadding, 'bleed-padding': bleed }">
 			<slot></slot>
 		</view>
 	</view>
@@ -22,8 +22,12 @@
 			type: Boolean,
 			default: false,
 		},
-		// [核心修改] 新增 noPadding 属性，用于控制是否移除内边距
 		noPadding: {
+			type: Boolean,
+			default: false,
+		},
+		// [核心修改] 新增 bleed 属性，用于通栏列表模式
+		bleed: {
 			type: Boolean,
 			default: false,
 		}
@@ -95,7 +99,11 @@
 		z-index: 1;
 	}
 
-	/* [核心修改] 新增 .no-padding 类，用于移除内边距 */
+	/* [核心修改] 新增通栏模式下的内边距样式 */
+	.list-item-content.bleed-padding {
+		padding: 15px 20px;
+	}
+
 	.list-item-content.no-padding {
 		padding: 0;
 	}
@@ -113,7 +121,6 @@
 		padding: 20px;
 	}
 
-	/* [核心修改] 当同时存在 card-mode 和 no-padding 时，确保 no-padding 优先 */
 	.card-mode .list-item-content.no-padding {
 		padding: 0;
 	}

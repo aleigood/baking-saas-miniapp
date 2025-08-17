@@ -3,16 +3,16 @@
 	<view class="page-wrapper">
 		<DetailHeader :title="recipeFamily?.name || '加载中...'" />
 		<DetailPageLayout>
+			<!-- [核心修改] 移除 no-horizontal-padding 类，恢复页面的正常边距 -->
 			<view class="page-content" v-if="!isLoading && recipeFamily">
-				<view class="detail-page">
-					<RecipeVersionList :versions="recipeVersions" :selected-version-id="displayedVersionId"
-						:can-edit="canEditRecipe" :is-discontinued="recipeFamily.deletedAt !== null"
-						@select-version="handleVersionClick" @create-version="handleCreateVersion"
-						@longpress-version="handleVersionLongPressAction" />
+				<RecipeVersionList :versions="recipeVersions" :selected-version-id="displayedVersionId"
+					:can-edit="canEditRecipe" :is-discontinued="recipeFamily.deletedAt !== null"
+					@select-version="handleVersionClick" @create-version="handleCreateVersion"
+					@longpress-version="handleVersionLongPressAction" />
 
-					<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" />
-					<SimpleRecipeDetail v-else :version="displayedVersion" />
-				</view>
+				<!-- [核心修改] 移除 content-padding 容器 -->
+				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" />
+				<SimpleRecipeDetail v-else :version="displayedVersion" />
 			</view>
 			<view class="loading-spinner" v-else>
 				<text>加载中...</text>
@@ -235,6 +235,8 @@
 		flex-direction: column;
 		height: 100vh;
 	}
+
+	/* [核心修改] 移除不再需要的 .content-padding 样式 */
 
 	.modal-prompt-text {
 		font-size: 16px;

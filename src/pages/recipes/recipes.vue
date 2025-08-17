@@ -1,31 +1,35 @@
 <template>
 	<view>
-		<view class="page-content page-content-with-tabbar-fab">
-			<view class="card">
-				<view class="card-title"><span>本周制作排行</span></view>
-				<view v-if="recipeStatsForChart.length > 0" class="ranking-list">
-					<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
-						class="ranking-item">
-						<text class="rank">{{ index + 1 }}</text>
-						<text class="name">{{ item.name }}</text>
-						<text class="count">{{ item.value }} 个</text>
+		<!-- [核心修改] 增加 no-horizontal-padding 类 -->
+		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
+			<!-- [核心修改] 将卡片和筛选器包裹在一个有内边距的容器中 -->
+			<view class="content-padding">
+				<view class="card">
+					<view class="card-title"><span>本周制作排行</span></view>
+					<view v-if="recipeStatsForChart.length > 0" class="ranking-list">
+						<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
+							class="ranking-item">
+							<text class="rank">{{ index + 1 }}</text>
+							<text class="name">{{ item.name }}</text>
+							<text class="count">{{ item.value }} 个</text>
+						</view>
+					</view>
+					<view v-else class="empty-state">
+						<text>暂无排行信息</text>
 					</view>
 				</view>
-				<view v-else class="empty-state">
-					<text>暂无排行信息</text>
-				</view>
-			</view>
 
-			<FilterTabs class="recipe-filter-tabs">
-				<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">面团</FilterTab>
-				<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
-			</FilterTabs>
+				<FilterTabs class="recipe-filter-tabs">
+					<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">面团</FilterTab>
+					<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
+				</FilterTabs>
+			</view>
 
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
 				<template v-if="recipeFilter === 'MAIN'">
 					<template v-if="mainRecipes.length > 0">
 						<ListItem v-for="family in mainRecipes" :key="family.id" @click="navigateToDetail(family.id)"
-							@longpress="openRecipeActions(family)" :vibrate-on-long-press="canEditRecipe">
+							@longpress="openRecipeActions(family)" :vibrate-on-long-press="canEditRecipe" :bleed="true">
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}
@@ -49,7 +53,7 @@
 				<template v-if="recipeFilter === 'OTHER'">
 					<template v-if="otherRecipes.length > 0">
 						<ListItem v-for="family in otherRecipes" :key="family.id" @click="navigateToDetail(family.id)"
-							@longpress="openRecipeActions(family)" :vibrate-on-long-press="canEditRecipe">
+							@longpress="openRecipeActions(family)" :vibrate-on-long-press="canEditRecipe" :bleed="true">
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}
@@ -355,19 +359,9 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [修改] 移除 min-height 属性 */
-	.list-wrapper {}
-
-	.list-wrapper :deep(.list-item) {
-		margin-left: -15px;
-		margin-right: -15px;
-		padding-left: 20px;
-		padding-right: 20px;
-	}
-
-	.list-wrapper :deep(.list-item:not(:last-child)::after) {
-		left: 20px;
-		right: 20px;
+	/* [核心修改] 新增一个包裹容器的样式 */
+	.content-padding {
+		padding: 0 15px;
 	}
 
 	.rating {

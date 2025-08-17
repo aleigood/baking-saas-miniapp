@@ -1,17 +1,18 @@
 <template>
-	<!-- [修改] 移除 MainHeader 和外层 page-wrapper，因为布局已由 main.vue 控制 -->
 	<view>
-		<view class="page-content page-content-with-tabbar-fab">
-			<FilterTabs>
-				<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
-				<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
-			</FilterTabs>
+		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
+			<view class="content-padding">
+				<FilterTabs>
+					<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
+					<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
+				</FilterTabs>
+			</view>
 
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
 				<template v-if="ingredientFilter === 'all'">
 					<template v-if="allIngredients.length > 0">
 						<ListItem v-for="ing in allIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
-							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit">
+							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit" :bleed="true">
 							<view class="main-info">
 								<view class="name">{{ ing.name }}</view>
 								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
@@ -34,7 +35,7 @@
 				<template v-if="ingredientFilter === 'low'">
 					<template v-if="lowStockIngredients.length > 0">
 						<ListItem v-for="ing in lowStockIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
-							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit">
+							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit" :bleed="true">
 							<view class="main-info">
 								<view class="name">{{ ing.name }}</view>
 								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
@@ -225,20 +226,8 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.list-wrapper {
-		min-height: 60vh;
-	}
-
-	.list-wrapper :deep(.list-item) {
-		margin-left: -15px;
-		margin-right: -15px;
-		padding-left: 20px;
-		padding-right: 20px;
-	}
-
-	.list-wrapper :deep(.list-item:not(:last-child)::after) {
-		left: 20px;
-		right: 20px;
+	.content-padding {
+		padding: 0 15px;
 	}
 
 	.side-info .consumption {

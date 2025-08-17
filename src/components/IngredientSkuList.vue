@@ -3,9 +3,11 @@
 		<view class="card-title-wrapper">
 			<span class="card-title">品牌与规格 (SKU)</span>
 		</view>
+		<!-- [核心修改] 传入 :bleed="true" 属性 -->
 		<ListItem v-for="sku in ingredient.skus" :key="sku.id" class="sku-item"
 			:class="{ 'item-selected': selectedSkuId === sku.id }" @click="$emit('select', sku)"
-			@longpress="$emit('longpress', sku)" :vibrate-on-long-press="ingredient.activeSkuId !== sku.id">
+			@longpress="$emit('longpress', sku)" :vibrate-on-long-press="ingredient.activeSkuId !== sku.id"
+			:bleed="true">
 			<view class="main-info">
 				<view class="name">{{ sku.brand || '无品牌' }} - {{ sku.specName }}</view>
 				<view class="desc">添加于: {{ formatChineseDate(sku.createdAt) }}</view>
@@ -14,7 +16,6 @@
 				<span v-if="sku.id === ingredient.activeSkuId" class="status-tag active">使用中</span>
 			</view>
 		</ListItem>
-		<!-- [修改] 恢复使用 AppButton 组件 -->
 		<AppButton type="text-link" @click="$emit('add')">+ 新增品牌规格</AppButton>
 	</view>
 </template>
@@ -24,9 +25,8 @@
 	import type { Ingredient, IngredientSKU } from '@/types/api';
 	import { formatChineseDate } from '@/utils/format';
 	import ListItem from '@/components/ListItem.vue';
-	import AppButton from '@/components/AppButton.vue'; // [新增] 引入 AppButton 组件
+	import AppButton from '@/components/AppButton.vue';
 
-	// 定义组件接收的属性
 	defineProps({
 		ingredient: {
 			type: Object as PropType<Ingredient>,
@@ -38,10 +38,7 @@
 		},
 	});
 
-	// 定义组件可以向外触发的事件
 	const emit = defineEmits(['select', 'longpress', 'add']);
-
-	// [删除] 移除手动实现的水波纹效果相关逻辑
 </script>
 
 <style scoped lang="scss">
@@ -80,17 +77,13 @@
 		border-radius: 0 4px 4px 0;
 	}
 
+	/* [核心修改] 移除对子组件 ListItem 的样式穿透尝试 */
 	.card-full-bleed-list {
 		padding-left: 0;
 		padding-right: 0;
 	}
 
 	.card-full-bleed-list .card-title-wrapper {
-		padding-left: 20px;
-		padding-right: 20px;
-	}
-
-	.card-full-bleed-list .list-item {
 		padding-left: 20px;
 		padding-right: 20px;
 	}

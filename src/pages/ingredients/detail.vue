@@ -8,26 +8,26 @@
 		</DetailHeader>
 
 		<DetailPageLayout>
+			<!-- [核心修改] 移除 no-horizontal-padding 类 -->
 			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
-				<view class="detail-page">
-					<view class="tag-group">
-						<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
-						<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
-						<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
-					</view>
-
-					<view class="card">
-						<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
-						<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
-						<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
-							unit-suffix="kg" />
-					</view>
-
-					<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId"
-						@select="handleSkuClick" @longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
-
-					<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
+				<!-- [核心修改] 移除 content-padding 容器，让 .page-content 自身提供边距 -->
+				<view class="tag-group">
+					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
+					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
+					<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
 				</view>
+
+				<view class="card">
+					<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
+					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
+					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
+						unit-suffix="kg" />
+				</view>
+
+				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
+					@longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
+
+				<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
 			</view>
 			<view class="loading-spinner" v-else>
 				<text>加载中...</text>
@@ -527,7 +527,7 @@
 		height: 24px;
 	}
 
-	.detail-page .tag-group {
+	.tag-group {
 		margin-bottom: 20px;
 		padding: 0 5px;
 		display: flex;
