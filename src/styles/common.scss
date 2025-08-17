@@ -1,3 +1,25 @@
+/* [兼容性修复] 创建一个 SCSS Mixin 来封装列表项内容的通用样式 */
+/* 这使得任何使用 ListItem 组件的父页面都可以通过 @include 引入这些样式，从而解决小程序中的 shadow-root 样式隔离问题 */
+@mixin list-item-content-style {
+	.main-info .name,
+	.side-info .value {
+		font-weight: 500;
+		color: var(--text-primary);
+	}
+
+	.main-info .desc,
+	.side-info .desc {
+		color: var(--text-secondary);
+		font-size: 13px;
+		margin-top: 2px;
+	}
+
+	.side-info {
+		text-align: right;
+	}
+}
+
+
 /* Page layout */
 .page-container { }
 /* [修改] page-header 现在只作为占位和背景容器，高度由组件动态设置 */
@@ -102,12 +124,6 @@
 	left: 0;
 	right: 0;
 }
-
-.main-info .name { font-weight: 500; }
-.main-info .desc { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
-.side-info { text-align: right; }
-.side-info .value { font-weight: 500; }
-.side-info .desc { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
 
 /* FAB */
 .fab { 

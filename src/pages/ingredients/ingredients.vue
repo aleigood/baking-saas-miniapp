@@ -229,6 +229,9 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前页面作用域 */
+	@include list-item-content-style;
+
 	.content-padding {
 		padding: 0 15px;
 	}

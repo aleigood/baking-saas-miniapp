@@ -1,14 +1,10 @@
 <template>
 	<page-meta page-style="overflow: hidden;"></page-meta>
-	<!-- 根 view 设置为 flex 布局的容器，并撑满整个屏幕 -->
 	<view class="main-page-container">
-		<!-- 头部是固定的，不参与滚动 -->
 		<MainHeader />
 
-		<!-- scroll-view 作为唯一的滚动容器，占据所有剩余空间 -->
 		<scroll-view :scroll-y="true" :show-scrollbar="false" class="scroll-area" enhanced>
 
-			<!-- 四个页面的内容，现在被直接放置在 scroll-view 内部，通过 v-show 切换 -->
 			<ProductionPage v-show="uiStore.activeTab === 'production'" />
 			<IngredientsPage v-show="uiStore.activeTab === 'ingredients'" />
 			<RecipesPage v-show="uiStore.activeTab === 'recipes'" />
@@ -16,7 +12,6 @@
 
 		</scroll-view>
 
-		<!-- TabBar 和 Modal 保持在最外层，不参与滚动 -->
 		<CustomTabBar />
 
 		<AppModal :visible="uiStore.showStoreModal" @update:visible="uiStore.closeModal(MODAL_KEYS.STORE)" title="选择门店"
@@ -155,6 +150,9 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	/* [兼容性修复] 引入 Mixin，确保模态框中的列表项样式正确 */
+	@include list-item-content-style;
 
 	.main-page-container {
 		display: flex;
