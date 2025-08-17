@@ -7,9 +7,10 @@
 			</view>
 		</view>
 		<template v-if="versions.length > 0">
-			<ListItem v-for="version in versions" :key="version.id" :selected="selectedVersionId === version.id"
-				@click="$emit('select-version', version)" @longpress="$emit('longpress-version', version)"
-				:vibrate-on-long-press="canEdit && !version.isActive" :bleed="true">
+			<ListItem v-for="(version, index) in versions" :key="version.id"
+				:selected="selectedVersionId === version.id" @click="$emit('select-version', version)"
+				@longpress="$emit('longpress-version', version)" :vibrate-on-long-press="canEdit && !version.isActive"
+				:bleed="true" :divider="index < versions.length - 1">
 				<view class="main-info">
 					<view class="name">{{ version.notes || `版本 ${version.version}` }}
 						(v{{ version.version }})</view>
@@ -61,7 +62,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [兼容性修复] 移除外部对子组件的样式控制，相关样式已移入 ListItem.vue 内部 */
 	.card-full-bleed-list {
 		padding-left: 0;
 		padding-right: 0;

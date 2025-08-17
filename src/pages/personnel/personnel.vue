@@ -2,8 +2,8 @@
 	<view>
 		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
 			<template v-if="dataStore.members.length > 0">
-				<ListItem v-for="member in dataStore.members" :key="member.id" @click="navigateToDetail(member.id)"
-					:bleed="true">
+				<ListItem v-for="(member, index) in dataStore.members" :key="member.id"
+					@click="navigateToDetail(member.id)" :bleed="true" :divider="index < dataStore.members.length - 1">
 					<view class="main-info">
 						<view class="name">{{ member.name || member.phone }}</view>
 						<view class="desc">加入于: {{ formatChineseDate(member.joinDate) }}</view>

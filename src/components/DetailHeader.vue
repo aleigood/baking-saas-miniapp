@@ -2,7 +2,6 @@
 	<view class="page-header" :style="headerStyle">
 		<view class="header-content" :style="contentStyle">
 			<view class="back-btn ripple-container" @touchstart="handleTouchStart" @click="navigateBack">
-				<!-- 水波纹效果的容器 -->
 				<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 				&#10094;
 			</view>
@@ -100,7 +99,8 @@
 	}
 
 	.detail-title {
-		font-size: 18px;
+		/* [字体大小调整] 按照要求将标题字体大小从 18px 调整为 20px */
+		font-size: 20px;
 		font-weight: 600;
 		flex: 1;
 		color: var(--text-primary);

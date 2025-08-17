@@ -3,9 +3,10 @@
 		<view class="card-title-wrapper">
 			<span class="card-title">品牌与规格 (SKU)</span>
 		</view>
-		<ListItem v-for="sku in ingredient.skus" :key="sku.id" :selected="selectedSkuId === sku.id"
-			@click="$emit('select', sku)" @longpress="$emit('longpress', sku)"
-			:vibrate-on-long-press="ingredient.activeSkuId !== sku.id" :bleed="true">
+		<ListItem v-for="(sku, index) in ingredient.skus" :key="sku.id" class="sku-item"
+			:selected="selectedSkuId === sku.id" @click="$emit('select', sku)" @longpress="$emit('longpress', sku)"
+			:vibrate-on-long-press="ingredient.activeSkuId !== sku.id" :bleed="true"
+			:divider="index < ingredient.skus.length - 1">
 			<view class="main-info">
 				<view class="name">{{ sku.brand || '无品牌' }} - {{ sku.specName }}</view>
 				<view class="desc">添加于: {{ formatChineseDate(sku.createdAt) }}</view>
@@ -59,7 +60,6 @@
 		}
 	}
 
-	/* [兼容性修复] 移除外部对子组件的样式控制，相关样式已移入 ListItem.vue 内部 */
 	.card-full-bleed-list {
 		padding-left: 0;
 		padding-right: 0;

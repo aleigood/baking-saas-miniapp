@@ -1,8 +1,6 @@
 <template>
 	<view>
-		<!-- [核心修改] 增加 no-horizontal-padding 类 -->
 		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
-			<!-- [核心修改] 将卡片和筛选器包裹在一个有内边距的容器中 -->
 			<view class="content-padding">
 				<view class="card">
 					<view class="card-title"><span>本周制作排行</span></view>
@@ -28,8 +26,10 @@
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
 				<template v-if="recipeFilter === 'MAIN'">
 					<template v-if="mainRecipes.length > 0">
-						<ListItem v-for="family in mainRecipes" :key="family.id" @click="navigateToDetail(family.id)"
-							@longpress="openRecipeActions(family)" :vibrate-on-long-press="canEditRecipe" :bleed="true">
+						<ListItem v-for="(family, index) in mainRecipes" :key="family.id"
+							@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
+							:vibrate-on-long-press="canEditRecipe" :bleed="true"
+							:divider="index < mainRecipes.length - 1">
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}
@@ -52,8 +52,10 @@
 
 				<template v-if="recipeFilter === 'OTHER'">
 					<template v-if="otherRecipes.length > 0">
-						<ListItem v-for="family in otherRecipes" :key="family.id" @click="navigateToDetail(family.id)"
-							@longpress="openRecipeActions(family)" :vibrate-on-long-press="canEditRecipe" :bleed="true">
+						<ListItem v-for="(family, index) in otherRecipes" :key="family.id"
+							@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
+							:vibrate-on-long-press="canEditRecipe" :bleed="true"
+							:divider="index < otherRecipes.length - 1">
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}

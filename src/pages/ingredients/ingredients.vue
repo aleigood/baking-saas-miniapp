@@ -11,8 +11,9 @@
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
 				<template v-if="ingredientFilter === 'all'">
 					<template v-if="allIngredients.length > 0">
-						<ListItem v-for="ing in allIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
-							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit" :bleed="true">
+						<ListItem v-for="(ing, index) in allIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
+							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit" :bleed="true"
+							:divider="index < allIngredients.length - 1">
 							<view class="main-info">
 								<view class="name">{{ ing.name }}</view>
 								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
@@ -34,8 +35,10 @@
 
 				<template v-if="ingredientFilter === 'low'">
 					<template v-if="lowStockIngredients.length > 0">
-						<ListItem v-for="ing in lowStockIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
-							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit" :bleed="true">
+						<ListItem v-for="(ing, index) in lowStockIngredients" :key="ing.id"
+							@click="navigateToDetail(ing.id)" @longpress="openIngredientActions(ing)"
+							:vibrate-on-long-press="canEdit" :bleed="true"
+							:divider="index < lowStockIngredients.length - 1">
 							<view class="main-info">
 								<view class="name">{{ ing.name }}</view>
 								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
