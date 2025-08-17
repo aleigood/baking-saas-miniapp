@@ -61,18 +61,6 @@
 		box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 		max-height: 80vh;
 		overflow-y: auto;
-
-		/* [核心修改] 只设置左右的负外边距，移除底部的负外边距 */
-		:deep(.options-list) {
-			margin: 0 -25px;
-			/* 这将使列表在水平方向上延伸，但会保留父容器的垂直内边距 */
-		}
-
-		/* [修改] 移除不再需要的对齐方式覆盖，只保留内边距的设置 */
-		:deep(.options-list .option-item) {
-			padding-left: 25px;
-			padding-right: 25px;
-		}
 	}
 
 	.modal-header {
