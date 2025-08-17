@@ -253,10 +253,10 @@
 
 	.detail-page .tag-group {
 		margin-bottom: 20px;
-		padding: 0 5px;
+		padding: 0px;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px;
+		gap: 5px;
 	}
 
 	.task-summary-card {

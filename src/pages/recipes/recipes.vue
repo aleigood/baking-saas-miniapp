@@ -26,10 +26,8 @@
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
 				<template v-if="recipeFilter === 'MAIN'">
 					<template v-if="mainRecipes.length > 0">
-						<ListItem v-for="(family, index) in mainRecipes" :key="family.id"
-							@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
-							:vibrate-on-long-press="canEditRecipe" :bleed="true"
-							:divider="index < mainRecipes.length - 1">
+						<ListItem v-for="family in mainRecipes" :key="family.id" @click="navigateToDetail(family.id)"
+							@longpress="openRecipeActions(family)" :vibrate-on-long-press="canEditRecipe" :bleed="true">
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}
@@ -52,10 +50,8 @@
 
 				<template v-if="recipeFilter === 'OTHER'">
 					<template v-if="otherRecipes.length > 0">
-						<ListItem v-for="(family, index) in otherRecipes" :key="family.id"
-							@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
-							:vibrate-on-long-press="canEditRecipe" :bleed="true"
-							:divider="index < otherRecipes.length - 1">
+						<ListItem v-for="family in otherRecipes" :key="family.id" @click="navigateToDetail(family.id)"
+							@longpress="openRecipeActions(family)" :vibrate-on-long-press="canEditRecipe" :bleed="true">
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}
@@ -361,7 +357,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [核心修改] 新增一个包裹容器的样式 */
 	.content-padding {
 		padding: 0 15px;
 	}
@@ -382,6 +377,16 @@
 		display: flex;
 		align-items: center;
 		font-size: 14px;
+
+		/* [样式修复] 将 .name 的样式规则嵌套在 .ranking-item 内部，以确保其作用域正确 */
+		.name {
+			flex-grow: 1;
+			margin: 0 8px 0 4px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			color: var(--text-primary);
+		}
 	}
 
 	.rank {
@@ -389,15 +394,6 @@
 		font-weight: bold;
 		width: 12px;
 		color: var(--accent-color);
-	}
-
-	.name {
-		flex-grow: 1;
-		margin: 0 8px 0 4px;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		color: var(--text-primary);
 	}
 
 	.count {
