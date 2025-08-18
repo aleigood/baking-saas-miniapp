@@ -1,18 +1,17 @@
 <template>
-	<button class="btn ripple-container" :class="buttonClasses" :disabled="disabled || loading"
-		@touchstart="handleTouchStart" @click="handleClick">
+	<!-- [兼容性修复] 根元素从 button 改为 view，以获得完全且可靠的跨平台样式控制，彻底解决 loading 状态下高度塌陷的问题 -->
+	<view class="btn ripple-container" :class="buttonClasses" @touchstart="handleTouchStart" @click="handleClick">
 		<!-- 水波纹效果的容器 -->
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 
-		<!-- 按钮内容 -->
+		<!-- [兼容性修复] 绝对定位的加载动画，不影响布局 -->
+		<view v-if="loading" class="loading-indicator"></view>
+
+		<!-- 按钮内容，加载时通过 visibility: hidden 隐藏，但仍占据空间以维持按钮高度 -->
 		<view class="content-wrapper" :style="{ visibility: loading ? 'hidden' : 'visible' }">
 			<slot></slot>
 		</view>
-
-		<view v-if="loading" class="loading-content-wrapper">
-			<slot></slot>
-		</view>
-	</button>
+	</view>
 </template>
 
 <script setup lang="ts">
@@ -106,6 +105,10 @@
 		position: relative;
 		overflow: hidden;
 		transform: translateZ(0);
+		/* [兼容性修复] 移除 button 的默认样式 */
+		margin: 0;
+		padding: 0 15px;
+		line-height: 1;
 
 		&::after {
 			border: none;
@@ -122,7 +125,6 @@
 		&.btn-primary.is-disabled {
 			background-color: #f3e9e3 !important;
 		}
-
 	}
 
 	.content-wrapper {
@@ -133,17 +135,24 @@
 		z-index: 1;
 	}
 
-	.loading-content-wrapper {
+	.loading-indicator {
 		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		gap: 8px;
-		z-index: 1;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: 20px;
+		height: 20px;
+		border: 2px solid rgba(255, 255, 255, 0.3);
+		border-radius: 50%;
+		border-top-color: #ffffff;
+		animation: spin 1s linear infinite;
+		z-index: 2;
+	}
+
+	@keyframes spin {
+		to {
+			transform: translate(-50%, -50%) rotate(360deg);
+		}
 	}
 
 	.btn-primary.loading {

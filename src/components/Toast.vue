@@ -71,11 +71,11 @@
 	}
 
 	.toast-content.success {
-		background-color: #6A994E;
+		background-color: var(--primary-color);
 	}
 
 	.toast-content.error {
-		background-color: #BC4749;
+		background-color: var(--primary-color);
 	}
 
 	/* CSS动画定义 */
