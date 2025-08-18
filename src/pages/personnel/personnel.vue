@@ -2,11 +2,6 @@
 	<view>
 		<view class="page-content page-content-with-tabbar">
 
-			<view class="profile-bg">
-			</view>
-
-			<view :style="{ height: systemStore.statusBarHeight + 'px' }"></view>
-
 			<view class="profile-card" @click="navigateToCurrentUserDetail">
 				<view class="avatar">
 					{{ userStore.userInfo?.name?.[0] || '管' }}
@@ -73,30 +68,25 @@
 	import AppButton from '@/components/AppButton.vue';
 	import type { Role } from '@/types/api';
 
-	// [新增] 引入所有需要的 store
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 	const systemStore = useSystemStore();
 
-	// [新增] 页面显示时获取最新数据
 	onShow(async () => {
 		if (!dataStore.dataLoaded.members) {
 			await dataStore.fetchMembersData();
 		}
 	});
 
-	// [新增] 计算当前用户的角色信息
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
 	);
 
-	// [新增] 检查当前用户是否具备人员管理权限
 	const canManagePersonnel = computed(() => {
 		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
 
-	// [新增] 将角色英文标识转换为中文显示
 	const getRoleName = (role : Role) => {
 		const roleMap : Record<Role, string> = {
 			OWNER: '店主',
@@ -107,12 +97,10 @@
 		return roleMap[role] || role;
 	};
 
-	// [新增] 获取当前租户的角色中文名
 	const currentTenantRoleDisplay = computed(() => {
 		return currentUserRoleInTenant.value ? getRoleName(currentUserRoleInTenant.value) : '未知角色';
 	});
 
-	// [新增] 导航到当前用户的详情/编辑页
 	const navigateToCurrentUserDetail = () => {
 		if (userStore.userInfo?.id) {
 			uni.navigateTo({
@@ -121,19 +109,16 @@
 		}
 	};
 
-	// [新增] 导航到人员管理列表页
 	const navigateToPersonnelList = () => {
 		uni.navigateTo({
 			url: '/pages/personnel/list',
 		});
 	};
 
-	// [新增] 打开退出登录确认模态框
 	const handleOpenLogoutConfirm = () => {
 		uiStore.openModal(MODAL_KEYS.LOGOUT_CONFIRM);
 	};
 
-	// [新增] 处理退出登录逻辑
 	const handleLogout = () => {
 		userStore.logout();
 		uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM);
@@ -144,38 +129,19 @@
 	@import '@/styles/common.scss';
 	@include list-item-content-style;
 
-	// [新增] 为页面内容区域增加内边距
 	.page-content {
-		padding: 0 15px;
-		/* [新增] 增加相对定位，为背景图提供定位锚点 */
+		padding: 20px 15px 0 15px; // [核心修改] 增加一个顶部内边距
 		position: relative;
 		z-index: 1;
 	}
 
-	/* [新增] 顶部背景图样式 */
-	.profile-bg {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		width: 100%;
-		z-index: 0; // 确保在内容下方
-
-		image {
-			width: 100%;
-		}
-	}
-
-	// [新增] 用户信息卡片样式
 	.profile-card {
 		display: flex;
 		align-items: center;
-		background-color: var(--card-bg);
 		padding: 20px;
 		border-radius: 20px;
-		margin-top: 15px;
 		margin-bottom: 20px;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+		position: relative;
 	}
 
 	.avatar {
@@ -213,7 +179,6 @@
 		color: var(--text-secondary);
 	}
 
-	// [新增] 占位卡片样式
 	.placeholder-card {
 		text-align: center;
 	}
@@ -224,7 +189,6 @@
 		margin-top: 10px;
 	}
 
-	// [新增] 操作列表样式
 	.action-list {
 		background-color: var(--card-bg);
 		border-radius: 20px;
@@ -236,7 +200,7 @@
 		display: flex;
 		align-items: center;
 		width: 100%;
-		padding: 5px 20px; // 调整内边距以适应图标
+		padding: 5px 20px;
 		font-size: 16px;
 		color: var(--text-primary);
 	}
@@ -247,7 +211,6 @@
 		margin-right: 15px;
 	}
 
-	// [新增] 模态框文本样式
 	.modal-prompt-text {
 		font-size: 16px;
 		color: var(--text-primary);

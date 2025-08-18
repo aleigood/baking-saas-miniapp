@@ -130,28 +130,23 @@
 		height: 100vh;
 		width: 100%;
 		overflow: hidden;
-		/* 直接使用颜色的硬编码值，确保在小程序中稳定生效 */
 		background-color: #fdf8f2;
-		/* [新增] 默认过渡效果，让背景切换更平滑 */
 		transition: background-color 0.3s ease;
 	}
 
-	/* [新增] “我的”页面激活时的通体背景样式 */
+	/* [核心修改] “我的”页面激活时，使用新的SVG作为通体背景 */
 	.main-page-container.personnel-active-bg {
-		background-color: transparent;
-		/* * [核心修改] 在这里设置您想要的背景颜色或渐变
-		 * 例如，单色背景：background-color: #eff3f8;
-		 * 或者使用您图片中的渐变效果：
-		 */
-		background-image: linear-gradient(to bottom, #eff3f8 0%, #ffffff 50%);
+		background-color: #fdf8f2; // 设置一个底色，防止图片加载时穿帮
+		background-image: url('/static/background/personnel_bg.svg');
+		background-repeat: no-repeat;
+		background-size: 100% auto; // 宽度撑满，高度自适应
+		background-position: top center; // 从顶部中心开始
 	}
 
 
 	.scroll-area {
 		flex: 1;
-		/* 关键：让滚动区域占据所有剩余空间 */
 		min-height: 0;
-		/* 关键：在 flex 布局中，防止内容溢出导致父容器被撑开 */
 		width: 100%;
 		box-sizing: border-box;
 	}
