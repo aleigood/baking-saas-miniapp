@@ -4,9 +4,16 @@
 			<template v-if="dataStore.members.length > 0">
 				<ListItem v-for="(member, index) in dataStore.members" :key="member.id"
 					@click="navigateToDetail(member.id)" :bleed="true" :divider="index < dataStore.members.length - 1">
-					<view class="main-info">
-						<view class="name">{{ member.name || member.phone }}</view>
-						<view class="desc">加入于: {{ formatChineseDate(member.joinDate) }}</view>
+					<!-- [兼容性修复] 新增一个容器来包裹头像和主要信息，实现 flex 布局 -->
+					<view class="list-item-with-avatar">
+						<!-- [兼容性修复] 新增头像占位符 -->
+						<view class="avatar-placeholder">
+							{{ getAvatarInitial(member) }}
+						</view>
+						<view class="main-info">
+							<view class="name">{{ member.name || member.phone }}</view>
+							<view class="desc">加入于: {{ formatChineseDate(member.joinDate) }}</view>
+						</view>
 					</view>
 					<view class="side-info">
 						<view class="value">{{ getRoleName(member.role) }}</view>
@@ -32,7 +39,7 @@
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
-	import type { Role } from '@/types/api';
+	import type { Member, Role } from '@/types/api';
 	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -64,6 +71,15 @@
 		return roleMap[role] || role;
 	};
 
+	/**
+	 * [兼容性修复] 新增方法，用于获取成员姓名首字母作为头像
+	 * @param member 成员对象
+	 * @returns 返回姓名首字母，如果无姓名则返回'员'
+	 */
+	const getAvatarInitial = (member : Member) => {
+		return member.name ? member.name[0] : '员';
+	};
+
 	const navigateToDetail = (memberId : string) => {
 		uni.navigateTo({
 			url: `/pages/personnel/detail?memberId=${memberId}`,
@@ -76,4 +92,25 @@
 
 	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前页面作用域 */
 	@include list-item-content-style;
+
+	/* [兼容性修复] 新增头像相关样式 */
+	.list-item-with-avatar {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.avatar-placeholder {
+		width: 42px;
+		height: 42px;
+		border-radius: 50%;
+		background-color: #f3e9e3;
+		color: var(--primary-color);
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		font-size: 16px;
+		font-weight: 500;
+		flex-shrink: 0;
+	}
 </style>
