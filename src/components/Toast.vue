@@ -1,5 +1,5 @@
 <template>
-	<view v-if="isRendered" class="toast-wrapper" :class="animationClass">
+	<view v-show="toastStore.isVisible" class="toast-wrapper" :class="animationClass">
 		<view class="toast-content" :class="toastStore.type">
 			{{ toastStore.message }}
 		</view>
@@ -11,33 +11,26 @@
 	import { useToastStore } from '@/store/toast';
 	const toastStore = useToastStore();
 
-	// [新增] isRendered 用于 v-if，控制组件是否真实存在于DOM中
-	const isRendered = ref(false);
-	// [新增] animationClass 用于控制进入和离开的动画类
+	// [修改] isRendered 不再需要，v-show 直接绑定 store 状态
+	// const isRendered = ref(false); 
+
+	// animationClass 用于控制进入和离开的动画类
 	const animationClass = ref('');
-	// [新增] 用于管理动画结束后的DOM移除操作
+
+	// [修改] animationTimer 的作用简化，不再需要移除DOM
 	let animationTimer : ReturnType<typeof setTimeout> | null = null;
 
 	watch(() => toastStore.isVisible, (newValue) => {
-		// 清除可能存在的上一个定时器
 		if (animationTimer) {
 			clearTimeout(animationTimer);
 		}
 
 		if (newValue) {
-			// 1. 当需要显示时，立即渲染DOM
-			isRendered.value = true;
-			// 2. 使用 nextTick 确保DOM渲染完成后，再添加动画类以触发进入动画
-			nextTick(() => {
-				animationClass.value = 'toast-fade-in';
-			});
+			// [修改] 由于元素一直存在于DOM中，直接应用进入动画即可
+			animationClass.value = 'toast-fade-in';
 		} else {
-			// 1. 当需要隐藏时，先应用离开动画
+			// [修改] 当需要隐藏时，应用离开动画。v-show 会在动画结束后自动添加 display: none
 			animationClass.value = 'toast-fade-out';
-			// 2. 等待动画播放完毕（300ms）后，再从DOM中移除元素
-			animationTimer = setTimeout(() => {
-				isRendered.value = false;
-			}, 300); // 这个时间必须和CSS动画的持续时间一致
 		}
 	});
 </script>
@@ -61,7 +54,7 @@
 		padding: 10px 20px;
 		border-radius: 20px;
 		font-size: 14px;
-		color: white;
+		color: var(--text-secondary);
 		background-color: rgba(0, 0, 0, 0.7);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 		text-align: center;
@@ -71,11 +64,11 @@
 	}
 
 	.toast-content.success {
-		background-color: var(--primary-color);
+		background-color: rgba(243, 233, 227, 0.7);
 	}
 
 	.toast-content.error {
-		background-color: var(--primary-color);
+		background-color: rgba(243, 233, 227, 0.7);
 	}
 
 	/* CSS动画定义 */

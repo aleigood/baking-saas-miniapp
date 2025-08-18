@@ -292,7 +292,7 @@
 		display: flex;
 		justify-content: space-around;
 		background: var(--card-bg);
-		padding: 20px;
+		padding: 25px 20px;
 		border-radius: 20px;
 		margin-bottom: 20px;
 		text-align: center;
