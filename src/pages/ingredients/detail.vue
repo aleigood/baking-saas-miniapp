@@ -32,7 +32,7 @@
 			</view>
 		</DetailPageLayout>
 
-		<AppFab @click="openProcurementModal" class="fab-no-tab-bar" />
+		<AppFab :no-tab-bar="true" @click="openProcurementModal" />
 
 		<AppModal v-model:visible="showEditModal" title="编辑原料属性">
 			<FormItem label="原料名称">

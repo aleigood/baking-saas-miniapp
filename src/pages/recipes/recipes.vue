@@ -366,6 +366,10 @@
 	/* [兼容性修复] 引入新增的 Mixin */
 	@include list-item-option-style;
 
+	.card {
+		margin-bottom: 30px;
+	}
+
 	.content-padding {
 		padding: 0 15px;
 	}

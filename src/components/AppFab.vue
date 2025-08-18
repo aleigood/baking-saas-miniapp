@@ -1,14 +1,29 @@
 <template>
-	<view class="fab ripple-container" @touchstart="handleTouchStart" @click="handleClick">
+	<view class="ripple-container" :class="fabClasses" @touchstart="handleTouchStart" @click="handleClick">
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 		<image class="fab-icon" src="/static/icons/fab-add.svg" />
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref, getCurrentInstance } from 'vue';
+	import { ref, getCurrentInstance, computed } from 'vue';
+
+	// [兼容性修复] 新增 noTabBar prop，用于从组件内部控制样式
+	const props = defineProps({
+		noTabBar: {
+			type: Boolean,
+			default: false
+		}
+	});
 
 	const emit = defineEmits(['click']);
+
+	// [兼容性修复] 使用计算属性动态生成class列表
+	const fabClasses = computed(() => ({
+		'fab': true,
+		'fab-no-tab-bar': props.noTabBar
+	}));
+
 
 	const ripples = ref<any[]>([]);
 	const instance = getCurrentInstance();
