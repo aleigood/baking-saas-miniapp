@@ -111,6 +111,7 @@
 .card-title-wrapper .card-title { margin-bottom: 0; }
 .header-action { color: var(--primary-color); font-size: 14px; font-weight: 500; }
 
+/* [兼容性修复] 移除此处不稳定的全局列表项样式，交由 ListItem 组件内部处理 */
 .list-item {
 	display: flex;
 	justify-content: space-between;
@@ -118,24 +119,9 @@
 	position: relative;
 	border-bottom: none;
 }
-
-.list-item:not(:last-child)::after {
-	content: '';
-	position: absolute;
-	bottom: 0;
-	height: 1px;
-	background-color: var(--border-color);
-	left: 5px;
-	right: 5px;
-}
-
 .list-item:last-child { border-bottom: none; }
 .card .list-item { padding-left: 0; padding-right: 0; }
 
-.card .list-item:not(:last-child)::after {
-	left: 0;
-	right: 0;
-}
 
 /* FAB */
 .fab { 

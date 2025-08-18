@@ -3,10 +3,9 @@
 		<view class="card-title-wrapper">
 			<span class="card-title">品牌与规格 (SKU)</span>
 		</view>
-		<ListItem v-for="(sku, index) in ingredient.skus" :key="sku.id" class="sku-item"
-			:selected="selectedSkuId === sku.id" @click="$emit('select', sku)" @longpress="$emit('longpress-sku', sku)"
-			:vibrate-on-long-press="ingredient.activeSku?.id !== sku.id" :bleed="true"
-			:divider="index < ingredient.skus.length - 1">
+		<ListItem v-for="(sku) in ingredient.skus" :key="sku.id" class="sku-item" :selected="selectedSkuId === sku.id"
+			@click="$emit('select', sku)" @longpress="$emit('longpress-sku', sku)"
+			:vibrate-on-long-press="ingredient.activeSku?.id !== sku.id" :bleed="true" :divider="true">
 			<view class="main-info">
 				<view class="name">{{ sku.brand || '无品牌' }} - {{ sku.specName }}</view>
 				<view class="desc">添加于: {{ formatChineseDate(sku.createdAt) }}</view>

@@ -7,10 +7,9 @@
 			</view>
 		</view>
 		<template v-if="versions.length > 0">
-			<ListItem v-for="(version, index) in versions" :key="version.id"
-				:selected="selectedVersionId === version.id" @click="$emit('select-version', version)"
-				@longpress="$emit('longpress-version', version)" :vibrate-on-long-press="canEdit && !version.isActive"
-				:bleed="true" :divider="index < versions.length - 1">
+			<ListItem v-for="(version) in versions" :key="version.id" :selected="selectedVersionId === version.id"
+				@click="$emit('select-version', version)" @longpress="$emit('longpress-version', version)"
+				:vibrate-on-long-press="canEdit && !version.isActive" :bleed="true" :divider="true">
 				<view class="main-info">
 					<view class="name">{{ version.notes || `版本 ${version.version}` }}
 						(v{{ version.version }})</view>

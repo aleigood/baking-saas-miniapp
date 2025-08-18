@@ -1,11 +1,12 @@
 <template>
 	<view class="list-item ripple-container"
-		:class="{ 'card-mode': cardMode, 'is-selected': selected, 'has-divider': divider, 'bleed-mode': bleed }"
-		@touchstart="handleTouchStart" @click="handleClick" @longpress="handleLongPress">
+		:class="{ 'card-mode': cardMode, 'is-selected': selected, 'bleed-mode': bleed }" @touchstart="handleTouchStart"
+		@click="handleClick" @longpress="handleLongPress">
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 		<view class="list-item-content" :class="{ 'no-padding': noPadding, 'bleed-padding': bleed }">
 			<slot></slot>
 		</view>
+		<view v-if="divider" class="divider"></view>
 	</view>
 </template>
 
@@ -155,8 +156,8 @@
 		z-index: 1;
 	}
 
-	/* [兼容性修复] 新增列表项之间的分隔线样式 */
-	.list-item.has-divider::after {
+	/* [兼容性修复] 新增一个真实的view元素作为分隔线，替代::after伪元素 */
+	.divider {
 		content: '';
 		position: absolute;
 		bottom: 0;
@@ -167,7 +168,7 @@
 	}
 
 	/* [兼容性修复] 当列表项为 bleed 模式时，分隔线也需要相应的内边距 */
-	.list-item.bleed-mode.has-divider::after {
+	.list-item.bleed-mode .divider {
 		left: 20px;
 		right: 20px;
 	}
