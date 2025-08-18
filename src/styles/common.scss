@@ -264,5 +264,17 @@
 
 
 /* Loading and Empty State */
-.loading-spinner { display: flex; justify-content: center; align-items: center; padding-top: 100px; }
-.empty-state { text-align: center; padding: 50px 20px; color: var(--text-secondary); }
+.loading-spinner {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding-top: 100px;
+	/* [核心修改] 新增颜色定义，使其应用主题色 */
+	color: var(--text-secondary);
+}
+
+.empty-state {
+	text-align: center;
+	padding: 50px 20px;
+	color: var(--text-secondary);
+}
