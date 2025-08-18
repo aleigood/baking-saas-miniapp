@@ -2,7 +2,6 @@
 	<view class="custom-tab-bar">
 		<view v-for="item in list" :key="item.key" :id="'tab-item-' + item.key" class="tab-item ripple-container"
 			@touchstart="handleTouchStart($event, item.key)" @click="switchTab(item)">
-			<!-- 水波纹效果的容器 -->
 			<span v-for="ripple in ripples[item.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 			<image class="icon" :src="uiStore.activeTab === item.key ? item.selectedIconPath : item.iconPath" />
 			<view class="text" :class="{ 'text-active': uiStore.activeTab === item.key }">{{ item.text }}</view>
@@ -34,7 +33,8 @@
 		selectedIconPath: "/static/tabbar/recipes_active.svg"
 	}, {
 		key: "personnel",
-		text: "人员",
+		// [核心修改] 将 “人员” 修改为 “我的”
+		text: "我的",
 		iconPath: "/static/tabbar/personnel.svg",
 		selectedIconPath: "/static/tabbar/personnel_active.svg"
 	}]);

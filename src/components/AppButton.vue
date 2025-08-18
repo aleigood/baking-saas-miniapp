@@ -97,7 +97,7 @@
 	@import '@/styles/common.scss';
 
 	.btn {
-		min-height: 50px;
+		min-height: 60px;
 		box-sizing: border-box;
 		display: flex;
 		justify-content: center;

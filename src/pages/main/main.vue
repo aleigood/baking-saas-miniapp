@@ -1,7 +1,7 @@
 <template>
 	<page-meta page-style="overflow: hidden;"></page-meta>
-	<view class="main-page-container">
-		<MainHeader />
+	<view class="main-page-container" :class="{ 'personnel-active-bg': uiStore.activeTab === 'personnel' }">
+		<MainHeader :transparent="uiStore.activeTab === 'personnel'" />
 
 		<scroll-view :scroll-y="true" :show-scrollbar="false" class="scroll-area" enhanced>
 
@@ -26,28 +26,6 @@
 						<view class="value checkmark-icon">✓</view>
 					</view>
 				</ListItem>
-			</view>
-		</AppModal>
-
-		<AppModal :visible="uiStore.showUserOptionsModal" @update:visible="uiStore.closeModal(MODAL_KEYS.USER_OPTIONS)"
-			title="账户操作" :no-header-line="true">
-			<view class="options-list">
-				<ListItem class="option-item" @click="handleOpenLogoutConfirm" :bleed="true">
-					<view class="main-info">
-						<view class="name">退出登录</view>
-					</view>
-				</ListItem>
-			</view>
-		</AppModal>
-
-		<AppModal :visible="uiStore.showLogoutConfirmModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
-			<view class="modal-prompt-text">
-				您确定要退出登录吗？
-			</view>
-			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)">取消</AppButton>
-				<AppButton type="danger" @click="handleLogout">确认退出</AppButton>
 			</view>
 		</AppModal>
 
@@ -81,7 +59,7 @@
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 
 	import CustomTabBar from '@/components/CustomTabBar.vue';
-	import MainHeader from '@/components/MainHeader.vue'; // [新增] 引入 MainHeader
+	import MainHeader from '@/components/MainHeader.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -119,16 +97,6 @@
 		}
 	};
 
-	const handleLogout = () => {
-		userStore.logout();
-		uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM);
-	};
-
-	const handleOpenLogoutConfirm = () => {
-		uiStore.closeModal(MODAL_KEYS.USER_OPTIONS);
-		uiStore.openModal(MODAL_KEYS.LOGOUT_CONFIRM);
-	};
-
 	const handleInvite = async () => {
 		if (!inviteePhone.value) {
 			toastStore.show({ message: '请输入手机号', type: 'error' });
@@ -164,7 +132,20 @@
 		overflow: hidden;
 		/* 直接使用颜色的硬编码值，确保在小程序中稳定生效 */
 		background-color: #fdf8f2;
+		/* [新增] 默认过渡效果，让背景切换更平滑 */
+		transition: background-color 0.3s ease;
 	}
+
+	/* [新增] “我的”页面激活时的通体背景样式 */
+	.main-page-container.personnel-active-bg {
+		background-color: transparent;
+		/* * [核心修改] 在这里设置您想要的背景颜色或渐变
+		 * 例如，单色背景：background-color: #eff3f8;
+		 * 或者使用您图片中的渐变效果：
+		 */
+		background-image: linear-gradient(to bottom, #eff3f8 0%, #ffffff 50%);
+	}
+
 
 	.scroll-area {
 		flex: 1;
