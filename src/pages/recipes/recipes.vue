@@ -314,7 +314,7 @@
 		isSubmitting.value = true;
 		try {
 			await discontinueRecipe(selectedRecipe.value.id);
-			toastStore.show({ message: '已停用', type: 'success' });
+			toastStore.show({ message: '配方已停用', type: 'success' });
 			await dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to discontinue recipe:', error);
@@ -330,7 +330,7 @@
 		isSubmitting.value = true;
 		try {
 			await restoreRecipe(selectedRecipe.value.id);
-			toastStore.show({ message: '已恢复', type: 'success' });
+			toastStore.show({ message: '配方已恢复', type: 'success' });
 			await dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to restore recipe:', error);
