@@ -1,13 +1,9 @@
 <template>
-	<!-- [兼容性修复] 根元素从 button 改为 view，以获得完全且可靠的跨平台样式控制，彻底解决 loading 状态下高度塌陷的问题 -->
 	<view class="btn ripple-container" :class="buttonClasses" @touchstart="handleTouchStart" @click="handleClick">
-		<!-- 水波纹效果的容器 -->
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 
-		<!-- [兼容性修复] 绝对定位的加载动画，不影响布局 -->
 		<view v-if="loading" class="loading-indicator"></view>
 
-		<!-- 按钮内容，加载时通过 visibility: hidden 隐藏，但仍占据空间以维持按钮高度 -->
 		<view class="content-wrapper" :style="{ visibility: loading ? 'hidden' : 'visible' }">
 			<slot></slot>
 		</view>
@@ -94,21 +90,23 @@
 </script>
 
 <style scoped lang="scss">
-	@import '@/styles/common.scss';
-
+	/* [样式修复] 将所有按钮样式内聚到组件内部，解决H5平台样式冲突问题 */
 	.btn {
-		min-height: 60px;
-		box-sizing: border-box;
 		display: flex;
 		justify-content: center;
 		align-items: center;
+		margin: 0;
+		padding: 10px 15px;
+		min-height: 60px;
+		box-sizing: border-box;
+		border: none;
+		border-radius: 12px;
+		font-size: 16px;
+		font-weight: 500;
+		text-align: center;
 		position: relative;
 		overflow: hidden;
 		transform: translateZ(0);
-		/* [兼容性修复] 移除 button 的默认样式 */
-		margin: 0;
-		padding: 0 15px;
-		line-height: 1;
 
 		&::after {
 			border: none;
@@ -125,6 +123,57 @@
 		&.btn-primary.is-disabled {
 			background-color: #f3e9e3 !important;
 		}
+	}
+
+	.btn-primary {
+		background-color: var(--primary-color);
+		color: white;
+	}
+
+	.btn-secondary {
+		background-color: #f3e9e3;
+		color: var(--text-secondary);
+	}
+
+	.btn-danger {
+		background-color: var(--danger-color);
+		color: white;
+	}
+
+	.btn-dashed {
+		border: 1px dashed var(--primary-color);
+		color: var(--primary-color);
+		background: transparent;
+	}
+
+	.btn-full-width {
+		width: 100%;
+		margin-top: 15px;
+	}
+
+	.btn-sm {
+		padding: 6px 12px;
+		font-size: 12px;
+		border-radius: 8px;
+		min-height: 32px;
+	}
+
+	.btn-xs {
+		padding: 4px 8px;
+		font-size: 12px;
+		border-radius: 8px;
+		min-height: 30px;
+	}
+
+	.btn-text-link {
+		width: 100%;
+		padding: 8px;
+		border: none;
+		color: var(--primary-color);
+		background: transparent;
+		border-radius: 0px;
+		font-size: 14px;
+		min-height: auto;
 	}
 
 	.content-wrapper {
