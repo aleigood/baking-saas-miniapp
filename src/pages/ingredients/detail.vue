@@ -28,8 +28,7 @@
 			</view>
 		</DetailPageLayout>
 
-		<!-- [核心修改] 使用新的 ExpandingFab 组件 -->
-		<ExpandingFab :actions="fabActions" />
+		<ExpandingFab :actions="fabActions" :no-tab-bar="true" />
 
 		<AppModal v-model:visible="showEditModal" title="编辑原料属性">
 			<FormItem label="原料名称">
