@@ -39,6 +39,7 @@
 				</template>
 			</view>
 		</DetailPageLayout>
+		<Toast />
 	</view>
 </template>
 
@@ -46,6 +47,7 @@
 	import { ref, computed, reactive } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
+	import { useToastStore } from '@/store/toast';
 	import { createTask } from '@/api/tasks';
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
@@ -53,12 +55,14 @@
 	// 3. 引入 DetailPageLayout
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import type { ProductionTaskDto } from '@/types/api';
+	import Toast from '@/components/Toast.vue';
 
 	const dataStore = useDataStore();
 	const isLoading = ref(false);
 	const isCreating = ref(false);
 	const taskQuantities = reactive<Record<string, number>>({});
 	const collapsedGroups = reactive(new Set<string>());
+	const toastStore = useToastStore();
 
 	onShow(async () => {
 		isLoading.value = true;

@@ -8,24 +8,34 @@
 		console.log('App Launch');
 		const userStore = useUserStore();
 		const dataStore = useDataStore();
-		const systemStore = useSystemStore(); // [新增] 获取 system store 实例
+		const systemStore = useSystemStore();
 
-		systemStore.initSystemInfo(); // [新增] 初始化系统信息
+		systemStore.initSystemInfo();
 
 		if (userStore.token) {
 			try {
+				// [核心修改] 等待用户信息和店铺信息都获取成功
 				await userStore.fetchUserInfo();
 				await dataStore.fetchTenants();
-				// [核心修改] 启动页跳转到新的 main 页面
-				uni.reLaunch({
-					url: '/pages/main/main',
-				});
+
+				// [核心修改] 确认用户信息有效后，再跳转到主页
+				if (userStore.userInfo) {
+					uni.reLaunch({
+						url: '/pages/main/main',
+					});
+				} else {
+					// 如果有token但获取不到用户信息，说明token无效，强制登出
+					userStore.logout();
+				}
 			} catch (error) {
+				// 捕获到任何错误（如网络问题、token过期等），都跳转到登录页
+				console.error("App Launch: Auth failed, redirecting to login.", error);
 				uni.reLaunch({
 					url: '/pages/login/login',
 				});
 			}
 		} else {
+			// 没有token，直接去登录
 			uni.reLaunch({
 				url: '/pages/login/login',
 			});
