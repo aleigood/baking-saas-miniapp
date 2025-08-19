@@ -1,4 +1,5 @@
 <template>
+	<view v-if="isOpen" class="fab-overlay" @click="toggleMenu"></view>
 	<view class="fab-container" :class="{ 'fab-no-tab-bar': noTabBar }">
 		<view class="fab-options" :class="{ 'is-open': isOpen }">
 			<view v-for="(item, index) in actions" :key="index" class="fab-option-wrapper"
@@ -97,6 +98,18 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	/* [功能新增] 遮罩层样式 */
+	.fab-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: transparent;
+		/* 确保遮罩层在FAB按钮之下，但在其他页面内容之上 */
+		z-index: 19;
+	}
+
 	.fab-container {
 		position: fixed;
 		bottom: calc(85px + constant(safe-area-inset-bottom));
@@ -155,6 +168,7 @@
 		margin: 0;
 		z-index: 1;
 		gap: 15px;
+		/* [布局兼容性修复] 默认禁用指针事件，防止在收起状态下拦截点击 */
 		pointer-events: none;
 	}
 
@@ -165,6 +179,11 @@
 		transform: translateY(10px);
 		transition: opacity 0.2s, transform 0.2s;
 		transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+		/* [布局兼容性修复] 移除此处的pointer-events，由父级 .fab-options 统一控制 */
+	}
+
+	.fab-options.is-open {
+		/* [布局兼容性修复] 菜单展开时，启用指针事件，使其可被点击 */
 		pointer-events: auto;
 	}
 
