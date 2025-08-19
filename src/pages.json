@@ -79,6 +79,8 @@
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "烘焙SaaS",
 		"navigationBarBackgroundColor": "#fdf8f2",
-		"backgroundColor": "#fdf8f2"
+		"backgroundColor": "#fdf8f2",
+		"animationType": "slide-in-right",
+		"animationDuration": 300
 	}
 }

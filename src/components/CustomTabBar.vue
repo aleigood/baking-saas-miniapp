@@ -118,7 +118,7 @@
 	}
 
 	.text {
-		font-size: 10px;
+		font-size: 11px;
 		color: var(--text-secondary);
 		z-index: 1;
 	}
