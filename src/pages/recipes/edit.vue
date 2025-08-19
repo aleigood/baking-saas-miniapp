@@ -109,7 +109,6 @@
 		if (options && options.familyId) {
 			isEditing.value = true;
 			familyId.value = options.familyId;
-			uni.showLoading({ title: '加载配方中...' });
 			try {
 				const sourceVersionJson = uni.getStorageSync('source_recipe_version');
 				if (sourceVersionJson) {

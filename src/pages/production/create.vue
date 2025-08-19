@@ -112,12 +112,11 @@
 			}));
 
 		if (productsToCreate.length === 0) {
-			uni.showToast({ title: '请输入要生产的数量', icon: 'none' });
+			toastStore.show({ message: '请输入要生产的数量', type: 'error' });
 			return;
 		}
 
 		isCreating.value = true;
-		uni.showLoading({ title: '正在生成任务...' });
 		try {
 			const payload = {
 				plannedDate: new Date().toISOString(),
@@ -125,7 +124,7 @@
 			};
 			await createTask(payload);
 			uni.hideLoading();
-			uni.showToast({ title: '任务创建成功', icon: 'success' });
+			toastStore.show({ message: '任务已创建', type: 'success' });
 			await dataStore.fetchProductionData();
 			uni.navigateBack();
 		} catch (error) {
