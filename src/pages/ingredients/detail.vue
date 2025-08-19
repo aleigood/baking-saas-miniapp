@@ -1,11 +1,7 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<DetailHeader :title="ingredient?.name || '加载中...'">
-			<IconButton @click="openEditModal">
-				<image class="header-icon" src="/static/icons/property.svg" />
-			</IconButton>
-		</DetailHeader>
+		<DetailHeader :title="ingredient?.name || '加载中...'" />
 
 		<DetailPageLayout>
 			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
@@ -32,7 +28,8 @@
 			</view>
 		</DetailPageLayout>
 
-		<AppFab :no-tab-bar="true" @click="openProcurementModal" />
+		<!-- [核心修改] 使用新的 ExpandingFab 组件 -->
+		<ExpandingFab :actions="fabActions" />
 
 		<AppModal v-model:visible="showEditModal" title="编辑原料属性">
 			<FormItem label="原料名称">
@@ -186,7 +183,8 @@
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
-	import AppFab from '@/components/AppFab.vue';
+	// [核心修改] 引入新的 ExpandingFab 组件
+	import ExpandingFab from '@/components/ExpandingFab.vue';
 	import LineChart from '@/components/LineChart.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import IconButton from '@/components/IconButton.vue';
@@ -243,6 +241,12 @@
 		isFlour: false,
 		waterContent: 0,
 	});
+
+	// [核心新增] 定义FAB按钮的动作
+	const fabActions = ref([
+		{ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() },
+		{ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() }
+	]);
 
 	onLoad(async (options) => {
 		const ingredientId = options?.ingredientId;
