@@ -1,5 +1,5 @@
 <template>
-	<view class="card card-full-bleed-list">
+	<view class="card-full-bleed-list">
 		<view class="card-title-wrapper">
 			<span class="card-title">品牌与规格 (SKU)</span>
 		</view>
@@ -64,6 +64,12 @@
 	}
 
 	.card-full-bleed-list {
+		background: var(--card-bg);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+		border-radius: 20px;
+		margin-bottom: 20px;
+		padding-top: 20px;
+		padding-bottom: 20px;
 		padding-left: 0;
 		padding-right: 0;
 	}

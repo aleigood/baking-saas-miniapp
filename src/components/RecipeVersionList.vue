@@ -1,5 +1,5 @@
 <template>
-	<view class="card card-full-bleed-list">
+	<view class="card-full-bleed-list">
 		<view class="card-title-wrapper">
 			<view class="title-with-tag">
 				<span class="card-title">配方版本</span>
@@ -59,12 +59,16 @@
 </script>
 
 <style scoped lang="scss">
-	@import '@/styles/common.scss';
-
 	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前组件作用域 */
 	@include list-item-content-style;
 
 	.card-full-bleed-list {
+		background: var(--card-bg);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+		border-radius: 20px;
+		margin-bottom: 20px;
+		padding-top: 20px;
+		padding-bottom: 20px;
 		padding-left: 0;
 		padding-right: 0;
 	}
