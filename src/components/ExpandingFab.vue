@@ -12,10 +12,10 @@
 			</view>
 		</view>
 
-		<view :id="`fab-ripple-main`" class="fab-main ripple-container" :class="{ 'is-open': isOpen }"
-			@touchstart="handleTouchStart($event, 'main')" @click="toggleMenu">
+		<view :id="`fab-ripple-main`" class="fab-main ripple-container" @touchstart="handleTouchStart($event, 'main')"
+			@click="toggleMenu">
 			<span v-for="ripple in ripples['main']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
-			<image class="fab-icon" src="/static/icons/fab-add.svg" />
+			<image class="fab-icon" :class="{ 'is-open': isOpen }" src="/static/icons/fab-add.svg" />
 		</view>
 	</view>
 </template>
@@ -29,7 +29,6 @@
 			type: Array as PropType<{ icon : string; text : string; action : () => void }[]>,
 			default: () => []
 		},
-		// [核心新增] 新增 noTabBar prop，用于控制组件在没有底部导航栏的页面时的位置
 		noTabBar: {
 			type: Boolean,
 			default: false
@@ -70,8 +69,11 @@
 		const query = uni.createSelectorQuery().in(instance);
 		query.select('#' + viewId).boundingClientRect(rect => {
 			if (rect) {
+				// [核心修正] 移除上一轮的特殊处理。由于主按钮容器不再旋转，
+				// clientX/Y 和 boundingClientRect 的计算始终是准确的。
 				const x = touch.clientX - rect.left;
 				const y = touch.clientY - rect.top;
+
 				const size = Math.max(rect.width, rect.height) * 2;
 				const newRipple = {
 					id: Date.now(),
@@ -97,24 +99,20 @@
 
 	.fab-container {
 		position: fixed;
-		/* [核心修改] 默认位置与 common.scss 中的 .fab 保持一致 */
 		bottom: calc(85px + constant(safe-area-inset-bottom));
 		bottom: calc(85px + env(safe-area-inset-bottom));
 		right: 20px;
 		z-index: 20;
-		/* [核心修改] 容器尺寸固定为主按钮尺寸，作为定位锚点 */
 		width: 56px;
 		height: 56px;
 	}
 
-	/* [核心新增] 适配没有底部导航栏的页面 */
 	.fab-container.fab-no-tab-bar {
 		bottom: calc(30px + constant(safe-area-inset-bottom));
 		bottom: calc(30px + env(safe-area-inset-bottom));
 	}
 
 	.fab-main {
-		/* [核心修改] 主按钮在容器内绝对定位，确保其位置不变 */
 		position: absolute;
 		bottom: 0;
 		right: 0;
@@ -129,27 +127,27 @@
 		z-index: 2;
 		transform: translateZ(0);
 		overflow: hidden;
-		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		/* [核心修改] 移除主按钮的 transform 动画 */
+		/* transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); */
 
 		.fab-icon {
 			width: 28px;
 			height: 28px;
+			/* [核心修改] 将旋转动画应用到图标上 */
 			transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		}
+
+		/* [核心修改] 仅旋转图标 */
+		.fab-icon.is-open {
+			transform: rotate(135deg);
 		}
 	}
 
-	.fab-main.is-open {
-		transform: rotate(135deg);
-	}
-
 	.fab-options {
-		/* [核心修改] 选项列表绝对定位在主按钮上方 */
 		position: absolute;
 		bottom: calc(100% + 15px);
-		/* 主按钮高度 + 间隙 */
 		right: 0;
 		display: flex;
-		/* [核心修改] 正常的 column 布局 */
 		flex-direction: column;
 		align-items: flex-end;
 		list-style: none;
@@ -157,7 +155,6 @@
 		margin: 0;
 		z-index: 1;
 		gap: 15px;
-		/* [核心修改] 通过 pointer-events 控制穿透，避免遮挡 */
 		pointer-events: none;
 	}
 
@@ -166,14 +163,11 @@
 		align-items: center;
 		opacity: 0;
 		transform: translateY(10px);
-		/* [核心修改] 动画延迟现在作用于单个选项 */
 		transition: opacity 0.2s, transform 0.2s;
 		transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-		/* [核心修改] 确保打开后可以点击 */
 		pointer-events: auto;
 	}
 
-	/* [核心修改] 菜单打开时，选项逐个显示 */
 	.fab-options.is-open .fab-option-wrapper {
 		opacity: 1;
 		transform: translateY(0);
@@ -201,9 +195,7 @@
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 		overflow: hidden;
 		transform: translateZ(0);
-		/* [核心修改] 增加右边距，实现与主按钮的中心对齐 */
 		margin-right: 6px;
-		/* (56px - 44px) / 2 = 6px */
 
 		.option-icon {
 			width: 22px;
