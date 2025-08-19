@@ -37,7 +37,8 @@
 		if (loginSuccess) {
 			await userStore.fetchUserInfo();
 			await dataStore.fetchTenants();
-			toastStore.show({ message: '登录成功', type: 'success' });
+			// [移除] 不再显示 "登录成功" 的 toast
+			// toastStore.show({ message: '登录成功', type: 'success' }); 
 			uni.reLaunch({ url: '/pages/main/main' });
 		}
 		loading.value = false;
