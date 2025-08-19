@@ -173,7 +173,7 @@
 		background: transparent;
 		border-radius: 0px;
 		font-size: 14px;
-		min-height: auto;
+		min-height: 60px;
 	}
 
 	.content-wrapper {
