@@ -54,7 +54,7 @@
 		padding: 10px 20px;
 		border-radius: 20px;
 		font-size: 14px;
-		color: var(--text-secondary);
+		color: #ffffff;
 		background-color: rgba(0, 0, 0, 0.7);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 		text-align: center;
@@ -64,11 +64,11 @@
 	}
 
 	.toast-content.success {
-		background-color: #f3e9e3;
+		background-color: rgba(140, 90, 59, 0.8);
 	}
 
 	.toast-content.error {
-		background-color: #f3e9e3;
+		background-color: rgba(140, 90, 59, 0.8);
 	}
 
 	/* CSS动画定义 */
