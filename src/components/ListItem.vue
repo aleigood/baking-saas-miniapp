@@ -88,16 +88,17 @@
 </script>
 
 <style scoped lang="scss">
-	@import '@/styles/common.scss';
-
+	/* [CSS重构] 将 .list-item 相关的样式从 common.scss 移入组件内部 */
 	.list-item {
 		position: relative;
 		overflow: hidden;
 		-webkit-user-select: none;
 		user-select: none;
 		-webkit-tap-highlight-color: transparent;
-
-		/* [兼容性修复] 移除组件内部阻止伪元素显示的样式 */
+		display: flex;
+		/* 新增flex布局以确保内容撑满 */
+		justify-content: space-between;
+		align-items: center;
 	}
 
 	.list-item-content {
@@ -129,6 +130,12 @@
 
 	.card-mode .list-item-content {
 		padding: 20px;
+	}
+
+	/* [CSS重构] card 内部的 list-item 特殊边距规则也移入 */
+	.card .list-item {
+		padding-left: 0;
+		padding-right: 0;
 	}
 
 	.card-mode .list-item-content.no-padding {

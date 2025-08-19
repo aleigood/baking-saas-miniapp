@@ -113,43 +113,6 @@
 .card-title-wrapper .card-title { margin-bottom: 0; }
 .header-action { color: var(--primary-color); font-size: 14px; font-weight: 500; }
 
-/* [兼容性修复] 移除此处不稳定的全局列表项样式，交由 ListItem 组件内部处理 */
-.list-item {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	position: relative;
-	border-bottom: none;
-}
-.list-item:last-child { border-bottom: none; }
-.card .list-item { padding-left: 0; padding-right: 0; }
-
-
-/* FAB */
-.fab { 
-    position: fixed; 
-    bottom: calc(85px + constant(safe-area-inset-bottom));
-    bottom: calc(85px + env(safe-area-inset-bottom));
-    right: 20px; 
-    width: 56px; 
-    height: 56px; 
-    background-color: var(--primary-color); 
-    color: white; 
-    border-radius: 50%; 
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-    box-shadow: 0 6px 20px rgba(140,90,59,0.3); 
-    z-index: 20; 
-    transform: translateZ(0);
-    overflow: hidden;
-}
-.fab.fab-no-tab-bar {
-	bottom: calc(30px + constant(safe-area-inset-bottom));
-	bottom: calc(30px + env(safe-area-inset-bottom));
-}
-.fab-icon { width: 28px; height: 28px; z-index: 1; } 
-
 .modal-actions {
 	gap: 10px;
 	margin-top: 30px;

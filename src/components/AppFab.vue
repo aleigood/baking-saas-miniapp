@@ -62,8 +62,38 @@
 </script>
 
 <style scoped lang="scss">
-	@import '@/styles/common.scss';
+	/* [CSS重构] 将 FAB 相关的样式从 common.scss 移入组件内部 */
+	.fab {
+		position: fixed;
+		bottom: calc(85px + constant(safe-area-inset-bottom));
+		bottom: calc(85px + env(safe-area-inset-bottom));
+		right: 20px;
+		width: 56px;
+		height: 56px;
+		background-color: var(--primary-color);
+		color: white;
+		border-radius: 50%;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		box-shadow: 0 6px 20px rgba(140, 90, 59, 0.3);
+		z-index: 20;
+		transform: translateZ(0);
+		overflow: hidden;
+	}
 
+	.fab.fab-no-tab-bar {
+		bottom: calc(30px + constant(safe-area-inset-bottom));
+		bottom: calc(30px + env(safe-area-inset-bottom));
+	}
+
+	.fab-icon {
+		width: 28px;
+		height: 28px;
+		z-index: 1;
+	}
+
+	/* [CSS重构] 水波纹效果的样式也一并移入 */
 	.ripple {
 		background-color: rgba(255, 255, 255, 0.4);
 	}
