@@ -59,20 +59,23 @@ export const useDataStore = defineStore('data', () => {
 
 	const productList = computed(() : ProductListItem[] => {
 		const list : ProductListItem[] = [];
-		recipes.value.forEach((family) => {
-			family.versions
-				.filter((v) => v.isActive)
-				.forEach((version) => {
-					version.products.forEach((product) => {
-						list.push({
-							id: product.id,
-							name: product.name,
-							type: family.name,
-							familyId: family.id,
+		// [核心修改] 遍历处理前，先过滤掉已停用的配方
+		recipes.value
+			.filter((family) => !family.deletedAt)
+			.forEach((family) => {
+				family.versions
+					.filter((v) => v.isActive)
+					.forEach((version) => {
+						version.products.forEach((product) => {
+							list.push({
+								id: product.id,
+								name: product.name,
+								type: family.name,
+								familyId: family.id,
+							});
 						});
 					});
-				});
-		});
+			});
 		return list;
 	});
 
