@@ -27,12 +27,6 @@
 						<text>人员管理</text>
 					</view>
 				</ListItem>
-				<ListItem class="action-item" @click="uiStore.openModal(MODAL_KEYS.INVITE)" :bleed="true">
-					<view class="action-item-content">
-						<image class="action-icon" src="/static/icons/add.svg" />
-						<text>邀请新成员</text>
-					</view>
-				</ListItem>
 				<ListItem class="action-item" @click="handleOpenLogoutConfirm" :bleed="true">
 					<view class="action-item-content">
 						<image class="action-icon" src="/static/icons/remove.svg" />

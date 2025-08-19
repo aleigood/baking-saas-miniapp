@@ -29,22 +29,6 @@
 			</view>
 		</AppModal>
 
-		<AppModal :visible="uiStore.showInviteModal" @update:visible="uiStore.closeModal(MODAL_KEYS.INVITE)"
-			title="邀请新成员">
-			<FormItem label="被邀请人手机号">
-				<input class="input-field" type="tel" v-model="inviteePhone" placeholder="请输入手机号" />
-			</FormItem>
-			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.INVITE)">
-					取消
-				</AppButton>
-				<AppButton type="primary" @click="handleInvite" :disabled="isCreatingInvite"
-					:loading="isCreatingInvite">
-					{{ isCreatingInvite ? '' : '确认邀请' }}
-				</AppButton>
-			</view>
-		</AppModal>
-
 		<Toast />
 	</view>
 </template>
@@ -77,9 +61,6 @@
 	const userStore = useUserStore();
 	const toastStore = useToastStore();
 
-	const isCreatingInvite = ref(false);
-	const inviteePhone = ref('');
-
 	const handleSelectTenant = async (tenantId : string) => {
 		if (dataStore.currentTenantId === tenantId) {
 			uiStore.closeModal(MODAL_KEYS.STORE);
@@ -94,24 +75,6 @@
 			if (uiStore.activeTab === 'personnel') await dataStore.fetchMembersData();
 		} catch (error) {
 			console.error("Failed to select tenant:", error);
-		}
-	};
-
-	const handleInvite = async () => {
-		if (!inviteePhone.value) {
-			toastStore.show({ message: '请输入手机号', type: 'error' });
-			return;
-		}
-		isCreatingInvite.value = true;
-		try {
-			await createInvitation(inviteePhone.value);
-			toastStore.show({ message: '邀请已发送', type: 'success' });
-			uiStore.closeModal(MODAL_KEYS.INVITE);
-			inviteePhone.value = '';
-		} catch (error) {
-			console.error('Failed to create invitation:', error);
-		} finally {
-			isCreatingInvite.value = false;
 		}
 	};
 </script>
