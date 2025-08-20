@@ -9,6 +9,8 @@
 						<span class="tag">日期: {{ formattedDate }}</span>
 						<span class="tag">创建人: {{ creatorName }}</span>
 						<span class="tag">计划总数: {{ totalQuantity }}</span>
+						<!-- [修改] 移除tag-warning样式类，使其与其它标签样式完全一致 -->
+						<span v-if="task.stockWarning" class="tag">{{ task.stockWarning }}</span>
 					</view>
 
 					<view class="task-summary-card">
@@ -132,6 +134,7 @@
 		}[]>();
 
 		task.value.items.forEach(item => {
+			// [恢复] 恢复从任务详情数据中直接获取配方家族名称
 			const familyName = item.product.recipeVersion.family.name;
 			if (!groups.has(familyName)) {
 				groups.set(familyName, []);
@@ -156,6 +159,7 @@
 
 		task.value.items.forEach(item => {
 			const product = item.product;
+			// [恢复] 恢复原来的逻辑，直接从任务详情数据中获取配方版本信息
 			if (!product || !product.recipeVersion || !product.recipeVersion.doughs) return;
 
 			const recipeName = product.recipeVersion.family.name;
@@ -259,6 +263,14 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 5px;
+	}
+
+	/* [修改] 移除 .tag-warning 的特殊样式定义 */
+	.tag {
+		/* [新增] 增加对长文本换行的支持 */
+		white-space: normal;
+		text-align: left;
+		line-height: 1.5;
 	}
 
 	.task-summary-card {

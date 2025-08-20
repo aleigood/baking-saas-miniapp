@@ -176,6 +176,14 @@ export interface ProductionTaskDto {
 			};
 		};
 	}[];
+	// [新增] 库存警告信息
+	stockWarning ?: string;
+}
+
+// [新增] 创建生产任务的响应类型
+export interface CreateTaskResponse {
+	task : ProductionTaskDto;
+	warning ?: string;
 }
 
 
