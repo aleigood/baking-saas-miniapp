@@ -16,6 +16,11 @@
 								<view class="task-info">
 									<view class="title">{{ getTaskTitle(task) }}</view>
 									<view class="details">{{ getTaskDetails(task) }}</view>
+									<view v-if="task.status === 'COMPLETED' || task.status === 'CANCELLED'"
+										class="details end-time">
+										{{ task.status === 'COMPLETED' ? '完成于' : '取消于' }}:
+										{{ formatEventTime(task.plannedDate, task.updatedAt) }}
+									</view>
 								</view>
 								<view class="status-tag" :class="getStatusClass(task.status)">
 									{{ getStatusText(task.status) }}
@@ -46,9 +51,9 @@
 	import ListItem from '@/components/ListItem.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
-	import { formatChineseDate } from '@/utils/format';
+	// [核心修改] 引入新的智能时间格式化函数
+	import { formatChineseDate, formatEventTime } from '@/utils/format';
 
-	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
 		inheritAttrs: false
 	});
@@ -66,9 +71,6 @@
 		}
 	});
 
-	// [核心修改] 移除 onReachBottom，因为它不再被触发
-
-	// [核心修改] 新增 handleLoadMore 方法来处理加载逻辑
 	const handleLoadMore = async () => {
 		if (dataStore.historicalTasksMeta.hasMore && !isLoadingMore.value) {
 			isLoadingMore.value = true;
@@ -111,6 +113,7 @@
 		const totalQuantity = getTotalQuantity(task);
 		return `${formattedDate} - by ${creator} | 总数: ${totalQuantity}`;
 	};
+
 
 	const getStatusText = (status : ProductionTaskDto['status']) => {
 		const map = {
@@ -190,8 +193,15 @@
 
 	.details {
 		color: var(--text-secondary);
-		font-size: 14px;
+		font-size: 13px;
+		margin-bottom: 4px;
 	}
+
+	.end-time {
+		color: var(--text-secondary);
+		font-size: 13px;
+	}
+
 
 	.status-tag {
 		padding: 4px 12px;

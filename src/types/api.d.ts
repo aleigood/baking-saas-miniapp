@@ -153,6 +153,8 @@ export interface ProductionTaskDto {
 	id : string;
 	status : 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 	plannedDate : string;
+	// [新增] 任务的实际完成时间
+	completedAt : string | null;
 	notes : string | null;
 	items : {
 		id : string;
