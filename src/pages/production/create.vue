@@ -1,10 +1,7 @@
 <template>
-	<!-- 1. 添加 page-meta -->
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
-	<!-- 2. 根 view class 改为 page-wrapper -->
 	<view class="page-wrapper">
 		<DetailHeader title="新建生产任务" />
-		<!-- 4. 使用 DetailPageLayout 包裹滚动内容 -->
 		<DetailPageLayout>
 			<view class="page-content">
 				<view class="loading-spinner" v-if="isLoading">
@@ -56,6 +53,11 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import type { ProductionTaskDto } from '@/types/api';
 	import Toast from '@/components/Toast.vue';
+
+	// [新增] 禁用属性继承，以解决多根节点组件的警告
+	defineOptions({
+		inheritAttrs: false
+	});
 
 	const dataStore = useDataStore();
 	const isLoading = ref(false);

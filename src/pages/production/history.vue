@@ -2,7 +2,6 @@
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
 		<DetailHeader title="制作历史" />
-		<!-- [核心修改] 监听 DetailPageLayout 派发出的 @scrolltolower 事件，并绑定 handleLoadMore 方法 -->
 		<DetailPageLayout @scrolltolower="handleLoadMore">
 			<view class="page-content">
 				<view class="loading-spinner" v-if="isLoading && !dataStore.dataLoaded.historicalTasks">
@@ -48,6 +47,11 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import { formatChineseDate } from '@/utils/format';
+
+	// [新增] 禁用属性继承，以解决多根节点组件的警告
+	defineOptions({
+		inheritAttrs: false
+	});
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();

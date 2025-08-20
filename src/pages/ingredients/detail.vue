@@ -197,6 +197,11 @@
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { formatChineseDate } from '@/utils/format';
 
+	// [新增] 禁用属性继承，以解决多根节点组件的警告
+	defineOptions({
+		inheritAttrs: false
+	});
+
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 	const toastStore = useToastStore();

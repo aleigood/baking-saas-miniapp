@@ -1,10 +1,7 @@
 <template>
-	<!-- [新增] 1. 添加 page-meta 禁止页面级滚动并设置背景色 -->
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
-	<!-- [修改] 2. 将根节点改为 page-wrapper 以应用 flex 布局 -->
 	<view class="page-wrapper">
 		<DetailHeader title="任务详情" />
-		<!-- [修改] 3. 使用 DetailPageLayout 组件包裹滚动内容 -->
 		<DetailPageLayout>
 			<view class="page-content" v-if="!isLoading && task">
 				<view class="detail-page">
@@ -80,6 +77,11 @@
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue'; // [新增] 引入新的布局组件
+
+	// [新增] 禁用属性继承，以解决多根节点组件的警告
+	defineOptions({
+		inheritAttrs: false
+	});
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
