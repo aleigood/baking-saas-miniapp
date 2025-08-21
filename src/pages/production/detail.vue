@@ -9,7 +9,6 @@
 						<span class="tag">日期: {{ formattedDate }}</span>
 						<span class="tag">创建人: {{ creatorName }}</span>
 						<span class="tag">计划总数: {{ totalQuantity }}</span>
-						<!-- [修改] 移除tag-warning样式类，使其与其它标签样式完全一致 -->
 						<span v-if="task.stockWarning" class="tag">{{ task.stockWarning }}</span>
 					</view>
 
@@ -171,7 +170,8 @@
 			product.recipeVersion.doughs.forEach(dough => {
 				let totalFlourRatio = 0;
 				dough.ingredients.forEach(ing => {
-					if (ing.isFlour) {
+					// [核心修改] 从嵌套的 ingredient 对象中获取 isFlour 属性
+					if (ing.ingredient.isFlour) {
 						totalFlourRatio += ing.ratio;
 					}
 				});
@@ -181,8 +181,10 @@
 
 				dough.ingredients.forEach(ingredient => {
 					const weight = weightPerRatioPoint * ingredient.ratio * item.quantity;
-					const currentWeight = ingredientsMap.get(ingredient.name) || 0;
-					ingredientsMap.set(ingredient.name, currentWeight + weight);
+					// [核心修改] 从嵌套的 ingredient 对象中获取原料名称
+					const ingredientName = ingredient.ingredient.name;
+					const currentWeight = ingredientsMap.get(ingredientName) || 0;
+					ingredientsMap.set(ingredientName, currentWeight + weight);
 				});
 			});
 		});
@@ -216,8 +218,7 @@
 			toastStore.show({ message: '任务已完成', type: 'success' });
 			await dataStore.fetchProductionData();
 			uni.navigateBack();
-		} catch (error) {
-			// [修改] 增加异常捕获
+		} catch (error) { // [修改] 增加异常捕获
 			console.error('Failed to complete task:', error);
 		} finally {
 			isSubmitting.value = false;

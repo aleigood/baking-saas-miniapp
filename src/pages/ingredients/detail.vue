@@ -1,22 +1,34 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
+		<!-- [核心修改] 移除标题栏右侧的图标按钮 -->
 		<DetailHeader :title="ingredient?.name || '加载中...'" />
 
 		<DetailPageLayout>
 			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
-				<view class="tag-group">
-					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
-					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
-					<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
+				<!-- [核心修改] 新增一个容器包裹标签和按钮 -->
+				<view class="top-info-bar">
+					<view class="tag-group">
+						<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
+						<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
+						<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
+					</view>
+					<!-- [核心修改] 将库存流水按钮移到此处 -->
+					<IconButton @click="navigateToLedger">
+						<image class="header-icon" src="/static/icons/history.svg" />
+					</IconButton>
 				</view>
+
 
 				<view class="card">
 					<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
+					<!-- 价格走势图 -->
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
+					<!-- 用量走势图 -->
 					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
 						unit-suffix="kg" />
 				</view>
+
 
 				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
 					@longpress-sku="handleSkuLongPressAction" @add="openAddSkuModal" />
@@ -32,6 +44,7 @@
 
 		<AppModal v-model:visible="showEditModal" title="编辑原料属性">
 			<FormItem label="原料名称">
+				<!-- [核心修改] 允许编辑原料名称 -->
 				<input class="input-field" v-model="ingredientForm.name" placeholder="输入原料名称" />
 			</FormItem>
 			<FormItem label="原料类型">
@@ -75,6 +88,7 @@
 			</view>
 		</AppModal>
 
+		<!-- 修改：新增采购弹窗，加入“补录”逻辑 -->
 		<AppModal v-model:visible="showProcurementModal" title="新增采购">
 			<FormItem label="采购商品">
 				<input class="input-field" :value="activeSkuName" readonly disabled />
@@ -87,10 +101,12 @@
 				<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
 					placeholder="例如：255" />
 			</FormItem>
+			<!-- 修改：调整“补录”开关布局以匹配UI风格 -->
 			<view class="form-row" style="margin-bottom: 20px;">
 				<label class="form-row-label">采购补录</label>
 				<switch :checked="isBackEntry" @change="onBackEntryChange" color="#8c5a3b" />
 			</view>
+			<!-- 新增：仅在补录时显示日期选择器 -->
 			<FormItem v-if="isBackEntry" label="采购日期">
 				<picker mode="date" :value="procurementForm.purchaseDate" @change="onNewProcurementDateChange">
 					<view class="picker">{{ procurementForm.purchaseDate }}</view>
@@ -160,13 +176,15 @@
 			</view>
 		</AppModal>
 
+		<!-- 修改：编辑采购记录弹窗，确保只修改价格 -->
 		<AppModal v-model:visible="showEditProcurementModal" title="编辑采购记录">
 			<FormItem label="采购商品">
 				<input class="input-field" :value="editedProcurementSkuName" readonly disabled />
 			</FormItem>
 			<FormItem label="采购数量">
-				<input class="input-field" :value="`${editProcurementForm.packagesPurchased}`" readonly disabled />
+				<input class="input-field" :value="`${editProcurementForm.packagesPurchased} 包`" readonly disabled />
 			</FormItem>
+			<!-- 修改：只允许修改总价 -->
 			<FormItem label="采购总价 (元)">
 				<input class="input-field" type="number" v-model.number="editProcurementForm.totalPrice"
 					placeholder="输入总价" />
@@ -179,35 +197,47 @@
 			</view>
 		</AppModal>
 
+		<!-- [核心修改] 增加预设原因 -->
 		<AppModal :visible="uiStore.showUpdateStockConfirmModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM)" title="修改库存">
-			<FormItem label="新的库存数量 (kg)">
-				<input class="input-field" type="digit" v-model.number="newStockAmountInKg" placeholder="输入新的库存公斤数" />
+			@update:visible="uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM)" title="库存调整">
+			<FormItem label="库存变化量 (kg)">
+				<input class="input-field" type="digit" v-model="stockAdjustment.changeInKg"
+					placeholder="正数代表盘盈，负数代表损耗" />
 			</FormItem>
-			<view class="modal-warning-text" style="text-align: left; margin-top: -10px; margin-bottom: 20px;">
-				注意：这将直接覆盖当前库存，而不是增加或减少。
-			</view>
+			<FormItem label="调整原因 (可选)">
+				<view class="reason-tags">
+					<FilterTabs>
+						<FilterTab v-for="reason in presetReasons" :key="reason"
+							:active="stockAdjustment.reason === reason" @click="selectReason(reason)">
+							{{ reason }}
+						</FilterTab>
+					</FilterTabs>
+				</view>
+				<input class="input-field" v-model="stockAdjustment.reason" placeholder="或手动输入原因" />
+			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM)">取消</AppButton>
 				<AppButton type="primary" @click="handleConfirmUpdateStock" :loading="isSubmitting">
-					{{ isSubmitting ? '保存中...' : '确认修改' }}
+					{{ isSubmitting ? '保存中...' : '确认调整' }}
 				</AppButton>
 			</view>
 		</AppModal>
+
 
 		<Toast />
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref, computed, reactive } from 'vue';
+	import { ref, computed, reactive, watch } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
+	import { useUserStore } from '@/store/user';
 	import { useToastStore } from '@/store/toast';
-	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
-	// 修改：引入正确的 updateProcurement 接口 和 新增的 updateStock 接口
-	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteSku, updateProcurement, updateStock } from
+	import type { Ingredient, IngredientSKU, ProcurementRecord, IngredientLedgerEntry } from '@/types/api';
+	// [核心修改] 导入新的 API 函数
+	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteSku, updateProcurement, adjustStock, getIngredientLedger } from
 		'@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
@@ -223,8 +253,10 @@
 	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
+	import FilterTabs from '@/components/FilterTabs.vue'; // [新增] 引入 FilterTabs
+	import FilterTab from '@/components/FilterTab.vue'; // [新增] 引入 FilterTab
 	import { MODAL_KEYS } from '@/constants/modalKeys';
-	import { formatChineseDate } from '@/utils/format';
+	import { formatChineseDate, formatDateTime } from '@/utils/format';
 
 	defineOptions({
 		inheritAttrs: false
@@ -232,10 +264,12 @@
 
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
+	const userStore = useUserStore();
 	const toastStore = useToastStore();
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const ingredient = ref<Ingredient | null>(null);
+	// [核心修改] 移除“库存流水”标签页
 	const detailChartTab = ref<'price' | 'usage'>('price');
 	const chartTabs = ref([
 		{ key: 'price', label: '价格走势' },
@@ -252,10 +286,9 @@
 		skuId: '',
 		packagesPurchased: 0,
 		totalPrice: 0,
-		purchaseDate: '', // 修改：初始值为空
+		purchaseDate: '',
 	});
 
-	// 新增：“补录”开关状态
 	const isBackEntry = ref(false);
 
 	const costHistory = ref<{ cost : number }[]>([]);
@@ -285,15 +318,29 @@
 		totalPrice: 0,
 	});
 
-	// [新增] 用于修改库存弹窗的响应式数据
-	const newStockAmountInKg = ref(0);
+	// [核心修改] 用于库存调整弹窗的响应式数据
+	const stockAdjustment = reactive({
+		changeInKg: 0,
+		reason: ''
+	});
 
-	// [修改] 更新 FAB 按钮的 actions
-	const fabActions = ref([
-		{ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() },
-		{ icon: '/static/icons/settings.svg', text: '修改库存', action: () => openUpdateStockModal() }, // [新增] 修改库存按钮
-		{ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() }
-	]);
+	// [新增] 预设的库存调整原因
+	const presetReasons = ref(['盘点损耗', '盘点盈余', '过期损耗', '员工餐']);
+
+	// [核心修改] 根据用户角色动态生成 FAB 菜单
+	const fabActions = computed(() => {
+		const currentUserRole = userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role;
+		const actions = [
+			{ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() },
+			{ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() }
+		];
+
+		if (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') {
+			actions.splice(1, 0, { icon: '/static/icons/settings.svg', text: '库存调整', action: () => openUpdateStockModal() });
+		}
+
+		return actions;
+	});
 
 	onLoad(async (options) => {
 		const ingredientId = options?.ingredientId;
@@ -308,10 +355,11 @@
 	const loadIngredientData = async (id : string) => {
 		isLoading.value = true;
 		try {
+			// [核心修改] 不再获取库存流水数据
 			const [ingredientData, historyData, usageData] = await Promise.all([
 				getIngredient(id),
 				getIngredientCostHistory(id),
-				getIngredientUsageHistory(id).then(data => data.map(item => ({ cost: item.cost / 1000 })))
+				getIngredientUsageHistory(id).then(data => data.map(item => ({ cost: item.cost / 1000 }))),
 			]);
 			ingredient.value = ingredientData;
 			costHistory.value = historyData;
@@ -416,13 +464,12 @@
 			skuId: ingredient.value.activeSku.id,
 			packagesPurchased: 0,
 			totalPrice: 0,
-			purchaseDate: '', // 默认清空
+			purchaseDate: '',
 		};
-		isBackEntry.value = false; // 重置补录开关
+		isBackEntry.value = false;
 		showProcurementModal.value = true;
 	};
 
-	// 新增：“补录”开关处理
 	const onBackEntryChange = (e : any) => {
 		isBackEntry.value = e.detail.value;
 		if (isBackEntry.value) {
@@ -575,17 +622,11 @@
 			const record = selectedProcurementForAction.value;
 			editProcurementForm.id = record.id;
 			editProcurementForm.packagesPurchased = record.packagesPurchased;
-			// 修复：从单价计算总价
 			editProcurementForm.totalPrice = Number(record.pricePerPackage) * record.packagesPurchased;
 			editProcurementForm.purchaseDate = new Date(record.purchaseDate).toISOString().split('T')[0];
 			showEditProcurementModal.value = true;
 		}
 	};
-
-	// 移除：编辑采购记录时不再需要修改日期
-	// const onEditProcurementDateChange = (e : any) => {
-	// 	editProcurementForm.purchaseDate = e.detail.value;
-	// };
 
 	const handleUpdateProcurement = async () => {
 		if (!editProcurementForm.id || !ingredient.value) return;
@@ -597,12 +638,9 @@
 				isSubmitting.value = false;
 				return;
 			}
-
-			// 修复：只提交 pricePerPackage
 			const payload = {
 				pricePerPackage: Number(pricePerPackage.toFixed(2)),
 			};
-
 			await updateProcurement(editProcurementForm.id, payload);
 			toastStore.show({ message: '更新成功', type: 'success' });
 			showEditProcurementModal.value = false;
@@ -616,42 +654,60 @@
 	};
 
 	/**
-	 * [新增] 打开修改库存模态框
+	 * [核心修改] 打开库存调整模态框
 	 */
 	const openUpdateStockModal = () => {
 		if (ingredient.value) {
-			// 将当前的库存克数转换为公斤数，并保留两位小数
-			newStockAmountInKg.value = Number((ingredient.value.currentStockInGrams / 1000).toFixed(2));
+			stockAdjustment.changeInKg = 0; // 重置变化量
+			stockAdjustment.reason = ''; // 重置原因
 			uiStore.openModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
 		}
 	};
 
 	/**
-	 * [新增] 确认修改库存
+	 * [新增] 选择预设原因
+	 */
+	const selectReason = (reason : string) => {
+		stockAdjustment.reason = reason;
+	};
+
+	/**
+	 * [核心修改] 确认库存调整
 	 */
 	const handleConfirmUpdateStock = async () => {
 		if (!ingredient.value) return;
-		if (newStockAmountInKg.value < 0 || newStockAmountInKg.value === null) {
-			toastStore.show({ message: '请输入有效的库存数量', type: 'error' });
+		if (stockAdjustment.changeInKg === 0 || stockAdjustment.changeInKg === null) {
+			toastStore.show({ message: '请输入有效的库存变化量', type: 'error' });
 			return;
 		}
 
 		isSubmitting.value = true;
 		try {
-			// 将输入的公斤数转换为克数
-			const newStockInGrams = newStockAmountInKg.value * 1000;
-			// 调用新的API函数
-			await updateStock(ingredient.value.id, { currentStockInGrams: newStockInGrams });
-			toastStore.show({ message: '库存更新成功', type: 'success' });
+			const changeInGrams = stockAdjustment.changeInKg * 1000;
+			await adjustStock(ingredient.value.id, {
+				changeInGrams: changeInGrams,
+				reason: stockAdjustment.reason || undefined,
+			});
+			toastStore.show({ message: '库存调整成功', type: 'success' });
 			uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
-			// 重新加载原料数据以刷新页面
 			await loadIngredientData(ingredient.value.id);
-			// 同时刷新列表页的数据
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
-			console.error("Failed to update stock:", error);
+			console.error("Failed to adjust stock:", error);
 		} finally {
 			isSubmitting.value = false;
+		}
+	};
+
+	/**
+	 * [新增] 跳转到库存流水页面
+	 */
+	const navigateToLedger = () => {
+		if (ingredient.value) {
+			uni.navigateTo({
+				// 将原料ID和名称作为参数传递给流水页面
+				url: `/pages/ingredients/ledger?ingredientId=${ingredient.value.id}&ingredientName=${ingredient.value.name}`
+			});
 		}
 	};
 </script>
@@ -672,9 +728,19 @@
 		height: 24px;
 	}
 
-	.tag-group {
+	/* [新增] 顶部信息栏样式 */
+	.top-info-bar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 		margin-bottom: 20px;
-		padding: 0px;
+		gap: 10px;
+	}
+
+	.tag-group {
+		flex: 1;
+		margin-bottom: 0;
+		padding: 0;
 		display: flex;
 		flex-wrap: wrap;
 		gap: 5px;
@@ -694,11 +760,6 @@
 		text-align: left;
 	}
 
-	.input-field[disabled] {
-		background-color: #e9ecef;
-		color: #6c757d;
-	}
-
 	.form-row {
 		display: flex;
 		justify-content: space-between;
@@ -714,5 +775,15 @@
 	.form-row .input-field {
 		width: 120px;
 		text-align: right;
+	}
+
+	/* [新增] 调整原因标签样式 */
+	.reason-tags {
+		margin-bottom: 15px;
+
+		:deep(.filter-tabs) {
+			flex-wrap: wrap;
+			margin-bottom: 0;
+		}
 	}
 </style>

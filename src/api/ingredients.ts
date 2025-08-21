@@ -3,7 +3,7 @@
  * 文件描述: (已更新) 封装所有与原料(Ingredient)相关的API请求。
  */
 import { request } from '@/utils/request';
-import type { Ingredient } from '@/types/api';
+import type { Ingredient, IngredientLedgerEntry } from '@/types/api'; // [修改] 导入新类型
 
 /**
  * 获取当前店铺的原料列表
@@ -21,6 +21,16 @@ export function getIngredients() : Promise<Ingredient[]> {
 export function getIngredient(ingredientId : string) : Promise<Ingredient> {
 	return request<Ingredient>({
 		url: `/ingredients/${ingredientId}`,
+	});
+}
+
+/**
+ * [新增] 获取原料的库存流水
+ * @param ingredientId 原料的ID
+ */
+export function getIngredientLedger(ingredientId : string) : Promise<IngredientLedgerEntry[]> {
+	return request<IngredientLedgerEntry[]>({
+		url: `/ingredients/${ingredientId}/ledger`,
 	});
 }
 
@@ -51,11 +61,11 @@ export function updateIngredient(ingredientId : string, data : { name ?: string;
 }
 
 /**
- * [新增] 更新原料的库存
+ * [核心修改] 调整原料的库存 (原子操作)
  * @param ingredientId 原料的ID
- * @param data 包含新库存的对象 (单位: 克)
+ * @param data 包含库存变化量和原因的对象
  */
-export function updateStock(ingredientId : string, data : { currentStockInGrams : number }) : Promise<Ingredient> {
+export function adjustStock(ingredientId : string, data : { changeInGrams : number; reason ?: string }) : Promise<Ingredient> {
 	return request<Ingredient>({
 		url: `/ingredients/${ingredientId}/stock`,
 		method: 'PATCH',
@@ -103,25 +113,16 @@ export function deleteSku(skuId : string) : Promise<any> {
  * [新增] 创建一条采购记录
  * @param data 包含SKU ID、采购数量和价格
  */
-// 修改：将 purchaseDate 设为可选，以支持补录功能
+// [核心修复] 修正 createProcurement 函数，确保 skuId 包含在请求体中
 export function createProcurement(data : { skuId : string; packagesPurchased : number; pricePerPackage : number, purchaseDate ?: string }) : Promise<any> {
-	// 准备要发送到后端的数据体
-	const requestData : { packagesPurchased : number; pricePerPackage : number; purchaseDate ?: string } = {
-		packagesPurchased: data.packagesPurchased,
-		pricePerPackage: data.pricePerPackage,
-	};
-
-	// 如果传入了 purchaseDate，则将其添加到请求体中
-	if (data.purchaseDate) {
-		requestData.purchaseDate = data.purchaseDate;
-	}
-
+	// 直接将接收到的 data 对象作为请求体发送，因为它已经包含了所有必需的字段
 	return request({
 		url: `/ingredients/skus/${data.skuId}/procurements`,
 		method: 'POST',
-		data: requestData,
+		data: data, // 直接使用传入的完整 data 对象
 	});
 }
+
 
 /**
  * [核心新增] 删除一条采购记录

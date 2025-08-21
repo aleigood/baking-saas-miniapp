@@ -1,5 +1,4 @@
 <template>
-	<!-- 专门用于显示非主面团配方（面种、馅料等）的组件 -->
 	<view class="card">
 		<view class="card-title">原料列表</view>
 		<view class="recipe-table-container">
@@ -10,7 +9,7 @@
 					<text class="col-price">单价</text>
 				</view>
 				<view v-for="(ing, ingIndex) in nonMainRecipeIngredients" :key="ingIndex" class="table-row">
-					<text class="col-ingredient">{{ ing.name }}</text>
+					<text class="col-ingredient">{{ ing.ingredient.name }}</text>
 					<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
 					<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
 				</view>
@@ -46,7 +45,8 @@
 			return [];
 		}
 		return dough.ingredients.map(ing => {
-			const ingredientData = dataStore.ingredients.find(i => i.name === ing.name);
+			// [核心修改] 从嵌套的 ingredient 对象中获取原料名称
+			const ingredientData = dataStore.ingredients.find(i => i.name === ing.ingredient.name);
 			const pricePerKg = ingredientData ? getPricePerKg(ingredientData) : '0.00';
 			return {
 				...ing,

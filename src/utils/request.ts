@@ -56,7 +56,8 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 			},
 			success: (res : UniApp.RequestSuccessCallbackResult) => {
 				// [核心修改] 增强错误处理逻辑
-				if (res.statusCode === 401) {
+				// [修改] 增加一个判断，只有在非登录接口返回401时才执行自动登出
+				if (res.statusCode === 401 && options.url !== '/auth/login') {
 					if (!isLoggingOut) {
 						isLoggingOut = true;
 						toastStore.show({

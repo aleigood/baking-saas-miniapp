@@ -62,11 +62,16 @@ export interface RecipeVersion {
 	}[];
 }
 
+// [核心修改] 更新 DoughIngredient 类型以反映新的数据结构
 export interface DoughIngredient {
 	id : string;
-	name : string;
 	ratio : number;
-	isFlour : boolean;
+	ingredientId : string;
+	ingredient : {
+		id : string;
+		name : string;
+		isFlour : boolean;
+	};
 }
 
 
@@ -147,6 +152,15 @@ export interface ProcurementRecord {
 	purchaseDate : string;
 }
 
+// [新增] 库存流水条目类型
+export interface IngredientLedgerEntry {
+	date : string;
+	type : '采购入库' | '生产消耗' | '库存调整';
+	change : number; // 单位: 克
+	details : string;
+	operator : string;
+}
+
 
 // --- 生产任务 ---
 export interface ProductionTaskDto {
@@ -155,6 +169,7 @@ export interface ProductionTaskDto {
 	plannedDate : string;
 	// [新增] 任务的实际完成时间
 	completedAt : string | null;
+	updatedAt : string; // [新增] 任务最后更新时间
 	notes : string | null;
 	items : {
 		id : string;
