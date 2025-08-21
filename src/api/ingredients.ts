@@ -90,16 +90,23 @@ export function deleteSku(skuId : string) : Promise<any> {
  * [新增] 创建一条采购记录
  * @param data 包含SKU ID、采购数量和价格
  */
-export function createProcurement(data : { skuId : string; packagesPurchased : number; pricePerPackage : number, purchaseDate : string }) : Promise<any> {
-	// 后端接口需要 skuId 在 URL 中，而不是在 body 中
+// 修改：将 purchaseDate 设为可选，以支持补录功能
+export function createProcurement(data : { skuId : string; packagesPurchased : number; pricePerPackage : number, purchaseDate ?: string }) : Promise<any> {
+	// 准备要发送到后端的数据体
+	const requestData : { packagesPurchased : number; pricePerPackage : number; purchaseDate ?: string } = {
+		packagesPurchased: data.packagesPurchased,
+		pricePerPackage: data.pricePerPackage,
+	};
+
+	// 如果传入了 purchaseDate，则将其添加到请求体中
+	if (data.purchaseDate) {
+		requestData.purchaseDate = data.purchaseDate;
+	}
+
 	return request({
 		url: `/ingredients/skus/${data.skuId}/procurements`,
 		method: 'POST',
-		data: {
-			packagesPurchased: data.packagesPurchased,
-			pricePerPackage: data.pricePerPackage,
-			purchaseDate: data.purchaseDate, // [新增] 添加采购日期到请求体
-		},
+		data: requestData,
 	});
 }
 
@@ -117,9 +124,10 @@ export function deleteProcurement(procurementId : string) : Promise<any> {
 /**
  * [新增] 更新一条采购记录
  * @param procurementId 采购记录的ID
- * @param data 包含新价格或新日期的对象
+ * @param data 包含新价格的对象
  */
-export function updateProcurement(procurementId : string, data : { pricePerPackage ?: number; purchaseDate ?: string }) : Promise<any> {
+// 修改：根据业务需求，只允许更新 pricePerPackage
+export function updateProcurement(procurementId : string, data : { pricePerPackage : number; }) : Promise<any> {
 	return request({
 		url: `/ingredients/procurements/${procurementId}`,
 		method: 'PATCH',

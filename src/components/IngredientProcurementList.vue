@@ -14,7 +14,8 @@
 				<ListItem v-for="record in displayedProcurementRecords" :key="record.id" class="procurement-item"
 					@longpress="$emit('longpress', record)" :vibrate-on-long-press="true" :no-padding="true">
 					<view class="procurement-item-content">
-						<text class="col-date">{{ formatChineseDate(record.purchaseDate) }}</text>
+						<!-- 修改：使用 formatDateTime 格式化日期和时间 -->
+						<text class="col-date">{{ formatDateTime(record.purchaseDate) }}</text>
 						<text class="col-quantity">{{ record.packagesPurchased }} 包</text>
 						<text class="col-price">¥{{ Number(record.pricePerPackage).toFixed(2) }}</text>
 						<text
@@ -33,7 +34,8 @@
 <script setup lang="ts">
 	import { ref, computed, type PropType } from 'vue';
 	import type { IngredientSKU, ProcurementRecord } from '@/types/api';
-	import { formatChineseDate } from '@/utils/format';
+	// 修改：引入 formatDateTime
+	import { formatDateTime } from '@/utils/format';
 	import ListItem from '@/components/ListItem.vue';
 	import AppButton from '@/components/AppButton.vue';
 

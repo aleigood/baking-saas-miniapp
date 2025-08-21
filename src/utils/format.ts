@@ -105,3 +105,32 @@ export function formatNumber(num : number | string | null | undefined) : string 
 	// 使用 Number() 构造函数和 toFixed() 来处理浮点数精度问题并移除末尾的零
 	return String(Number(number.toFixed(2)));
 }
+
+/**
+ * 新增：格式化日期时间函数，用于采购记录列表
+ * @param date - 日期对象或字符串
+ * @param format - 格式，默认为 'YYYY-MM-DD HH:mm'
+ * @returns 格式化后的日期字符串
+ */
+export function formatDateTime(date : string | Date, format = 'YYYY-MM-DD HH:mm') : string {
+	if (!date) return '';
+	const d = new Date(date);
+	if (isNaN(d.getTime())) {
+		return '';
+	}
+
+	const year = d.getFullYear();
+	const month = (d.getMonth() + 1).toString().padStart(2, '0');
+	const day = d.getDate().toString().padStart(2, '0');
+	const hours = d.getHours().toString().padStart(2, '0');
+	const minutes = d.getMinutes().toString().padStart(2, '0');
+	const seconds = d.getSeconds().toString().padStart(2, '0');
+
+	return format
+		.replace('YYYY', String(year))
+		.replace('MM', month)
+		.replace('DD', day)
+		.replace('HH', hours)
+		.replace('mm', minutes)
+		.replace('ss', seconds);
+}

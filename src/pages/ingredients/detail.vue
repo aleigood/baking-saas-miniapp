@@ -75,6 +75,7 @@
 			</view>
 		</AppModal>
 
+		<!-- 修改：新增采购弹窗，加入“补录”逻辑 -->
 		<AppModal v-model:visible="showProcurementModal" title="新增采购">
 			<FormItem label="采购商品">
 				<input class="input-field" :value="activeSkuName" readonly disabled />
@@ -87,8 +88,13 @@
 				<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
 					placeholder="例如：255" />
 			</FormItem>
-			<!-- [新增] 采购日期选择器 -->
-			<FormItem label="采购日期">
+			<!-- 修改：调整“补录”开关布局以匹配UI风格 -->
+			<view class="form-row" style="margin-bottom: 20px;">
+				<label class="form-row-label">补录采购</label>
+				<switch :checked="isBackEntry" @change="onBackEntryChange" color="#8c5a3b" />
+			</view>
+			<!-- 新增：仅在补录时显示日期选择器 -->
+			<FormItem v-if="isBackEntry" label="采购日期">
 				<picker mode="date" :value="procurementForm.purchaseDate" @change="onNewProcurementDateChange">
 					<view class="picker">{{ procurementForm.purchaseDate }}</view>
 				</picker>
@@ -146,7 +152,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [新增] 采购记录操作选项模态框 -->
 		<AppModal :visible="uiStore.showProcurementActionsModal"
 			@update:visible="uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS)" title="采购记录" :no-header-line="true">
 			<view class="options-list">
@@ -158,25 +163,23 @@
 			</view>
 		</AppModal>
 
-		<!-- [新增] 编辑采购记录模态框 -->
+		<!-- 修改：编辑采购记录弹窗，确保只修改价格 -->
 		<AppModal v-model:visible="showEditProcurementModal" title="编辑采购记录">
-			<!-- [新增] 采购商品信息展示 -->
 			<FormItem label="采购商品">
 				<input class="input-field" :value="editedProcurementSkuName" readonly disabled />
 			</FormItem>
 			<FormItem label="采购数量">
 				<input class="input-field" :value="`${editProcurementForm.packagesPurchased} 包`" readonly disabled />
 			</FormItem>
-			<!-- [修改] 将单价输入改为总价输入 -->
+			<!-- 修改：只允许修改总价 -->
 			<FormItem label="采购总价 (元)">
 				<input class="input-field" type="number" v-model.number="editProcurementForm.totalPrice"
 					placeholder="输入总价" />
 			</FormItem>
-			<FormItem label="采购日期">
-				<picker mode="date" :value="editProcurementForm.purchaseDate" @change="onEditProcurementDateChange">
-					<view class="picker">{{ editProcurementForm.purchaseDate }}</view>
-				</picker>
-			</FormItem>
+			<!-- 修改：采购日期设为只读 -->
+			<!-- <FormItem label="采购日期">
+				<input class="input-field" :value="editProcurementForm.purchaseDate" readonly disabled />
+			</FormItem> -->
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditProcurementModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleUpdateProcurement" :loading="isSubmitting">
@@ -196,13 +199,12 @@
 	import { useUiStore } from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
 	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
-	// [修改] 引入新的 updateProcurement 接口，移除 deleteProcurement
+	// 修改：引入正确的 updateProcurement 接口
 	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteSku, updateProcurement } from
 		'@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
-	// [核心修改] 引入新的 ExpandingFab 组件
 	import ExpandingFab from '@/components/ExpandingFab.vue';
 	import LineChart from '@/components/LineChart.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -217,7 +219,6 @@
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { formatChineseDate } from '@/utils/format';
 
-	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
 		inheritAttrs: false
 	});
@@ -244,8 +245,11 @@
 		skuId: '',
 		packagesPurchased: 0,
 		totalPrice: 0,
-		purchaseDate: new Date().toISOString(),
+		purchaseDate: '', // 修改：初始值为空
 	});
+
+	// 新增：“补录”开关状态
+	const isBackEntry = ref(false);
 
 	const costHistory = ref<{ cost : number }[]>([]);
 	const usageHistory = ref<{ cost : number }[]>([]);
@@ -265,18 +269,15 @@
 		waterContent: 0,
 	});
 
-	// [新增] 编辑采购记录模态框相关状态
 	const showEditProcurementModal = ref(false);
 	const editProcurementForm = reactive({
 		id: '',
 		packagesPurchased: 0,
 		pricePerPackage: 0,
 		purchaseDate: '',
-		// [新增] 用于接收总价输入
 		totalPrice: 0,
 	});
 
-	// [核心新增] 定义FAB按钮的动作
 	const fabActions = ref([
 		{ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() },
 		{ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() }
@@ -389,7 +390,6 @@
 		return `${sku.brand || '无品牌'} (${sku.specName})`;
 	});
 
-	// [新增] 用于编辑模态框中显示SKU名称
 	const editedProcurementSkuName = computed(() => {
 		if (!selectedSku.value) return '加载中...';
 		return `${selectedSku.value.brand || '无品牌'} (${selectedSku.value.specName})`;
@@ -404,12 +404,22 @@
 			skuId: ingredient.value.activeSku.id,
 			packagesPurchased: 0,
 			totalPrice: 0,
-			purchaseDate: new Date().toISOString(),
+			purchaseDate: '', // 默认清空
 		};
+		isBackEntry.value = false; // 重置补录开关
 		showProcurementModal.value = true;
 	};
 
-	// [新增] 新增采购时，更新采购日期
+	// 新增：“补录”开关处理
+	const onBackEntryChange = (e : any) => {
+		isBackEntry.value = e.detail.value;
+		if (isBackEntry.value) {
+			procurementForm.value.purchaseDate = new Date().toISOString().split('T')[0];
+		} else {
+			procurementForm.value.purchaseDate = '';
+		}
+	};
+
 	const onNewProcurementDateChange = (e : any) => {
 		procurementForm.value.purchaseDate = e.detail.value;
 	};
@@ -423,12 +433,22 @@
 		try {
 			const pricePerPackage = procurementForm.value.totalPrice / procurementForm.value.packagesPurchased;
 
-			await createProcurement({
-				skuId: procurementForm.value.skuId,
-				packagesPurchased: procurementForm.value.packagesPurchased,
-				pricePerPackage: pricePerPackage,
-				purchaseDate: procurementForm.value.purchaseDate,
-			});
+			const payload : {
+				skuId : string;
+				packagesPurchased : number;
+				pricePerPackage : number;
+				purchaseDate ?: string;
+			} = {
+					skuId: procurementForm.value.skuId,
+					packagesPurchased: procurementForm.value.packagesPurchased,
+					pricePerPackage: pricePerPackage,
+				};
+
+			if (isBackEntry.value && procurementForm.value.purchaseDate) {
+				payload.purchaseDate = new Date(procurementForm.value.purchaseDate).toISOString();
+			}
+
+			await createProcurement(payload);
 			toastStore.show({ message: '入库成功', type: 'success' });
 			showProcurementModal.value = false;
 			await loadIngredientData(ingredient.value!.id);
@@ -532,37 +552,33 @@
 		}
 	};
 
-	// [修改] 长按采购记录，打开操作选项模态框
 	const handleProcurementLongPress = (record : ProcurementRecord) => {
 		selectedProcurementForAction.value = record;
 		uiStore.openModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
 	};
 
-	// [新增] 从选项模态框中触发，打开编辑模态框
 	const handleEditProcurementOption = () => {
 		uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
 		if (selectedProcurementForAction.value) {
 			const record = selectedProcurementForAction.value;
 			editProcurementForm.id = record.id;
 			editProcurementForm.packagesPurchased = record.packagesPurchased;
-			// [修改] 计算并填充总价
+			// 修复：从单价计算总价
 			editProcurementForm.totalPrice = Number(record.pricePerPackage) * record.packagesPurchased;
 			editProcurementForm.purchaseDate = new Date(record.purchaseDate).toISOString().split('T')[0];
 			showEditProcurementModal.value = true;
 		}
 	};
 
-	// [新增] 处理编辑采购记录日期变化
-	const onEditProcurementDateChange = (e : any) => {
-		editProcurementForm.purchaseDate = e.detail.value;
-	};
+	// 移除：编辑采购记录时不再需要修改日期
+	// const onEditProcurementDateChange = (e : any) => {
+	// 	editProcurementForm.purchaseDate = e.detail.value;
+	// };
 
-	// [新增] 提交采购记录更新
 	const handleUpdateProcurement = async () => {
 		if (!editProcurementForm.id || !ingredient.value) return;
 		isSubmitting.value = true;
 		try {
-			// [修改] 从总价计算单价
 			const pricePerPackage = editProcurementForm.totalPrice / editProcurementForm.packagesPurchased;
 			if (isNaN(pricePerPackage) || pricePerPackage <= 0) {
 				toastStore.show({ message: '请输入有效的采购总价', type: 'error' });
@@ -570,9 +586,9 @@
 				return;
 			}
 
-			const payload : { pricePerPackage ?: number; purchaseDate ?: string } = {
-				pricePerPackage: Number(pricePerPackage.toFixed(2)), // 保留两位小数
-				purchaseDate: editProcurementForm.purchaseDate
+			// 修复：只提交 pricePerPackage
+			const payload = {
+				pricePerPackage: Number(pricePerPackage.toFixed(2)),
 			};
 
 			await updateProcurement(editProcurementForm.id, payload);
@@ -591,7 +607,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [兼容性修复] 引入新增的 Mixin */
 	@include list-item-option-style;
 
 	.page-wrapper {
