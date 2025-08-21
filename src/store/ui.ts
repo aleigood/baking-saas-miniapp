@@ -17,6 +17,7 @@ export const useUiStore = defineStore('ui', () => {
 		// [新增] 初始化新模态框的状态
 		[MODAL_KEYS.INGREDIENT_ACTIONS]: false,
 		[MODAL_KEYS.DELETE_INGREDIENT_CONFIRM]: false,
+		[MODAL_KEYS.UPDATE_STOCK_CONFIRM]: false, // [新增] 更新库存
 		[MODAL_KEYS.RECIPE_ACTIONS]: false,
 		[MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM]: false,
 		[MODAL_KEYS.RESTORE_RECIPE_CONFIRM]: false,
@@ -33,6 +34,7 @@ export const useUiStore = defineStore('ui', () => {
 	// [新增] 暴露新模态框的 computed 状态
 	const showIngredientActionsModal = computed(() => modalVisibility.value[MODAL_KEYS.INGREDIENT_ACTIONS]);
 	const showDeleteIngredientConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.DELETE_INGREDIENT_CONFIRM]);
+	const showUpdateStockConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.UPDATE_STOCK_CONFIRM]); // [新增]
 	const showRecipeActionsModal = computed(() => modalVisibility.value[MODAL_KEYS.RECIPE_ACTIONS]);
 	const showDiscontinueRecipeConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM]);
 	const showRestoreRecipeConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.RESTORE_RECIPE_CONFIRM]);
@@ -63,6 +65,7 @@ export const useUiStore = defineStore('ui', () => {
 		showProcurementActionsModal, // [恢复] 
 		showIngredientActionsModal,
 		showDeleteIngredientConfirmModal,
+		showUpdateStockConfirmModal, // [新增]
 		showRecipeActionsModal,
 		showDiscontinueRecipeConfirmModal,
 		showRestoreRecipeConfirmModal,

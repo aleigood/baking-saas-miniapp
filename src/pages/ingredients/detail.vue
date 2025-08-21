@@ -75,25 +75,22 @@
 			</view>
 		</AppModal>
 
-		<!-- 修改：新增采购弹窗，加入“补录”逻辑 -->
 		<AppModal v-model:visible="showProcurementModal" title="新增采购">
 			<FormItem label="采购商品">
 				<input class="input-field" :value="activeSkuName" readonly disabled />
 			</FormItem>
-			<FormItem label="采购包数">
+			<FormItem label="采购数量">
 				<input class="input-field" type="number" v-model.number="procurementForm.packagesPurchased"
-					placeholder="例如：10" />
+					placeholder="例如：10包" />
 			</FormItem>
 			<FormItem label="采购总价 (元)">
 				<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
 					placeholder="例如：255" />
 			</FormItem>
-			<!-- 修改：调整“补录”开关布局以匹配UI风格 -->
 			<view class="form-row" style="margin-bottom: 20px;">
-				<label class="form-row-label">补录采购</label>
+				<label class="form-row-label">采购补录</label>
 				<switch :checked="isBackEntry" @change="onBackEntryChange" color="#8c5a3b" />
 			</view>
-			<!-- 新增：仅在补录时显示日期选择器 -->
 			<FormItem v-if="isBackEntry" label="采购日期">
 				<picker mode="date" :value="procurementForm.purchaseDate" @change="onNewProcurementDateChange">
 					<view class="picker">{{ procurementForm.purchaseDate }}</view>
@@ -163,27 +160,37 @@
 			</view>
 		</AppModal>
 
-		<!-- 修改：编辑采购记录弹窗，确保只修改价格 -->
 		<AppModal v-model:visible="showEditProcurementModal" title="编辑采购记录">
 			<FormItem label="采购商品">
 				<input class="input-field" :value="editedProcurementSkuName" readonly disabled />
 			</FormItem>
 			<FormItem label="采购数量">
-				<input class="input-field" :value="`${editProcurementForm.packagesPurchased} 包`" readonly disabled />
+				<input class="input-field" :value="`${editProcurementForm.packagesPurchased}`" readonly disabled />
 			</FormItem>
-			<!-- 修改：只允许修改总价 -->
 			<FormItem label="采购总价 (元)">
 				<input class="input-field" type="number" v-model.number="editProcurementForm.totalPrice"
 					placeholder="输入总价" />
 			</FormItem>
-			<!-- 修改：采购日期设为只读 -->
-			<!-- <FormItem label="采购日期">
-				<input class="input-field" :value="editProcurementForm.purchaseDate" readonly disabled />
-			</FormItem> -->
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditProcurementModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleUpdateProcurement" :loading="isSubmitting">
 					{{ isSubmitting ? '保存中...' : '确认保存' }}
+				</AppButton>
+			</view>
+		</AppModal>
+
+		<AppModal :visible="uiStore.showUpdateStockConfirmModal"
+			@update:visible="uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM)" title="修改库存">
+			<FormItem label="新的库存数量 (kg)">
+				<input class="input-field" type="digit" v-model.number="newStockAmountInKg" placeholder="输入新的库存公斤数" />
+			</FormItem>
+			<view class="modal-warning-text" style="text-align: left; margin-top: -10px; margin-bottom: 20px;">
+				注意：这将直接覆盖当前库存，而不是增加或减少。
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM)">取消</AppButton>
+				<AppButton type="primary" @click="handleConfirmUpdateStock" :loading="isSubmitting">
+					{{ isSubmitting ? '保存中...' : '确认修改' }}
 				</AppButton>
 			</view>
 		</AppModal>
@@ -199,8 +206,8 @@
 	import { useUiStore } from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
 	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
-	// 修改：引入正确的 updateProcurement 接口
-	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteSku, updateProcurement } from
+	// 修改：引入正确的 updateProcurement 接口 和 新增的 updateStock 接口
+	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteSku, updateProcurement, updateStock } from
 		'@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
@@ -278,8 +285,13 @@
 		totalPrice: 0,
 	});
 
+	// [新增] 用于修改库存弹窗的响应式数据
+	const newStockAmountInKg = ref(0);
+
+	// [修改] 更新 FAB 按钮的 actions
 	const fabActions = ref([
 		{ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() },
+		{ icon: '/static/icons/settings.svg', text: '修改库存', action: () => openUpdateStockModal() }, // [新增] 修改库存按钮
 		{ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() }
 	]);
 
@@ -598,6 +610,46 @@
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			console.error("Failed to update procurement:", error);
+		} finally {
+			isSubmitting.value = false;
+		}
+	};
+
+	/**
+	 * [新增] 打开修改库存模态框
+	 */
+	const openUpdateStockModal = () => {
+		if (ingredient.value) {
+			// 将当前的库存克数转换为公斤数，并保留两位小数
+			newStockAmountInKg.value = Number((ingredient.value.currentStockInGrams / 1000).toFixed(2));
+			uiStore.openModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
+		}
+	};
+
+	/**
+	 * [新增] 确认修改库存
+	 */
+	const handleConfirmUpdateStock = async () => {
+		if (!ingredient.value) return;
+		if (newStockAmountInKg.value < 0 || newStockAmountInKg.value === null) {
+			toastStore.show({ message: '请输入有效的库存数量', type: 'error' });
+			return;
+		}
+
+		isSubmitting.value = true;
+		try {
+			// 将输入的公斤数转换为克数
+			const newStockInGrams = newStockAmountInKg.value * 1000;
+			// 调用新的API函数
+			await updateStock(ingredient.value.id, { currentStockInGrams: newStockInGrams });
+			toastStore.show({ message: '库存更新成功', type: 'success' });
+			uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
+			// 重新加载原料数据以刷新页面
+			await loadIngredientData(ingredient.value.id);
+			// 同时刷新列表页的数据
+			await dataStore.fetchIngredientsData();
+		} catch (error) {
+			console.error("Failed to update stock:", error);
 		} finally {
 			isSubmitting.value = false;
 		}

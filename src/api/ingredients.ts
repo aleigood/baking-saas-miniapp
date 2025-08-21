@@ -51,6 +51,19 @@ export function updateIngredient(ingredientId : string, data : { name ?: string;
 }
 
 /**
+ * [新增] 更新原料的库存
+ * @param ingredientId 原料的ID
+ * @param data 包含新库存的对象 (单位: 克)
+ */
+export function updateStock(ingredientId : string, data : { currentStockInGrams : number }) : Promise<Ingredient> {
+	return request<Ingredient>({
+		url: `/ingredients/${ingredientId}/stock`,
+		method: 'PATCH',
+		data,
+	});
+}
+
+/**
  * [新增] 删除一个原料品类
  * @param ingredientId 原料的ID
  */

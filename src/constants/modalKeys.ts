@@ -14,6 +14,7 @@ export const MODAL_KEYS = {
 	// [新增] 原料和配方操作相关的模态框
 	INGREDIENT_ACTIONS: 'ingredientActions',
 	DELETE_INGREDIENT_CONFIRM: 'deleteIngredientConfirm',
+	UPDATE_STOCK_CONFIRM: 'updateStockConfirm', // [新增] 更新库存确认
 	RECIPE_ACTIONS: 'recipeActions',
 	DISCONTINUE_RECIPE_CONFIRM: 'discontinueRecipeConfirm',
 	RESTORE_RECIPE_CONFIRM: 'restoreRecipeConfirm',
