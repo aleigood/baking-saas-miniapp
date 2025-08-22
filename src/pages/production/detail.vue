@@ -73,7 +73,7 @@
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
 	import type { ProductionTaskDto } from '@/types/api';
-	import { getTask, updateTaskStatus, completeTask } from '@/api/tasks';
+	import { getTaskDetail, updateTaskStatus, completeTask } from '@/api/tasks';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
@@ -103,7 +103,7 @@
 		}
 
 		try {
-			task.value = await getTask(taskId);
+			task.value = await getTaskDetail(taskId);
 
 			if (task.value?.status === 'PENDING') {
 				await updateTaskStatus(taskId, 'IN_PROGRESS');

@@ -3,18 +3,19 @@
  * 文件描述: (已更新) 封装所有与生产任务相关的API请求。
  */
 import { request } from '@/utils/request';
-// [修改] 导入新的响应类型
-import type { ProductionTaskDto, CreateTaskResponse } from '@/types/api';
+// [修改] 导入新的响应类型，以支持前置准备任务
+import type { ProductionTaskDto, CreateTaskResponse, ProductionDataPayload, PrepTask, ProductionTaskDetailDto } from '@/types/api';
 
 /**
  * [REFACTORED] 根据状态获取历史任务列表，并支持分页
  * @param page 页码
  * @param limit 每页数量
  */
-export function getHistoricalTasks(page : number, limit : number) : Promise<any> {
-	return request<any>({
+export function getHistoryTasks(page : number, limit : number) : Promise<{ data : Record<string, ProductionTaskDto[]>, meta : any }> { // [修改] 返回类型更精确
+	return request({ // [修改] 移除不必要的泛型，request 工具函数会自动推断
 		url: '/production-tasks',
-		data: {
+		// [修改] get 请求应该使用 params 传递参数
+		params: {
 			// 后端现在支持接收状态数组
 			status: ['COMPLETED', 'CANCELLED'],
 			page: String(page),
@@ -25,21 +26,23 @@ export function getHistoricalTasks(page : number, limit : number) : Promise<any>
 
 
 /**
- * 获取当前店铺的生产任务列表
+ * 获取当前店铺的生产任务列表 (包含前置准备任务)
  */
-export function getTasks() : Promise<ProductionTaskDto[]> {
-	return request<ProductionTaskDto[]>({
-		url: '/production-tasks', // 路由已更新
+export function getTasks(params : { status : string[] }) : Promise<ProductionDataPayload> { // [修改] 更新函数签名和返回类型
+	return request<ProductionDataPayload>({
+		url: '/production-tasks',
+		method: 'GET', // [新增] 明确请求方法
+		params, // [修改] 传递状态参数
 	});
 }
 
 /**
- * [新增] 获取单个生产任务的详情
- * (New: Get details of a single production task)
+ * [修改] 获取单个生产任务或前置任务的详情
+ * (Modified: Get details of a single production task or prep task)
  * @param taskId 任务ID
  */
-export function getTask(taskId : string) : Promise<ProductionTaskDto> {
-	return request<ProductionTaskDto>({
+export function getTaskDetail(taskId : string) : Promise<ProductionTaskDetailDto | PrepTask> { // [修改] 函数名和返回类型
+	return request<ProductionTaskDetailDto | PrepTask>({ // [修改] 返回类型
 		url: `/production-tasks/${taskId}`,
 	});
 }
@@ -54,9 +57,9 @@ export function createTask(data : {
 	plannedDate : string;
 	notes ?: string;
 	products : { productId : string; quantity : number }[];
-}) : Promise<CreateTaskResponse> { // [修改] 更新返回类型
-	return request<CreateTaskResponse>({ // [修改] 更新返回类型
-		url: '/production-tasks', // 路由已更新
+}) : Promise<CreateTaskResponse> {
+	return request<CreateTaskResponse>({
+		url: '/production-tasks',
 		method: 'POST',
 		data,
 	});
@@ -69,10 +72,10 @@ export function createTask(data : {
  */
 export function updateTaskStatus(
 	taskId : string,
-	status : 'COMPLETED' | 'CANCELLED' | 'IN_PROGRESS',
+	status : 'CANCELLED', // [修改] 目前业务逻辑只支持取消操作
 ) : Promise<any> {
 	return request({
-		url: `/production-tasks/${taskId}`, // 路由已更新
+		url: `/production-tasks/${taskId}`,
 		method: 'PATCH',
 		data: { status },
 	});

@@ -6,19 +6,20 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type {
 	Tenant,
-	ProductListItem, // 这个类型需要重新思考，因为后端返回的是 RecipeFamily
+	ProductListItem,
 	RecipeFamily,
 	Ingredient,
 	Member,
 	ProductionTaskDto,
 	RecipeStatDto,
 	IngredientStatDto,
+	PrepTask, // [新增] 引入 PrepTask 类型
 } from '@/types/api';
 import { useUserStore } from './user';
-import { useToastStore } from './toast'; // [新增] 引入 toast store
+import { useToastStore } from './toast';
 import { getTenants as getTenantsApi } from '@/api/tenants';
 import { switchTenant as switchTenantApi } from '@/api/auth';
-import { getTasks, getHistoricalTasks } from '@/api/tasks';
+import { getTasks, getHistoryTasks } from '@/api/tasks';
 import { getRecipes } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
 import { getMembers } from '@/api/members';
@@ -35,6 +36,7 @@ export const useDataStore = defineStore('data', () => {
 	const tenants = ref<Tenant[]>([]);
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
 	const production = ref<ProductionTaskDto[]>([]);
+	const prepTask = ref<PrepTask | null>(null); // [新增] 为前置准备任务创建新的 state
 	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
 	const historicalTasksMeta = ref({
 		page: 1,
@@ -59,7 +61,6 @@ export const useDataStore = defineStore('data', () => {
 
 	const productList = computed(() : ProductListItem[] => {
 		const list : ProductListItem[] = [];
-		// [核心修改] 遍历处理前，先过滤掉已停用的配方
 		recipes.value
 			.filter((family) => !family.deletedAt)
 			.forEach((family) => {
@@ -106,10 +107,10 @@ export const useDataStore = defineStore('data', () => {
 	async function fetchProductionData() {
 		if (!currentTenantId.value) return;
 		try {
-			const { startDate, endDate } = getMonthDateRange();
-			const [prodData, recipeStatData] = await Promise.all([getTasks(), getRecipeStats(startDate, endDate)]);
-			production.value = prodData;
-			recipeStats.value = recipeStatData;
+			// [修改] 调整 API 调用以匹配新的接口，并移除冗余的 recipeStats 获取
+			const payload = await getTasks({ status: ['PENDING', 'IN_PROGRESS'] });
+			production.value = payload.tasks;
+			prepTask.value = payload.prepTask;
 			dataLoaded.value.production = true;
 		} catch (error) {
 			console.error('Failed to fetch production data', error);
@@ -170,7 +171,6 @@ export const useDataStore = defineStore('data', () => {
 	async function fetchIngredientsData() {
 		if (!currentTenantId.value) return;
 		try {
-			// [重构] 保持此函数不变，原料页面不请求消耗排行
 			ingredients.value = await getIngredients();
 			dataLoaded.value.ingredients = true;
 		} catch (error) {
@@ -190,7 +190,7 @@ export const useDataStore = defineStore('data', () => {
 
 	async function selectTenant(tenantId : string) {
 		const userStore = useUserStore();
-		const toastStore = useToastStore(); // [新增] 获取 toast store 实例
+		const toastStore = useToastStore();
 		try {
 			const res = await switchTenantApi(tenantId);
 			userStore.setToken(res.accessToken);
@@ -212,6 +212,7 @@ export const useDataStore = defineStore('data', () => {
 
 	function resetData() {
 		production.value = [];
+		prepTask.value = null; // [新增] 重置前置任务
 		recipes.value = [];
 		ingredients.value = [];
 		members.value = [];
@@ -238,6 +239,7 @@ export const useDataStore = defineStore('data', () => {
 		currentTenantId,
 		currentTenant,
 		production,
+		prepTask, // [新增] 导出前置任务 state
 		historicalTasks,
 		historicalTasksMeta,
 		recipes,

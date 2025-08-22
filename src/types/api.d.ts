@@ -3,6 +3,40 @@
  * 文件描述: (已更新) 使用 deletedAt 字段判断配方状态，并恢复 productionCount 字段。
  */
 
+// [新增] 为前置准备任务功能新增的类型定义
+export interface CalculatedRecipeIngredient {
+	name : string;
+	weightInGrams : number;
+}
+export interface CalculatedRecipeDetails {
+	id : string;
+	name : string;
+	totalWeight : number;
+	procedure : string[];
+	ingredients : CalculatedRecipeIngredient[];
+}
+export interface PrepTask {
+	id : string;
+	title : string;
+	details : string;
+	items : CalculatedRecipeDetails[];
+	status ?: 'PREP';
+}
+export interface ProductionDataPayload {
+	tasks : ProductionTaskDto[];
+	prepTask : PrepTask | null;
+}
+// [新增] 任务详情页需要额外的字段
+export interface ProductionTaskDetailDto extends ProductionTaskDto {
+	totalIngredients : {
+		ingredientId : string;
+		name : string;
+		totalWeightInGrams : number;
+	}[];
+	stockWarning : string | null;
+}
+
+
 // --- 认证与用户 ---
 export interface LoginRes {
 	accessToken : string;

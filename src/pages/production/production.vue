@@ -12,8 +12,26 @@
 				</div>
 			</view>
 
+			<!-- [新增] 前置准备任务的显示区域 -->
+			<!-- (New) Display area for the preparation task -->
+			<view v-if="dataStore.prepTask">
+				<view class="card-title-wrapper">
+					<span class="card-title">前置任务</span>
+				</view>
+				<ListItem :key="dataStore.prepTask.id" @click="navigateToDetail(dataStore.prepTask)" card-mode
+					class="prep-task-card">
+					<view class="task-info">
+						<view class="title">{{ dataStore.prepTask.title }}</view>
+						<view class="details">{{ dataStore.prepTask.details }}</view>
+					</view>
+					<view class="status-tag status-prep">
+						去准备
+					</view>
+				</ListItem>
+			</view>
+
 			<view class="card-title-wrapper">
-				<span class="card-title">进行中的任务</span>
+				<span class="card-title">制作任务</span>
 				<view class="header-actions">
 					<IconButton v-if="hasCompletedTasks" @click="navigateToHistory">
 						<image class="header-icon" src="/static/icons/history.svg" />
@@ -93,16 +111,22 @@
 	import {
 		useUiStore
 	} from '@/store/ui';
-	import { useToastStore } from '@/store/toast';
-	import { MODAL_KEYS } from '@/constants/modalKeys';
+	import {
+		useToastStore
+	} from '@/store/toast';
+	import {
+		MODAL_KEYS
+	} from '@/constants/modalKeys';
 	import MainHeader from '@/components/MainHeader.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
+	// [修改] 引入 PrepTask 类型以支持新功能
 	import type {
-		ProductionTaskDto
+		ProductionTaskDto,
+		PrepTask
 	} from '@/types/api';
 	import {
 		updateTaskStatus
@@ -145,13 +169,12 @@
 		try {
 			if (!dataStore.dataLoaded.production) {
 				isInitialLoad.value = true;
-				await Promise.all([
-					dataStore.fetchProductionData(),
-					fetchHomeStats()
-				]);
-			} else {
-				await fetchHomeStats();
 			}
+			// [修改] 每次进入页面都重新获取任务数据，以保证前置任务的实时性
+			await Promise.all([
+				dataStore.fetchProductionData(),
+				fetchHomeStats()
+			]);
 		} catch (error) {
 			console.error("Failed to load data on show:", error);
 		} finally {
@@ -160,6 +183,7 @@
 	});
 
 	const sortedTasks = computed(() => {
+		// [修复] 数据源从 dataStore.production 调整为 dataStore.production，以解决 filter of undefined 错误
 		const activeTasks = dataStore.production.filter(
 			task => task.status === 'PENDING' || task.status === 'IN_PROGRESS'
 		);
@@ -168,12 +192,13 @@
 		const pendingTasks = activeTasks.filter(task => task.status === 'PENDING');
 
 		inProgressTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
-		pendingTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
+		pendingTasks.sort((a, b) => new Date(a.plannedDate).getTime() - new Date(b.plannedDate).getTime());
 
 		return [...inProgressTasks, ...pendingTasks];
 	});
 
 	const hasCompletedTasks = computed(() => {
+		// [修复] 数据源从 dataStore.production 调整为 dataStore.production
 		return dataStore.production.some(task => task.status === 'COMPLETED');
 	});
 
@@ -228,9 +253,14 @@
 		return map[status] || '';
 	};
 
-	const navigateToDetail = (task : ProductionTaskDto) => {
+	// [修改] 改造导航方法，使其能处理普通任务和前置任务
+	const navigateToDetail = (task : ProductionTaskDto | PrepTask) => {
+		const isPrepTask = task.id === 'prep-task-01';
+		const url = isPrepTask ?
+			`/pages/production/prep-detail` :
+			`/pages/production/detail?taskId=${task.id}`;
 		uni.navigateTo({
-			url: `/pages/production/detail?taskId=${task.id}`
+			url
 		});
 	};
 
@@ -368,5 +398,16 @@
 
 	.status-tag.status-cancelled {
 		background-color: #a8a8a8;
+	}
+
+	/* [新增] 前置任务卡片的特殊样式 */
+	/* (New) Special styles for the prep task card */
+	.prep-task-card {
+		--card-border-color: #8e44ad;
+		margin-bottom: 20px;
+	}
+
+	.status-tag.status-prep {
+		background-color: #8e44ad;
 	}
 </style>
