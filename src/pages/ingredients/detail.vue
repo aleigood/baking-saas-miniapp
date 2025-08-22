@@ -325,7 +325,7 @@
 	});
 
 	// [新增] 预设的库存调整原因
-	const presetReasons = ref(['盘点损耗', '盘点盈余', '过期损耗', '员工餐']);
+	const presetReasons = ref(['盘点损耗', '盘点盈余', '过期损耗', '包装破损']);
 
 	// [核心修改] 根据用户角色动态生成 FAB 菜单
 	const fabActions = computed(() => {
