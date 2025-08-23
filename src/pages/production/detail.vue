@@ -62,7 +62,6 @@
 								</view>
 							</view>
 
-							<view class="group-title">面团汇总</view>
 							<view class="recipe-table-container-full-bleed">
 								<view class="info-table summary-table">
 									<view class="table-header">
@@ -82,8 +81,10 @@
 									</view>
 								</view>
 							</view>
+						</view>
 
-							<view v-for="product in selectedDoughDetails.products" :key="product.id">
+						<view v-for="product in selectedDoughDetails.products" :key="product.id">
+							<view class="card">
 								<template
 									v-if="product.mixIns.length > 0 || product.fillings.length > 0 || product.procedure.length > 0">
 									<view class="group-title">{{product.name}}</view>
