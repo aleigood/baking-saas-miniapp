@@ -11,11 +11,11 @@ import type { ProductionTaskDto, CreateTaskResponse, ProductionDataPayload, Prep
  * @param page 页码
  * @param limit 每页数量
  */
-export function getHistoryTasks(page : number, limit : number) : Promise<{ data : Record<string, ProductionTaskDto[]>, meta : any }> { // [修改] 返回类型更精确
-	return request({ // [修改] 移除不必要的泛型，request 工具函数会自动推断
+export function getHistoryTasks(page : number, limit : number) : Promise<{ data : Record<string, ProductionTaskDto[]>, meta : any }> {
+	return request({
 		url: '/production-tasks',
-		// [修改] get 请求应该使用 params 传递参数
-		params: {
+		// [核心修复] 将 params 修改为 data，以匹配 request 工具函数对 GET 请求参数的处理方式
+		data: {
 			// 后端现在支持接收状态数组
 			status: ['COMPLETED', 'CANCELLED'],
 			page: String(page),
@@ -32,7 +32,7 @@ export function getTasks(params : { status : string[] }) : Promise<ProductionDat
 	return request<ProductionDataPayload>({
 		url: '/production-tasks',
 		method: 'GET', // [新增] 明确请求方法
-		params, // [修改] 传递状态参数
+		data: params, // [核心修复] 同样将此处的 params 修改为 data
 	});
 }
 

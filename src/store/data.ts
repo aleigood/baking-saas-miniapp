@@ -107,8 +107,8 @@ export const useDataStore = defineStore('data', () => {
 	async function fetchProductionData() {
 		if (!currentTenantId.value) return;
 		try {
-			// [修改] 调整 API 调用以匹配新的接口，并移除冗余的 recipeStats 获取
-			const payload = await getTasks({ status: ['PENDING', 'IN_PROGRESS'] });
+			// [核心修复] 在请求状态中加入 'COMPLETED'，以便主页可以正确判断是否有历史任务
+			const payload = await getTasks({ status: ['PENDING', 'IN_PROGRESS', 'COMPLETED'] });
 			production.value = payload.tasks;
 			prepTask.value = payload.prepTask;
 			dataLoaded.value.production = true;
@@ -132,20 +132,24 @@ export const useDataStore = defineStore('data', () => {
 
 			const res = await getHistoryTasks(pageToFetch, historicalTasksMeta.value.limit);
 
+			const newTasksData = res?.data || {};
+			const newMeta = res?.meta || { page: pageToFetch, hasMore: false };
+
+
 			if (loadMore) {
-				for (const date in res.data) {
+				for (const date in newTasksData) {
 					if (historicalTasks.value[date]) {
-						historicalTasks.value[date].push(...res.data[date]);
+						historicalTasks.value[date].push(...newTasksData[date]);
 					} else {
-						historicalTasks.value[date] = res.data[date];
+						historicalTasks.value[date] = newTasksData[date];
 					}
 				}
 			} else {
-				historicalTasks.value = res.data;
+				historicalTasks.value = newTasksData;
 			}
 
-			historicalTasksMeta.value.page = res.meta.page;
-			historicalTasksMeta.value.hasMore = res.meta.hasMore;
+			historicalTasksMeta.value.page = newMeta.page;
+			historicalTasksMeta.value.hasMore = newMeta.hasMore;
 			dataLoaded.value.historicalTasks = true;
 
 		} catch (error) {
