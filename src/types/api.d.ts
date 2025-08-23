@@ -267,3 +267,23 @@ export interface ProductionStatsResponse {
 	productStats : RecipeStatDto[];
 	ingredientConsumption : IngredientStatDto[];
 }
+
+export interface ProductionTaskDetailDto extends ProductionTaskDto {
+	totalIngredients : {
+		ingredientId : string;
+		name : string;
+		totalWeightInGrams : number;
+	}[];
+	stockWarning : string | null;
+	prepTask ?: PrepTask | null;
+}
+
+// [核心新增] 为生产主页聚合接口定义返回类型
+export interface ProductionDashboardPayload {
+	stats : {
+		pendingCount : number;
+		completedThisWeekCount : number;
+	};
+	tasks : ProductionTaskDto[];
+	prepTask : PrepTask | null;
+}

@@ -4,10 +4,21 @@
  */
 import { request } from '@/utils/request';
 // [核心修改] 引入新的返回类型
-import type { RecipeStatDto, IngredientStatDto, ProductionStatsResponse } from '@/types/api';
+import type { RecipeStatDto, IngredientStatDto, ProductionStatsResponse, ProductionDashboardPayload } from '@/types/api';
+
 
 /**
- * [新增] 获取生产主页的核心统计数据
+ * [核心新增] 获取生产主页聚合数据的专用接口
+ */
+export function getProductionDashboard() : Promise<ProductionDashboardPayload> {
+	return request<ProductionDashboardPayload>({
+		url: '/stats/dashboard/production',
+	});
+}
+
+
+/**
+ * [已废弃] 此接口功能已被 getProductionDashboard 替代
  */
 export function getProductionHomeStats() : Promise<{ pendingCount : number; completedThisWeekCount : number }> {
 	return request<{ pendingCount : number; completedThisWeekCount : number }>({
@@ -16,7 +27,7 @@ export function getProductionHomeStats() : Promise<{ pendingCount : number; comp
 }
 
 /**
- * [核心新增] 获取完整的生产统计数据，用于统计页面
+ * 获取完整的生产统计数据，用于统计页面
  * @param startDate 开始日期 'YYYY-MM-DD'
  * @param endDate 结束日期 'YYYY-MM-DD'
  */

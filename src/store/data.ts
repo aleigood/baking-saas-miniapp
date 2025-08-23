@@ -13,7 +13,7 @@ import type {
 	ProductionTaskDto,
 	RecipeStatDto,
 	IngredientStatDto,
-	PrepTask, // [新增] 引入 PrepTask 类型
+	PrepTask,
 } from '@/types/api';
 import { useUserStore } from './user';
 import { useToastStore } from './toast';
@@ -23,7 +23,8 @@ import { getTasks, getHistoryTasks } from '@/api/tasks';
 import { getRecipes } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
 import { getMembers } from '@/api/members';
-import { getRecipeStats, getIngredientStats } from '@/api/stats';
+// [核心改造] 引入新的 dashboard 接口
+import { getRecipeStats, getIngredientStats, getProductionDashboard } from '@/api/stats';
 
 function getMonthDateRange() {
 	const now = new Date();
@@ -36,7 +37,9 @@ export const useDataStore = defineStore('data', () => {
 	const tenants = ref<Tenant[]>([]);
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
 	const production = ref<ProductionTaskDto[]>([]);
-	const prepTask = ref<PrepTask | null>(null); // [新增] 为前置准备任务创建新的 state
+	const prepTask = ref<PrepTask | null>(null);
+	// [核心新增] 新增一个 state 用于存放主页的统计数据
+	const homeStats = ref({ pendingCount: 0, completedThisWeekCount: 0 });
 	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
 	const historicalTasksMeta = ref({
 		page: 1,
@@ -104,13 +107,16 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
+	/**
+	 * [核心改造] 此方法现在调用聚合接口，一次性获取主页所有数据
+	 */
 	async function fetchProductionData() {
 		if (!currentTenantId.value) return;
 		try {
-			// [核心修复] 在请求状态中加入 'COMPLETED'，以便主页可以正确判断是否有历史任务
-			const payload = await getTasks({ status: ['PENDING', 'IN_PROGRESS', 'COMPLETED'] });
+			const payload = await getProductionDashboard();
 			production.value = payload.tasks;
 			prepTask.value = payload.prepTask;
+			homeStats.value = payload.stats;
 			dataLoaded.value.production = true;
 		} catch (error) {
 			console.error('Failed to fetch production data', error);
@@ -135,7 +141,6 @@ export const useDataStore = defineStore('data', () => {
 			const newTasksData = res?.data || {};
 			const newMeta = res?.meta || { page: pageToFetch, hasMore: false };
 
-
 			if (loadMore) {
 				for (const date in newTasksData) {
 					if (historicalTasks.value[date]) {
@@ -157,7 +162,6 @@ export const useDataStore = defineStore('data', () => {
 			historicalTasksMeta.value.hasMore = false;
 		}
 	}
-
 
 	async function fetchRecipesData() {
 		if (!currentTenantId.value) return;
@@ -216,7 +220,8 @@ export const useDataStore = defineStore('data', () => {
 
 	function resetData() {
 		production.value = [];
-		prepTask.value = null; // [新增] 重置前置任务
+		prepTask.value = null;
+		homeStats.value = { pendingCount: 0, completedThisWeekCount: 0 };
 		recipes.value = [];
 		ingredients.value = [];
 		members.value = [];
@@ -243,7 +248,8 @@ export const useDataStore = defineStore('data', () => {
 		currentTenantId,
 		currentTenant,
 		production,
-		prepTask, // [新增] 导出前置任务 state
+		prepTask,
+		homeStats, // [核心新增] 导出 state
 		historicalTasks,
 		historicalTasksMeta,
 		recipes,

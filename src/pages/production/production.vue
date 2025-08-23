@@ -3,17 +3,15 @@
 		<view class="page-content page-content-with-tabbar-fab">
 			<view class="summary-card">
 				<div>
-					<view class="value">{{ homeStats.pendingCount }}</view>
+					<view class="value">{{ dataStore.homeStats.pendingCount }}</view>
 					<view class="label">待完成</view>
 				</div>
 				<div>
-					<view class="value">{{ homeStats.completedThisWeekCount }}</view>
+					<view class="value">{{ dataStore.homeStats.completedThisWeekCount }}</view>
 					<view class="label">本周已完成</view>
 				</div>
 			</view>
 
-			<!-- [新增] 前置准备任务的显示区域 -->
-			<!-- (New) Display area for the preparation task -->
 			<view v-if="dataStore.prepTask">
 				<view class="card-title-wrapper">
 					<span class="card-title">前置任务</span>
@@ -97,7 +95,6 @@
 	import {
 		ref,
 		computed,
-		reactive
 	} from 'vue';
 	import {
 		onShow
@@ -123,7 +120,6 @@
 	import ListItem from '@/components/ListItem.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
-	// [修改] 引入 PrepTask 类型以支持新功能
 	import type {
 		ProductionTaskDto,
 		PrepTask
@@ -131,9 +127,6 @@
 	import {
 		updateTaskStatus
 	} from '@/api/tasks';
-	import {
-		getProductionHomeStats
-	} from '@/api/stats';
 	import {
 		formatChineseDate
 	} from '@/utils/format';
@@ -148,33 +141,16 @@
 
 	const showCancelConfirmModal = ref(false);
 
-	const homeStats = reactive({
-		pendingCount: 0,
-		completedThisWeekCount: 0,
-	});
-
+	// [核心改造] 移除本地的 homeStats 和 fetchHomeStats 方法
 	const isInitialLoad = ref(true);
-
-	const fetchHomeStats = async () => {
-		try {
-			const stats = await getProductionHomeStats();
-			homeStats.pendingCount = stats.pendingCount;
-			homeStats.completedThisWeekCount = stats.completedThisWeekCount;
-		} catch (error) {
-			console.error('Failed to fetch home stats:', error);
-		}
-	};
 
 	onShow(async () => {
 		try {
 			if (!dataStore.dataLoaded.production) {
 				isInitialLoad.value = true;
 			}
-			// [修改] 每次进入页面都重新获取任务数据，以保证前置任务的实时性
-			await Promise.all([
-				dataStore.fetchProductionData(),
-				fetchHomeStats()
-			]);
+			// [核心改造] 简化为只调用一个 Action
+			await dataStore.fetchProductionData();
 		} catch (error) {
 			console.error("Failed to load data on show:", error);
 		} finally {
@@ -183,7 +159,6 @@
 	});
 
 	const sortedTasks = computed(() => {
-		// [修复] 数据源从 dataStore.production 调整为 dataStore.production，以解决 filter of undefined 错误
 		const activeTasks = dataStore.production.filter(
 			task => task.status === 'PENDING' || task.status === 'IN_PROGRESS'
 		);
@@ -198,7 +173,7 @@
 	});
 
 	const hasCompletedTasks = computed(() => {
-		// [修复] 数据源从 dataStore.production 调整为 dataStore.production
+		// [核心改造] 此处逻辑无需修改，因为 store 中现在包含了 COMPLETED 任务
 		return dataStore.production.some(task => task.status === 'COMPLETED');
 	});
 
@@ -209,7 +184,6 @@
 		return task.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
 	};
 
-	// [新增] 方法：根据任务状态返回动态样式对象
 	const getTaskCardStyle = (task : ProductionTaskDto) => {
 		const colorMap = {
 			PENDING: '#d4a373',
@@ -253,7 +227,6 @@
 		return map[status] || '';
 	};
 
-	// [修改] 改造导航方法，使其能处理普通任务和前置任务
 	const navigateToDetail = (task : ProductionTaskDto | PrepTask) => {
 		const isPrepTask = task.id === 'prep-task-01';
 		const url = isPrepTask ?
@@ -315,7 +288,6 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-	/* [兼容性修复] 引入新增的 Mixin */
 	@include list-item-option-style;
 
 	.summary-card {
@@ -400,8 +372,6 @@
 		background-color: #a8a8a8;
 	}
 
-	/* [新增] 前置任务卡片的特殊样式 */
-	/* (New) Special styles for the prep task card */
 	.prep-task-card {
 		--card-border-color: #8e44ad;
 		margin-bottom: 20px;
