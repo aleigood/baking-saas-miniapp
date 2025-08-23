@@ -17,26 +17,31 @@
 						</view>
 					</view>
 
-					<view class="task-summary-card">
-						<view class="product-grid-title">产品列表</view>
-						<view v-for="group in groupedProducts" :key="group.familyName" class="product-group">
-							<view class="product-group-title">{{ group.familyName }}</view>
-							<view class="product-grid">
-								<view v-for="product in group.products" :key="product.id" class="product-grid-item">
-									{{ product.name }} x{{ product.quantity }}
-								</view>
-							</view>
+					<view class="card-full-bleed-list">
+						<view class="card-title-wrapper">
+							<span class="card-title">产品列表</span>
 						</view>
+						<ListItem v-for="(dough, index) in groupedDoughs" :key="dough.familyId"
+							class="product-list-item" :selected="selectedDoughFamilyId === dough.familyId"
+							@click="selectDough(dough.familyId)" :bleed="true"
+							:divider="index < groupedDoughs.length - 1">
+							<view class="main-info">
+								<view class="name">{{ dough.familyName }}</view>
+								<view class="desc">{{ dough.productsDescription }}</view>
+							</view>
+						</ListItem>
 					</view>
 
-					<view v-for="(recipeCard) in recipeCards" :key="recipeCard.recipeName" class="card">
-						<view class="group-title" @click="toggleCard(recipeCard.recipeName)">
-							<span>{{ recipeCard.recipeName }}</span>
-							<span class="arrow"
-								:class="{ collapsed: openCardName !== recipeCard.recipeName }">&#10094;</span>
-						</view>
-						<view v-show="openCardName === recipeCard.recipeName" class="product-list">
-							<view v-for="ingredient in recipeCard.ingredients" :key="ingredient.name"
+					<view v-if="!isStarted" class="start-task-button-container">
+						<AppButton type="primary" full-width @click="handleStartTask">
+							开始制作
+						</AppButton>
+					</view>
+
+					<view v-if="isStarted && selectedDoughIngredients" class="card">
+						<view class="card-title">{{ selectedDough?.familyName }} 原料清单</view>
+						<view class="product-list">
+							<view v-for="ingredient in selectedDoughIngredients" :key="ingredient.name"
 								class="ingredient-item">
 								<view class="product-name">{{ ingredient.name }}</view>
 								<view class="quantity">{{ ingredient.amount.toFixed(1) }} g</view>
@@ -44,15 +49,11 @@
 						</view>
 					</view>
 
-					<view v-if="task.prepTask" class="prep-task-button-container">
-						<AppButton type="secondary" full-width @click="showPrepTaskModal = true">
-							查看备料清单
+					<view class="bottom-actions-container">
+						<AppButton v-if="isStarted" type="primary" full-width @click="openCompleteTaskModal">
+							完成任务
 						</AppButton>
 					</view>
-
-					<AppButton type="primary" full-width @click="openCompleteTaskModal">
-						完成任务
-					</AppButton>
 				</view>
 			</view>
 			<view class="loading-spinner" v-else>
@@ -74,40 +75,6 @@
 				</AppButton>
 			</view>
 		</AppModal>
-
-		<AppModal v-model:visible="showPrepTaskModal" title="备料清单" size="large">
-			<scroll-view scroll-y class="prep-task-modal-content">
-				<view v-if="task && task.prepTask">
-					<view v-for="item in task.prepTask.items" :key="item.id" class="card recipe-card">
-						<view class="card-title-wrapper">
-							<span class="card-title">{{ item.name }}</span>
-							<span class="total-weight">总重: {{ (item.totalWeight / 1000).toFixed(2) }} kg</span>
-						</view>
-
-						<view class="content-section">
-							<view class="section-title">原料清单</view>
-							<view class="ingredient-list">
-								<view v-for="(ing, index) in item.ingredients" :key="index"
-									class="ingredient-item-modal">
-									<text class="name">{{ ing.name }}</text>
-									<text class="weight">{{ ing.weightInGrams.toFixed(1) }} g</text>
-								</view>
-							</view>
-						</view>
-
-						<view v-if="item.procedure && item.procedure.length > 0" class="content-section">
-							<view class="section-title">制作要点</view>
-							<view class="procedure-list">
-								<view v-for="(step, index) in item.procedure" :key="index" class="procedure-item">
-									<text class="step-number">{{ index + 1 }}.</text>
-									<text class="step-text">{{ step }}</text>
-								</view>
-							</view>
-						</view>
-					</view>
-				</view>
-			</scroll-view>
-		</AppModal>
 	</view>
 </template>
 
@@ -123,6 +90,7 @@
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
+	import ListItem from '@/components/ListItem.vue';
 
 	defineOptions({
 		inheritAttrs: false
@@ -135,9 +103,11 @@
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const task = ref<ProductionTaskDetailDto | null>(null);
-	const openCardName = ref('');
 	const showCompleteTaskModal = ref(false);
-	const showPrepTaskModal = ref(false);
+
+	const isStarted = ref(false);
+	// [核心改造] 状态名变更为 selectedDoughFamilyId
+	const selectedDoughFamilyId = ref<string | null>(null);
 
 	onLoad(async (options) => {
 		const taskId = options?.taskId;
@@ -151,17 +121,14 @@
 			const response = await getTaskDetail(taskId);
 			if ('items' in response) {
 				task.value = response as ProductionTaskDetailDto;
+				if (task.value.status === 'IN_PROGRESS' || task.value.status === 'COMPLETED') {
+					isStarted.value = true;
+					// [核心新增] 如果任务已在进行中，默认选中第一个面团
+					if (groupedDoughs.value.length > 0) {
+						selectedDoughFamilyId.value = groupedDoughs.value[0].familyId;
+					}
+				}
 			}
-
-
-			if (task.value?.status === 'PENDING') {
-				await dataStore.fetchProductionData();
-			}
-
-			if (recipeCards.value.length > 0) {
-				openCardName.value = recipeCards.value[0].recipeName;
-			}
-
 		} catch (error) {
 			console.error('Failed to load task details:', error);
 		} finally {
@@ -169,49 +136,82 @@
 		}
 	});
 
-	const groupedProducts = computed(() => {
-		if (!task.value || !task.value.items) {
-			return [];
-		}
+	const handleStartTask = async () => {
+		if (!task.value) return;
+		try {
+			await updateTaskStatus(task.value.id, 'IN_PROGRESS');
+			isStarted.value = true;
+			task.value.status = 'IN_PROGRESS';
+			toastStore.show({ message: '任务已开始', type: 'success' });
+			await dataStore.fetchProductionData();
 
-		const groups = new Map<string, {
-			id : string;
-			name : string;
-			quantity : number
-		}[]>();
+			// [核心新增] 开始任务后，默认选中第一个面团
+			if (groupedDoughs.value.length > 0) {
+				selectedDoughFamilyId.value = groupedDoughs.value[0].familyId;
+			}
+		} catch (error) {
+			console.error('Failed to start task:', error);
+		}
+	};
+
+	// [核心改造] 方法名和逻辑更新为处理面团（配方族）的选择
+	const selectDough = (familyId : string) => {
+		if (selectedDoughFamilyId.value === familyId) {
+			selectedDoughFamilyId.value = null;
+		} else {
+			selectedDoughFamilyId.value = familyId;
+		}
+	};
+
+	// [核心改造] 新的计算属性，用于将任务项按面团（配方族）分组
+	const groupedDoughs = computed(() => {
+		if (!task.value || !task.value.items) return [];
+
+		const doughsMap = new Map<string, { familyName : string; products : any[] }>();
 
 		task.value.items.forEach(item => {
+			const familyId = item.product.recipeVersion.family.id;
 			const familyName = item.product.recipeVersion.family.name;
-			if (!groups.has(familyName)) {
-				groups.set(familyName, []);
+
+			if (!doughsMap.has(familyId)) {
+				doughsMap.set(familyId, { familyName, products: [] });
 			}
-			groups.get(familyName)!.push({
-				id: item.product.id,
-				name: item.product.name,
-				quantity: item.quantity
+			doughsMap.get(familyId)!.products.push({
+				...item.product,
+				quantity: item.quantity,
 			});
 		});
 
-		return Array.from(groups.entries()).map(([familyName, products]) => ({
-			familyName,
-			products
+		return Array.from(doughsMap.entries()).map(([familyId, data]) => ({
+			familyId,
+			familyName: data.familyName,
+			// 生成产品描述字符串，例如："熊掌卡仕达 x30, 小吐司 x12"
+			productsDescription: data.products.map(p => `${p.name} x${p.quantity}`).join(', '),
 		}));
 	});
 
-	const recipeCards = computed(() => {
-		if (!task.value) return [];
+	// [核心改造] 新的计算属性，用于获取当前选中的面团对象
+	const selectedDough = computed(() => {
+		if (!selectedDoughFamilyId.value) return null;
+		return groupedDoughs.value.find(d => d.familyId === selectedDoughFamilyId.value);
+	});
 
-		const recipeConsumptions = new Map<string, Map<string, number>>();
+	// [核心改造] 计算属性现在基于选中的面团（配方族）来计算总原料
+	const selectedDoughIngredients = computed(() => {
+		if (!task.value || !selectedDoughFamilyId.value) return null;
 
-		task.value.items.forEach(item => {
+		// 找到属于当前选中面团的所有任务项
+		const itemsForSelectedDough = task.value.items.filter(
+			item => item.product.recipeVersion.family.id === selectedDoughFamilyId.value
+		);
+
+		if (itemsForSelectedDough.length === 0) return [];
+
+		const ingredientsMap = new Map<string, number>();
+
+		itemsForSelectedDough.forEach(item => {
 			const product = item.product;
 			if (!product || !product.recipeVersion || !product.recipeVersion.doughs) return;
-
-			const recipeName = product.recipeVersion.family.name;
-			if (!recipeConsumptions.has(recipeName)) {
-				recipeConsumptions.set(recipeName, new Map<string, number>());
-			}
-			const ingredientsMap = recipeConsumptions.get(recipeName)!;
 
 			product.recipeVersion.doughs.forEach(dough => {
 				let totalFlourRatio = 0;
@@ -233,22 +233,11 @@
 			});
 		});
 
-		return Array.from(recipeConsumptions.entries()).map(([recipeName, ingredientsMap]) => ({
-			recipeName,
-			ingredients: Array.from(ingredientsMap.entries()).map(([name, amount]) => ({
-				name,
-				amount,
-			})),
+		return Array.from(ingredientsMap.entries()).map(([name, amount]) => ({
+			name,
+			amount,
 		}));
 	});
-
-	const toggleCard = (recipeName : string) => {
-		if (openCardName.value === recipeName) {
-			openCardName.value = '';
-		} else {
-			openCardName.value = recipeName;
-		}
-	};
 
 	const openCompleteTaskModal = () => {
 		showCompleteTaskModal.value = true;
@@ -294,6 +283,7 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+	@include list-item-content-style;
 
 	.page-wrapper {
 		display: flex;
@@ -315,13 +305,12 @@
 		line-height: 1.5;
 	}
 
-	/* [核心修改] 更新警告卡片的样式 */
 	.warning-card {
-		background-color: #faedcd; // 设置背景色
-		border: none; // 移除边框
+		background-color: #faedcd;
+		border: none;
 		padding: 15px;
 		margin-bottom: 20px;
-		color: var(--primary-color); // 设置文字颜色
+		color: var(--primary-color);
 	}
 
 	.warning-content {
@@ -334,78 +323,34 @@
 		line-height: 1.6;
 	}
 
-	.task-summary-card {
+	.card-full-bleed-list {
 		background: var(--card-bg);
-		padding: 20px;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 		border-radius: 20px;
 		margin-bottom: 20px;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+		padding-top: 20px;
+		padding-bottom: 10px;
 	}
 
-	.product-grid-title {
-		font-size: 18px;
-		font-weight: 600;
-		margin-bottom: 12px;
-		color: var(--text-primary);
-		padding-bottom: 12px;
-		border-bottom: 1px solid var(--border-color);
+	.card-full-bleed-list .card-title-wrapper {
+		padding-left: 20px;
+		padding-right: 20px;
+		margin-bottom: 10px;
 	}
 
-	.product-group {
-		margin-bottom: 15px;
-
-		&:last-child {
-			margin-bottom: 0;
-		}
+	/* [核心改造] 移除 group 相关样式，直接对 ListItem 进行样式调整 */
+	.product-list-item .main-info .name {
+		font-weight: 500;
 	}
 
-	.product-group-title {
-		font-size: 15px;
-		font-weight: 600;
-		color: var(--text-primary);
-		margin-bottom: 8px;
+	.product-list-item .main-info .desc {
+		margin-top: 4px;
+		/* 增加描述和名称的间距 */
 	}
 
-	.product-grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr 1fr;
-		gap: 8px 12px;
-	}
-
-	.product-grid-item {
-		font-size: 14px;
-		color: var(--text-secondary);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-
-	.details {
-		color: var(--text-secondary);
-		font-size: 14px;
-	}
-
-	.group-title {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		font-size: 16px;
-		font-weight: 600;
-		color: var(--text-primary);
-		padding: 0 5px 15px 5px;
-		border-bottom: 1px solid var(--border-color);
-	}
-
-	.arrow {
-		font-size: 14px;
-		color: var(--text-secondary);
-		transform: rotate(90deg);
-		transition: transform 0.3s ease;
-	}
-
-	.arrow.collapsed {
-		transform: rotate(-90deg);
+	.start-task-button-container {
+		margin-top: 10px;
+		margin-bottom: 20px;
 	}
 
 	.product-list {
@@ -425,101 +370,7 @@
 		font-weight: 500;
 	}
 
-	.modal-prompt-text {
-		font-size: 16px;
-		color: var(--text-primary);
-		text-align: center;
-		margin-bottom: 10px;
-	}
-
-	.modal-warning-text {
-		font-size: 13px;
-		color: var(--text-secondary);
-		text-align: center;
-		margin-bottom: 20px;
-		line-height: 1.5;
-	}
-
-	.prep-task-button-container {
-		margin-bottom: 15px;
-	}
-
-	.prep-task-modal-content {
-		max-height: 70vh;
-	}
-
-	.recipe-card {
-		margin-bottom: 20px;
-	}
-
-	.card-title-wrapper {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		width: 100%;
-	}
-
-	.total-weight {
-		font-size: 14px;
-		color: var(--text-secondary);
-		font-weight: 400;
-	}
-
-	.content-section {
+	.bottom-actions-container {
 		margin-top: 20px;
-		padding-top: 20px;
-		border-top: 1px solid var(--border-color);
-	}
-
-	.section-title {
-		font-size: 16px;
-		font-weight: 500;
-		color: var(--text-primary);
-		margin-bottom: 15px;
-	}
-
-	.ingredient-list {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: 12px 20px;
-	}
-
-	.ingredient-item-modal {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		font-size: 15px;
-
-		.name {
-			color: var(--text-secondary);
-		}
-
-		.weight {
-			color: var(--text-primary);
-			font-weight: 500;
-		}
-	}
-
-	.procedure-list {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-	}
-
-	.procedure-item {
-		display: flex;
-		align-items: flex-start;
-		font-size: 15px;
-		line-height: 1.6;
-
-		.step-number {
-			color: var(--primary-color);
-			font-weight: 500;
-			margin-right: 8px;
-		}
-
-		.step-text {
-			color: var(--text-secondary);
-		}
 	}
 </style>

@@ -278,7 +278,7 @@ export interface ProductionTaskDetailDto extends ProductionTaskDto {
 	prepTask ?: PrepTask | null;
 }
 
-// [核心新增] 为生产主页聚合接口定义返回类型
+// 为生产主页聚合接口定义返回类型
 export interface ProductionDashboardPayload {
 	stats : {
 		pendingCount : number;
@@ -286,4 +286,5 @@ export interface ProductionDashboardPayload {
 	};
 	tasks : ProductionTaskDto[];
 	prepTask : PrepTask | null;
+	hasHistory : boolean; // [核心新增]
 }

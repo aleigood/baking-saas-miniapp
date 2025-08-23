@@ -23,7 +23,6 @@ import { getTasks, getHistoryTasks } from '@/api/tasks';
 import { getRecipes } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
 import { getMembers } from '@/api/members';
-// [核心改造] 引入新的 dashboard 接口
 import { getRecipeStats, getIngredientStats, getProductionDashboard } from '@/api/stats';
 
 function getMonthDateRange() {
@@ -38,8 +37,8 @@ export const useDataStore = defineStore('data', () => {
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
 	const production = ref<ProductionTaskDto[]>([]);
 	const prepTask = ref<PrepTask | null>(null);
-	// [核心新增] 新增一个 state 用于存放主页的统计数据
 	const homeStats = ref({ pendingCount: 0, completedThisWeekCount: 0 });
+	const hasHistory = ref(false); // [核心新增] 新增 state
 	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
 	const historicalTasksMeta = ref({
 		page: 1,
@@ -107,9 +106,6 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	/**
-	 * [核心改造] 此方法现在调用聚合接口，一次性获取主页所有数据
-	 */
 	async function fetchProductionData() {
 		if (!currentTenantId.value) return;
 		try {
@@ -117,6 +113,7 @@ export const useDataStore = defineStore('data', () => {
 			production.value = payload.tasks;
 			prepTask.value = payload.prepTask;
 			homeStats.value = payload.stats;
+			hasHistory.value = payload.hasHistory; // [核心新增] 为 state 赋值
 			dataLoaded.value.production = true;
 		} catch (error) {
 			console.error('Failed to fetch production data', error);
@@ -222,6 +219,7 @@ export const useDataStore = defineStore('data', () => {
 		production.value = [];
 		prepTask.value = null;
 		homeStats.value = { pendingCount: 0, completedThisWeekCount: 0 };
+		hasHistory.value = false; // [核心新增] 重置 state
 		recipes.value = [];
 		ingredients.value = [];
 		members.value = [];
@@ -249,7 +247,8 @@ export const useDataStore = defineStore('data', () => {
 		currentTenant,
 		production,
 		prepTask,
-		homeStats, // [核心新增] 导出 state
+		homeStats,
+		hasHistory, // [核心新增] 导出 state
 		historicalTasks,
 		historicalTasksMeta,
 		recipes,

@@ -12,26 +12,10 @@
 				</div>
 			</view>
 
-			<view v-if="dataStore.prepTask">
-				<view class="card-title-wrapper">
-					<span class="card-title">前置任务</span>
-				</view>
-				<ListItem :key="dataStore.prepTask.id" @click="navigateToDetail(dataStore.prepTask)" card-mode
-					class="prep-task-card">
-					<view class="task-info">
-						<view class="title">{{ dataStore.prepTask.title }}</view>
-						<view class="details">{{ dataStore.prepTask.details }}</view>
-					</view>
-					<view class="status-tag status-prep">
-						去准备
-					</view>
-				</ListItem>
-			</view>
-
 			<view class="card-title-wrapper">
 				<span class="card-title">制作任务</span>
 				<view class="header-actions">
-					<IconButton v-if="hasCompletedTasks" @click="navigateToHistory">
+					<IconButton v-if="dataStore.hasHistory" @click="navigateToHistory">
 						<image class="header-icon" src="/static/icons/history.svg" />
 					</IconButton>
 					<IconButton @click="navigateToStats">
@@ -43,8 +27,8 @@
 			<view v-if="isInitialLoad" class="loading-spinner">
 				<text>加载中...</text>
 			</view>
-			<view v-else-if="sortedTasks.length > 0">
-				<ListItem v-for="task in sortedTasks" :key="task.id" @click="navigateToDetail(task)"
+			<view v-else-if="allTasksForDisplay.length > 0">
+				<ListItem v-for="task in allTasksForDisplay" :key="task.id" @click="navigateToDetail(task)"
 					@longpress="openTaskActions(task)" :vibrate-on-long-press="true" card-mode
 					:style="getTaskCardStyle(task)">
 					<view class="task-info">
@@ -141,7 +125,6 @@
 
 	const showCancelConfirmModal = ref(false);
 
-	// [核心改造] 移除本地的 homeStats 和 fetchHomeStats 方法
 	const isInitialLoad = ref(true);
 
 	onShow(async () => {
@@ -149,7 +132,6 @@
 			if (!dataStore.dataLoaded.production) {
 				isInitialLoad.value = true;
 			}
-			// [核心改造] 简化为只调用一个 Action
 			await dataStore.fetchProductionData();
 		} catch (error) {
 			console.error("Failed to load data on show:", error);
@@ -158,7 +140,8 @@
 		}
 	});
 
-	const sortedTasks = computed(() => {
+	// [核心改造] 创建一个新的计算属性，将前置任务和常规任务合并
+	const allTasksForDisplay = computed(() => {
 		const activeTasks = dataStore.production.filter(
 			task => task.status === 'PENDING' || task.status === 'IN_PROGRESS'
 		);
@@ -169,25 +152,36 @@
 		inProgressTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
 		pendingTasks.sort((a, b) => new Date(a.plannedDate).getTime() - new Date(b.plannedDate).getTime());
 
-		return [...inProgressTasks, ...pendingTasks];
+		const sortedRegularTasks = [...inProgressTasks, ...pendingTasks];
+
+		// 如果存在前置任务，则将其放在数组的最前面
+		if (dataStore.prepTask) {
+			// 为了能在列表中正确渲染，我们给前置任务一个 status 属性
+			const prepTaskForList = { ...dataStore.prepTask, status: 'PREP' };
+			return [prepTaskForList, ...sortedRegularTasks];
+		}
+
+		return sortedRegularTasks;
 	});
 
-	const hasCompletedTasks = computed(() => {
-		// [核心改造] 此处逻辑无需修改，因为 store 中现在包含了 COMPLETED 任务
-		return dataStore.production.some(task => task.status === 'COMPLETED');
-	});
-
-	const getTaskTitle = (task : ProductionTaskDto) => {
-		if (!task.items || task.items.length === 0) {
+	// [核心改造] getTaskTitle 现在能处理前置任务和常规任务
+	const getTaskTitle = (task : ProductionTaskDto | PrepTask) => {
+		if (task.status === 'PREP') {
+			return (task as PrepTask).title;
+		}
+		const regularTask = task as ProductionTaskDto;
+		if (!regularTask.items || regularTask.items.length === 0) {
 			return '未知任务';
 		}
-		return task.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
+		return regularTask.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
 	};
 
-	const getTaskCardStyle = (task : ProductionTaskDto) => {
-		const colorMap = {
+	// [核心改造] getTaskCardStyle 现在能处理前置任务
+	const getTaskCardStyle = (task : any) => {
+		const colorMap : Record<string, string> = {
 			PENDING: '#d4a373',
 			IN_PROGRESS: '#27ae60',
+			PREP: '#8e44ad', // 为前置任务定义边框颜色
 		};
 		const color = colorMap[task.status] || 'transparent';
 		return {
@@ -200,35 +194,43 @@
 		return task.items.reduce((sum, item) => sum + item.quantity, 0);
 	};
 
-	const getTaskDetails = (task : ProductionTaskDto) => {
+	// [核心改造] getTaskDetails 现在能处理前置任务和常规任务
+	const getTaskDetails = (task : any) => {
+		if (task.status === 'PREP') {
+			return task.details;
+		}
 		const formattedDate = formatChineseDate(task.plannedDate);
 		const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
 		const totalQuantity = getTotalQuantity(task);
 		return `${formattedDate} - by ${creator} | 计划总数: ${totalQuantity}`;
 	};
 
-	const getStatusText = (status : ProductionTaskDto['status']) => {
-		const map = {
+	// [核心改造] getStatusText 现在能处理前置任务
+	const getStatusText = (status : any) => {
+		const map : Record<string, string> = {
 			PENDING: '待开始',
 			IN_PROGRESS: '进行中',
 			COMPLETED: '已完成',
-			CANCELLED: '已取消'
+			CANCELLED: '已取消',
+			PREP: '去准备',
 		};
 		return map[status] || '未知';
 	};
 
-	const getStatusClass = (status : ProductionTaskDto['status']) => {
-		const map = {
+	// [核心改造] getStatusClass 现在能处理前置任务
+	const getStatusClass = (status : any) => {
+		const map : Record<string, string> = {
 			PENDING: 'status-pending',
 			IN_PROGRESS: 'status-inprogress',
 			COMPLETED: 'status-completed',
-			CANCELLED: 'status-cancelled'
+			CANCELLED: 'status-cancelled',
+			PREP: 'status-prep'
 		};
 		return map[status] || '';
 	};
 
-	const navigateToDetail = (task : ProductionTaskDto | PrepTask) => {
-		const isPrepTask = task.id === 'prep-task-01';
+	const navigateToDetail = (task : any) => {
+		const isPrepTask = task.status === 'PREP';
 		const url = isPrepTask ?
 			`/pages/production/prep-detail` :
 			`/pages/production/detail?taskId=${task.id}`;
@@ -249,8 +251,9 @@
 		});
 	};
 
-	const openTaskActions = (task : ProductionTaskDto) => {
-		selectedTaskForAction.value = task;
+	const openTaskActions = (task : any) => {
+		if (task.status === 'PREP') return;
+		selectedTaskForAction.value = task as ProductionTaskDto;
 		uiStore.openModal(MODAL_KEYS.TASK_ACTIONS);
 	};
 
