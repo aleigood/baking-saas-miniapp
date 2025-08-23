@@ -28,99 +28,141 @@
 
 					<template v-if="isStarted && selectedDoughDetails">
 						<view class="card">
-							<view class="group-title">
+							<view class="group-title" @click="toggleCollapse(selectedDoughDetails.familyId)">
 								<span>{{ selectedDoughDetails.familyName }} (总重:
 									{{ selectedDoughDetails.totalDoughWeight.toFixed(0) }}g)</span>
+								<span class="arrow"
+									:class="{ collapsed: collapsedSections.has(selectedDoughDetails.familyId) }">&#10094;</span>
 							</view>
-							<view class="recipe-table-container-full-bleed">
-								<view class="recipe-table">
-									<view class="table-header">
-										<text class="col-ingredient">原料</text>
-										<text class="col-brand">品牌</text>
-										<text class="col-usage">用量</text>
-										<text class="col-action">操作</text>
-									</view>
-									<view v-for="ing in selectedDoughDetails.mainDoughIngredients" :key="ing.id"
-										class="table-row" :class="{ 'is-added': addedIngredients.has(ing.id) }">
-										<text class="col-ingredient">{{ ing.name }}</text>
-										<text class="col-brand">{{ ing.brand || '-' }}</text>
-										<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
-										<view class="col-action">
-											<view class="action-tag"
-												:class="{ 'is-added': addedIngredients.has(ing.id) }"
-												@click="!addedIngredients.has(ing.id) && addIngredient(ing.id)"
-												@longpress.prevent="removeIngredient(ing.id)">
-												{{ addedIngredients.has(ing.id) ? '已添加' : '添加' }}
+							<view v-show="!collapsedSections.has(selectedDoughDetails.familyId)">
+								<view class="recipe-table-container-full-bleed">
+									<view class="recipe-table">
+										<view class="table-header">
+											<text class="col-ingredient">原料</text>
+											<text class="col-brand">品牌</text>
+											<text class="col-usage">用量</text>
+											<text class="col-action">操作</text>
+										</view>
+										<view v-for="ing in selectedDoughDetails.mainDoughIngredients" :key="ing.id"
+											class="table-row" :class="{ 'is-added': addedIngredients.has(ing.id) }">
+											<text class="col-ingredient">{{ ing.name }}</text>
+											<text class="col-brand">{{ ing.brand || '-' }}</text>
+											<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
+											<view class="col-action">
+												<view class="action-tag"
+													:class="{ 'is-added': addedIngredients.has(ing.id) }"
+													@click="!addedIngredients.has(ing.id) && addIngredient(ing.id)"
+													@longpress.prevent="removeIngredient(ing.id)">
+													{{ addedIngredients.has(ing.id) ? '已添加' : '添加' }}
+												</view>
 											</view>
 										</view>
 									</view>
-								</view>
-								<view v-if="selectedDoughDetails.mainDoughProcedure.length > 0" class="procedure-notes">
-									<text class="notes-title">制作要点:</text>
-									<text v-for="(step, stepIndex) in selectedDoughDetails.mainDoughProcedure"
-										:key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
-								</view>
-							</view>
-
-							<view class="recipe-table-container-full-bleed">
-								<view class="info-table summary-table">
-									<view class="table-header">
-										<text class="col-product-name">面包名称</text>
-										<text class="col-quantity">数量</text>
-										<text class="col-dough-weight">面团总重</text>
-										<text class="col-division-weight">分割重量</text>
+									<view v-if="selectedDoughDetails.mainDoughProcedure.length > 0"
+										class="procedure-notes">
+										<text class="notes-title">制作要点:</text>
+										<text v-for="(step, stepIndex) in selectedDoughDetails.mainDoughProcedure"
+											:key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 									</view>
-									<view v-for="product in selectedDoughDetails.products" :key="product.id"
-										class="info-row">
-										<text class="col-product-name">{{ product.name }}</text>
-										<text class="col-quantity">{{ product.quantity }}</text>
-										<text
-											class="col-dough-weight">{{ product.totalBaseDoughWeight.toFixed(0) }}g</text>
-										<text
-											class="col-division-weight">{{ product.divisionWeight.toFixed(0) }}g</text>
+								</view>
+
+								<view class="recipe-table-container-full-bleed">
+									<view class="info-table summary-table">
+										<view class="table-header">
+											<text class="col-product-name">面包名称</text>
+											<text class="col-quantity">数量</text>
+											<text class="col-dough-weight">面团总重</text>
+											<text class="col-division-weight">分割重量</text>
+										</view>
+										<view v-for="product in selectedDoughDetails.products" :key="product.id"
+											class="info-row">
+											<text class="col-product-name">{{ product.name }}</text>
+											<text class="col-quantity">{{ product.quantity }}</text>
+											<text
+												class="col-dough-weight">{{ product.totalBaseDoughWeight.toFixed(0) }}g</text>
+											<text
+												class="col-division-weight">{{ product.divisionWeight.toFixed(0) }}g</text>
+										</view>
 									</view>
 								</view>
 							</view>
 						</view>
 
-						<view v-for="product in selectedDoughDetails.products" :key="product.id">
-							<view class="card">
-								<template
-									v-if="product.mixIns.length > 0 || product.fillings.length > 0 || product.procedure.length > 0">
-									<view class="group-title">{{product.name}}</view>
-									<view class="recipe-table-container-full-bleed">
-										<view v-if="product.mixIns.length > 0" class="recipe-table detail-table">
-											<view class="table-header">
-												<text class="col-ingredient">辅料</text>
-												<text class="col-brand">品牌</text>
-												<text class="col-usage">总用量</text>
+						<view class="product-tabs-wrapper"
+							v-if="selectedDoughDetails && selectedDoughDetails.products.length > 0">
+							<FilterTabs>
+								<FilterTab v-for="product in selectedDoughDetails.products" :key="product.id"
+									:active="selectedProductId === product.id" @click="handleProductClick(product.id)">
+									{{ product.name }}
+								</FilterTab>
+							</FilterTabs>
+						</view>
+
+						<view class="card" v-if="selectedProductDetails">
+							<template
+								v-if="selectedProductDetails.mixIns.length > 0 || selectedProductDetails.fillings.length > 0 || selectedProductDetails.procedure.length > 0">
+								<view class="group-title" @click="toggleCollapse(selectedProductDetails.id)">
+									<span>{{selectedProductDetails.name}}</span>
+									<span class="arrow"
+										:class="{ collapsed: collapsedSections.has(selectedProductDetails.id) }">&#10094;</span>
+								</view>
+								<view v-show="!collapsedSections.has(selectedProductDetails.id)">
+									<view class="recipe-table-container-full-bleed"
+										v-if="selectedProductDetails.mixIns.length > 0 || selectedProductDetails.fillings.length > 0">
+										<AnimatedTabs v-if="productDetailTabs.length > 0" v-model="activeProductTab"
+											:tabs="productDetailTabs" />
+										<template v-if="activeProductTab === 'mixIns'">
+											<view v-if="selectedProductDetails.mixIns.length > 0"
+												class="recipe-table detail-table">
+												<view class="table-header">
+													<text class="col-ingredient">辅料</text>
+													<text class="col-brand">品牌</text>
+													<text class="col-usage">总用量</text>
+												</view>
+												<view v-for="ing in selectedProductDetails.mixIns" :key="ing.id"
+													class="table-row">
+													<text class="col-ingredient">{{ ing.name }}</text>
+													<text class="col-brand">{{ ing.brand || '-' }}</text>
+													<text
+														class="col-usage">{{ ing.totalWeightInGrams.toFixed(1) }}g</text>
+												</view>
 											</view>
-											<view v-for="ing in product.mixIns" :key="ing.id" class="table-row">
-												<text class="col-ingredient">{{ ing.name }}</text>
-												<text class="col-brand">{{ ing.brand || '-' }}</text>
-												<text class="col-usage">{{ ing.totalWeightInGrams.toFixed(1) }}g</text>
+											<view v-else class="empty-state" style="padding: 20px 0;">
+												无辅料
 											</view>
-										</view>
-										<view v-if="product.fillings.length > 0" class="recipe-table detail-table">
-											<view class="table-header">
-												<text class="col-ingredient">馅料</text>
-												<text class="col-brand">品牌</text>
-												<text class="col-usage">用量/个</text>
+										</template>
+										<template v-if="activeProductTab === 'fillings'">
+											<view v-if="selectedProductDetails.fillings.length > 0"
+												class="recipe-table detail-table">
+												<view class="table-header">
+													<text class="col-ingredient">馅料</text>
+													<text class="col-brand">品牌</text>
+													<text class="col-usage">用量/个</text>
+												</view>
+												<view v-for="ing in selectedProductDetails.fillings" :key="ing.id"
+													class="table-row">
+													<text class="col-ingredient">{{ ing.name }}</text>
+													<text class="col-brand">{{ ing.brand || '-' }}</text>
+													<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
+												</view>
 											</view>
-											<view v-for="ing in product.fillings" :key="ing.id" class="table-row">
-												<text class="col-ingredient">{{ ing.name }}</text>
-												<text class="col-brand">{{ ing.brand || '-' }}</text>
-												<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
+											<view v-else class="empty-state" style="padding: 20px 0;">
+												无馅料
 											</view>
-										</view>
-										<view v-if="product.procedure.length > 0" class="procedure-notes">
+										</template>
+									</view>
+
+									<view v-if="selectedProductDetails.procedure.length > 0"
+										class="procedure-notes-wrapper">
+										<view class="procedure-notes">
 											<text class="notes-title">制作要点:</text>
-											<text v-for="(step, stepIndex) in product.procedure" :key="stepIndex"
-												class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+											<text v-for="(step, stepIndex) in selectedProductDetails.procedure"
+												:key="stepIndex" class="note-item">{{ stepIndex + 1 }}.
+												{{ step }}</text>
 										</view>
 									</view>
-								</template>
-							</view>
+								</view>
+							</template>
 						</view>
 					</template>
 
@@ -154,6 +196,9 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import ListItem from '@/components/ListItem.vue';
+	import FilterTabs from '@/components/FilterTabs.vue';
+	import FilterTab from '@/components/FilterTab.vue';
+	import AnimatedTabs from '@/components/AnimatedTabs.vue';
 
 	defineOptions({
 		inheritAttrs: false
@@ -170,6 +215,9 @@
 	const isStarted = ref(false);
 	const selectedDoughFamilyId = ref<string | null>(null);
 	const addedIngredients = ref(new Set<string>());
+	const collapsedSections = ref(new Set<string>());
+	const activeProductTab = ref<'mixIns' | 'fillings'>('mixIns');
+	const selectedProductId = ref<string | null>(null);
 
 	onLoad(async (options) => {
 		const taskId = options?.taskId;
@@ -182,6 +230,9 @@
 					isStarted.value = true;
 					if (groupedDoughs.value.length > 0) {
 						selectedDoughFamilyId.value = groupedDoughs.value[0].familyId;
+						if (selectedDoughDetails.value && selectedDoughDetails.value.products.length > 0) {
+							selectedProductId.value = selectedDoughDetails.value.products[0].id;
+						}
 					}
 				}
 			}
@@ -191,6 +242,17 @@
 			isLoading.value = false;
 		}
 	});
+
+	const toggleCollapse = (sectionName : string) => {
+		const newSet = new Set(collapsedSections.value);
+		if (newSet.has(sectionName)) {
+			newSet.delete(sectionName);
+		} else {
+			newSet.add(sectionName);
+		}
+		collapsedSections.value = newSet;
+	};
+
 
 	const addIngredient = (id : string) => {
 		addedIngredients.value.add(id);
@@ -214,8 +276,27 @@
 	};
 
 	const selectDough = (familyId : string) => {
-		selectedDoughFamilyId.value = selectedDoughFamilyId.value === familyId ? null : familyId;
+		selectedDoughFamilyId.value = familyId;
+		if (selectedDoughDetails.value && selectedDoughDetails.value.products.length > 0) {
+			selectedProductId.value = selectedDoughDetails.value.products[0].id;
+		} else {
+			selectedProductId.value = null;
+		}
+		activeProductTab.value = 'mixIns';
 	};
+
+	const handleProductClick = (productId : string) => {
+		selectedProductId.value = productId;
+		const product = selectedDoughDetails.value?.products.find(p => p.id === productId);
+		if (product) {
+			if (product.mixIns.length > 0) {
+				activeProductTab.value = 'mixIns';
+			} else if (product.fillings.length > 0) {
+				activeProductTab.value = 'fillings';
+			}
+		}
+	};
+
 
 	const groupedDoughs = computed(() => {
 		if (!task.value || !task.value.items) return [];
@@ -316,7 +397,6 @@
 				.map((ing : any) => ({
 					id: ing.ingredient?.id || ing.linkedExtra?.id,
 					name: ing.ingredient?.name || ing.linkedExtra.name,
-					// [修改] 增加 brand 字段的提取，使其与辅料的数据结构一致
 					brand: ing.ingredient?.activeSku?.brand || null,
 					weightInGrams: ing.weightInGrams,
 				}));
@@ -342,6 +422,22 @@
 			products: productsDetails,
 		};
 	});
+
+	const selectedProductDetails = computed(() => {
+		if (!selectedDoughDetails.value || !selectedProductId.value) return null;
+		return selectedDoughDetails.value.products.find(p => p.id === selectedProductId.value);
+	});
+
+	const productDetailTabs = computed(() => {
+		const tabs = [];
+		const product = selectedProductDetails.value;
+		if (product && (product.mixIns.length > 0 || product.fillings.length > 0)) {
+			tabs.push({ key: 'mixIns', label: '辅料' });
+			tabs.push({ key: 'fillings', label: '馅料' });
+		}
+		return tabs;
+	});
+
 
 	const openCompleteTaskModal = () => { /* ... */ };
 	const handleConfirmCompleteTask = async () => { /* ... */ };
@@ -395,8 +491,7 @@
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 		border-radius: 20px;
 		margin-bottom: 20px;
-		padding-top: 20px;
-		padding-bottom: 10px;
+		padding: 20px 0px;
 	}
 
 	.card-full-bleed-list .card-title-wrapper {
@@ -427,10 +522,24 @@
 	}
 
 	.group-title {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 		font-size: 16px;
 		font-weight: 600;
 		color: var(--text-primary);
-		padding: 15px 5px 0 5px;
+		padding: 0px 5px;
+	}
+
+	.arrow {
+		font-size: 14px;
+		color: var(--text-secondary);
+		transform: rotate(90deg);
+		transition: transform 0.3s ease;
+	}
+
+	.arrow.collapsed {
+		transform: rotate(-90deg);
 	}
 
 	.sub-group-title {
@@ -485,9 +594,10 @@
 			vertical-align: middle;
 		}
 
-		.col-usage {
-			text-align: right;
-			white-space: nowrap;
+		.col-ingredient {
+			width: 25%;
+			min-width: 60px;
+			word-break: break-word;
 		}
 
 		.col-brand {
@@ -495,11 +605,18 @@
 			min-width: 60px;
 			white-space: nowrap;
 			text-align: center;
+			width: 25%;
+		}
+
+		.col-usage {
+			text-align: right;
+			white-space: nowrap;
+			width: 20%;
 		}
 
 		.col-action {
-			width: 60px;
-			text-align: center;
+			min-width: 65px;
+			text-align: left;
 		}
 	}
 
@@ -512,6 +629,7 @@
 		color: var(--text-secondary);
 		display: inline-block;
 		transition: background-color 0.3s, color 0.3s;
+		white-space: nowrap;
 
 		&.is-added {
 			background-color: #5ac725;
@@ -519,8 +637,15 @@
 		}
 	}
 
-	.procedure-notes {
+	.procedure-notes-wrapper {
+		background-color: #faf8f5;
+		border-radius: 16px;
 		margin-top: 15px;
+		padding-top: 15px;
+	}
+
+	.procedure-notes {
+		margin-top: 0;
 		font-size: 12px;
 		color: var(--text-secondary);
 		line-height: 1.6;
@@ -578,6 +703,16 @@
 
 		.col-product-name {
 			text-align: left;
+			width: 40%;
+		}
+
+		.col-quantity {
+			width: 15%;
+		}
+
+		.col-dough-weight,
+		.col-division-weight {
+			width: 22.5%;
 		}
 	}
 
@@ -586,6 +721,56 @@
 
 		.table-row {
 			background-color: transparent !important;
+		}
+
+		.col-ingredient {
+			width: 50%;
+		}
+
+		.col-brand {
+			width: 25%;
+		}
+
+		.col-usage {
+			width: 25%;
+		}
+	}
+
+	.product-detail-tabs {
+		display: flex;
+		background-color: #f3e9e3;
+		border-radius: 10px;
+		margin: 15px;
+		overflow: hidden;
+
+		.tab {
+			flex-grow: 1;
+			text-align: center;
+			padding: 8px 15px;
+			font-size: 14px;
+			color: var(--text-secondary);
+			cursor: pointer;
+			transition: background-color 0.3s, color 0.3s;
+
+			&.active {
+				background-color: var(--primary-color);
+				color: white;
+			}
+
+			&:not(:last-child) {
+				border-right: 1px solid #e0d6cf;
+			}
+		}
+	}
+
+	.product-tabs-wrapper {
+		padding: 0;
+		margin-bottom: 20px;
+
+		:deep(.filter-tabs) {
+			flex-wrap: nowrap;
+			margin-bottom: 0;
+			padding: 0 15px;
 		}
 	}
 </style>
