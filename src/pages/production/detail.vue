@@ -5,7 +5,6 @@
 		<DetailPageLayout>
 			<view class="page-content" v-if="!isLoading && task">
 				<view class="detail-page">
-					<!-- 面团列表 -->
 					<view class="card-full-bleed-list">
 						<view class="card-title-wrapper">
 							<span class="card-title">面团列表</span>
@@ -21,22 +20,18 @@
 						</ListItem>
 					</view>
 
-					<!-- "开始制作" 按钮 -->
 					<view v-if="!isStarted" class="start-task-button-container">
 						<AppButton type="primary" full-width @click="handleStartTask">
 							开始制作
 						</AppButton>
 					</view>
 
-					<!-- 选中面团后的详细信息展示 -->
 					<template v-if="isStarted && selectedDoughDetails">
 						<view class="card">
-							<!-- 主面团原料 -->
 							<view class="group-title">
 								<span>{{ selectedDoughDetails.familyName }} (总重:
 									{{ selectedDoughDetails.totalDoughWeight.toFixed(0) }}g)</span>
 							</view>
-							<!-- [核心改造] 主面团表格使用通栏容器 -->
 							<view class="recipe-table-container-full-bleed">
 								<view class="recipe-table">
 									<view class="table-header">
@@ -67,9 +62,8 @@
 								</view>
 							</view>
 
-							<!-- [核心改造] 面团汇总表格使用带边距的容器 -->
-							<view class="recipe-table-container-padded">
-								<view class="sub-group-title">面团汇总</view>
+							<view class="group-title">面团汇总</view>
+							<view class="recipe-table-container-full-bleed">
 								<view class="info-table summary-table">
 									<view class="table-header">
 										<text class="col-product-name">面包名称</text>
@@ -89,35 +83,35 @@
 								</view>
 							</view>
 
-							<!-- [核心改造] 各产品辅料、馅料、要点，恢复垂直布局 -->
 							<view v-for="product in selectedDoughDetails.products" :key="product.id">
 								<template
 									v-if="product.mixIns.length > 0 || product.fillings.length > 0 || product.procedure.length > 0">
-									<view class="recipe-table-container-padded">
-										<view class="sub-group-title">{{product.name}}</view>
-										<!-- 辅料表 -->
+									<view class="group-title">{{product.name}}</view>
+									<view class="recipe-table-container-full-bleed">
 										<view v-if="product.mixIns.length > 0" class="recipe-table detail-table">
 											<view class="table-header">
 												<text class="col-ingredient">辅料</text>
+												<text class="col-brand">品牌</text>
 												<text class="col-usage">总用量</text>
 											</view>
 											<view v-for="ing in product.mixIns" :key="ing.id" class="table-row">
 												<text class="col-ingredient">{{ ing.name }}</text>
+												<text class="col-brand">{{ ing.brand || '-' }}</text>
 												<text class="col-usage">{{ ing.totalWeightInGrams.toFixed(1) }}g</text>
 											</view>
 										</view>
-										<!-- 馅料表 -->
 										<view v-if="product.fillings.length > 0" class="recipe-table detail-table">
 											<view class="table-header">
 												<text class="col-ingredient">馅料</text>
+												<text class="col-brand">品牌</text>
 												<text class="col-usage">用量/个</text>
 											</view>
 											<view v-for="ing in product.fillings" :key="ing.id" class="table-row">
 												<text class="col-ingredient">{{ ing.name }}</text>
+												<text class="col-brand">{{ ing.brand || '-' }}</text>
 												<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
 											</view>
 										</view>
-										<!-- 产品制作要点 -->
 										<view v-if="product.procedure.length > 0" class="procedure-notes">
 											<text class="notes-title">制作要点:</text>
 											<text v-for="(step, stepIndex) in product.procedure" :key="stepIndex"
@@ -142,7 +136,6 @@
 		</DetailPageLayout>
 
 		<AppModal v-model:visible="showCompleteTaskModal" title="确认完成任务">
-			<!-- ... modal content ... -->
 		</AppModal>
 	</view>
 </template>
@@ -322,6 +315,8 @@
 				.map((ing : any) => ({
 					id: ing.ingredient?.id || ing.linkedExtra?.id,
 					name: ing.ingredient?.name || ing.linkedExtra.name,
+					// [修改] 增加 brand 字段的提取，使其与辅料的数据结构一致
+					brand: ing.ingredient?.activeSku?.brand || null,
 					weightInGrams: ing.weightInGrams,
 				}));
 
@@ -422,20 +417,12 @@
 		margin-top: 20px;
 	}
 
-	// [核心改造] 定义两种容器样式
 	.recipe-table-container-full-bleed {
 		background-color: #faf8f5;
 		border-radius: 16px;
 		margin-top: 15px;
-		padding: 0;
+		padding: 15px 0;
 		overflow: hidden;
-	}
-
-	.recipe-table-container-padded {
-		background-color: #faf8f5;
-		border-radius: 16px;
-		margin-top: 15px;
-		padding: 15px;
 	}
 
 	.group-title {
@@ -450,6 +437,8 @@
 		font-weight: 600;
 		color: var(--text-primary);
 		margin-bottom: 10px;
+		margin-top: 15px;
+		padding: 0 5px;
 	}
 
 	.recipe-table {
@@ -470,17 +459,24 @@
 
 		.table-row {
 			color: var(--text-primary);
-			border-bottom: 1px solid var(--border-color);
 			transition: background-color 0.3s ease;
+			position: relative;
 
 			&.is-added {
 				background-color: #e6f7d5;
 			}
-
-			&:last-child {
-				border-bottom: none;
-			}
 		}
+
+		.table-row:not(:last-child)::after {
+			content: '';
+			position: absolute;
+			bottom: 0;
+			left: 15px;
+			right: 15px;
+			height: 1px;
+			background-color: var(--border-color);
+		}
+
 
 		[class^="col-"] {
 			display: table-cell;
@@ -558,16 +554,22 @@
 		}
 
 		.info-row {
-			border-bottom: 1px solid var(--border-color);
+			position: relative;
+		}
 
-			&:last-child {
-				border-bottom: none;
-			}
+		.info-row:not(:last-child)::after {
+			content: '';
+			position: absolute;
+			bottom: 0;
+			left: 15px;
+			right: 15px;
+			height: 1px;
+			background-color: var(--border-color);
 		}
 
 		[class^="col-"] {
 			display: table-cell;
-			padding: 10px 4px;
+			padding: 10px 15px;
 			vertical-align: middle;
 			text-align: right;
 			white-space: nowrap;
