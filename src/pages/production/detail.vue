@@ -9,7 +9,12 @@
 						<span class="tag">日期: {{ formattedDate }}</span>
 						<span class="tag">创建人: {{ creatorName }}</span>
 						<span class="tag">计划总数: {{ totalQuantity }}</span>
-						<span v-if="task.stockWarning" class="tag">{{ task.stockWarning }}</span>
+					</view>
+
+					<view v-if="task.stockWarning" class="card warning-card">
+						<view class="warning-content">
+							<text class="warning-text">{{ task.stockWarning }}</text>
+						</view>
 					</view>
 
 					<view class="task-summary-card">
@@ -39,6 +44,12 @@
 						</view>
 					</view>
 
+					<view v-if="task.prepTask" class="prep-task-button-container">
+						<AppButton type="secondary" full-width @click="showPrepTaskModal = true">
+							查看备料清单
+						</AppButton>
+					</view>
+
 					<AppButton type="primary" full-width @click="openCompleteTaskModal">
 						完成任务
 					</AppButton>
@@ -63,6 +74,40 @@
 				</AppButton>
 			</view>
 		</AppModal>
+
+		<AppModal v-model:visible="showPrepTaskModal" title="备料清单" size="large">
+			<scroll-view scroll-y class="prep-task-modal-content">
+				<view v-if="task && task.prepTask">
+					<view v-for="item in task.prepTask.items" :key="item.id" class="card recipe-card">
+						<view class="card-title-wrapper">
+							<span class="card-title">{{ item.name }}</span>
+							<span class="total-weight">总重: {{ (item.totalWeight / 1000).toFixed(2) }} kg</span>
+						</view>
+
+						<view class="content-section">
+							<view class="section-title">原料清单</view>
+							<view class="ingredient-list">
+								<view v-for="(ing, index) in item.ingredients" :key="index"
+									class="ingredient-item-modal">
+									<text class="name">{{ ing.name }}</text>
+									<text class="weight">{{ ing.weightInGrams.toFixed(1) }} g</text>
+								</view>
+							</view>
+						</view>
+
+						<view v-if="item.procedure && item.procedure.length > 0" class="content-section">
+							<view class="section-title">制作要点</view>
+							<view class="procedure-list">
+								<view v-for="(step, index) in item.procedure" :key="index" class="procedure-item">
+									<text class="step-number">{{ index + 1 }}.</text>
+									<text class="step-text">{{ step }}</text>
+								</view>
+							</view>
+						</view>
+					</view>
+				</view>
+			</scroll-view>
+		</AppModal>
 	</view>
 </template>
 
@@ -72,14 +117,13 @@
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
-	import type { ProductionTaskDto } from '@/types/api';
+	import type { ProductionTaskDetailDto } from '@/types/api';
 	import { getTaskDetail, updateTaskStatus, completeTask } from '@/api/tasks';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
-	import DetailPageLayout from '@/components/DetailPageLayout.vue'; // [新增] 引入新的布局组件
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 
-	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
 		inheritAttrs: false
 	});
@@ -90,9 +134,10 @@
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
-	const task = ref<ProductionTaskDto | null>(null);
+	const task = ref<ProductionTaskDetailDto | null>(null);
 	const openCardName = ref('');
 	const showCompleteTaskModal = ref(false);
+	const showPrepTaskModal = ref(false);
 
 	onLoad(async (options) => {
 		const taskId = options?.taskId;
@@ -103,11 +148,14 @@
 		}
 
 		try {
-			task.value = await getTaskDetail(taskId);
+			const response = await getTaskDetail(taskId);
+			if ('items' in response) {
+				task.value = response as ProductionTaskDetailDto;
+			}
+
 
 			if (task.value?.status === 'PENDING') {
-				await updateTaskStatus(taskId, 'IN_PROGRESS');
-				await dataStore.fetchProductionData(); // [修改] 确保状态更新后刷新数据
+				await dataStore.fetchProductionData();
 			}
 
 			if (recipeCards.value.length > 0) {
@@ -133,7 +181,6 @@
 		}[]>();
 
 		task.value.items.forEach(item => {
-			// [恢复] 恢复从任务详情数据中直接获取配方家族名称
 			const familyName = item.product.recipeVersion.family.name;
 			if (!groups.has(familyName)) {
 				groups.set(familyName, []);
@@ -158,7 +205,6 @@
 
 		task.value.items.forEach(item => {
 			const product = item.product;
-			// [恢复] 恢复原来的逻辑，直接从任务详情数据中获取配方版本信息
 			if (!product || !product.recipeVersion || !product.recipeVersion.doughs) return;
 
 			const recipeName = product.recipeVersion.family.name;
@@ -170,7 +216,6 @@
 			product.recipeVersion.doughs.forEach(dough => {
 				let totalFlourRatio = 0;
 				dough.ingredients.forEach(ing => {
-					// [核心修改] 从嵌套的 ingredient 对象中获取 isFlour 属性
 					if (ing.ingredient.isFlour) {
 						totalFlourRatio += ing.ratio;
 					}
@@ -181,7 +226,6 @@
 
 				dough.ingredients.forEach(ingredient => {
 					const weight = weightPerRatioPoint * ingredient.ratio * item.quantity;
-					// [核心修改] 从嵌套的 ingredient 对象中获取原料名称
 					const ingredientName = ingredient.ingredient.name;
 					const currentWeight = ingredientsMap.get(ingredientName) || 0;
 					ingredientsMap.set(ingredientName, currentWeight + weight);
@@ -218,7 +262,7 @@
 			toastStore.show({ message: '任务已完成', type: 'success' });
 			await dataStore.fetchProductionData();
 			uni.navigateBack();
-		} catch (error) { // [修改] 增加异常捕获
+		} catch (error) {
 			console.error('Failed to complete task:', error);
 		} finally {
 			isSubmitting.value = false;
@@ -226,7 +270,7 @@
 		}
 	};
 
-	const getTotalQuantity = (task : ProductionTaskDto) => {
+	const getTotalQuantity = (task : ProductionTaskDetailDto) => {
 		if (!task.items) return 0;
 		return task.items.reduce((sum, item) => sum + item.quantity, 0);
 	};
@@ -251,7 +295,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [新增] 4. 为页面根元素设置 flex 布局 */
 	.page-wrapper {
 		display: flex;
 		flex-direction: column;
@@ -266,12 +309,29 @@
 		gap: 5px;
 	}
 
-	/* [修改] 移除 .tag-warning 的特殊样式定义 */
 	.tag {
-		/* [新增] 增加对长文本换行的支持 */
 		white-space: normal;
 		text-align: left;
 		line-height: 1.5;
+	}
+
+	/* [核心修改] 更新警告卡片的样式 */
+	.warning-card {
+		background-color: #faedcd; // 设置背景色
+		border: none; // 移除边框
+		padding: 15px;
+		margin-bottom: 20px;
+		color: var(--primary-color); // 设置文字颜色
+	}
+
+	.warning-content {
+		display: flex;
+		align-items: center;
+	}
+
+	.warning-text {
+		font-size: 14px;
+		line-height: 1.6;
 	}
 
 	.task-summary-card {
@@ -378,5 +438,88 @@
 		text-align: center;
 		margin-bottom: 20px;
 		line-height: 1.5;
+	}
+
+	.prep-task-button-container {
+		margin-bottom: 15px;
+	}
+
+	.prep-task-modal-content {
+		max-height: 70vh;
+	}
+
+	.recipe-card {
+		margin-bottom: 20px;
+	}
+
+	.card-title-wrapper {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		width: 100%;
+	}
+
+	.total-weight {
+		font-size: 14px;
+		color: var(--text-secondary);
+		font-weight: 400;
+	}
+
+	.content-section {
+		margin-top: 20px;
+		padding-top: 20px;
+		border-top: 1px solid var(--border-color);
+	}
+
+	.section-title {
+		font-size: 16px;
+		font-weight: 500;
+		color: var(--text-primary);
+		margin-bottom: 15px;
+	}
+
+	.ingredient-list {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 12px 20px;
+	}
+
+	.ingredient-item-modal {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		font-size: 15px;
+
+		.name {
+			color: var(--text-secondary);
+		}
+
+		.weight {
+			color: var(--text-primary);
+			font-weight: 500;
+		}
+	}
+
+	.procedure-list {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.procedure-item {
+		display: flex;
+		align-items: flex-start;
+		font-size: 15px;
+		line-height: 1.6;
+
+		.step-number {
+			color: var(--primary-color);
+			font-weight: 500;
+			margin-right: 8px;
+		}
+
+		.step-text {
+			color: var(--text-secondary);
+		}
 	}
 </style>

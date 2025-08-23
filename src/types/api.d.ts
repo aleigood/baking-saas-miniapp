@@ -34,6 +34,8 @@ export interface ProductionTaskDetailDto extends ProductionTaskDto {
 		totalWeightInGrams : number;
 	}[];
 	stockWarning : string | null;
+	// [核心新增] 为任务详情增加备料清单字段
+	prepTask ?: PrepTask | null;
 }
 
 
