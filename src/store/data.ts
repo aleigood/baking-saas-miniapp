@@ -130,7 +130,7 @@ export const useDataStore = defineStore('data', () => {
 				resetHistoricalTasks();
 			}
 
-			const res = await getHistoricalTasks(pageToFetch, historicalTasksMeta.value.limit);
+			const res = await getHistoryTasks(pageToFetch, historicalTasksMeta.value.limit);
 
 			if (loadMore) {
 				for (const date in res.data) {

@@ -80,18 +80,23 @@
 	};
 
 	const sortedGroupedTasks = computed(() => {
-		const tasksByDate = dataStore.historicalTasks;
-		const sortedDates = Object.keys(tasksByDate).sort((a, b) => {
-			const dateA = new Date(new Date().getFullYear(), parseInt(a.split('月')[0]) - 1, parseInt(a.split('月')[1].split('日')[0]));
-			const dateB = new Date(new Date().getFullYear(), parseInt(b.split('月')[0]) - 1, parseInt(b.split('月')[1].split('日')[0]));
-			return dateB.getTime() - dateA.getTime();
+		// 1. Flatten the tasks from the store's grouped object into a single array.
+		const allTasks = Object.values(dataStore.historicalTasks).flat();
+
+		// 2. Sort the flat array chronologically in descending order based on the actual date.
+		allTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
+
+		// 3. Group the sorted tasks by their formatted date string for display.
+		const grouped: Record<string, ProductionTaskDto[]> = {};
+		allTasks.forEach(task => {
+			const dateKey = formatChineseDate(task.plannedDate);
+			if (!grouped[dateKey]) {
+				grouped[dateKey] = [];
+			}
+			grouped[dateKey].push(task);
 		});
 
-		const sortedGroups : Record<string, ProductionTaskDto[]> = {};
-		for (const key of sortedDates) {
-			sortedGroups[key] = tasksByDate[key];
-		}
-		return sortedGroups;
+		return grouped;
 	});
 
 
