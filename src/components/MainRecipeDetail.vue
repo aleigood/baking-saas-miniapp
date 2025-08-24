@@ -1,7 +1,5 @@
 <template>
-	<!-- 专门用于显示主面团配方详情的组件 -->
 	<view>
-		<!-- 产品切换标签 -->
 		<view class="product-tabs-wrapper">
 			<FilterTabs v-if="version && version.products.length > 0">
 				<FilterTab v-for="product in version.products" :key="product.id"
@@ -11,16 +9,13 @@
 			</FilterTabs>
 		</view>
 
-		<!-- 主内容卡片 -->
 		<view class="card" v-if="selectedProduct && recipeDetails">
-			<!-- 数据分析区域 -->
 			<view class="data-analysis-section">
 				<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
 				<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
 				<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
 			</view>
 
-			<!-- 原料与流程详情 -->
 			<view v-if="recipeDetails.doughGroups.length > 0">
 				<view v-for="(dough, index) in recipeDetails.doughGroups" :key="dough.name + index"
 					class="dough-section">
@@ -65,36 +60,27 @@
 				</view>
 				<view v-show="!collapsedSections.has('otherIngredients')">
 					<view v-if="recipeDetails.extraIngredients.length > 0" class="product-ingredient-table">
-						<view class="table-header">
-							<text class="col-group">类型</text>
-							<text class="col-ingredient">原料</text>
-							<text class="col-usage">用量</text>
-							<text class="col-cost">成本</text>
+						<view v-for="pIng in recipeDetails.extraIngredients" :key="pIng.id" class="table-row">
+							<text class="col-ingredient">
+								{{ pIng.name }}
+								<text v-if="pIng.type !== '面团' && pIng.type"
+									class="ingredient-type">（{{ pIng.type }}）</text>
+							</text>
+							<text class="col-usage">
+								<template v-if="pIng.id === 'dough-summary'">
+									{{ formatNumber(pIng.weightInGrams) }}g
+								</template>
+								<template v-else-if="pIng.type === '搅拌原料'">
+									{{ formatNumber(pIng.ratio) }}% ({{
+										formatNumber(pIng.weightInGrams)
+									}}g)
+								</template>
+								<template v-else-if="pIng.weightInGrams != null">
+									{{ formatNumber(pIng.weightInGrams) }}g
+								</template>
+							</text>
+							<text class="col-cost">¥{{ formatNumber(pIng.cost) }}</text>
 						</view>
-						<template v-for="(group, groupName) in recipeDetails.groupedExtraIngredients" :key="groupName">
-							<view v-for="(pIng, index) in group" :key="pIng.id" class="table-row">
-								<text v-if="index === 0" class="col-group"
-									:style="{ 'vertical-align': group.length > 1 ? 'top' : 'middle' }">
-									{{ groupName }}
-								</text>
-								<text v-else class="col-group"></text>
-								<text class="col-ingredient">{{ pIng.name }}</text>
-								<text class="col-usage">
-									<template v-if="pIng.id === 'dough-summary'">
-										{{ formatNumber(pIng.weightInGrams) }}g
-									</template>
-									<template v-else-if="pIng.type === '搅拌原料'">
-										{{ formatNumber(pIng.ratio) }}% ({{
-											formatNumber(pIng.weightInGrams)
-										}}g)
-									</template>
-									<template v-else-if="pIng.weightInGrams != null">
-										{{ formatNumber(pIng.weightInGrams) }}g
-									</template>
-								</text>
-								<text class="col-cost">¥{{ formatNumber(pIng.cost) }}</text>
-							</view>
-						</template>
 					</view>
 					<view v-else class="empty-state" style="padding: 20px 0;">
 						暂无其他原料
@@ -109,16 +95,31 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, computed, watch, onMounted } from 'vue';
-	import type { PropType } from 'vue';
-	import type { RecipeVersion, RecipeDetails, Product } from '@/types/api';
-	import { getProductCostHistory, getProductCostBreakdown, getRecipeDetails } from '@/api/costing';
+	import {
+		ref,
+		computed,
+		watch
+	} from 'vue';
+	import type {
+		PropType
+	} from 'vue';
+	import type {
+		RecipeVersion,
+		RecipeDetails
+	} from '@/types/api';
+	import {
+		getProductCostHistory,
+		getProductCostBreakdown,
+		getRecipeDetails
+	} from '@/api/costing';
 	import LineChart from '@/components/LineChart.vue';
 	import PieChart from '@/components/PieChart.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
-	import { formatNumber } from '@/utils/format';
+	import {
+		formatNumber
+	} from '@/utils/format';
 
 	// 定义组件接收的属性
 	const props = defineProps({
@@ -131,15 +132,23 @@
 	// 内部状态
 	const selectedProductId = ref<string | null>(null);
 	const recipeDetails = ref<RecipeDetails | null>(null);
-	const costHistory = ref<{ cost : number }[]>([]);
-	const costBreakdown = ref<{ name : string, value : number }[]>([]);
+	const costHistory = ref<{
+		cost : number
+	}[]>([]);
+	const costBreakdown = ref<{
+		name : string,
+		value : number
+	}[]>([]);
 	const detailChartTab = ref<'trend' | 'breakdown'>('trend');
 	const collapsedSections = ref(new Set<string>());
 
-	const chartTabs = ref([
-		{ key: 'trend', label: '成本走势' },
-		{ key: 'breakdown', label: '原料成本' },
-	]);
+	const chartTabs = ref([{
+		key: 'trend',
+		label: '成本走势'
+	}, {
+		key: 'breakdown',
+		label: '原料成本'
+	},]);
 
 	// 计算属性，获取当前选中的产品对象
 	const selectedProduct = computed(() => {
@@ -202,12 +211,15 @@
 		} else {
 			selectedProductId.value = null;
 		}
-	}, { immediate: true }); // immediate: true 确保组件首次挂载时也执行
+	}, {
+		immediate: true
+	}); // immediate: true 确保组件首次挂载时也执行
 </script>
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	// 修改开始: 使用伪元素实现更短带圆角的左侧强调线
 	.group-title {
 		display: flex;
 		justify-content: space-between;
@@ -215,9 +227,28 @@
 		font-size: 16px;
 		font-weight: 600;
 		color: var(--text-primary);
-		padding: 15px 5px 15px 5px;
-		border-bottom: 1px solid var(--border-color);
-		margin-top: 10px;
+		border: none;
+		margin-top: 25px;
+		padding: 4px 10px 4px 15px;
+		position: relative;
+
+		&::before {
+			content: '';
+			position: absolute;
+			left: 0;
+			top: 50%;
+			transform: translateY(-50%);
+			width: 4px;
+			height: 16px;
+			background-color: var(--primary-color, #42b983);
+			border-radius: 2px;
+		}
+
+		// 第一个group-title不需要和顶部有太大间距
+		.card>.dough-section:first-child>&,
+		.card>.other-ingredients-section:first-child>& {
+			margin-top: 10px;
+		}
 	}
 
 	.arrow {
@@ -236,6 +267,7 @@
 		width: 100%;
 		font-size: 14px;
 		border-collapse: collapse;
+		margin-top: 15px;
 
 		.table-header,
 		.table-row {
@@ -265,6 +297,8 @@
 			padding: 8px 4px;
 			vertical-align: middle;
 		}
+
+
 
 		.col-ratio,
 		.col-usage,
@@ -312,22 +346,14 @@
 	}
 
 	.product-ingredient-table {
-		margin-top: 15px;
 		display: table;
 		width: 100%;
 		font-size: 14px;
+		border-collapse: collapse;
+		margin-top: 15px;
 
-		.table-header,
 		.table-row {
 			display: table-row;
-		}
-
-		.table-header {
-			color: var(--text-secondary);
-			font-weight: 500;
-		}
-
-		.table-row {
 			color: var(--text-primary);
 			border-bottom: 1px solid var(--border-color);
 
@@ -336,7 +362,6 @@
 			}
 		}
 
-		.col-group,
 		.col-ingredient,
 		.col-usage,
 		.col-cost {
@@ -345,22 +370,27 @@
 			vertical-align: middle;
 		}
 
-		.col-group {
-			width: 25%;
-			word-break: break-word;
-			font-weight: 500;
-			color: var(--text-secondary);
-		}
-
 		.col-ingredient {
-			width: 35%;
+			width: 60%;
 			word-break: break-word;
+
+			.ingredient-type {
+				color: var(--text-secondary);
+				font-size: 12px;
+				margin-left: 4px;
+			}
 		}
 
 		.col-usage,
 		.col-cost {
 			text-align: right;
 			white-space: nowrap;
+			color: var(--text-secondary);
+		}
+
+		.col-cost {
+			font-weight: 500;
+			color: var(--text-primary);
 		}
 	}
 </style>
