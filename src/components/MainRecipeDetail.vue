@@ -21,7 +21,7 @@
 					class="dough-section">
 					<view class="group-title" @click="toggleCollapse(dough.name)">
 						<span>{{ dough.name }}</span>
-						<span class="arrow" :class="{ collapsed: collapsedSections.has(dough.name) }">&#10094;</span>
+						<span class="arrow" :class="{ collapsed: collapsedSections.has(dough.name) }">&#10095;</span>
 					</view>
 					<view v-show="!collapsedSections.has(dough.name)">
 						<view class="recipe-table">
@@ -56,7 +56,7 @@
 				<view class="group-title" @click="toggleCollapse('otherIngredients')">
 					<span>原料汇总 (总成本: ¥{{ formatNumber(recipeDetails.totalCost) }})</span>
 					<span class="arrow"
-						:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10094;</span>
+						:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
 				</view>
 				<view v-show="!collapsedSections.has('otherIngredients')">
 					<view v-if="recipeDetails.extraIngredients.length > 0" class="product-ingredient-table">
@@ -219,7 +219,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	// 修改开始: 使用伪元素实现更短带圆角的左侧强调线
 	.group-title {
 		display: flex;
 		justify-content: space-between;
@@ -244,7 +243,6 @@
 			border-radius: 2px;
 		}
 
-		// 第一个group-title不需要和顶部有太大间距
 		.card>.dough-section:first-child>&,
 		.card>.other-ingredients-section:first-child>& {
 			margin-top: 10px;
@@ -259,7 +257,7 @@
 	}
 
 	.arrow.collapsed {
-		transform: rotate(-90deg);
+		transform: rotate(0deg);
 	}
 
 	.recipe-table {

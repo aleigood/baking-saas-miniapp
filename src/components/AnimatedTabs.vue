@@ -32,33 +32,49 @@
 
 	// 获取所有 tab 元素的尺寸和位置信息
 	const getTabsInfo = () => {
-		const query = uni.createSelectorQuery().in(instance);
-		// 同时获取父容器和所有子项的位置
-		query.select('#tabs-wrapper').boundingClientRect();
-		query.selectAll('.tab-item').boundingClientRect();
+		// 增加延迟确保 tabs 渲染完毕
+		setTimeout(() => {
+			const query = uni.createSelectorQuery().in(instance);
+			// 同时获取父容器和所有子项的位置
+			query.select('#tabs-wrapper').boundingClientRect();
+			query.selectAll('.tab-item').boundingClientRect();
 
-		query.exec(data => {
-			if (data && data[0] && Array.isArray(data[1]) && data[1].length > 0) {
-				wrapperLeft = data[0].left; // 存储父容器的左侧偏移
-				tabElementsInfo.value = data[1];
-				// 初始化时立即定位下划线，无动画
-				updateUnderline(props.modelValue, props.modelValue, true);
-			}
-		});
+			query.exec(data => {
+				if (data && data[0] && Array.isArray(data[1]) && data[1].length > 0) {
+					wrapperLeft = data[0].left; // 存储父容器的左侧偏移
+					tabElementsInfo.value = data[1];
+					// 初始化或刷新时立即定位下划线，无动画
+					updateUnderline(props.modelValue, props.modelValue, true);
+				}
+			});
+		}, 50)
 	};
 
 	// 页面挂载后获取元素信息
 	onMounted(() => {
-		// 确保 DOM 渲染完毕
-		setTimeout(getTabsInfo, 150);
+		getTabsInfo();
 	});
 
 	// 监听 activeTab 的变化来驱动下划线动画
 	watch(() => props.modelValue, (newValue, oldValue) => {
+		// 新增：增加保护条件，如果旧值在新 tabs 数组中不存在，说明是列表刷新，动画已由 watch(tabs) 处理，此处跳过
+		const oldTabExists = props.tabs.some(t => t.key === oldValue);
+		if (!oldTabExists) {
+			return;
+		}
+
 		if (tabElementsInfo.value.length > 0) {
 			updateUnderline(newValue, oldValue);
 		}
 	});
+
+	// 侦听 tabs 数组的变化。当 tabs 内容更新时，重新计算布局
+	watch(() => props.tabs, (newTabs) => {
+		// 等待 DOM 更新完毕再执行
+		nextTick(() => {
+			getTabsInfo();
+		});
+	}, { deep: true }); // 使用 deep watch 确保能侦听到数组内部变化
 
 	// 核心动画逻辑
 	const updateUnderline = (newKey : string, oldKey : string, immediate = false) => {
@@ -89,15 +105,26 @@
 
 		// --- 实现弹性滑动动画 ---
 		const oldTabInfo = tabElementsInfo.value[oldIndex];
+		// 增加保护，防止 oldTabInfo 不存在
+		if (!oldTabInfo) {
+			// 如果找不到旧 tab 信息，直接跳转，不执行动画
+			underlineStyle.value = {
+				width: `${newTabInfo.width}px`,
+				transform: `translateX(${newLeft}px)`,
+				transition: 'transform 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55), width 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55)',
+			};
+			return;
+		}
+
 		const isMovingRight = newIndex > oldIndex;
 
 		// 所有 left 值的计算都需要减去父容器的 left
 		const oldLeft = oldTabInfo.left - wrapperLeft;
 
 		// 阶段1: 拉伸阶段
-		const stretchWidth = isMovingRight
-			? (newLeft + newTabInfo.width) - oldLeft
-			: (oldLeft + oldTabInfo.width) - newLeft;
+		const stretchWidth = isMovingRight ?
+			(newLeft + newTabInfo.width) - oldLeft :
+			(oldLeft + oldTabInfo.width) - newLeft;
 		const stretchLeft = isMovingRight ? oldLeft : newLeft;
 
 		underlineStyle.value = {
