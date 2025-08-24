@@ -242,11 +242,6 @@
 			background-color: var(--primary-color, #42b983);
 			border-radius: 2px;
 		}
-
-		.card>.dough-section:first-child>&,
-		.card>.other-ingredients-section:first-child>& {
-			margin-top: 10px;
-		}
 	}
 
 	.arrow {

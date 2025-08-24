@@ -434,27 +434,27 @@
 	const openCompleteTaskModal = () => {
 		/* ... */
 
-};
+	};
 	const handleConfirmCompleteTask = async () => {
 		/* ... */
 
-};
+	};
 	const getTotalQuantity = (task : ProductionTaskDetailDto) => {
 		/* ... */
 
-};
+	};
 	const formattedDate = computed(() => {
 		/* ... */
 
-});
+	});
 	const creatorName = computed(() => {
 		/* ... */
 
-});
+	});
 	const totalQuantity = computed(() => {
 		/* ... */
 
-});
+	});
 </script>
 
 <style scoped lang="scss">
@@ -546,11 +546,13 @@
 			background-color: var(--primary-color, #42b983);
 			border-radius: 2px;
 		}
+	}
 
-		.card>.group-title:first-child {
-			/* 修改：将第一个 group-title 的上边距恢复为 10px */
-			margin-top: 10px;
-		}
+	/* 新增：将这个规则从 .group-title 中移出，作为顶级规则 */
+	/* 这样它就能正确地选中 .card 内的第一个 .group-title */
+	.card>.group-title:first-child {
+		/* 将第一个 group-title 的上边距设置为 10px */
+		margin-top: 10px;
 	}
 
 	.arrow {
@@ -601,12 +603,12 @@
 		}
 
 		.table-row.is-added {
-			background-color: #e6f7d5;
+			background-color: #dcccc0;
 		}
 
 		[class^="col-"] {
 			display: table-cell;
-			padding: 8px 4px;
+			padding: 10px 4px;
 			vertical-align: middle;
 		}
 
