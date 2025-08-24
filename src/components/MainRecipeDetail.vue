@@ -29,28 +29,26 @@
 						<span class="arrow" :class="{ collapsed: collapsedSections.has(dough.name) }">&#10094;</span>
 					</view>
 					<view v-show="!collapsedSections.has(dough.name)">
-						<view class="recipe-table-container">
-							<view class="recipe-table">
-								<view class="table-header">
-									<text class="col-ingredient">原料</text>
-									<text class="col-ratio">比例</text>
-									<text class="col-usage">用量</text>
-									<text class="col-price">单价</text>
-									<text class="col-total">成本</text>
-								</view>
-								<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="table-row">
-									<text class="col-ingredient">{{ ing.name }}</text>
-									<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
-									<text class="col-usage">{{ formatNumber(ing.weightInGrams) }}g</text>
-									<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
-									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
-								</view>
+						<view class="recipe-table">
+							<view class="table-header">
+								<text class="col-ingredient">原料</text>
+								<text class="col-ratio">比例</text>
+								<text class="col-usage">用量</text>
+								<text class="col-price">单价</text>
+								<text class="col-total">成本</text>
 							</view>
-							<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes">
-								<text class="notes-title">制作要点:</text>
-								<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex"
-									class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+							<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="table-row">
+								<text class="col-ingredient">{{ ing.name }}</text>
+								<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
+								<text class="col-usage">{{ formatNumber(ing.weightInGrams) }}g</text>
+								<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
+								<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
 							</view>
+						</view>
+						<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes">
+							<text class="notes-title">制作要点:</text>
+							<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex"
+								class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 						</view>
 					</view>
 				</view>
@@ -66,43 +64,40 @@
 						:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10094;</span>
 				</view>
 				<view v-show="!collapsedSections.has('otherIngredients')">
-					<view class="recipe-table-container">
-						<view v-if="recipeDetails.extraIngredients.length > 0" class="product-ingredient-table">
-							<view class="table-header">
-								<text class="col-group">类型</text>
-								<text class="col-ingredient">原料</text>
-								<text class="col-usage">用量</text>
-								<text class="col-cost">成本</text>
-							</view>
-							<template v-for="(group, groupName) in recipeDetails.groupedExtraIngredients"
-								:key="groupName">
-								<view v-for="(pIng, index) in group" :key="pIng.id" class="table-row">
-									<text v-if="index === 0" class="col-group"
-										:style="{ 'vertical-align': group.length > 1 ? 'top' : 'middle' }">
-										{{ groupName }}
-									</text>
-									<text v-else class="col-group"></text>
-									<text class="col-ingredient">{{ pIng.name }}</text>
-									<text class="col-usage">
-										<template v-if="pIng.id === 'dough-summary'">
-											{{ formatNumber(pIng.weightInGrams) }}g
-										</template>
-										<template v-else-if="pIng.type === '搅拌原料'">
-											{{ formatNumber(pIng.ratio) }}% ({{
+					<view v-if="recipeDetails.extraIngredients.length > 0" class="product-ingredient-table">
+						<view class="table-header">
+							<text class="col-group">类型</text>
+							<text class="col-ingredient">原料</text>
+							<text class="col-usage">用量</text>
+							<text class="col-cost">成本</text>
+						</view>
+						<template v-for="(group, groupName) in recipeDetails.groupedExtraIngredients" :key="groupName">
+							<view v-for="(pIng, index) in group" :key="pIng.id" class="table-row">
+								<text v-if="index === 0" class="col-group"
+									:style="{ 'vertical-align': group.length > 1 ? 'top' : 'middle' }">
+									{{ groupName }}
+								</text>
+								<text v-else class="col-group"></text>
+								<text class="col-ingredient">{{ pIng.name }}</text>
+								<text class="col-usage">
+									<template v-if="pIng.id === 'dough-summary'">
+										{{ formatNumber(pIng.weightInGrams) }}g
+									</template>
+									<template v-else-if="pIng.type === '搅拌原料'">
+										{{ formatNumber(pIng.ratio) }}% ({{
 											formatNumber(pIng.weightInGrams)
 										}}g)
-										</template>
-										<template v-else-if="pIng.weightInGrams != null">
-											{{ formatNumber(pIng.weightInGrams) }}g
-										</template>
-									</text>
-									<text class="col-cost">¥{{ formatNumber(pIng.cost) }}</text>
-								</view>
-							</template>
-						</view>
-						<view v-else class="empty-state" style="padding: 20px 0;">
-							暂无其他原料
-						</view>
+									</template>
+									<template v-else-if="pIng.weightInGrams != null">
+										{{ formatNumber(pIng.weightInGrams) }}g
+									</template>
+								</text>
+								<text class="col-cost">¥{{ formatNumber(pIng.cost) }}</text>
+							</view>
+						</template>
+					</view>
+					<view v-else class="empty-state" style="padding: 20px 0;">
+						暂无其他原料
 					</view>
 				</view>
 			</view>
@@ -213,14 +208,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* 此处样式与原 detail.vue 中主配方相关的样式完全相同，直接复制过来即可 */
-	.recipe-table-container {
-		background-color: #faf8f5;
-		border-radius: 16px;
-		padding: 15px;
-		margin-top: 15px;
-	}
-
 	.group-title {
 		display: flex;
 		justify-content: space-between;
@@ -325,6 +312,7 @@
 	}
 
 	.product-ingredient-table {
+		margin-top: 15px;
 		display: table;
 		width: 100%;
 		font-size: 14px;
