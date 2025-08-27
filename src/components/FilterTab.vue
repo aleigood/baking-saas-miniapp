@@ -1,7 +1,6 @@
 <template>
 	<view class="filter-tab ripple-container" :class="{ active: active }" @touchstart="handleTouchStart"
 		@click="emit('click', $event)">
-		<!-- 水波纹效果的容器 -->
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 		<slot></slot>
 	</view>
@@ -61,6 +60,7 @@
 		position: relative;
 		overflow: hidden;
 		transform: translateZ(0);
+		flex-shrink: 0; // [新增] 防止 flex 项目被压缩，确保标签宽度不变
 	}
 
 	.filter-tab.active {

@@ -327,11 +327,6 @@
 	.product-tabs-wrapper {
 		padding: 0;
 		margin-bottom: 20px;
-
-		:deep(.filter-tabs) {
-			flex-wrap: wrap;
-			margin-bottom: 0;
-		}
 	}
 
 	.data-analysis-section {
