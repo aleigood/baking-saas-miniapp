@@ -12,11 +12,10 @@
 				</div>
 			</view>
 
-			<!-- [修改] 标题栏支持点击和动态文本 -->
-			<view class="card-title-wrapper" @click="isCalendarVisible = true">
-				<view class="clickable-title">
-					<span class="card-title">{{ pageTitle }}</span>
+			<view class="card-title-wrapper">
+				<view class="clickable-title" @click="isCalendarVisible = true">
 					<image class="calendar-icon" src="/static/icons/calendar.svg" />
+					<span class="card-title">{{ pageTitle }}</span>
 				</view>
 				<view class="header-actions">
 					<IconButton @click.stop="openTemperatureSettingsModal">
@@ -51,11 +50,9 @@
 
 		<AppFab @click="navigateToCreatePage" />
 
-		<!-- [新增] 日历模态框 -->
 		<CalendarModal :visible="isCalendarVisible" :task-dates="taskDates" @close="isCalendarVisible = false"
 			@select="handleDateSelect" />
 
-		<!-- 其他模态框保持不变 -->
 		<AppModal :visible="uiStore.showTaskActionsModal" @update:visible="uiStore.closeModal(MODAL_KEYS.TASK_ACTIONS)"
 			title="制作任务" :no-header-line="true">
 			<view class="options-list">
@@ -196,6 +193,7 @@
 	// [新增] 处理日期选择
 	const handleDateSelect = async (date : string) => {
 		selectedDate.value = date;
+		isCalendarVisible.value = false; // [修复] 选择后关闭日历
 		isLoading.value = true;
 		await dataStore.fetchProductionData(date);
 		isLoading.value = false;
@@ -358,11 +356,15 @@
 		margin-top: 5px;
 	}
 
-	/* [新增] 可点击标题样式 */
+	/* [修改] 调整可点击标题样式 */
 	.clickable-title {
 		display: flex;
 		align-items: center;
 		gap: 8px;
+
+		.card-title {
+			color: var(--primary-color); // 使用主题色
+		}
 	}
 
 	.calendar-icon {

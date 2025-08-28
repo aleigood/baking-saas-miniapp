@@ -2,7 +2,7 @@
 	<scroll-view class="animated-tabs-container" :scroll-x="true" :show-scrollbar="false" scroll-with-animation
 		:scroll-into-view="activeTabDomId">
 		<view class="tabs-wrapper">
-			<view v-for="(tab) in tabs" :key="tab.key" :id="tab.key" class="tab-item"
+			<view v-for="(tab, index) in tabs" :key="tab.key" :id="'tab-' + index" class="tab-item"
 				:class="{ active: modelValue === tab.key }" @click="handleClick(tab.key)">
 				{{ tab.label }}
 			</view>
@@ -14,7 +14,7 @@
 	import {
 		ref,
 		watch,
-		nextTick, // [新增] 引入 nextTick
+		nextTick,
 	} from 'vue';
 
 	const props = defineProps<{
@@ -32,10 +32,14 @@
 		emit('update:modelValue', key);
 	};
 
-	// [修改] 使用 nextTick 确保 DOM 更新后再执行滚动
+	// [核心修复] 监听 modelValue 变化，并设置 scroll-into-view
 	watch(() => props.modelValue, (newValue) => {
 		nextTick(() => {
-			activeTabDomId.value = newValue;
+			// 根据当前激活的 key 找到对应的索引，生成正确的 id
+			const activeIndex = props.tabs.findIndex(tab => tab.key === newValue);
+			if (activeIndex !== -1) {
+				activeTabDomId.value = 'tab-' + activeIndex;
+			}
 		});
 	}, { immediate: true });
 </script>
@@ -45,9 +49,7 @@
 		width: 100%;
 		white-space: nowrap;
 		margin-bottom: 20px;
-		/* 新增：将 padding 从 wrapper 移至此处的容器 */
 		padding: 5px 15px;
-		/* 新增：确保 padding 不会撑大容器宽度，对 scroll-view 很重要 */
 		box-sizing: border-box;
 
 		&::-webkit-scrollbar {
@@ -65,8 +67,6 @@
 		min-width: 100%;
 		width: max-content;
 		gap: 20px;
-		/* 移除：此处的 padding 导致了居中偏移问题 */
-		/* padding: 5px 15px; */
 		position: relative;
 	}
 

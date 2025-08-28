@@ -4,8 +4,8 @@
 		<DetailHeader title="新建生产任务" />
 		<DetailPageLayout>
 			<view class="page-content">
-				<!-- 日期选择 -->
 				<view class="card">
+					<view class="card-title">生产日期</view>
 					<view class="date-picker-row">
 						<view class="date-picker-item">
 							<label class="date-label">开始日期</label>
@@ -23,20 +23,27 @@
 					</view>
 				</view>
 
-				<!-- 数量汇总 -->
 				<view class="summary-card">
-					<pre v-if="summaryText" class="summary-text">{{ summaryText }}</pre>
+					<view v-if="summaryLines.length > 0" class="summary-content">
+						<view v-for="(line, index) in summaryLines" :key="index"
+							:class="line.type === 'title' ? 'summary-title' : 'summary-line'">
+							<text v-if="line.type === 'title'">{{ line.text }}</text>
+							<template v-if="line.type === 'line'">
+								<text class="summary-col">{{ line.col1 }}</text>
+								<text class="summary-col">{{ line.col2 }}</text>
+							</template>
+						</view>
+					</view>
 					<view v-else class="summary-placeholder">待添加产品...</view>
 				</view>
 
-				<!-- 产品选择 -->
 				<view class="card">
 					<CssAnimatedTabs v-model="activeTab" :tabs="productTabs" />
 					<view class="product-grid">
 						<view v-for="product in productsInCurrentTab" :key="product.id" class="product-item">
-							<view class="product-name">{{ product.name }}</view>
+							<text class="product-name">{{ product.name }}</text>
 							<input class="quantity-input" type="number" placeholder="数量"
-								v-model.number="taskQuantities[product.id]" @input="updateSummary" />
+								:value="taskQuantities[product.id]" @input="onQuantityInput(product.id, $event)" />
 						</view>
 					</view>
 				</view>
@@ -80,7 +87,8 @@
 	});
 
 	const taskQuantities = reactive<Record<string, number | null>>({});
-	const summaryText = ref('');
+	// [核心修改] 使用新的数据结构来驱动汇总区域
+	const summaryLines = ref<{ type : 'title' | 'line'; text ?: string; col1 ?: string; col2 ?: string; }[]>([]);
 	const activeTab = ref('');
 
 	onMounted(async () => {
@@ -88,7 +96,6 @@
 		if (!dataStore.dataLoaded.recipes) {
 			await dataStore.fetchRecipesData();
 		}
-		// 初始化 activeTab 和 quantities
 		if (productTabs.value.length > 0) {
 			activeTab.value = productTabs.value[0].key;
 		}
@@ -98,7 +105,16 @@
 		isLoading.value = false;
 	});
 
-	// 将产品按类型分组
+	/**
+	 * [核心修复] 兼容H5和微信小程序的输入事件
+	 */
+	const onQuantityInput = (productId : string, event : any) => {
+		// H5 event.target.value, 小程序 event.detail.value
+		const value = event.target?.value ?? event.detail.value;
+		taskQuantities[productId] = value === '' ? null : Number(value);
+		updateSummary();
+	};
+
 	const groupedProducts = computed(() => {
 		return dataStore.productList.reduce((groups, product) => {
 			const groupName = product.type;
@@ -110,49 +126,13 @@
 		}, {} as Record<string, ProductListItem[]>);
 	});
 
-	// 为 Tabs 生成数据
 	const productTabs = computed(() => {
-		return Object.keys(groupedProducts.value).map(name => ({
-			key: name,
-			label: name
-		}));
+		return Object.keys(groupedProducts.value).map(name => ({ key: name, label: name }));
 	});
 
-	// 获取当前 Tab 下的产品列表
 	const productsInCurrentTab = computed(() => {
 		return groupedProducts.value[activeTab.value] || [];
 	});
-
-	// 更新汇总文本
-	const updateSummary = () => {
-		let text = '';
-		for (const groupName in groupedProducts.value) {
-			const productsInGroup = groupedProducts.value[groupName];
-			const quantifiedProducts = productsInGroup
-				.map(p => ({
-					name: p.name,
-					quantity: taskQuantities[p.id] || 0
-				}))
-				.filter(p => p.quantity > 0);
-
-			if (quantifiedProducts.length > 0) {
-				text += `【${groupName}】\n`;
-				const columns : string[][] = [[], []];
-				quantifiedProducts.forEach((p, index) => {
-					columns[index % 2].push(`${p.name} x${p.quantity}`);
-				});
-
-				const maxRows = Math.max(columns[0].length, columns[1].length);
-				for (let i = 0; i < maxRows; i++) {
-					const left = columns[0][i] || '';
-					const right = columns[1][i] || '';
-					text += `${left.padEnd(10, ' ')}\t${right}\n`;
-				}
-				text += '\n';
-			}
-		}
-		summaryText.value = text.trim();
-	};
 
 	const isCreatable = computed(() => {
 		return Object.values(taskQuantities).some(qty => qty && qty > 0);
@@ -168,6 +148,38 @@
 		} else {
 			taskForm.endDate = newDate;
 		}
+	};
+
+	/**
+	 * [核心修改] 更新汇总信息的逻辑，生成结构化数组
+	 */
+	const updateSummary = () => {
+		const lines : { type : 'title' | 'line'; text ?: string; col1 ?: string; col2 ?: string; }[] = [];
+		for (const groupName in groupedProducts.value) {
+			const productsInGroup = groupedProducts.value[groupName];
+			const quantifiedProducts = productsInGroup
+				.map(p => ({ name: p.name, quantity: taskQuantities[p.id] || 0 }))
+				.filter(p => p.quantity > 0);
+
+			if (quantifiedProducts.length > 0) {
+				lines.push({ type: 'title', text: groupName });
+
+				const columns : string[][] = [[], []];
+				quantifiedProducts.forEach((p, index) => {
+					columns[index % 2].push(`${p.name} x${p.quantity}`);
+				});
+
+				const maxRows = Math.max(columns[0].length, columns[1].length);
+				for (let i = 0; i < maxRows; i++) {
+					lines.push({
+						type: 'line',
+						col1: columns[0][i] || '',
+						col2: columns[1][i] || ''
+					});
+				}
+			}
+		}
+		summaryLines.value = lines;
 	};
 
 	const handleCreateTasks = async () => {
@@ -253,11 +265,32 @@
 		font-family: monospace;
 	}
 
-	.summary-text {
-		font-size: 14px;
+	/* [核心新增] 汇总内容区域新样式 */
+	.summary-content {
 		color: var(--text-primary);
-		white-space: pre-wrap;
-		word-wrap: break-word;
+		font-size: 14px;
+	}
+
+	.summary-title {
+		display: block;
+		color: var(--primary-color);
+		font-weight: 600;
+		margin-bottom: 5px;
+		margin-top: 5px;
+	}
+
+	.summary-title:first-child {
+		margin-top: 0;
+	}
+
+	.summary-line {
+		display: flex;
+		width: 100%;
+	}
+
+	.summary-col {
+		width: 50%;
+		box-sizing: border-box;
 	}
 
 	.summary-placeholder {
@@ -278,21 +311,33 @@
 
 	.product-item {
 		display: flex;
-		flex-direction: column;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
 		gap: 8px;
 	}
 
 	.product-name {
 		font-size: 15px;
+		flex: 1;
+		min-width: 0;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
+	/* [核心修复] 统一输入框高度和行高，解决小程序显示问题 */
 	.quantity-input {
 		background-color: var(--bg-color);
 		border-radius: 8px;
-		padding: 10px;
+		padding: 0 10px;
 		text-align: center;
 		font-size: 15px;
-		width: 100%;
+		width: 70px;
 		box-sizing: border-box;
+		border: 1px solid var(--border-color);
+		flex-shrink: 0;
+		height: 44px;
+		line-height: 44px;
 	}
 </style>

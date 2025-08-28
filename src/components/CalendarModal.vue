@@ -1,5 +1,5 @@
 <template>
-	<AppModal :visible="visible" @update:visible="handleClose" title="选择日期" width="90%">
+	<AppModal :visible="visible" @update:visible="handleClose" title="选择日期" width="80%">
 		<view class="calendar-container">
 			<view class="calendar-header">
 				<view class="header-arrow" @click="changeMonth(-1)">‹</view>
@@ -16,9 +16,6 @@
 					<view class="day-number">{{ day.day }}</view>
 					<view v-if="day.hasTask" class="task-marker"></view>
 				</view>
-			</view>
-			<view class="calendar-footer">
-				<AppButton type="secondary" size="small" @click="goToday">回到今日</AppButton>
 			</view>
 		</view>
 	</AppModal>
@@ -50,18 +47,25 @@
 	const currentMonth = ref(today.getMonth());
 	const selectedDate = ref(today.toISOString().split('T')[0]);
 
+	watch(() => props.visible, (isVisible) => {
+		if (isVisible) {
+			const todayDate = new Date();
+			currentYear.value = todayDate.getFullYear();
+			currentMonth.value = todayDate.getMonth();
+		}
+	});
+
 	const calendarDays = computed(() => {
 		const date = new Date(currentYear.value, currentMonth.value, 1);
 		const firstDayOfWeek = date.getDay();
 		const daysInMonth = new Date(currentYear.value, currentMonth.value + 1, 0).getDate();
 
 		const days = [];
-		// 填充上个月的日期
-		for (let i = 0; i < firstDayOfWeek; i++) {
-			const prevMonthDay = new Date(currentYear.value, currentMonth.value, 0).getDate() - firstDayOfWeek + i + 1;
-			days.push({ day: prevMonthDay, isCurrentMonth: false });
+		const prevMonthDays = new Date(currentYear.value, currentMonth.value, 0).getDate();
+		for (let i = firstDayOfWeek; i > 0; i--) {
+			days.push({ day: prevMonthDays - i + 1, isCurrentMonth: false });
 		}
-		// 填充当月的日期
+
 		for (let i = 1; i <= daysInMonth; i++) {
 			const dayDate = new Date(currentYear.value, currentMonth.value, i);
 			const fullDate = dayDate.toISOString().split('T')[0];
@@ -73,9 +77,9 @@
 				hasTask: props.taskDates.includes(fullDate),
 			});
 		}
-		// 填充下个月的日期
-		const remainingCells = 42 - days.length;
-		for (let i = 1; i <= remainingCells; i++) {
+
+		const nextMonthDaysNeeded = 42 - days.length;
+		for (let i = 1; i <= nextMonthDaysNeeded; i++) {
 			days.push({ day: i, isCurrentMonth: false });
 		}
 		return days;
@@ -91,16 +95,6 @@
 		if (!day.isCurrentMonth) return;
 		selectedDate.value = day.fullDate;
 		emit('select', day.fullDate);
-		handleClose();
-	};
-
-	const goToday = () => {
-		currentYear.value = today.getFullYear();
-		currentMonth.value = today.getMonth();
-		selectDate({
-			isCurrentMonth: true,
-			fullDate: today.toISOString().split('T')[0]
-		});
 	};
 
 	const handleClose = () => {
@@ -148,6 +142,8 @@
 		flex-direction: column;
 		justify-content: center;
 		align-items: center;
+		/* [核心修改] 增加宽度确保单元格为正方形 */
+		width: 40px;
 		height: 40px;
 		border-radius: 50%;
 		position: relative;
@@ -157,6 +153,7 @@
 		color: #ccc;
 	}
 
+	/* [新增] 今日日期的文本加粗显示 */
 	.day-cell.is-today .day-number {
 		color: var(--primary-color);
 		font-weight: bold;
@@ -185,11 +182,5 @@
 
 	.day-cell.is-selected .task-marker {
 		background-color: #fff;
-	}
-
-	.calendar-footer {
-		display: flex;
-		justify-content: center;
-		margin-top: 20px;
 	}
 </style>
