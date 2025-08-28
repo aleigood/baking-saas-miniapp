@@ -202,7 +202,9 @@ export interface IngredientLedgerEntry {
 export interface ProductionTaskDto {
 	id : string;
 	status : 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-	plannedDate : string;
+	// [修改] plannedDate -> startDate, 新增 endDate
+	startDate : string;
+	endDate : string | null;
 	// [新增] 任务的实际完成时间
 	completedAt : string | null;
 	updatedAt : string; // [新增] 任务最后更新时间

@@ -106,13 +106,24 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	async function fetchProductionData() {
+	// [修改] fetchProductionData 现在接收日期参数
+	async function fetchProductionData(date ?: string) {
 		if (!currentTenantId.value) return;
 		try {
-			const payload = await getProductionDashboard();
-			production.value = payload.tasks;
-			prepTask.value = payload.prepTask;
-			homeStats.value = payload.stats;
+			// [修改] 根据是否传入日期，决定调用哪个接口
+			if (date) {
+				// 如果有日期，只获取任务列表
+				const payload = await getTasks(date);
+				production.value = payload.tasks;
+				prepTask.value = payload.prepTask;
+			} else {
+				// 如果没有日期（首次加载），获取聚合数据
+				const payload = await getProductionDashboard();
+				production.value = payload.tasks;
+				prepTask.value = payload.prepTask;
+				homeStats.value = payload.stats;
+			}
+
 			dataLoaded.value.production = true;
 		} catch (error) {
 			console.error('Failed to fetch production data', error);

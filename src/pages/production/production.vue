@@ -12,19 +12,23 @@
 				</div>
 			</view>
 
-			<view class="card-title-wrapper">
-				<span class="card-title">制作任务</span>
+			<!-- [修改] 标题栏支持点击和动态文本 -->
+			<view class="card-title-wrapper" @click="isCalendarVisible = true">
+				<view class="clickable-title">
+					<span class="card-title">{{ pageTitle }}</span>
+					<image class="calendar-icon" src="/static/icons/calendar.svg" />
+				</view>
 				<view class="header-actions">
-					<IconButton @click="openTemperatureSettingsModal">
+					<IconButton @click.stop="openTemperatureSettingsModal">
 						<image class="header-icon" src="/static/icons/temp.svg" />
 					</IconButton>
-					<IconButton @click="navigateToHistory">
+					<IconButton @click.stop="navigateToHistory">
 						<image class="header-icon" src="/static/icons/history.svg" />
 					</IconButton>
 				</view>
 			</view>
 
-			<view v-if="isInitialLoad" class="loading-spinner">
+			<view v-if="isLoading" class="loading-spinner">
 				<text>加载中...</text>
 			</view>
 			<view v-else-if="allTasksForDisplay.length > 0">
@@ -41,12 +45,17 @@
 				</ListItem>
 			</view>
 			<view v-else class="empty-state">
-				<text>暂无进行中的任务</text>
+				<text>所选日期暂无任务</text>
 			</view>
 		</view>
 
 		<AppFab @click="navigateToCreatePage" />
 
+		<!-- [新增] 日历模态框 -->
+		<CalendarModal :visible="isCalendarVisible" :task-dates="taskDates" @close="isCalendarVisible = false"
+			@select="handleDateSelect" />
+
+		<!-- 其他模态框保持不变 -->
 		<AppModal :visible="uiStore.showTaskActionsModal" @update:visible="uiStore.closeModal(MODAL_KEYS.TASK_ACTIONS)"
 			title="制作任务" :no-header-line="true">
 			<view class="options-list">
@@ -110,67 +119,40 @@
 </template>
 
 <script setup lang="ts">
-	import {
-		ref,
-		computed,
-		reactive,
-		watch
-	} from 'vue';
-	import {
-		onShow,
-		onLoad
-	} from '@dcloudio/uni-app';
-	import {
-		useUserStore
-	} from '@/store/user';
-	import {
-		useDataStore
-	} from '@/store/data';
-	import {
-		useUiStore
-	} from '@/store/ui';
-	import {
-		useToastStore
-	} from '@/store/toast';
-	// [新增] 引入温度设置 store
-	import {
-		useTemperatureStore
-	} from '@/store/temperature';
-	import {
-		MODAL_KEYS
-	} from '@/constants/modalKeys';
-	import MainHeader from '@/components/MainHeader.vue';
+	import { ref, computed, reactive } from 'vue';
+	import { onShow, onLoad } from '@dcloudio/uni-app';
+	import { useUserStore } from '@/store/user';
+	import { useDataStore } from '@/store/data';
+	import { useUiStore } from '@/store/ui';
+	import { useToastStore } from '@/store/toast';
+	import { useTemperatureStore } from '@/store/temperature';
+	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
-	import type {
-		ProductionTaskDto,
-		PrepTask
-	} from '@/types/api';
-	import {
-		updateTaskStatus
-	} from '@/api/tasks';
-	import {
-		formatChineseDate
-	} from '@/utils/format';
+	import CalendarModal from '@/components/CalendarModal.vue'; // [新增]
+	import type { ProductionTaskDto, PrepTask } from '@/types/api';
+	import { updateTaskStatus, getTaskDates } from '@/api/tasks'; // [修改]
+	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 	const toastStore = useToastStore();
-	// [新增] 初始化温度 store
 	const temperatureStore = useTemperatureStore();
 
+	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
-
 	const showCancelConfirmModal = ref(false);
 
-	const isInitialLoad = ref(true);
+	// [新增] 日历相关状态
+	const isCalendarVisible = ref(false);
+	const selectedDate = ref(new Date().toISOString().split('T')[0]);
+	const taskDates = ref<string[]>([]);
 
-	// [新增] 用于临时存储模态框中的温度设置
 	const tempSettings = reactive({
 		mixerType: 9,
 		envTemp: 25,
@@ -178,80 +160,78 @@
 		waterTemp: 25,
 	});
 
-	// [新增] 计算当前选中的和面机在picker中的索引
 	const currentMixerIndex = computed(() => {
 		return temperatureStore.mixerTypes.findIndex(m => m.value === tempSettings.mixerType);
 	});
 
-	// [新增] 在页面加载时初始化温度设置
+	// [修改] 页面标题现在是动态的
+	const pageTitle = computed(() => {
+		const today = new Date().toISOString().split('T')[0];
+		if (selectedDate.value === today) {
+			return '今日任务';
+		}
+		const date = new Date(selectedDate.value);
+		return `${date.getMonth() + 1}月${date.getDate()}日任务`;
+	});
+
 	onLoad(() => {
 		temperatureStore.initTemperatureSettings();
 	});
 
 	onShow(async () => {
+		isLoading.value = true;
 		try {
-			if (!dataStore.dataLoaded.production) {
-				isInitialLoad.value = true;
-			}
-			await dataStore.fetchProductionData();
+			// [修改] 传入选定日期获取任务，并获取所有任务日期用于日历标记
+			await Promise.all([
+				dataStore.fetchProductionData(selectedDate.value),
+				getTaskDates().then(dates => taskDates.value = dates)
+			]);
 		} catch (error) {
 			console.error("Failed to load data on show:", error);
 		} finally {
-			isInitialLoad.value = false;
+			isLoading.value = false;
 		}
 	});
 
-	// [核心改造] 创建一个新的计算属性，将前置任务和常规任务合并
-	const allTasksForDisplay = computed(() => {
-		const activeTasks = dataStore.production.filter(
-			task => task.status === 'PENDING' || task.status === 'IN_PROGRESS'
-		);
+	// [新增] 处理日期选择
+	const handleDateSelect = async (date : string) => {
+		selectedDate.value = date;
+		isLoading.value = true;
+		await dataStore.fetchProductionData(date);
+		isLoading.value = false;
+	};
 
+	const allTasksForDisplay = computed(() => {
+		const activeTasks = dataStore.production; // 直接使用从 store 获取的任务列表
 		const inProgressTasks = activeTasks.filter(task => task.status === 'IN_PROGRESS');
 		const pendingTasks = activeTasks.filter(task => task.status === 'PENDING');
-
-		inProgressTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
-		pendingTasks.sort((a, b) => new Date(a.plannedDate).getTime() - new Date(b.plannedDate).getTime());
-
+		inProgressTasks.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+		pendingTasks.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 		const sortedRegularTasks = [...inProgressTasks, ...pendingTasks];
-
-		// 如果存在前置任务，则将其放在数组的最前面
 		if (dataStore.prepTask) {
-			// 为了能在列表中正确渲染，我们给前置任务一个 status 属性
-			const prepTaskForList = {
-
-				...dataStore.prepTask,
-				status: 'PREP'
-			};
+			const prepTaskForList = { ...dataStore.prepTask, status: 'PREP' };
 			return [prepTaskForList, ...sortedRegularTasks];
 		}
-
 		return sortedRegularTasks;
 	});
 
-	// [核心改造] getTaskTitle 现在能处理前置任务和常规任务
 	const getTaskTitle = (task : ProductionTaskDto | PrepTask) => {
 		if (task.status === 'PREP') {
 			return (task as PrepTask).title;
 		}
 		const regularTask = task as ProductionTaskDto;
-		if (!regularTask.items || regularTask.items.length === 0) {
-			return '未知任务';
-		}
+		if (!regularTask.items || regularTask.items.length === 0) return '未知任务';
 		return regularTask.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
 	};
 
-	// [核心改造] getTaskCardStyle 现在能处理前置任务
 	const getTaskCardStyle = (task : any) => {
 		const colorMap : Record<string, string> = {
 			PENDING: '#d4a373',
 			IN_PROGRESS: '#27ae60',
-			PREP: '#8e44ad', // 为前置任务定义边框颜色
+			PREP: '#8e44ad',
 		};
 		const color = colorMap[task.status] || 'transparent';
-		return {
-			'--card-border-color': color
-		};
+		return { '--card-border-color': color };
 	};
 
 	const getTotalQuantity = (task : ProductionTaskDto) => {
@@ -259,18 +239,16 @@
 		return task.items.reduce((sum, item) => sum + item.quantity, 0);
 	};
 
-	// [核心改造] getTaskDetails 现在能处理前置任务和常规任务
 	const getTaskDetails = (task : any) => {
 		if (task.status === 'PREP') {
 			return task.details;
 		}
-		const formattedDate = formatChineseDate(task.plannedDate);
+		const formattedDate = formatChineseDate(task.startDate);
 		const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
 		const totalQuantity = getTotalQuantity(task);
 		return `${formattedDate} - by ${creator} | 计划总数: ${totalQuantity}`;
 	};
 
-	// [核心改造] getStatusText 现在能处理前置任务
 	const getStatusText = (status : any) => {
 		const map : Record<string, string> = {
 			PENDING: '待开始',
@@ -282,42 +260,28 @@
 		return map[status] || '未知';
 	};
 
-	// [核心改造] getStatusClass 现在能处理前置任务
 	const getStatusClass = (status : any) => {
 		const map : Record<string, string> = {
 			PENDING: 'status-pending',
 			IN_PROGRESS: 'status-inprogress',
-			COMPLETED: 'status-completed',
-			CANCELLED: 'status-cancelled',
 			PREP: 'status-prep'
 		};
 		return map[status] || '';
 	};
 
-	// [修改] 优化跳转逻辑，为前置任务传递已加载的数据
 	const navigateToDetail = (task : any) => {
 		const isPrepTask = task.status === 'PREP';
 		if (isPrepTask && dataStore.prepTask) {
-			// 将 prepTask 对象转换为字符串并通过 URL 传递
 			const prepTaskData = encodeURIComponent(JSON.stringify(dataStore.prepTask));
-			uni.navigateTo({
-				url: `/pages/production/prep-detail?taskData=${prepTaskData}`
-			});
+			uni.navigateTo({ url: `/pages/production/prep-detail?taskData=${prepTaskData}` });
 		} else {
-			uni.navigateTo({
-				url: `/pages/production/detail?taskId=${task.id}`
-			});
+			uni.navigateTo({ url: `/pages/production/detail?taskId=${task.id}` });
 		}
 	};
 
 	const navigateToHistory = () => {
-		uni.navigateTo({
-			url: '/pages/production/history'
-		});
+		uni.navigateTo({ url: '/pages/production/history' });
 	};
-
-	// [删除] navigateToStats 方法已被移除
-	// const navigateToStats = () => { ... };
 
 	const openTaskActions = (task : any) => {
 		if (task.status === 'PREP') return;
@@ -332,15 +296,11 @@
 
 	const handleConfirmCancelTask = async () => {
 		if (!selectedTaskForAction.value) return;
-
 		isSubmitting.value = true;
 		try {
 			await updateTaskStatus(selectedTaskForAction.value.id, 'CANCELLED');
-			toastStore.show({
-				message: '任务已取消',
-				type: 'success'
-			});
-			await dataStore.fetchProductionData();
+			toastStore.show({ message: '任务已取消', type: 'success' });
+			await dataStore.fetchProductionData(selectedDate.value);
 		} catch (error) {
 			console.error('Failed to cancel task:', error);
 		} finally {
@@ -351,32 +311,23 @@
 	};
 
 	const navigateToCreatePage = () => {
-		uni.navigateTo({
-			url: '/pages/production/create',
-		});
+		uni.navigateTo({ url: '/pages/production/create' });
 	};
 
-	// [新增] 打开温度设置模态框的逻辑
 	const openTemperatureSettingsModal = () => {
-		// 每次打开时，都用 store 中最新的值来初始化临时状态
 		Object.assign(tempSettings, temperatureStore.settings);
 		uiStore.openModal(MODAL_KEYS.TEMPERATURE_SETTINGS);
 	};
 
-	// [新增] 处理和面机类型选择变化的逻辑
 	const handleMixerChange = (e : any) => {
 		const selectedIndex = e.detail.value;
 		tempSettings.mixerType = temperatureStore.mixerTypes[selectedIndex].value;
 	};
 
-	// [新增] 保存温度设置的逻辑
 	const handleSaveTemperatureSettings = () => {
 		temperatureStore.saveTemperatureSettings(tempSettings);
 		uiStore.closeModal(MODAL_KEYS.TEMPERATURE_SETTINGS);
-		toastStore.show({
-			message: '设置已保存',
-			type: 'success'
-		});
+		toastStore.show({ message: '设置已保存', type: 'success' });
 	};
 </script>
 
@@ -405,6 +356,19 @@
 		font-size: 14px;
 		color: var(--text-secondary);
 		margin-top: 5px;
+	}
+
+	/* [新增] 可点击标题样式 */
+	.clickable-title {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.calendar-icon {
+		width: 20px;
+		height: 20px;
+		opacity: 0.7;
 	}
 
 	.task-info {
@@ -458,24 +422,10 @@
 		background-color: #27ae60;
 	}
 
-	.status-tag.status-completed {
-		background-color: #a9c1de;
-	}
-
-	.status-tag.status-cancelled {
-		background-color: #a8a8a8;
-	}
-
-	.prep-task-card {
-		--card-border-color: #8e44ad;
-		margin-bottom: 20px;
-	}
-
 	.status-tag.status-prep {
 		background-color: #8e44ad;
 	}
 
-	/* [修改] 优化温度设置表单样式 */
 	.form-container {
 		padding: 0 5px;
 		margin-top: 10px;
@@ -505,7 +455,7 @@
 		background-color: var(--bg-color);
 		border-radius: 8px;
 		padding: 6px 10px;
-		width: 100px; // 给一个固定宽度
+		width: 100px;
 	}
 
 	.picker-display {
@@ -513,7 +463,7 @@
 		color: var(--text-primary);
 		background-color: var(--bg-color);
 		border-radius: 8px;
-		padding: 6px 25px 6px 10px; // 增加右侧内边距给箭头
+		padding: 6px 25px 6px 10px;
 		position: relative;
 	}
 

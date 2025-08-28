@@ -4,36 +4,47 @@
 		<DetailHeader title="新建生产任务" />
 		<DetailPageLayout>
 			<view class="page-content">
-				<view class="loading-spinner" v-if="isLoading">
-					<text>加载中...</text>
-				</view>
-				<template v-else>
-					<view v-for="(group, groupName) in groupedProducts" :key="groupName" class="card product-group">
-						<view class="group-title" @click="toggleGroup(groupName)">
-							<span>{{ groupName }}</span>
-							<span class="arrow" :class="{ collapsed: collapsedGroups.has(groupName) }">&#10094;</span>
+				<!-- 日期选择 -->
+				<view class="card">
+					<view class="date-picker-row">
+						<view class="date-picker-item">
+							<label class="date-label">开始日期</label>
+							<picker mode="date" :value="taskForm.startDate" @change="onDateChange($event, 'start')">
+								<view class="picker-display">{{ taskForm.startDate }}</view>
+							</picker>
 						</view>
-						<view v-show="!collapsedGroups.has(groupName)" class="product-list">
-							<view v-for="product in group" :key="product.id" class="product-item">
-								<view class="product-name">{{ product.name }}</view>
-								<view class="quantity-control">
-									<StepperButton @click="decreaseQuantity(product.id)">
-										<image class="stepper-icon" src="/static/icons/remove.svg" />
-									</StepperButton>
-									<input class="input-stepper" type="number"
-										v-model.number="taskQuantities[product.id]" />
-									<StepperButton @click="increaseQuantity(product.id)">
-										<image class="stepper-icon" src="/static/icons/add.svg" />
-									</StepperButton>
-								</view>
-							</view>
+						<view class="date-picker-item">
+							<label class="date-label">结束日期</label>
+							<picker mode="date" :value="taskForm.endDate" :start="taskForm.startDate"
+								@change="onDateChange($event, 'end')">
+								<view class="picker-display">{{ taskForm.endDate }}</view>
+							</picker>
 						</view>
 					</view>
-					<AppButton type="primary" full-width :disabled="!hasTasksToCreate" @click="handleCreateTasks"
-						:loading="isCreating">
-						{{ isCreating ? '' : '创建任务' }}
-					</AppButton>
-				</template>
+				</view>
+
+				<!-- 数量汇总 -->
+				<view class="summary-card">
+					<pre v-if="summaryText" class="summary-text">{{ summaryText }}</pre>
+					<view v-else class="summary-placeholder">待添加产品...</view>
+				</view>
+
+				<!-- 产品选择 -->
+				<view class="card">
+					<CssAnimatedTabs v-model="activeTab" :tabs="productTabs" />
+					<view class="product-grid">
+						<view v-for="product in productsInCurrentTab" :key="product.id" class="product-item">
+							<view class="product-name">{{ product.name }}</view>
+							<input class="quantity-input" type="number" placeholder="数量"
+								v-model.number="taskQuantities[product.id]" @input="updateSummary" />
+						</view>
+					</view>
+				</view>
+
+				<AppButton type="primary" full-width :disabled="!isCreatable" @click="handleCreateTasks"
+					:loading="isCreating">
+					{{ isCreating ? '' : '创建任务' }}
+				</AppButton>
 			</view>
 		</DetailPageLayout>
 		<Toast />
@@ -41,39 +52,53 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, computed, reactive } from 'vue';
-	import { onShow } from '@dcloudio/uni-app';
+	import { ref, computed, reactive, onMounted } from 'vue';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
 	import { createTask } from '@/api/tasks';
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
-	import StepperButton from '@/components/StepperButton.vue';
-	// 3. 引入 DetailPageLayout
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
-	import type { ProductionTaskDto } from '@/types/api';
+	import CssAnimatedTabs from '@/components/CssAnimatedTabs.vue';
 	import Toast from '@/components/Toast.vue';
+	import type { ProductListItem } from '@/types/api';
 
-	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
 		inheritAttrs: false
 	});
 
 	const dataStore = useDataStore();
-	const isLoading = ref(false);
-	const isCreating = ref(false);
-	const taskQuantities = reactive<Record<string, number>>({});
-	const collapsedGroups = reactive(new Set<string>());
 	const toastStore = useToastStore();
 
-	onShow(async () => {
+	const isLoading = ref(false);
+	const isCreating = ref(false);
+
+	const today = new Date().toISOString().split('T')[0];
+	const taskForm = reactive({
+		startDate: today,
+		endDate: today,
+	});
+
+	const taskQuantities = reactive<Record<string, number | null>>({});
+	const summaryText = ref('');
+	const activeTab = ref('');
+
+	onMounted(async () => {
 		isLoading.value = true;
 		if (!dataStore.dataLoaded.recipes) {
 			await dataStore.fetchRecipesData();
 		}
+		// 初始化 activeTab 和 quantities
+		if (productTabs.value.length > 0) {
+			activeTab.value = productTabs.value[0].key;
+		}
+		dataStore.productList.forEach(p => {
+			taskQuantities[p.id] = null;
+		});
 		isLoading.value = false;
 	});
 
+	// 将产品按类型分组
 	const groupedProducts = computed(() => {
 		return dataStore.productList.reduce((groups, product) => {
 			const groupName = product.type;
@@ -81,40 +106,76 @@
 				groups[groupName] = [];
 			}
 			groups[groupName].push(product);
-			if (taskQuantities[product.id] === undefined) {
-				taskQuantities[product.id] = 0;
-			}
 			return groups;
-		}, {} as Record<string, typeof dataStore.productList>);
+		}, {} as Record<string, ProductListItem[]>);
 	});
 
-	const toggleGroup = (groupName : string) => {
-		if (collapsedGroups.has(groupName)) {
-			collapsedGroups.delete(groupName);
-		} else {
-			collapsedGroups.add(groupName);
+	// 为 Tabs 生成数据
+	const productTabs = computed(() => {
+		return Object.keys(groupedProducts.value).map(name => ({
+			key: name,
+			label: name
+		}));
+	});
+
+	// 获取当前 Tab 下的产品列表
+	const productsInCurrentTab = computed(() => {
+		return groupedProducts.value[activeTab.value] || [];
+	});
+
+	// 更新汇总文本
+	const updateSummary = () => {
+		let text = '';
+		for (const groupName in groupedProducts.value) {
+			const productsInGroup = groupedProducts.value[groupName];
+			const quantifiedProducts = productsInGroup
+				.map(p => ({
+					name: p.name,
+					quantity: taskQuantities[p.id] || 0
+				}))
+				.filter(p => p.quantity > 0);
+
+			if (quantifiedProducts.length > 0) {
+				text += `【${groupName}】\n`;
+				const columns : string[][] = [[], []];
+				quantifiedProducts.forEach((p, index) => {
+					columns[index % 2].push(`${p.name} x${p.quantity}`);
+				});
+
+				const maxRows = Math.max(columns[0].length, columns[1].length);
+				for (let i = 0; i < maxRows; i++) {
+					const left = columns[0][i] || '';
+					const right = columns[1][i] || '';
+					text += `${left.padEnd(10, ' ')}\t${right}\n`;
+				}
+				text += '\n';
+			}
 		}
+		summaryText.value = text.trim();
 	};
 
-	const hasTasksToCreate = computed(() => {
-		return Object.values(taskQuantities).some(qty => qty > 0);
+	const isCreatable = computed(() => {
+		return Object.values(taskQuantities).some(qty => qty && qty > 0);
 	});
 
-	const increaseQuantity = (productId : string) => {
-		taskQuantities[productId]++;
-	};
-	const decreaseQuantity = (productId : string) => {
-		if (taskQuantities[productId] > 0) {
-			taskQuantities[productId]--;
+	const onDateChange = (e : any, type : 'start' | 'end') => {
+		const newDate = e.detail.value;
+		if (type === 'start') {
+			taskForm.startDate = newDate;
+			if (new Date(taskForm.endDate) < new Date(newDate)) {
+				taskForm.endDate = newDate;
+			}
+		} else {
+			taskForm.endDate = newDate;
 		}
 	};
 
 	const handleCreateTasks = async () => {
 		const productsToCreate = Object.entries(taskQuantities)
-			.filter(([, quantity]) => quantity > 0)
+			.filter(([, quantity]) => quantity && quantity > 0)
 			.map(([productId, quantity]) => ({
 				productId,
-				quantity,
+				quantity: Number(quantity),
 			}));
 
 		if (productsToCreate.length === 0) {
@@ -125,24 +186,17 @@
 		isCreating.value = true;
 		try {
 			const payload = {
-				plannedDate: new Date().toISOString(),
+				startDate: new Date(taskForm.startDate).toISOString(),
+				endDate: new Date(taskForm.endDate).toISOString(),
 				products: productsToCreate,
 			};
-			// [修改] 接收新的接口返回数据
 			const res = await createTask(payload);
-
-			// [修改] 任务创建成功后，检查是否有库存警告信息
 			if (res.warning) {
-				// [新增] 如果有警告信息，则通过toast提示用户，持续3秒
 				toastStore.show({ message: res.warning, type: 'error', duration: 3000 });
 			} else {
-				// [修改] 如果没有警告信息，显示常规的成功提示
 				toastStore.show({ message: '任务已创建', type: 'success' });
 			}
-
 			await dataStore.fetchProductionData();
-
-			// [修改] 延迟返回，确保用户能看到toast提示
 			setTimeout(() => {
 				uni.navigateBack();
 			}, 500);
@@ -158,74 +212,87 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* 5. 添加 page-wrapper 样式 */
 	.page-wrapper {
 		display: flex;
 		flex-direction: column;
 		height: 100vh;
 	}
 
-	.product-group {
-		margin-bottom: 20px;
-	}
-
-	.group-title {
+	.date-picker-row {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		font-size: 16px;
-		font-weight: 600;
-		color: var(--text-primary);
-		padding: 0 5px 15px 5px;
-		border-bottom: 1px solid var(--border-color);
+		gap: 15px;
 	}
 
-	.arrow {
-		font-size: 14px;
+	.date-picker-item {
+		flex: 1;
+	}
+
+	.date-label {
+		font-size: 13px;
 		color: var(--text-secondary);
-		transform: rotate(90deg);
-		transition: transform 0.3s ease;
+		margin-bottom: 8px;
+		display: block;
 	}
 
-	.arrow.collapsed {
-		transform: rotate(-90deg);
+	.picker-display {
+		background-color: var(--bg-color);
+		padding: 10px;
+		border-radius: 8px;
+		text-align: center;
+		font-size: 15px;
 	}
 
-	.product-list {
-		padding-top: 10px;
+	.summary-card {
+		background-color: #f0ebe5;
+		border-radius: 12px;
+		padding: 15px;
+		min-height: 100px;
+		margin-bottom: 20px;
+		font-family: monospace;
+	}
+
+	.summary-text {
+		font-size: 14px;
+		color: var(--text-primary);
+		white-space: pre-wrap;
+		word-wrap: break-word;
+	}
+
+	.summary-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		height: 100%;
+		min-height: 70px;
+		color: var(--text-secondary);
+	}
+
+	.product-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 15px;
+		margin-top: 20px;
 	}
 
 	.product-item {
 		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 10px 5px;
+		flex-direction: column;
+		gap: 8px;
 	}
 
 	.product-name {
 		font-size: 15px;
-		flex: 1;
-		margin-right: 10px;
 	}
 
-	.quantity-control {
-		display: flex;
-		align-items: center;
-		gap: 5px;
-	}
-
-	.stepper-icon {
-		width: 16px;
-		height: 16px;
-	}
-
-	.input-stepper {
-		width: 40px;
-		height: 30px;
-		text-align: center;
-		border: none;
+	.quantity-input {
 		background-color: var(--bg-color);
-		font-size: 16px;
 		border-radius: 8px;
+		padding: 10px;
+		text-align: center;
+		font-size: 15px;
+		width: 100%;
+		box-sizing: border-box;
 	}
 </style>

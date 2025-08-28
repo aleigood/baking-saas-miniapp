@@ -24,11 +24,23 @@ export function getHistoryTasks(page : number, limit : number) : Promise<{ data 
 
 
 /**
- * [核心改造] API 指向新的 active 专用接口
+ * [修改] API 指向新的 active 专用接口, 并支持按日期查询
+ * @param date 'YYYY-MM-DD' 格式的日期字符串
  */
-export function getTasks() : Promise<ProductionDataPayload> {
+export function getTasks(date ?: string) : Promise<ProductionDataPayload> {
 	return request<ProductionDataPayload>({
-		url: '/production-tasks/active', // [修改] URL 指向新接口
+		url: '/production-tasks/active',
+		method: 'GET',
+		data: { date }, // 传入日期参数
+	});
+}
+
+/**
+ * [新增] 获取所有存在任务的日期
+ */
+export function getTaskDates() : Promise<string[]> {
+	return request<string[]>({
+		url: '/production-tasks/task-dates',
 		method: 'GET',
 	});
 }
@@ -47,11 +59,12 @@ export function getTaskDetail(taskId : string, params ?: Partial<TemperatureSett
 
 
 /**
- * 创建一个新的生产任务，该任务可以包含多个产品
- * @param data 包含 plannedDate 和 products 数组等信息
+ * [修改] 创建一个新的生产任务，使用 startDate 和 endDate
+ * @param data 包含 startDate, endDate 和 products 数组等信息
  */
 export function createTask(data : {
-	plannedDate : string;
+	startDate : string;
+	endDate ?: string;
 	notes ?: string;
 	products : { productId : string; quantity : number }[];
 }) : Promise<CreateTaskResponse> {

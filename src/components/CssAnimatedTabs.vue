@@ -2,7 +2,7 @@
 	<scroll-view class="animated-tabs-container" :scroll-x="true" :show-scrollbar="false" scroll-with-animation
 		:scroll-into-view="activeTabDomId">
 		<view class="tabs-wrapper">
-			<view v-for="(tab) in tabs" :key="tab.key" :id="'tab-' + tab.key" class="tab-item"
+			<view v-for="(tab) in tabs" :key="tab.key" :id="tab.key" class="tab-item"
 				:class="{ active: modelValue === tab.key }" @click="handleClick(tab.key)">
 				{{ tab.label }}
 			</view>
@@ -14,6 +14,7 @@
 	import {
 		ref,
 		watch,
+		nextTick, // [新增] 引入 nextTick
 	} from 'vue';
 
 	const props = defineProps<{
@@ -31,8 +32,11 @@
 		emit('update:modelValue', key);
 	};
 
+	// [修改] 使用 nextTick 确保 DOM 更新后再执行滚动
 	watch(() => props.modelValue, (newValue) => {
-		activeTabDomId.value = `tab-${newValue}`;
+		nextTick(() => {
+			activeTabDomId.value = newValue;
+		});
 	}, { immediate: true });
 </script>
 
