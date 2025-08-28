@@ -199,7 +199,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 12px 5px;
+		padding: 10px 5px;
 	}
 
 	.product-name {

@@ -732,7 +732,7 @@
 	.top-info-bar {
 		display: flex;
 		justify-content: space-between;
-		align-items: center;
+		align-items: start;
 		margin-bottom: 20px;
 		gap: 10px;
 	}
