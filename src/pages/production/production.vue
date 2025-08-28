@@ -7,19 +7,19 @@
 					<view class="label">待完成</view>
 				</div>
 				<div>
-					<view class="value">{{ dataStore.homeStats.completedThisWeekCount }}</view>
-					<view class="label">本周已完成</view>
+					<view class="value">{{ temperatureStore.settings.envTemp }}°C</view>
+					<view class="label">环境温度</view>
 				</div>
 			</view>
 
 			<view class="card-title-wrapper">
 				<span class="card-title">制作任务</span>
 				<view class="header-actions">
-					<IconButton v-if="dataStore.hasHistory" @click="navigateToHistory">
-						<image class="header-icon" src="/static/icons/history.svg" />
+					<IconButton @click="openTemperatureSettingsModal">
+						<image class="header-icon" src="/static/icons/temp.svg" />
 					</IconButton>
-					<IconButton @click="navigateToStats">
-						<image class="header-icon" src="/static/icons/stats.svg" />
+					<IconButton @click="navigateToHistory">
+						<image class="header-icon" src="/static/icons/history.svg" />
 					</IconButton>
 				</view>
 			</view>
@@ -72,6 +72,40 @@
 				</AppButton>
 			</view>
 		</AppModal>
+
+		<AppModal :visible="uiStore.showTemperatureSettingsModal"
+			@update:visible="uiStore.closeModal(MODAL_KEYS.TEMPERATURE_SETTINGS)" title="设置温度参数">
+			<view class="form-container">
+				<view class="form-item">
+					<view class="form-label">和面机类型</view>
+					<picker mode="selector" :range="temperatureStore.mixerTypes" range-key="text"
+						:value="currentMixerIndex" @change="handleMixerChange">
+						<view class="picker-display">
+							{{ temperatureStore.mixerTypes[currentMixerIndex]?.text || '请选择' }}
+							<view class="arrow-down"></view>
+						</view>
+					</picker>
+				</view>
+				<view class="form-item">
+					<view class="form-label">环境温度 (°C)</view>
+					<input class="form-input" type="number" v-model.number="tempSettings.envTemp" placeholder="输入温度" />
+				</view>
+				<view class="form-item">
+					<view class="form-label">面粉温度 (°C)</view>
+					<input class="form-input" type="number" v-model.number="tempSettings.flourTemp"
+						placeholder="输入温度" />
+				</view>
+				<view class="form-item">
+					<view class="form-label">水温 (°C)</view>
+					<input class="form-input" type="number" v-model.number="tempSettings.waterTemp"
+						placeholder="输入温度" />
+				</view>
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.TEMPERATURE_SETTINGS)">取消</AppButton>
+				<AppButton type="primary" @click="handleSaveTemperatureSettings">保存</AppButton>
+			</view>
+		</AppModal>
 	</view>
 </template>
 
@@ -79,9 +113,12 @@
 	import {
 		ref,
 		computed,
+		reactive,
+		watch
 	} from 'vue';
 	import {
-		onShow
+		onShow,
+		onLoad
 	} from '@dcloudio/uni-app';
 	import {
 		useUserStore
@@ -95,6 +132,10 @@
 	import {
 		useToastStore
 	} from '@/store/toast';
+	// [新增] 引入温度设置 store
+	import {
+		useTemperatureStore
+	} from '@/store/temperature';
 	import {
 		MODAL_KEYS
 	} from '@/constants/modalKeys';
@@ -119,6 +160,8 @@
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 	const toastStore = useToastStore();
+	// [新增] 初始化温度 store
+	const temperatureStore = useTemperatureStore();
 
 	const isSubmitting = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
@@ -126,6 +169,24 @@
 	const showCancelConfirmModal = ref(false);
 
 	const isInitialLoad = ref(true);
+
+	// [新增] 用于临时存储模态框中的温度设置
+	const tempSettings = reactive({
+		mixerType: 9,
+		envTemp: 25,
+		flourTemp: 25,
+		waterTemp: 25,
+	});
+
+	// [新增] 计算当前选中的和面机在picker中的索引
+	const currentMixerIndex = computed(() => {
+		return temperatureStore.mixerTypes.findIndex(m => m.value === tempSettings.mixerType);
+	});
+
+	// [新增] 在页面加载时初始化温度设置
+	onLoad(() => {
+		temperatureStore.initTemperatureSettings();
+	});
 
 	onShow(async () => {
 		try {
@@ -157,7 +218,11 @@
 		// 如果存在前置任务，则将其放在数组的最前面
 		if (dataStore.prepTask) {
 			// 为了能在列表中正确渲染，我们给前置任务一个 status 属性
-			const prepTaskForList = { ...dataStore.prepTask, status: 'PREP' };
+			const prepTaskForList = {
+
+				...dataStore.prepTask,
+				status: 'PREP'
+			};
 			return [prepTaskForList, ...sortedRegularTasks];
 		}
 
@@ -229,14 +294,20 @@
 		return map[status] || '';
 	};
 
+	// [修改] 优化跳转逻辑，为前置任务传递已加载的数据
 	const navigateToDetail = (task : any) => {
 		const isPrepTask = task.status === 'PREP';
-		const url = isPrepTask ?
-			`/pages/production/prep-detail` :
-			`/pages/production/detail?taskId=${task.id}`;
-		uni.navigateTo({
-			url
-		});
+		if (isPrepTask && dataStore.prepTask) {
+			// 将 prepTask 对象转换为字符串并通过 URL 传递
+			const prepTaskData = encodeURIComponent(JSON.stringify(dataStore.prepTask));
+			uni.navigateTo({
+				url: `/pages/production/prep-detail?taskData=${prepTaskData}`
+			});
+		} else {
+			uni.navigateTo({
+				url: `/pages/production/detail?taskId=${task.id}`
+			});
+		}
 	};
 
 	const navigateToHistory = () => {
@@ -245,11 +316,8 @@
 		});
 	};
 
-	const navigateToStats = () => {
-		uni.navigateTo({
-			url: '/pages/production/stats'
-		});
-	};
+	// [删除] navigateToStats 方法已被移除
+	// const navigateToStats = () => { ... };
 
 	const openTaskActions = (task : any) => {
 		if (task.status === 'PREP') return;
@@ -285,6 +353,29 @@
 	const navigateToCreatePage = () => {
 		uni.navigateTo({
 			url: '/pages/production/create',
+		});
+	};
+
+	// [新增] 打开温度设置模态框的逻辑
+	const openTemperatureSettingsModal = () => {
+		// 每次打开时，都用 store 中最新的值来初始化临时状态
+		Object.assign(tempSettings, temperatureStore.settings);
+		uiStore.openModal(MODAL_KEYS.TEMPERATURE_SETTINGS);
+	};
+
+	// [新增] 处理和面机类型选择变化的逻辑
+	const handleMixerChange = (e : any) => {
+		const selectedIndex = e.detail.value;
+		tempSettings.mixerType = temperatureStore.mixerTypes[selectedIndex].value;
+	};
+
+	// [新增] 保存温度设置的逻辑
+	const handleSaveTemperatureSettings = () => {
+		temperatureStore.saveTemperatureSettings(tempSettings);
+		uiStore.closeModal(MODAL_KEYS.TEMPERATURE_SETTINGS);
+		toastStore.show({
+			message: '设置已保存',
+			type: 'success'
 		});
 	};
 </script>
@@ -382,5 +473,59 @@
 
 	.status-tag.status-prep {
 		background-color: #8e44ad;
+	}
+
+	/* [修改] 优化温度设置表单样式 */
+	.form-container {
+		padding: 0 5px;
+		margin-top: 10px;
+	}
+
+	.form-item {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 12px 0;
+		border-bottom: 1px solid var(--border-color);
+
+		&:last-of-type {
+			border-bottom: none;
+		}
+	}
+
+	.form-label {
+		font-size: 16px;
+		color: var(--text-primary);
+	}
+
+	.form-input {
+		text-align: right;
+		font-size: 16px;
+		color: var(--text-primary);
+		background-color: var(--bg-color);
+		border-radius: 8px;
+		padding: 6px 10px;
+		width: 100px; // 给一个固定宽度
+	}
+
+	.picker-display {
+		font-size: 16px;
+		color: var(--text-primary);
+		background-color: var(--bg-color);
+		border-radius: 8px;
+		padding: 6px 25px 6px 10px; // 增加右侧内边距给箭头
+		position: relative;
+	}
+
+	.arrow-down {
+		position: absolute;
+		right: 10px;
+		top: 50%;
+		transform: translateY(-50%);
+		width: 0;
+		height: 0;
+		border-left: 5px solid transparent;
+		border-right: 5px solid transparent;
+		border-top: 6px solid #999;
 	}
 </style>

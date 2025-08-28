@@ -4,7 +4,7 @@
 		<DetailHeader title="制作历史" />
 		<DetailPageLayout @scrolltolower="handleLoadMore">
 			<view class="page-content">
-				<view class="loading-spinner" v-if="isLoading && !dataStore.dataLoaded.historicalTasks">
+				<view class="loading-spinner" v-if="isLoading && Object.keys(dataStore.historicalTasks).length === 0">
 					<text>加载中...</text>
 				</view>
 				<template v-else>
@@ -33,12 +33,15 @@
 					</view>
 					<view class="load-more-container">
 						<view v-if="isLoadingMore" class="loading-spinner">加载中...</view>
-						<view v-if="!dataStore.historicalTasksMeta.hasMore && !isLoading" class="no-more-tasks">没有更多了
+						<view
+							v-if="!dataStore.historicalTasksMeta.hasMore && !isLoading && Object.keys(sortedGroupedTasks).length > 0"
+							class="no-more-tasks">没有更多了
 						</view>
 					</view>
 				</template>
 			</view>
 		</DetailPageLayout>
+		<ExpandingFab :actions="fabActions" :no-tab-bar="true" />
 	</view>
 </template>
 
@@ -51,7 +54,8 @@
 	import ListItem from '@/components/ListItem.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
-	// [核心修改] 引入新的智能时间格式化函数
+	// [新增] 引入 ExpandingFab 组件
+	import ExpandingFab from '@/components/ExpandingFab.vue';
 	import { formatChineseDate, formatEventTime } from '@/utils/format';
 
 	defineOptions({
@@ -63,11 +67,23 @@
 	const isLoading = ref(false);
 	const isLoadingMore = ref(false);
 
+	// [新增] 定义 FAB 菜单的动作
+	const fabActions = computed(() => {
+		return [{
+			icon: '/static/icons/stats.svg',
+			text: '生产统计',
+			action: navigateToStats
+		}];
+	});
+
+
 	onShow(async () => {
-		if (!dataStore.dataLoaded.historicalTasks) {
+		if (Object.keys(dataStore.historicalTasks).length === 0) {
 			isLoading.value = true;
 			await dataStore.fetchHistoricalTasks(false);
 			isLoading.value = false;
+		} else {
+			dataStore.fetchHistoricalTasks(false);
 		}
 	});
 
@@ -80,14 +96,9 @@
 	};
 
 	const sortedGroupedTasks = computed(() => {
-		// 1. Flatten the tasks from the store's grouped object into a single array.
 		const allTasks = Object.values(dataStore.historicalTasks).flat();
-
-		// 2. Sort the flat array chronologically in descending order based on the actual date.
 		allTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
-
-		// 3. Group the sorted tasks by their formatted date string for display.
-		const grouped: Record<string, ProductionTaskDto[]> = {};
+		const grouped : Record<string, ProductionTaskDto[]> = {};
 		allTasks.forEach(task => {
 			const dateKey = formatChineseDate(task.plannedDate);
 			if (!grouped[dateKey]) {
@@ -95,7 +106,6 @@
 			}
 			grouped[dateKey].push(task);
 		});
-
 		return grouped;
 	});
 
@@ -154,6 +164,12 @@
 	const navigateToDetail = (task : ProductionTaskDto) => {
 		uni.navigateTo({
 			url: `/pages/production/detail?taskId=${task.id}`
+		});
+	};
+
+	const navigateToStats = () => {
+		uni.navigateTo({
+			url: '/pages/production/stats'
 		});
 	};
 </script>

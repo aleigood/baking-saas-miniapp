@@ -43,13 +43,12 @@
 <script setup lang="ts">
 	import { ref } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
-	import { getTaskDetail } from '@/api/tasks';
-	import type { PrepTask, ProductionTaskDetailDto } from '@/types/api';
+	// [移除] 不再需要调用 API
+	// import { getTaskDetail } from '@/api/tasks';
+	import type { PrepTask } from '@/types/api';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
-	// [核心新增] 引入 DetailHeader 组件
 	import DetailHeader from '@/components/DetailHeader.vue';
 
-	// [核心新增] 5. 增加 defineOptions 以禁用属性继承，保持规范统一
 	defineOptions({
 		inheritAttrs: false
 	});
@@ -57,24 +56,18 @@
 	const isLoading = ref(true);
 	const task = ref<PrepTask | null>(null);
 
-	// [保留] 页面需要自行获取数据，保留原有逻辑
-	function isPrepTask(task : PrepTask | ProductionTaskDetailDto) : task is PrepTask {
-		return 'title' in task && task.id === 'prep-task-01';
-	}
-
-	onLoad(async () => {
-		try {
-			// 使用固定的ID来获取前置任务详情
-			const response = await getTaskDetail('prep-task-01');
-			// 使用更严谨的类型守卫函数来确保类型正确
-			if (isPrepTask(response)) {
-				task.value = response;
+	// [修改] 优化数据加载逻辑，直接从页面参数获取
+	onLoad(async (options) => {
+		if (options && options.taskData) {
+			try {
+				// 从 URL 参数中解析出 task 对象
+				const taskData = JSON.parse(decodeURIComponent(options.taskData));
+				task.value = taskData as PrepTask;
+			} catch (error) {
+				console.error("解析前置任务数据失败:", error);
 			}
-		} catch (error) {
-			console.error("Failed to fetch prep task detail:", error);
-		} finally {
-			isLoading.value = false;
 		}
+		isLoading.value = false;
 	});
 </script>
 

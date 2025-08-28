@@ -19,6 +19,7 @@ export const MODAL_KEYS = {
 	DISCONTINUE_RECIPE_CONFIRM: 'discontinueRecipeConfirm',
 	RESTORE_RECIPE_CONFIRM: 'restoreRecipeConfirm',
 	DELETE_RECIPE_CONFIRM: 'deleteRecipeConfirm',
+	TEMPERATURE_SETTINGS: 'temperatureSettings', // [新增] 温度设置模态框
 } as const;
 
 // 从常量对象中提取类型，用于类型安全检查

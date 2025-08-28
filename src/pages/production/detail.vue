@@ -170,6 +170,10 @@
 	import {
 		useToastStore
 	} from '@/store/toast';
+	// [新增] 引入温度设置 store
+	import {
+		useTemperatureStore
+	} from '@/store/temperature';
 	import type {
 		ProductionTaskDetailDto
 	} from '@/types/api';
@@ -194,6 +198,8 @@
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
+	// [新增] 初始化温度 store
+	const temperatureStore = useTemperatureStore();
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
@@ -211,7 +217,10 @@
 			return;
 		}
 		try {
-			const response = await getTaskDetail(taskId);
+			// [修改] 在调用API前，先加载本地存储的温度设置
+			temperatureStore.initTemperatureSettings();
+			// [修改] 将温度设置作为参数传递给API
+			const response = await getTaskDetail(taskId, temperatureStore.settings);
 			if ('items' in response) {
 				task.value = response;
 				if (task.value.status === 'IN_PROGRESS' || task.value.status === 'COMPLETED') {

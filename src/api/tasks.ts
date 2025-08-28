@@ -4,6 +4,8 @@
  */
 import { request } from '@/utils/request';
 import type { ProductionTaskDto, CreateTaskResponse, ProductionDataPayload, PrepTask, ProductionTaskDetailDto } from '@/types/api';
+// [新增] 导入温度设置类型
+import type { TemperatureSettings } from '@/store/temperature';
 
 /**
  * [核心改造] API 指向新的 history 专用接口
@@ -32,12 +34,14 @@ export function getTasks() : Promise<ProductionDataPayload> {
 }
 
 /**
- * 获取单个生产任务或前置任务的详情
+ * [修改] 获取单个生产任务或前置任务的详情, 增加温度参数
  * @param taskId 任务ID
+ * @param params 温度相关的查询参数
  */
-export function getTaskDetail(taskId : string) : Promise<ProductionTaskDetailDto | PrepTask> {
+export function getTaskDetail(taskId : string, params ?: Partial<TemperatureSettings>) : Promise<ProductionTaskDetailDto | PrepTask> {
 	return request<ProductionTaskDetailDto | PrepTask>({
 		url: `/production-tasks/${taskId}`,
+		data: params, // 将温度参数作为查询字符串发送
 	});
 }
 

@@ -22,6 +22,7 @@ export const useUiStore = defineStore('ui', () => {
 		[MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM]: false,
 		[MODAL_KEYS.RESTORE_RECIPE_CONFIRM]: false,
 		[MODAL_KEYS.DELETE_RECIPE_CONFIRM]: false,
+		[MODAL_KEYS.TEMPERATURE_SETTINGS]: false, // [新增] 温度设置
 	});
 
 	const showStoreModal = computed(() => modalVisibility.value[MODAL_KEYS.STORE]);
@@ -39,6 +40,7 @@ export const useUiStore = defineStore('ui', () => {
 	const showDiscontinueRecipeConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM]);
 	const showRestoreRecipeConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.RESTORE_RECIPE_CONFIRM]);
 	const showDeleteRecipeConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.DELETE_RECIPE_CONFIRM]);
+	const showTemperatureSettingsModal = computed(() => modalVisibility.value[MODAL_KEYS.TEMPERATURE_SETTINGS]); // [新增]
 
 	const isAnyModalOpen = computed(() => Object.values(modalVisibility.value).some(isOpen => isOpen));
 
@@ -70,6 +72,7 @@ export const useUiStore = defineStore('ui', () => {
 		showDiscontinueRecipeConfirmModal,
 		showRestoreRecipeConfirmModal,
 		showDeleteRecipeConfirmModal,
+		showTemperatureSettingsModal, // [新增]
 		openModal,
 		closeModal,
 		isAnyModalOpen,

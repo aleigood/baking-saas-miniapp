@@ -37,8 +37,8 @@ export const useDataStore = defineStore('data', () => {
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
 	const production = ref<ProductionTaskDto[]>([]);
 	const prepTask = ref<PrepTask | null>(null);
-	const homeStats = ref({ pendingCount: 0, completedThisWeekCount: 0 });
-	const hasHistory = ref(false); // [核心新增] 新增 state
+	// [修改] homeStats 不再包含 completedThisWeekCount
+	const homeStats = ref({ pendingCount: 0 });
 	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
 	const historicalTasksMeta = ref({
 		page: 1,
@@ -113,7 +113,6 @@ export const useDataStore = defineStore('data', () => {
 			production.value = payload.tasks;
 			prepTask.value = payload.prepTask;
 			homeStats.value = payload.stats;
-			hasHistory.value = payload.hasHistory; // [核心新增] 为 state 赋值
 			dataLoaded.value.production = true;
 		} catch (error) {
 			console.error('Failed to fetch production data', error);
@@ -218,8 +217,8 @@ export const useDataStore = defineStore('data', () => {
 	function resetData() {
 		production.value = [];
 		prepTask.value = null;
-		homeStats.value = { pendingCount: 0, completedThisWeekCount: 0 };
-		hasHistory.value = false; // [核心新增] 重置 state
+		// [修改] 重置 homeStats
+		homeStats.value = { pendingCount: 0 };
 		recipes.value = [];
 		ingredients.value = [];
 		members.value = [];
@@ -248,7 +247,6 @@ export const useDataStore = defineStore('data', () => {
 		production,
 		prepTask,
 		homeStats,
-		hasHistory, // [核心新增] 导出 state
 		historicalTasks,
 		historicalTasksMeta,
 		recipes,
