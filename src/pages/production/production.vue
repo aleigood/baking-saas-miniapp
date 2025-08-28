@@ -16,6 +16,7 @@
 				<view class="clickable-title" @click="isCalendarVisible = true">
 					<image class="calendar-icon" src="/static/icons/calendar.svg" />
 					<span class="card-title">{{ pageTitle }}</span>
+					<view class="dropdown-arrow"></view>
 				</view>
 				<view class="header-actions">
 					<IconButton @click.stop="openTemperatureSettingsModal">
@@ -147,7 +148,13 @@
 
 	// [新增] 日历相关状态
 	const isCalendarVisible = ref(false);
-	const selectedDate = ref(new Date().toISOString().split('T')[0]);
+	// [修改] 修正时区问题，使用本地日期
+	const todayForInit = new Date();
+	const selectedDate = ref(
+		`${todayForInit.getFullYear()}-${String(todayForInit.getMonth() + 1).padStart(2, '0')}-${String(
+			todayForInit.getDate()
+		).padStart(2, '0')}`
+	);
 	const taskDates = ref<string[]>([]);
 
 	const tempSettings = reactive({
@@ -163,7 +170,11 @@
 
 	// [修改] 页面标题现在是动态的
 	const pageTitle = computed(() => {
-		const today = new Date().toISOString().split('T')[0];
+		// [修改] 修正时区问题，使用本地日期
+		const todayDate = new Date();
+		const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(
+			todayDate.getDate()
+		).padStart(2, '0')}`;
 		if (selectedDate.value === today) {
 			return '今日任务';
 		}
@@ -364,6 +375,7 @@
 
 		.card-title {
 			color: var(--primary-color); // 使用主题色
+			font-weight: 400; // [修改] 标题文字不要加粗
 		}
 	}
 
@@ -371,6 +383,15 @@
 		width: 20px;
 		height: 20px;
 		opacity: 0.7;
+	}
+
+	/* [新增] 下拉箭头样式 */
+	.dropdown-arrow {
+		width: 0;
+		height: 0;
+		border-left: 5px solid transparent;
+		border-right: 5px solid transparent;
+		border-top: 6px solid var(--text-secondary);
 	}
 
 	.task-info {

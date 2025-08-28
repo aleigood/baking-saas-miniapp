@@ -6,15 +6,20 @@
 				<view class="header-date">{{ currentYear }}年 {{ currentMonth + 1 }}月</view>
 				<view class="header-arrow" @click="changeMonth(1)">›</view>
 			</view>
-			<view class="calendar-weekdays">
-				<view v-for="day in weekdays" :key="day" class="weekday-item">{{ day }}</view>
-			</view>
+
 			<view class="calendar-grid">
-				<view v-for="(day, index) in calendarDays" :key="index" class="day-cell"
-					:class="{ 'not-current-month': !day.isCurrentMonth, 'is-today': day.isToday, 'is-selected': day.fullDate === selectedDate }"
-					@click="selectDate(day)">
-					<view class="day-number">{{ day.day }}</view>
-					<view v-if="day.hasTask" class="task-marker"></view>
+				<view v-for="day in weekdays" :key="day" class="weekday-item">{{ day }}</view>
+
+				<view v-for="(day, index) in calendarDays" :key="index" class="day-cell-wrapper">
+					<view v-if="day.isCurrentMonth" class="day-cell"
+						:class="{ 'is-today': day.isToday, 'is-selected': day.fullDate === selectedDate }"
+						@click="selectDate(day)">
+						<view class="day-number">{{ day.day }}</view>
+						<view v-if="day.hasTask" class="task-marker"></view>
+					</view>
+					<view v-else class="day-cell-placeholder">
+						<view class="day-number">{{ day.day }}</view>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -22,6 +27,7 @@
 </template>
 
 <script setup lang="ts">
+	// [提示] script 部分与之前完全相同，无需任何修改
 	import { ref, computed, watch } from 'vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
@@ -45,7 +51,12 @@
 
 	const currentYear = ref(today.getFullYear());
 	const currentMonth = ref(today.getMonth());
-	const selectedDate = ref(today.toISOString().split('T')[0]);
+	const selectedDate = ref(
+		`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(
+			2,
+			'0'
+		)}`
+	);
 
 	watch(() => props.visible, (isVisible) => {
 		if (isVisible) {
@@ -68,7 +79,11 @@
 
 		for (let i = 1; i <= daysInMonth; i++) {
 			const dayDate = new Date(currentYear.value, currentMonth.value, i);
-			const fullDate = dayDate.toISOString().split('T')[0];
+			const year = dayDate.getFullYear();
+			const month = String(dayDate.getMonth() + 1).padStart(2, '0');
+			const dayStr = String(dayDate.getDate()).padStart(2, '0');
+			const fullDate = `${year}-${month}-${dayStr}`;
+
 			days.push({
 				day: i,
 				isCurrentMonth: true,
@@ -111,7 +126,8 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 10px 0;
+		padding: 0;
+		/* [修改] 将上下内边距设置为0 */
 		font-size: 16px;
 		font-weight: 600;
 		color: var(--text-primary);
@@ -122,53 +138,78 @@
 		cursor: pointer;
 	}
 
-	.calendar-weekdays {
+	/* [核心修改] 统一的网格布局 */
+	.calendar-grid {
 		display: grid;
 		grid-template-columns: repeat(7, 1fr);
+		/* 让所有列等宽 */
+		gap: 5px;
+		/* 统一的间距 */
+		align-items: center;
+		/* 垂直居中对齐 */
+	}
+
+	/* [核心修改] 星期标题的样式 */
+	.weekday-item {
 		text-align: center;
 		font-size: 13px;
 		color: var(--text-secondary);
 		padding: 10px 0;
+		/* 确保有足够的垂直空间 */
 	}
 
-	.calendar-grid {
-		display: grid;
-		grid-template-columns: repeat(7, 1fr);
-		gap: 5px;
+	/* [核心修改] 日期单元格的容器，用于创建正方形 */
+	.day-cell-wrapper {
+		width: 100%;
+		position: relative;
+		/* 创建一个正方形，padding-bottom基于宽度 */
+		padding-bottom: 100%;
 	}
 
-	.day-cell {
+	/* [核心修改] 日期单元格的通用样式 */
+	.day-cell,
+	.day-cell-placeholder {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
 		align-items: center;
-		/* [核心修改] 增加宽度确保单元格为正方形 */
-		width: 40px;
-		height: 40px;
 		border-radius: 50%;
-		position: relative;
 	}
 
-	.day-cell.not-current-month .day-number {
+	.day-cell {
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+	}
+
+	/* [新增] 非当前月份的日期样式 */
+	.day-cell-placeholder .day-number {
 		color: #ccc;
 	}
 
-	/* [新增] 今日日期的文本加粗显示 */
+	/* 当天日期样式 */
 	.day-cell.is-today .day-number {
 		color: var(--primary-color);
 		font-weight: bold;
 	}
 
+	/* 选中日期样式 */
 	.day-cell.is-selected {
 		background-color: var(--primary-color);
 	}
 
-	.day-cell.is-selected .day-number {
+	.day-cell.is-selected .day-number,
+	.day-cell.is-selected .task-marker {
 		color: #fff;
 	}
 
 	.day-number {
 		font-size: 15px;
+		line-height: 1;
 	}
 
 	.task-marker {
@@ -176,8 +217,8 @@
 		height: 4px;
 		border-radius: 50%;
 		background-color: var(--primary-color);
-		position: absolute;
-		bottom: 5px;
+		margin-top: 3px;
+		/* 与数字的间距 */
 	}
 
 	.day-cell.is-selected .task-marker {
