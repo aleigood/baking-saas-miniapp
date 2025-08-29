@@ -166,7 +166,7 @@
 				</view>
 
 				<view class="modal-actions">
-					<AppButton type="secondary" @click="showCompleteTaskModal = false">返回</AppButton>
+					<AppButton type="secondary" @click="showCompleteTaskModal = false">取消</AppButton>
 					<AppButton type="primary" @click="handleConfirmComplete" :loading="isSubmitting">
 						{{ isSubmitting ? '提交中...' : '确认完成' }}
 					</AppButton>
@@ -641,7 +641,7 @@
 		padding: 0 10px;
 		text-align: center;
 		font-size: 15px;
-		width: 80px;
+		width: 85px;
 		box-sizing: border-box;
 		border: 1px solid var(--border-color);
 		height: 36px;
