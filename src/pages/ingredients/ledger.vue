@@ -1,42 +1,57 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
+		<!-- 页面头部，显示原料名称和“库存流水”标题 -->
 		<DetailHeader :title="`${ingredientName} - 库存流水`" />
+		<!-- [核心修改] 监听 scrolltolower 事件以触发加载更多 -->
 		<DetailPageLayout @scrolltolower="handleLoadMore">
+			<!-- [核心修改] 为 page-content 增加水平内边距 -->
 			<view class="page-content">
+				<!-- 加载中的提示 -->
 				<view v-if="isLoading" class="loading-spinner">
 					<text>加载中...</text>
 				</view>
+				<!-- 流水列表 -->
 				<template v-else-if="ledgerEntries.length > 0">
+					<!-- [核心修改] 移除 card class，变为常规列表 -->
 					<view class="procurement-list">
+						<!-- 列表头部 -->
 						<view class="list-header ledger-header">
-							<text class="col-date">日期</text>
+							<!-- [核心修改] 合并日期和操作人列头 -->
+							<text class="col-date-operator">日期/操作人</text>
 							<text class="col-type">类型</text>
 							<text class="col-change">变动</text>
-							<text class="col-details">详情 / 操作人</text>
+							<text class="col-details">详情</text>
 						</view>
+						<!-- 列表项 -->
 						<ListItem v-for="(entry, index) in ledgerEntries" :key="index" class="procurement-item"
 							:no-padding="true" :divider="index < ledgerEntries.length - 1">
 							<view class="procurement-item-content ledger-item-content">
-								<text class="col-date">{{ formatDateTime(entry.date, 'MM-DD HH:mm') }}</text>
+								<!-- [核心修改] 合并日期和操作人 -->
+								<view class="col-date-operator">
+									<view class="details-main">{{ formatDateTime(entry.date, 'MM-DD HH:mm') }}</view>
+									<view class="details-sub">{{ entry.operator }}</view>
+								</view>
 								<text class="col-type" :class="getTypeClass(entry.type)">{{ entry.type }}</text>
 								<text class="col-change"
 									:class="{ 'positive': entry.change > 0, 'negative': entry.change < 0 }">
 									{{ formatWeight(entry.change) }}
 								</text>
+								<!-- [核心修改] 详情列不再显示操作人 -->
 								<view class="col-details">
 									<view class="details-main">{{ entry.details }}</view>
-									<view class="details-sub">操作人: {{ entry.operator }}</view>
 								</view>
 							</view>
 						</ListItem>
 					</view>
+					<!-- [核心新增] 加载更多提示 -->
 					<view class="load-more-container">
 						<view v-if="isLoadingMore" class="loading-spinner">加载中...</view>
 						<view v-if="!hasMore && !isLoading && ledgerEntries.length > 0" class="no-more-tasks">没有更多了
 						</view>
 					</view>
 				</template>
+				<!-- 空状态提示 -->
 				<view v-else class="empty-state">
 					<text>暂无库存流水记录</text>
 				</view>
@@ -51,11 +66,15 @@
 	import { useToastStore } from '@/store/toast';
 	import type { IngredientLedgerEntry } from '@/types/api';
 	import { getIngredientLedger } from '@/api/ingredients';
-	// [核心修改] 引入新的格式化函数
 	import { formatDateTime, formatWeight } from '@/utils/format';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import ListItem from '@/components/ListItem.vue';
+
+	// [核心新增] 禁用属性继承，以解决控制台警告
+	defineOptions({
+		inheritAttrs: false
+	});
 
 	// 页面状态变量
 	const isLoading = ref(true);
@@ -153,7 +172,7 @@
 		}
 
 		.ledger-header {
-			grid-template-columns: 2.2fr 1.8fr 2fr 3fr; // [调整] 调整列宽
+			grid-template-columns: 2.5fr 1.8fr 1.8fr 2.5fr; // [核心修改] 调整列宽以适应新布局
 		}
 
 		.procurement-item-content {
@@ -166,12 +185,27 @@
 		}
 
 		.ledger-item-content {
-			grid-template-columns: 2.2fr 1.8fr 2fr 3fr; // [调整] 调整列宽
+			grid-template-columns: 2.5fr 1.8fr 1.8fr 2.5fr; // [核心修改] 调整列宽以适应新布局
 		}
 
 		.col-change,
 		.col-type {
 			text-align: center;
+		}
+
+		// [核心新增] 日期/操作人列的样式
+		.col-date-operator {
+			padding-left: 5px;
+
+			.details-main {
+				color: var(--text-primary);
+				font-weight: 500;
+			}
+
+			.details-sub {
+				font-size: 12px;
+				margin-top: 2px;
+			}
 		}
 
 		// [核心新增] 为不同类型添加颜色区分
@@ -206,14 +240,10 @@
 		.col-details {
 			text-align: right;
 			word-break: break-all;
+			padding-right: 5px;
 
 			.details-main {
 				color: var(--text-primary);
-			}
-
-			.details-sub {
-				font-size: 12px;
-				margin-top: 2px;
 			}
 		}
 

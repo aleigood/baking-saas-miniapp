@@ -5,27 +5,32 @@
 		<DetailPageLayout>
 			<view class="page-content" v-if="!isLoading && task">
 				<view class="detail-page">
-					<view v-if="task.stockWarning && !isReadOnly" class="warning-card">
+					<!-- [核心修改] 增加 !isReadOnly 条件，历史任务不显示警告，并增加 card class -->
+					<view v-if="task.stockWarning && !isReadOnly" class="warning-card card">
 						<view class="warning-content">
 							<text class="warning-text">{{ task.stockWarning }}</text>
 						</view>
 					</view>
 
-					<view class="card-full-bleed-list">
-						<view class="card-title-wrapper">
-							<span class="card-title">面团列表</span>
-						</view>
-						<ListItem v-for="(dough, index) in task.doughGroups" :key="dough.familyId"
-							class="product-list-item" :selected="selectedDoughFamilyId === dough.familyId"
-							@click="selectDough(dough.familyId)" :bleed="true"
-							:divider="index < task.doughGroups.length - 1">
-							<view class="main-info">
-								<view class="name">{{ dough.familyName }}</view>
-								<view class="desc">{{ dough.productsDescription }}</view>
+					<!-- [核心修改] 增加 view 容器并根据 isStarted 控制 pointer-events -->
+					<view :class="{ 'disabled-list': !isStarted && !isReadOnly }">
+						<view class="card-full-bleed-list">
+							<view class="card-title-wrapper">
+								<span class="card-title">面团列表</span>
 							</view>
-						</ListItem>
+							<ListItem v-for="(dough, index) in task.doughGroups" :key="dough.familyId"
+								class="product-list-item" :selected="selectedDoughFamilyId === dough.familyId"
+								@click="selectDough(dough.familyId)" :bleed="true"
+								:divider="index < task.doughGroups.length - 1">
+								<view class="main-info">
+									<view class="name">{{ dough.familyName }}</view>
+									<view class="desc">{{ dough.productsDescription }}</view>
+								</view>
+							</ListItem>
+						</view>
 					</view>
 
+					<!-- [核心修改] 增加 !isReadOnly 条件 -->
 					<view v-if="!isStarted && !isReadOnly" class="start-task-button-container">
 						<AppButton type="primary" full-width @click="handleStartTask">
 							开始制作
@@ -35,8 +40,9 @@
 					<template v-if="isStarted && selectedDoughDetails">
 						<view class="card">
 							<view class="group-title" @click="toggleCollapse(selectedDoughDetails.familyId)">
+								<!-- [核心修改] 应用新的重量格式化函数 -->
 								<span>{{ selectedDoughDetails.familyName }} (总重:
-									{{ selectedDoughDetails.totalDoughWeight.toFixed(0) }}g)</span>
+									{{ formatWeight(selectedDoughDetails.totalDoughWeight) }})</span>
 								<span class="arrow"
 									:class="{ collapsed: collapsedSections.has(selectedDoughDetails.familyId) }">&#10095;</span>
 							</view>
@@ -47,12 +53,15 @@
 										<text class="col-brand">品牌</text>
 										<text class="col-usage">用量</text>
 									</view>
+									<!-- [核心修改] 更新 class 绑定逻辑，并传递 familyId -->
 									<view v-for="ing in selectedDoughDetails.mainDoughIngredients" :key="ing.id"
-										class="table-row" :class="{ 'is-added': addedIngredients.has(ing.id) }"
-										@longpress.prevent="toggleIngredientAdded(ing.id)">
+										class="table-row"
+										:class="{ 'is-added': addedIngredientsMap[selectedDoughDetails.familyId]?.has(ing.id) }"
+										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedDoughDetails.familyId, ing.id)">
 										<text class="col-ingredient">{{ ing.name }}</text>
 										<text class="col-brand">{{ ing.brand || '-' }}</text>
-										<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
+										<!-- [核心修改] 应用新的重量格式化函数 -->
+										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 									</view>
 								</view>
 								<view v-if="selectedDoughDetails.mainDoughProcedure.length > 0" class="procedure-notes">
@@ -78,10 +87,11 @@
 										class="info-row">
 										<text class="col-product-name">{{ product.name }}</text>
 										<text class="col-quantity">{{ product.quantity }}</text>
+										<!-- [核心修改] 应用新的重量格式化函数 -->
 										<text
-											class="col-dough-weight">{{ product.totalBaseDoughWeight.toFixed(0) }}g</text>
+											class="col-dough-weight">{{ formatWeight(product.totalBaseDoughWeight) }}</text>
 										<text
-											class="col-division-weight">{{ product.divisionWeight.toFixed(0) }}g</text>
+											class="col-division-weight">{{ formatWeight(product.divisionWeight) }}</text>
 									</view>
 								</view>
 							</view>
@@ -109,7 +119,8 @@
 													class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
 													<text class="col-brand">{{ ing.brand || '-' }}</text>
-													<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
+													<!-- [核心修改] 应用新的重量格式化函数 -->
+													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
 										</template>
@@ -125,7 +136,8 @@
 													class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
 													<text class="col-brand">{{ ing.brand || '-' }}</text>
-													<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
+													<!-- [核心修改] 应用新的重量格式化函数 -->
+													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
 										</template>
@@ -143,6 +155,7 @@
 						</view>
 					</template>
 
+					<!-- [核心修改] 增加 !isReadOnly 条件 -->
 					<view class="bottom-actions-container">
 						<AppButton v-if="isStarted && !isReadOnly" type="primary" full-width
 							@click="openCompleteTaskModal">
@@ -217,6 +230,8 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import AnimatedTabs from '@/components/CssAnimatedTabs.vue';
+	// [核心新增] 引入新的格式化函数
+	import { formatWeight } from '@/utils/format';
 
 	defineOptions({
 		inheritAttrs: false
@@ -230,12 +245,15 @@
 	const isSubmitting = ref(false);
 	// [核心修改] task 的类型更新为新的 DTO
 	const task = ref<ProductionTaskDetailDto | null>(null);
+	// [核心新增] 增加一个 taskId 的 ref 用于重新加载数据
+	const taskId = ref<string | null>(null);
 	const showCompleteTaskModal = ref(false);
 	const isStarted = ref(false);
 	// [核心新增] 新增只读状态
 	const isReadOnly = ref(false);
 	const selectedDoughFamilyId = ref<string | null>(null);
-	const addedIngredients = ref(new Set<string>());
+	// [核心修改] 将 addedIngredients 改造为支持多面团的 reactive 对象
+	const addedIngredientsMap = reactive<Record<string, Set<string>>>({});
 	const collapsedSections = ref(new Set<string>());
 	const selectedProductId = ref<string>('');
 
@@ -380,19 +398,26 @@
 	};
 
 	onLoad(async (options) => {
-		const taskId = options?.taskId;
+		taskId.value = options?.taskId || null;
 		// [核心新增] 检查来源参数
 		if (options?.from === 'history') {
 			isReadOnly.value = true;
 		}
 
-		if (!taskId) {
+		if (!taskId.value) {
 			return;
 		}
+
+		await loadTaskData(taskId.value);
+	});
+
+	// [核心新增] 将加载逻辑封装成一个函数
+	const loadTaskData = async (id : string) => {
+		isLoading.value = true;
 		try {
 			temperatureStore.initTemperatureSettings();
 			// [核心修改] API 返回的就是处理好的数据，直接赋值
-			const response = await getTaskDetail(taskId, temperatureStore.settings);
+			const response = await getTaskDetail(id, temperatureStore.settings);
 			task.value = response;
 
 			if (task.value.status === 'IN_PROGRESS' || task.value.status === 'COMPLETED' || task.value.status === 'CANCELLED') {
@@ -411,7 +436,7 @@
 		} finally {
 			isLoading.value = false;
 		}
-	});
+	}
 
 	const toggleCollapse = (sectionName : string) => {
 		const newSet = new Set(collapsedSections.value);
@@ -423,36 +448,42 @@
 		collapsedSections.value = newSet;
 	};
 
-	const toggleIngredientAdded = (id : string) => {
-		const newSet = new Set(addedIngredients.value);
-		if (newSet.has(id)) {
-			newSet.delete(id);
-		} else {
-			newSet.add(id);
+	// [核心修改] 更新 toggleIngredientAdded 逻辑以支持多面团
+	const toggleIngredientAdded = (doughFamilyId : string, ingredientId : string) => {
+		if (isReadOnly.value) return;
+		if (!addedIngredientsMap[doughFamilyId]) {
+			addedIngredientsMap[doughFamilyId] = new Set<string>();
 		}
-		addedIngredients.value = newSet;
+
+		const addedSet = addedIngredientsMap[doughFamilyId];
+		if (addedSet.has(ingredientId)) {
+			addedSet.delete(ingredientId);
+		} else {
+			addedSet.add(ingredientId);
+		}
 	};
 
 	const handleStartTask = async () => {
-		if (!task.value) return;
+		if (!task.value || !taskId.value) return;
 		try {
 			await updateTaskStatus(task.value.id, 'IN_PROGRESS');
 			isStarted.value = true;
-			task.value.status = 'IN_PROGRESS';
+			// [核心修复] 开始任务后，立即重新加载任务数据
+			await loadTaskData(taskId.value);
 			toastStore.show({
 				message: '任务已开始',
 				type: 'success'
 			});
 			await dataStore.fetchProductionData();
-			if (task.value.doughGroups.length > 0) {
-				selectedDoughFamilyId.value = task.value.doughGroups[0].familyId;
-			}
 		} catch (error) {
 			console.error('Failed to start task:', error);
 		}
 	};
 
 	const selectDough = (familyId : string) => {
+		// [核心修改] 任务未开始时不允许选择
+		if (!isStarted.value && !isReadOnly.value) return;
+
 		selectedDoughFamilyId.value = familyId;
 		// [核心修改] 当切换面团时，自动选中该面团下的第一个产品
 		const doughDetails = selectedDoughDetails.value;
@@ -565,12 +596,14 @@
 		white-space: normal;
 	}
 
+	// [核心修改] 为 warning-card 增加圆角
 	.warning-card {
 		background-color: #faedcd;
 		border: none;
 		padding: 15px;
 		margin-bottom: 20px;
 		color: var(--primary-color);
+		border-radius: 20px; // 新增
 	}
 
 	.warning-content {
@@ -589,6 +622,12 @@
 		border-radius: 20px;
 		margin-bottom: 20px;
 		padding: 20px 0px;
+	}
+
+	// [核心新增] 禁用列表的样式
+	.disabled-list {
+		pointer-events: none;
+		opacity: 0.7;
 	}
 
 	.card-full-bleed-list .card-title-wrapper {
@@ -619,19 +658,15 @@
 		color: var(--text-primary);
 		border: none;
 		margin-top: 25px;
-		padding: 4px 10px 4px 15px;
 		position: relative;
+		// [核心修改] 增加背景色、圆角和内边距以增强分组感
+		background-color: #faf8f5;
+		padding: 10px 15px;
+		border-radius: 12px;
 
 		&::before {
-			content: '';
-			position: absolute;
-			left: 0;
-			top: 50%;
-			transform: translateY(-50%);
-			width: 4px;
-			height: 16px;
-			background-color: var(--primary-color, #42b983);
-			border-radius: 2px;
+			// [核心修改] 移除之前的短线装饰
+			display: none;
 		}
 	}
 
