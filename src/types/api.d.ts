@@ -285,12 +285,4 @@ export interface ProductionTaskDetailDto extends ProductionTaskDto {
 	prepTask ?: PrepTask | null;
 }
 
-// 为生产主页聚合接口定义返回类型
-export interface ProductionDashboardPayload {
-	// [修改] stats 对象不再包含 completedThisWeekCount
-	stats : {
-		pendingCount : number;
-	};
-	tasks : ProductionTaskDto[];
-	prepTask : PrepTask | null;
-}
+// [核心修改] 移除了不再使用的 ProductionDashboardPayload 类型

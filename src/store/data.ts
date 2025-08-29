@@ -23,7 +23,8 @@ import { getTasks, getHistoryTasks } from '@/api/tasks';
 import { getRecipes } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
 import { getMembers } from '@/api/members';
-import { getRecipeStats, getIngredientStats, getProductionDashboard } from '@/api/stats';
+// [核心修复] 移除了对 getProductionDashboard 的导入
+import { getRecipeStats, getIngredientStats } from '@/api/stats';
 
 function getMonthDateRange() {
 	const now = new Date();
@@ -110,19 +111,12 @@ export const useDataStore = defineStore('data', () => {
 	async function fetchProductionData(date ?: string) {
 		if (!currentTenantId.value) return;
 		try {
-			// [核心修改] 无论是否传入日期，都调用 getTasks 接口，并从返回结果中同时更新任务列表和统计数据
-			if (date) {
-				const payload = await getTasks(date);
-				production.value = payload.tasks;
-				prepTask.value = payload.prepTask;
-				if (payload.stats) {
-					homeStats.value = payload.stats;
-				}
-			} else {
-				// 如果没有日期（首次加载），获取聚合数据
-				const payload = await getProductionDashboard();
-				production.value = payload.tasks;
-				prepTask.value = payload.prepTask;
+			// [核心修复] 简化逻辑，始终调用 getTasks 接口。后端已优化此接口，无论是否传入日期都能返回正确的数据结构。
+			const payload = await getTasks(date);
+			production.value = payload.tasks;
+			prepTask.value = payload.prepTask;
+			// 如果返回体中包含 stats，则更新它
+			if (payload.stats) {
 				homeStats.value = payload.stats;
 			}
 

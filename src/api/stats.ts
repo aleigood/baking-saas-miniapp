@@ -3,28 +3,13 @@
  * 文件描述: 封装所有与统计数据(Stats)相关的API请求。
  */
 import { request } from '@/utils/request';
-// [核心修改] 引入新的返回类型
-import type { RecipeStatDto, IngredientStatDto, ProductionStatsResponse, ProductionDashboardPayload } from '@/types/api';
+// [核心修改] 移除了不再使用的 ProductionDashboardPayload 类型
+import type { RecipeStatDto, IngredientStatDto, ProductionStatsResponse } from '@/types/api';
 
 
-/**
- * [核心新增] 获取生产主页聚合数据的专用接口
- */
-export function getProductionDashboard() : Promise<ProductionDashboardPayload> {
-	return request<ProductionDashboardPayload>({
-		url: '/stats/dashboard/production',
-	});
-}
+// [核心修改] 移除了已废弃的 getProductionDashboard 函数
+// [核心修改] 移除了已废弃的 getProductionHomeStats 函数
 
-
-/**
- * [已废弃] 此接口功能已被 getProductionDashboard 替代
- */
-export function getProductionHomeStats() : Promise<{ pendingCount : number; completedThisWeekCount : number }> {
-	return request<{ pendingCount : number; completedThisWeekCount : number }>({
-		url: '/stats/production-home',
-	});
-}
 
 /**
  * 获取完整的生产统计数据，用于统计页面
