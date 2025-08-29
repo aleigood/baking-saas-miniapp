@@ -20,7 +20,9 @@
 							</view>
 							<view class="side-info">
 								<view class="value">
-									{{ formatWeight(ing.currentStockInGrams) }}
+									<!-- [核心修改] 对非追踪原料显示无穷大符号 -->
+									<template v-if="ing.type === 'UNTRACKED'">∞</template>
+									<template v-else>{{ formatWeight(ing.currentStockInGrams) }}</template>
 								</view>
 								<view v-if="ing.totalConsumptionInGrams > 0" class="desc consumption">
 									已消耗: {{ formatWeight(ing.totalConsumptionInGrams) }}
@@ -47,9 +49,7 @@
 								<view class="value-tag" :class="getStockStatusClass(ing.daysOfSupply)">
 									{{ getDaysOfSupplyText(ing.daysOfSupply) }}
 								</view>
-								<view class="desc">
-									库存: {{ formatWeight(ing.currentStockInGrams) }}
-								</view>
+								<view class="desc">库存: {{ formatWeight(ing.currentStockInGrams) }}</view>
 							</view>
 						</ListItem>
 					</template>
@@ -154,8 +154,9 @@
 
 	const lowStockIngredients = computed(() => {
 		if (!dataStore.ingredients) return [];
+		// [核心修改] 明确过滤掉非追踪原料
 		return [...dataStore.ingredients]
-			.filter((ing) => ing.daysOfSupply < 7)
+			.filter((ing) => ing.type === 'STANDARD' && ing.daysOfSupply < 7)
 			.sort((a, b) => a.daysOfSupply - b.daysOfSupply);
 	});
 
