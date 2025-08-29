@@ -1,19 +1,16 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<!-- [核心修改] 移除标题栏右侧的图标按钮 -->
 		<DetailHeader :title="ingredient?.name || '加载中...'" />
 
 		<DetailPageLayout>
 			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
-				<!-- [核心修改] 新增一个容器包裹标签和按钮 -->
 				<view class="top-info-bar">
 					<view class="tag-group">
 						<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
 						<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
-						<span class="tag">库存: {{ (ingredient.currentStockInGrams / 1000).toFixed(2) }} kg</span>
+						<span class="tag">库存: {{ formatWeight(ingredient.currentStockInGrams) }}</span>
 					</view>
-					<!-- [核心修改] 将库存流水按钮移到此处 -->
 					<IconButton @click="navigateToLedger">
 						<image class="header-icon" src="/static/icons/history.svg" />
 					</IconButton>
@@ -22,9 +19,7 @@
 
 				<view class="card">
 					<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
-					<!-- 价格走势图 -->
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
-					<!-- 用量走势图 -->
 					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix=""
 						unit-suffix="kg" />
 				</view>
@@ -44,7 +39,6 @@
 
 		<AppModal v-model:visible="showEditModal" title="编辑原料属性">
 			<FormItem label="原料名称">
-				<!-- [核心修改] 允许编辑原料名称 -->
 				<input class="input-field" v-model="ingredientForm.name" placeholder="输入原料名称" />
 			</FormItem>
 			<FormItem label="原料类型">
@@ -88,7 +82,6 @@
 			</view>
 		</AppModal>
 
-		<!-- 修改：新增采购弹窗，加入“补录”逻辑 -->
 		<AppModal v-model:visible="showProcurementModal" title="新增采购">
 			<FormItem label="采购商品">
 				<input class="input-field" :value="activeSkuName" readonly disabled />
@@ -101,12 +94,10 @@
 				<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
 					placeholder="例如：255" />
 			</FormItem>
-			<!-- 修改：调整“补录”开关布局以匹配UI风格 -->
 			<view class="form-row" style="margin-bottom: 20px;">
 				<label class="form-row-label">采购补录</label>
 				<switch :checked="isBackEntry" @change="onBackEntryChange" color="#8c5a3b" />
 			</view>
-			<!-- 新增：仅在补录时显示日期选择器 -->
 			<FormItem v-if="isBackEntry" label="采购日期">
 				<picker mode="date" :value="procurementForm.purchaseDate" @change="onNewProcurementDateChange">
 					<view class="picker">{{ procurementForm.purchaseDate }}</view>
@@ -176,7 +167,6 @@
 			</view>
 		</AppModal>
 
-		<!-- 修改：编辑采购记录弹窗，确保只修改价格 -->
 		<AppModal v-model:visible="showEditProcurementModal" title="编辑采购记录">
 			<FormItem label="采购商品">
 				<input class="input-field" :value="editedProcurementSkuName" readonly disabled />
@@ -184,7 +174,6 @@
 			<FormItem label="采购数量">
 				<input class="input-field" :value="`${editProcurementForm.packagesPurchased} 包`" readonly disabled />
 			</FormItem>
-			<!-- 修改：只允许修改总价 -->
 			<FormItem label="采购总价 (元)">
 				<input class="input-field" type="number" v-model.number="editProcurementForm.totalPrice"
 					placeholder="输入总价" />
@@ -197,7 +186,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [核心修改] 增加预设原因 -->
 		<AppModal :visible="uiStore.showUpdateStockConfirmModal"
 			@update:visible="uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM)" title="库存调整">
 			<FormItem label="库存变化量 (kg)">
@@ -256,7 +244,8 @@
 	import FilterTabs from '@/components/FilterTabs.vue'; // [新增] 引入 FilterTabs
 	import FilterTab from '@/components/FilterTab.vue'; // [新增] 引入 FilterTab
 	import { MODAL_KEYS } from '@/constants/modalKeys';
-	import { formatChineseDate, formatDateTime } from '@/utils/format';
+	// [核心修改] 引入新的格式化函数
+	import { formatChineseDate, formatDateTime, formatNumber, formatWeight } from '@/utils/format';
 
 	defineOptions({
 		inheritAttrs: false
@@ -410,9 +399,11 @@
 
 	const getIngredientPricePerKg = (ing : Ingredient | null) => {
 		if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
-			return '0.00';
+			return formatNumber(0);
 		}
-		return ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000).toFixed(2);
+		const price = ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000);
+		// [核心修改] 应用新的数字格式化函数
+		return formatNumber(price);
 	};
 
 	const openAddSkuModal = () => {

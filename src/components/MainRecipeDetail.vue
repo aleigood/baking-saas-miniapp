@@ -35,7 +35,7 @@
 							<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="table-row">
 								<text class="col-ingredient">{{ ing.name }}</text>
 								<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
-								<text class="col-usage">{{ formatNumber(ing.weightInGrams) }}g</text>
+								<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 								<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
 								<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
 							</view>
@@ -68,15 +68,15 @@
 							</text>
 							<text class="col-usage">
 								<template v-if="pIng.id === 'dough-summary'">
-									{{ formatNumber(pIng.weightInGrams) }}g
+									{{ formatWeight(pIng.weightInGrams) }}
 								</template>
 								<template v-else-if="pIng.type === '搅拌原料'">
 									{{ formatNumber(pIng.ratio) }}% ({{
-										formatNumber(pIng.weightInGrams)
-									}}g)
+										formatWeight(pIng.weightInGrams)
+									}})
 								</template>
 								<template v-else-if="pIng.weightInGrams != null">
-									{{ formatNumber(pIng.weightInGrams) }}g
+									{{ formatWeight(pIng.weightInGrams) }}
 								</template>
 							</text>
 							<text class="col-cost">¥{{ formatNumber(pIng.cost) }}</text>
@@ -117,8 +117,10 @@
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
+	// [核心修改] 引入新的格式化函数
 	import {
-		formatNumber
+		formatNumber,
+		formatWeight
 	} from '@/utils/format';
 
 	// 定义组件接收的属性

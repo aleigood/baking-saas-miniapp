@@ -22,7 +22,7 @@
 								<text class="col-type" :class="getTypeClass(entry.type)">{{ entry.type }}</text>
 								<text class="col-change"
 									:class="{ 'positive': entry.change > 0, 'negative': entry.change < 0 }">
-									{{ (entry.change / 1000).toFixed(3) }} kg
+									{{ formatWeight(entry.change) }}
 								</text>
 								<view class="col-details">
 									<view class="details-main">{{ entry.details }}</view>
@@ -51,7 +51,8 @@
 	import { useToastStore } from '@/store/toast';
 	import type { IngredientLedgerEntry } from '@/types/api';
 	import { getIngredientLedger } from '@/api/ingredients';
-	import { formatDateTime } from '@/utils/format';
+	// [核心修改] 引入新的格式化函数
+	import { formatDateTime, formatWeight } from '@/utils/format';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import ListItem from '@/components/ListItem.vue';

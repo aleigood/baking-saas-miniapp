@@ -19,7 +19,7 @@
 									<view v-if="task.status === 'COMPLETED' || task.status === 'CANCELLED'"
 										class="details end-time">
 										{{ task.status === 'COMPLETED' ? '完成于' : '取消于' }}:
-										{{ formatEventTime(task.plannedDate, task.updatedAt) }}
+										{{ formatEventTime(task.startDate, task.updatedAt) }}
 									</view>
 								</view>
 								<view class="status-tag" :class="getStatusClass(task.status)">
@@ -97,10 +97,12 @@
 
 	const sortedGroupedTasks = computed(() => {
 		const allTasks = Object.values(dataStore.historicalTasks).flat();
-		allTasks.sort((a, b) => new Date(b.plannedDate).getTime() - new Date(a.plannedDate).getTime());
+		// [核心修复] 按 startDate 排序
+		allTasks.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 		const grouped : Record<string, ProductionTaskDto[]> = {};
 		allTasks.forEach(task => {
-			const dateKey = formatChineseDate(task.plannedDate);
+			// [核心修复] 使用 startDate 进行分组
+			const dateKey = formatChineseDate(task.startDate);
 			if (!grouped[dateKey]) {
 				grouped[dateKey] = [];
 			}
@@ -123,7 +125,8 @@
 	};
 
 	const getTaskDetails = (task : ProductionTaskDto) => {
-		const formattedDate = formatChineseDate(task.plannedDate);
+		// [核心修复] 使用 startDate
+		const formattedDate = formatChineseDate(task.startDate);
 		const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
 		const totalQuantity = getTotalQuantity(task);
 		return `${formattedDate} - by ${creator} | 总数: ${totalQuantity}`;
@@ -162,8 +165,9 @@
 	};
 
 	const navigateToDetail = (task : ProductionTaskDto) => {
+		// [核心修改] 增加 from=history 参数，用于详情页判断只读状态
 		uni.navigateTo({
-			url: `/pages/production/detail?taskId=${task.id}`
+			url: `/pages/production/detail?taskId=${task.id}&from=history`
 		});
 	};
 

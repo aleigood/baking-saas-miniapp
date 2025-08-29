@@ -20,10 +20,10 @@
 							</view>
 							<view class="side-info">
 								<view class="value">
-									{{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg
+									{{ formatWeight(ing.currentStockInGrams) }}
 								</view>
 								<view v-if="ing.totalConsumptionInGrams > 0" class="desc consumption">
-									已消耗: {{ (ing.totalConsumptionInGrams / 1000).toFixed(2) }} kg
+									已消耗: {{ formatWeight(ing.totalConsumptionInGrams) }}
 								</view>
 							</view>
 						</ListItem>
@@ -47,7 +47,9 @@
 								<view class="value-tag" :class="getStockStatusClass(ing.daysOfSupply)">
 									{{ getDaysOfSupplyText(ing.daysOfSupply) }}
 								</view>
-								<view class="desc">库存: {{ (ing.currentStockInGrams / 1000).toFixed(2) }} kg</view>
+								<view class="desc">
+									库存: {{ formatWeight(ing.currentStockInGrams) }}
+								</view>
 							</view>
 						</ListItem>
 					</template>
@@ -105,6 +107,8 @@
 	import FilterTab from '@/components/FilterTab.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
+	// [核心新增] 引入新的格式化函数
+	import { formatWeight } from '@/utils/format';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();

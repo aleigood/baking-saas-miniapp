@@ -5,7 +5,7 @@
 		<DetailPageLayout>
 			<view class="page-content" v-if="!isLoading && task">
 				<view class="detail-page">
-					<view v-if="task.stockWarning" class="warning-card">
+					<view v-if="task.stockWarning && !isReadOnly" class="warning-card">
 						<view class="warning-content">
 							<text class="warning-text">{{ task.stockWarning }}</text>
 						</view>
@@ -26,7 +26,7 @@
 						</ListItem>
 					</view>
 
-					<view v-if="!isStarted" class="start-task-button-container">
+					<view v-if="!isStarted && !isReadOnly" class="start-task-button-container">
 						<AppButton type="primary" full-width @click="handleStartTask">
 							开始制作
 						</AppButton>
@@ -144,7 +144,8 @@
 					</template>
 
 					<view class="bottom-actions-container">
-						<AppButton v-if="isStarted" type="primary" full-width @click="openCompleteTaskModal">
+						<AppButton v-if="isStarted && !isReadOnly" type="primary" full-width
+							@click="openCompleteTaskModal">
 							完成任务
 						</AppButton>
 					</view>
@@ -231,6 +232,8 @@
 	const task = ref<ProductionTaskDetailDto | null>(null);
 	const showCompleteTaskModal = ref(false);
 	const isStarted = ref(false);
+	// [核心新增] 新增只读状态
+	const isReadOnly = ref(false);
 	const selectedDoughFamilyId = ref<string | null>(null);
 	const addedIngredients = ref(new Set<string>());
 	const collapsedSections = ref(new Set<string>());
@@ -378,6 +381,11 @@
 
 	onLoad(async (options) => {
 		const taskId = options?.taskId;
+		// [核心新增] 检查来源参数
+		if (options?.from === 'history') {
+			isReadOnly.value = true;
+		}
+
 		if (!taskId) {
 			return;
 		}
@@ -387,7 +395,7 @@
 			const response = await getTaskDetail(taskId, temperatureStore.settings);
 			task.value = response;
 
-			if (task.value.status === 'IN_PROGRESS' || task.value.status === 'COMPLETED') {
+			if (task.value.status === 'IN_PROGRESS' || task.value.status === 'COMPLETED' || task.value.status === 'CANCELLED') {
 				isStarted.value = true;
 				// [核心修改] 初始化时默认选中第一个面团和该面团的第一个产品
 				if (task.value.doughGroups.length > 0) {

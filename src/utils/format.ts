@@ -90,7 +90,8 @@ export function formatEventTime(primaryDateInput : string | Date, eventDateInput
 
 
 /**
- * 格式化数字，移除末尾多余的零
+ * [核心修改] 优化数字格式化，移除末尾多余的零和小数点
+ * @description 例如：12.50 -> "12.5", 12.00 -> "12"
  * @param num - 需要格式化的数字
  * @returns 格式化后的字符串
  */
@@ -102,9 +103,41 @@ export function formatNumber(num : number | string | null | undefined) : string 
 	if (isNaN(number)) {
 		return '0';
 	}
-	// 使用 Number() 构造函数和 toFixed() 来处理浮点数精度问题并移除末尾的零
-	return String(Number(number.toFixed(2)));
+	// 使用 parseFloat 和 toFixed 来处理浮点数精度并移除末尾的零
+	return String(parseFloat(number.toFixed(2)));
 }
+
+/**
+ * [核心新增] 智能格式化重量，自动在 g 和 kg 之间切换
+ * @param grams - 需要格式化的克数
+ * @returns 格式化后的带单位的字符串
+ */
+export function formatWeight(grams : number | null | undefined) : string {
+	if (grams === null || grams === undefined) {
+		return '0g';
+	}
+	const number = Number(grams);
+	if (isNaN(number)) {
+		return '0g';
+	}
+
+	const absGrams = Math.abs(number);
+
+	if (absGrams === 0) {
+		return '0g';
+	}
+
+	if (absGrams < 1000) {
+		// 小于1kg时，显示g，移除不必要的小数
+		return `${formatNumber(number)}g`;
+	} else {
+		// 大于等于1kg时，显示kg
+		const kg = number / 1000;
+		// 同样移除不必要的小数
+		return `${formatNumber(kg)}kg`;
+	}
+}
+
 
 /**
  * 新增：格式化日期时间函数，用于采购记录列表
