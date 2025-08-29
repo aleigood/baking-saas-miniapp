@@ -175,8 +175,8 @@
 			const textWidth = ctx!.measureText(text).width;
 
 			// 计算引导线起点 (在饼图外环上)
-			const lineStartX = centerX + Math.cos(midAngle) * (radius + 5);
-			const lineStartY = centerY + Math.sin(midAngle) * (radius + 5);
+			const lineStartX = centerX + Math.cos(midAngle) * (radius + 2);
+			const lineStartY = centerY + Math.sin(midAngle) * (radius + 2);
 
 			// 判断标签在左侧还是右侧
 			const isRightSide = midAngle > -0.5 * Math.PI && midAngle < 0.5 * Math.PI;
