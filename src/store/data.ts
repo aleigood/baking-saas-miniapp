@@ -110,12 +110,14 @@ export const useDataStore = defineStore('data', () => {
 	async function fetchProductionData(date ?: string) {
 		if (!currentTenantId.value) return;
 		try {
-			// [修改] 根据是否传入日期，决定调用哪个接口
+			// [核心修改] 无论是否传入日期，都调用 getTasks 接口，并从返回结果中同时更新任务列表和统计数据
 			if (date) {
-				// 如果有日期，只获取任务列表
 				const payload = await getTasks(date);
 				production.value = payload.tasks;
 				prepTask.value = payload.prepTask;
+				if (payload.stats) {
+					homeStats.value = payload.stats;
+				}
 			} else {
 				// 如果没有日期（首次加载），获取聚合数据
 				const payload = await getProductionDashboard();
