@@ -212,7 +212,13 @@
 	const selectedDoughFamilyId = ref<string | null>(null);
 	const addedIngredients = ref(new Set<string>());
 	const collapsedSections = ref(new Set<string>());
-	const selectedProductId = ref<string | null>(null);
+	// [核心修改] 将 selectedProductId 的类型改为 string，并用空字符串 '' 表示未选中
+	const selectedProductId = ref<string>('');
+
+	// [新增] 修复点击“完成任务”按钮的函数
+	const openCompleteTaskModal = () => {
+		showCompleteTaskModal.value = true;
+	};
 
 	onLoad(async (options) => {
 		const taskId = options?.taskId;
@@ -288,7 +294,8 @@
 		if (selectedDoughDetails.value && selectedDoughDetails.value.products.length > 0) {
 			selectedProductId.value = selectedDoughDetails.value.products[0].id;
 		} else {
-			selectedProductId.value = null;
+			// [核心修改] 当没有产品时，赋值为空字符串 '' 而不是 null
+			selectedProductId.value = '';
 		}
 	};
 
