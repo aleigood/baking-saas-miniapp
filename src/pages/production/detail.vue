@@ -150,16 +150,38 @@
 			</view>
 		</DetailPageLayout>
 
-		<AppModal v-model:visible="showCompleteTaskModal" title="确认完成任务">
+		<AppModal v-model:visible="showCompleteTaskModal" title="完成任务并提报损耗">
+			<view class="modal-body-footer-wrapper">
+				<view class="modal-main-content">
+					<AnimatedTabs v-model="activeLossTab" :tabs="lossTabs" />
+					<view class="loss-product-list">
+						<view v-for="product in allProductsInTask" :key="product.id" class="loss-product-item">
+							<text class="loss-product-name">{{ product.name }} (剩余
+								{{ getRemainingQuantity(product) }}/{{ product.plannedQuantity }})</text>
+							<input class="loss-quantity-input" type="number" placeholder="损耗数量"
+								:value="spoilageQuantities[activeLossTab][product.id]"
+								@input="onSpoilageQuantityInput(activeLossTab, product.id, $event)" />
+						</view>
+					</view>
+				</view>
+
+				<view class="modal-actions">
+					<AppButton type="secondary" @click="showCompleteTaskModal = false">返回</AppButton>
+					<AppButton type="primary" @click="handleConfirmComplete" :loading="isSubmitting">
+						{{ isSubmitting ? '提交中...' : '确认完成' }}
+					</AppButton>
+				</view>
+			</view>
 		</AppModal>
 	</view>
 </template>
 
 <script setup lang="ts">
-	// ... script部分内容未改变，保持原样 ...
 	import {
 		ref,
-		computed
+		computed,
+		reactive,
+		watch
 	} from 'vue';
 	import {
 		onLoad
@@ -173,7 +195,6 @@
 	import {
 		useToastStore
 	} from '@/store/toast';
-	// [新增] 引入温度设置 store
 	import {
 		useTemperatureStore
 	} from '@/store/temperature';
@@ -201,7 +222,6 @@
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
-	// [新增] 初始化温度 store
 	const temperatureStore = useTemperatureStore();
 
 	const isLoading = ref(true);
@@ -212,12 +232,132 @@
 	const selectedDoughFamilyId = ref<string | null>(null);
 	const addedIngredients = ref(new Set<string>());
 	const collapsedSections = ref(new Set<string>());
-	// [核心修改] 将 selectedProductId 的类型改为 string，并用空字符串 '' 表示未选中
 	const selectedProductId = ref<string>('');
 
-	// [新增] 修复点击“完成任务”按钮的函数
+	const lossTabs = ref([{
+		key: 'kneading',
+		label: '揉面失败'
+	}, {
+		key: 'fermentation',
+		label: '发酵失败'
+	}, {
+		key: 'shaping',
+		label: '整形失败'
+	}, {
+		key: 'baking',
+		label: '烘烤失败'
+	}, {
+		key: 'other',
+		label: '其他原因'
+	},]);
+	const activeLossTab = ref('kneading');
+	const spoilageQuantities = reactive<Record<string, Record<string, number | null>>>({
+		kneading: {},
+		fermentation: {},
+		shaping: {},
+		baking: {},
+		other: {},
+	});
+
 	const openCompleteTaskModal = () => {
 		showCompleteTaskModal.value = true;
+	};
+
+	const allProductsInTask = computed(() => {
+		if (!task.value || !task.value.items) return [];
+		return task.value.items.map((item : any) => ({
+			id: item.product.id,
+			name: item.product.name,
+			plannedQuantity: item.quantity,
+		}));
+	});
+
+	const getRemainingQuantity = (product : { id : string; plannedQuantity : number }) => {
+		let totalSpoilage = 0;
+		for (const stageKey in spoilageQuantities) {
+			const quantity = spoilageQuantities[stageKey][product.id];
+			if (quantity && Number(quantity) > 0) {
+				totalSpoilage += Number(quantity);
+			}
+		}
+		return product.plannedQuantity - totalSpoilage;
+	};
+
+
+	watch(allProductsInTask, (newProducts) => {
+		if (newProducts.length > 0) {
+			const initialQuantities : Record<string, null> = {};
+			for (const product of newProducts) {
+				initialQuantities[product.id] = null;
+			}
+			spoilageQuantities.kneading = {
+
+				...initialQuantities
+			};
+			spoilageQuantities.fermentation = {
+
+				...initialQuantities
+			};
+			spoilageQuantities.shaping = {
+
+				...initialQuantities
+			};
+			spoilageQuantities.baking = {
+
+				...initialQuantities
+			};
+			spoilageQuantities.other = {
+
+				...initialQuantities
+			};
+		}
+	}, {
+		immediate: true
+	});
+
+	const onSpoilageQuantityInput = (stage : string, productId : string, event : any) => {
+		const value = event.target?.value ?? event.detail.value;
+		if (spoilageQuantities[stage]) {
+			spoilageQuantities[stage][productId] = value === '' ? null : Number(value);
+		}
+	};
+
+	const handleConfirmComplete = async () => {
+		if (!task.value) return;
+
+		const losses = [];
+		for (const stage in spoilageQuantities) {
+			for (const productId in spoilageQuantities[stage]) {
+				const quantity = spoilageQuantities[stage][productId];
+				if (quantity !== null && quantity > 0) {
+					losses.push({
+						productId,
+						stage,
+						quantity,
+					});
+				}
+			}
+		}
+
+		isSubmitting.value = true;
+		try {
+			await completeTask(task.value.id, {
+				losses
+			});
+			toastStore.show({
+				message: '任务已完成',
+				type: 'success'
+			});
+			await dataStore.fetchProductionData();
+			setTimeout(() => {
+				uni.navigateBack();
+			}, 500);
+		} catch (error) {
+			console.error('Failed to complete task:', error);
+		} finally {
+			isSubmitting.value = false;
+			showCompleteTaskModal.value = false;
+		}
 	};
 
 	onLoad(async (options) => {
@@ -226,9 +366,7 @@
 			return;
 		}
 		try {
-			// [修改] 在调用API前，先加载本地存储的温度设置
 			temperatureStore.initTemperatureSettings();
-			// [修改] 将温度设置作为参数传递给API
 			const response = await getTaskDetail(taskId, temperatureStore.settings);
 			if ('items' in response) {
 				task.value = response;
@@ -258,7 +396,6 @@
 		}
 		collapsedSections.value = newSet;
 	};
-
 
 	const toggleIngredientAdded = (id : string) => {
 		const newSet = new Set(addedIngredients.value);
@@ -294,7 +431,6 @@
 		if (selectedDoughDetails.value && selectedDoughDetails.value.products.length > 0) {
 			selectedProductId.value = selectedDoughDetails.value.products[0].id;
 		} else {
-			// [核心修改] 当没有产品时，赋值为空字符串 '' 而不是 null
 			selectedProductId.value = '';
 		}
 	};
@@ -454,6 +590,64 @@
 	@import '@/styles/common.scss';
 	@include list-item-content-style;
 
+	/* [核心新增] 对话框内部的flex布局容器 */
+	.modal-body-footer-wrapper {
+		display: flex;
+		flex-direction: column;
+		/* 通过AppModal的max-height和此处的flex布局来控制高度 */
+		/* 注意：直接设置height: 100%可能在某些小程序中有问题，依赖flex:1来拉伸 */
+	}
+
+	/* [核心新增] 可滚动的主内容区 */
+	.modal-main-content {
+		flex: 1;
+		/* 占据所有可用垂直空间 */
+		min-height: 0;
+		/* flex布局中允许内容区缩小的关键 */
+		overflow-y: auto;
+		/* 内容超长时出现滚动条 */
+	}
+
+	.loss-product-list {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		margin-top: 10px;
+		padding: 5px;
+	}
+
+	.loss-product-item {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+	}
+
+	.loss-product-name {
+		font-size: 14px;
+		color: var(--text-primary);
+		line-height: 1.4;
+		flex: 1;
+		min-width: 0;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.loss-quantity-input {
+		background-color: var(--bg-color);
+		border-radius: 8px;
+		padding: 0 10px;
+		text-align: center;
+		font-size: 15px;
+		width: 80px;
+		box-sizing: border-box;
+		border: 1px solid var(--border-color);
+		height: 36px;
+		flex-shrink: 0;
+	}
+
 	.page-wrapper {
 		display: flex;
 		flex-direction: column;
@@ -541,10 +735,7 @@
 		}
 	}
 
-	/* 新增：将这个规则从 .group-title 中移出，作为顶级规则 */
-	/* 这样它就能正确地选中 .card 内的第一个 .group-title */
 	.card>.group-title:first-child {
-		/* 将第一个 group-title 的上边距设置为 10px */
 		margin-top: 10px;
 	}
 
