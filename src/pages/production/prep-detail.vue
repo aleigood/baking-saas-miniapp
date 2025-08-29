@@ -14,8 +14,12 @@
 						<view class="content-section">
 							<view class="section-title">原料清单</view>
 							<view class="ingredient-list">
+								<!-- [核心修改] 调整原料条目结构以展示品牌 -->
 								<view v-for="(ing, index) in item.ingredients" :key="index" class="ingredient-item">
-									<text class="name">{{ ing.name }}</text>
+									<view class="name-container">
+										<text class="name">{{ ing.name }}</text>
+										<text v-if="ing.brand" class="brand">&nbsp;({{ ing.brand }})</text>
+									</view>
 									<text class="weight">{{ ing.weightInGrams.toFixed(1) }} g</text>
 								</view>
 							</view>
@@ -117,21 +121,45 @@
 		gap: 12px 20px;
 	}
 
+	/* [核心修改] 更新原料条目样式以适应品牌显示 */
 	.ingredient-item {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
 		font-size: 15px;
+		overflow: hidden;
+
+		.name-container {
+			display: flex;
+			align-items: baseline;
+			overflow: hidden;
+			white-space: nowrap;
+			flex-shrink: 1;
+			margin-right: 8px;
+		}
 
 		.name {
 			color: var(--text-secondary);
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.brand {
+			color: #b0a8a2;
+			font-size: 13px;
+			white-space: nowrap;
+			flex-shrink: 0;
 		}
 
 		.weight {
 			color: var(--text-primary);
 			font-weight: 500;
+			white-space: nowrap;
+			flex-shrink: 0;
 		}
 	}
+
 
 	.procedure-list {
 		display: flex;

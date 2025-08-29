@@ -5,6 +5,12 @@
 		<DetailPageLayout>
 			<view class="page-content" v-if="!isLoading && task">
 				<view class="detail-page">
+					<view v-if="task.stockWarning" class="warning-card">
+						<view class="warning-content">
+							<text class="warning-text">{{ task.stockWarning }}</text>
+						</view>
+					</view>
+
 					<view class="card-full-bleed-list">
 						<view class="card-title-wrapper">
 							<span class="card-title">面团列表</span>

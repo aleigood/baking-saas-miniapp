@@ -3,10 +3,11 @@
  * 文件描述: (已更新) 使用 deletedAt 字段判断配方状态，并恢复 productionCount 字段。
  */
 
-// [新增] 为前置准备任务功能新增的类型定义
+// [核心修改] 为备料任务中的原料增加可选的 brand 字段
 export interface CalculatedRecipeIngredient {
 	name : string;
 	weightInGrams : number;
+	brand ?: string | null;
 }
 export interface CalculatedRecipeDetails {
 	id : string;
