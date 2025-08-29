@@ -3,8 +3,8 @@
  * 文件描述: (已更新) 封装所有与生产任务相关的API请求。
  */
 import { request } from '@/utils/request';
+// [核心修改] 更新导入的类型
 import type { ProductionTaskDto, CreateTaskResponse, ProductionDataPayload, PrepTask, ProductionTaskDetailDto } from '@/types/api';
-// [新增] 导入温度设置类型
 import type { TemperatureSettings } from '@/store/temperature';
 
 /**
@@ -46,12 +46,12 @@ export function getTaskDates() : Promise<string[]> {
 }
 
 /**
- * [修改] 获取单个生产任务或前置任务的详情, 增加温度参数
+ * [核心修改] 获取单个生产任务或前置任务的详情, 返回重构后的数据结构
  * @param taskId 任务ID
  * @param params 温度相关的查询参数
  */
-export function getTaskDetail(taskId : string, params ?: Partial<TemperatureSettings>) : Promise<ProductionTaskDetailDto | PrepTask> {
-	return request<ProductionTaskDetailDto | PrepTask>({
+export function getTaskDetail(taskId : string, params ?: Partial<TemperatureSettings>) : Promise<ProductionTaskDetailDto> {
+	return request<ProductionTaskDetailDto>({
 		url: `/production-tasks/${taskId}`,
 		data: params, // 将温度参数作为查询字符串发送
 	});
@@ -82,7 +82,7 @@ export function createTask(data : {
  */
 export function updateTaskStatus(
 	taskId : string,
-	status : 'CANCELLED',
+	status : 'CANCELLED' | 'IN_PROGRESS', // [修改] 允许将状态更新为 IN_PROGRESS
 ) : Promise<any> {
 	return request({
 		url: `/production-tasks/${taskId}`,
@@ -96,7 +96,7 @@ export function updateTaskStatus(
  * @param taskId 任务ID
  * @param data 包含备注等信息
  */
-export function completeTask(taskId : string, data : { notes ?: string }) : Promise<any> {
+export function completeTask(taskId : string, data : { notes ?: string, losses ?: any[] }) : Promise<any> { // [修改] 增加 losses
 	return request({
 		url: `/production-tasks/${taskId}/complete`,
 		method: 'POST',
