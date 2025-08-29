@@ -458,12 +458,12 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 12px 0;
-		border-bottom: 1px solid var(--border-color);
+		padding: 10px 0;
+		// border-bottom: 1px solid var(--border-color);
 
-		&:last-of-type {
-			border-bottom: none;
-		}
+		// &:last-of-type {
+		// 	border-bottom: none;
+		// }
 	}
 
 	.form-label {
@@ -472,22 +472,34 @@
 	}
 
 	.form-input {
-		text-align: right;
-		font-size: 16px;
-		color: var(--text-primary);
 		background-color: var(--bg-color);
 		border-radius: 8px;
-		padding: 6px 10px;
-		width: 100px;
+		padding: 0 10px;
+		text-align: center;
+		font-size: 15px;
+		width: 70px;
+		box-sizing: border-box;
+		border: 1px solid var(--border-color);
+		height: 36px;
+		color: var(--text-primary);
 	}
 
+	/* [核心修改] 将选择器样式更新为与输入框一致 */
 	.picker-display {
-		font-size: 16px;
-		color: var(--text-primary);
-		background-color: var(--bg-color);
+		height: 36px;
+		border: 1px solid var(--border-color);
 		border-radius: 8px;
-		padding: 6px 25px 6px 10px;
+		background-color: var(--bg-color);
+		font-size: 15px;
+		color: var(--text-primary);
+		box-sizing: border-box;
 		position: relative;
+		/* 使用flex布局使文字垂直居中 */
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		/* 调整padding以适应箭头 */
+		padding: 0 30px 0 15px;
 	}
 
 	.arrow-down {

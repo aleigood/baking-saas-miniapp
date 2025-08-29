@@ -257,7 +257,7 @@
 	}
 
 	.summary-card {
-		background-color: var(--bg-color);
+		background-color: #faf8f5;
 		border-radius: 12px;
 		padding: 15px;
 		min-height: 100px;
@@ -298,8 +298,8 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		min-height: 70px;
-		color: var(--text-secondary);
+		min-height: 100px;
+		color: #ced4da;
 	}
 
 	.product-grid {

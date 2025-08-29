@@ -441,32 +441,6 @@
 			label: p.name,
 		}));
 	});
-
-
-	const openCompleteTaskModal = () => {
-		/* ... */
-
-	};
-	const handleConfirmCompleteTask = async () => {
-		/* ... */
-
-	};
-	const getTotalQuantity = (task : ProductionTaskDetailDto) => {
-		/* ... */
-
-	};
-	const formattedDate = computed(() => {
-		/* ... */
-
-	});
-	const creatorName = computed(() => {
-		/* ... */
-
-	});
-	const totalQuantity = computed(() => {
-		/* ... */
-
-	});
 </script>
 
 <style scoped lang="scss">
