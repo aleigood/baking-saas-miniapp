@@ -54,83 +54,86 @@
 									<text v-for="(step, stepIndex) in selectedDoughDetails.mainDoughProcedure"
 										:key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 								</view>
-
-								<view class="group-title" @click="toggleCollapse('doughSummary')">
-									<span>面团汇总</span>
-									<span class="arrow"
-										:class="{ collapsed: collapsedSections.has('doughSummary') }">&#10095;</span>
+							</view>
+							<view class="group-title" @click="toggleCollapse('doughSummary')">
+								<span>面团汇总</span>
+								<span class="arrow"
+									:class="{ collapsed: collapsedSections.has('doughSummary') }">&#10095;</span>
+							</view>
+							<view v-show="!collapsedSections.has('doughSummary')">
+								<view class="info-table summary-table">
+									<view class="table-header">
+										<text class="col-product-name">面包名称</text>
+										<text class="col-quantity">数量</text>
+										<text class="col-dough-weight">面团总重</text>
+										<text class="col-division-weight">分割重量</text>
+									</view>
+									<view v-for="product in selectedDoughDetails.products" :key="product.id"
+										class="info-row">
+										<text class="col-product-name">{{ product.name }}</text>
+										<text class="col-quantity">{{ product.quantity }}</text>
+										<text
+											class="col-dough-weight">{{ product.totalBaseDoughWeight.toFixed(0) }}g</text>
+										<text
+											class="col-division-weight">{{ product.divisionWeight.toFixed(0) }}g</text>
+									</view>
 								</view>
-								<view v-show="!collapsedSections.has('doughSummary')">
-									<view class="info-table summary-table">
-										<view class="table-header">
-											<text class="col-product-name">面包名称</text>
-											<text class="col-quantity">数量</text>
-											<text class="col-dough-weight">面团总重</text>
-											<text class="col-division-weight">分割重量</text>
-										</view>
-										<view v-for="product in selectedDoughDetails.products" :key="product.id"
-											class="info-row">
-											<text class="col-product-name">{{ product.name }}</text>
-											<text class="col-quantity">{{ product.quantity }}</text>
-											<text
-												class="col-dough-weight">{{ product.totalBaseDoughWeight.toFixed(0) }}g</text>
-											<text
-												class="col-division-weight">{{ product.divisionWeight.toFixed(0) }}g</text>
-										</view>
-									</view>
+							</view>
+							<view class="group-title" @click="toggleCollapse('productSummary')">
+								<span>产品汇总</span>
+								<span class="arrow"
+									:class="{ collapsed: collapsedSections.has('productSummary') }">&#10095;</span>
+							</view>
+							<view v-show="!collapsedSections.has('productSummary')">
+								<view class="animated-tabs-container" v-if="productTabs.length > 0">
+									<AnimatedTabs v-model="selectedProductId" :tabs="productTabs" />
+								</view>
 
-									<view class="animated-tabs-container" v-if="productTabs.length > 0">
-										<AnimatedTabs v-model="selectedProductId" :tabs="productTabs" />
-									</view>
-
-									<template v-if="selectedProductDetails">
-										<template
-											v-if="selectedProductDetails.mixIns.length > 0 || selectedProductDetails.fillings.length > 0 || selectedProductDetails.procedure.length > 0">
-
-											<template v-if="selectedProductDetails.mixIns.length > 0">
-												<view class="recipe-table detail-table">
-													<view class="table-header">
-														<text class="col-ingredient">辅料</text>
-														<text class="col-brand">品牌</text>
-														<text class="col-usage">总用量</text>
-													</view>
-													<view v-for="ing in selectedProductDetails.mixIns" :key="ing.id"
-														class="table-row">
-														<text class="col-ingredient">{{ ing.name }}</text>
-														<text class="col-brand">{{ ing.brand || '-' }}</text>
-														<text
-															class="col-usage">{{ ing.totalWeightInGrams.toFixed(1) }}g</text>
-													</view>
+								<template v-if="selectedProductDetails">
+									<template
+										v-if="selectedProductDetails.mixIns.length > 0 || selectedProductDetails.fillings.length > 0 || selectedProductDetails.procedure.length > 0">
+										<template v-if="selectedProductDetails.mixIns.length > 0">
+											<view class="recipe-table detail-table">
+												<view class="table-header">
+													<text class="col-ingredient">辅料</text>
+													<text class="col-brand">品牌</text>
+													<text class="col-usage">总用量</text>
 												</view>
-											</template>
-
-											<template v-if="selectedProductDetails.fillings.length > 0">
-												<view class="recipe-table detail-table">
-													<view class="table-header">
-														<text class="col-ingredient">馅料</text>
-														<text class="col-brand">品牌</text>
-														<text class="col-usage">用量/个</text>
-													</view>
-													<view v-for="ing in selectedProductDetails.fillings" :key="ing.id"
-														class="table-row">
-														<text class="col-ingredient">{{ ing.name }}</text>
-														<text class="col-brand">{{ ing.brand || '-' }}</text>
-														<text
-															class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
-													</view>
+												<view v-for="ing in selectedProductDetails.mixIns" :key="ing.id"
+													class="table-row">
+													<text class="col-ingredient">{{ ing.name }}</text>
+													<text class="col-brand">{{ ing.brand || '-' }}</text>
+													<text
+														class="col-usage">{{ ing.totalWeightInGrams.toFixed(1) }}g</text>
 												</view>
-											</template>
-
-											<view v-if="selectedProductDetails.procedure.length > 0"
-												class="procedure-notes">
-												<text class="notes-title">制作要点:</text>
-												<text v-for="(step, stepIndex) in selectedProductDetails.procedure"
-													:key="stepIndex" class="note-item">{{ stepIndex + 1 }}.
-													{{ step }}</text>
 											</view>
 										</template>
+
+										<template v-if="selectedProductDetails.fillings.length > 0">
+											<view class="recipe-table detail-table">
+												<view class="table-header">
+													<text class="col-ingredient">馅料</text>
+													<text class="col-brand">品牌</text>
+													<text class="col-usage">用量/个</text>
+												</view>
+												<view v-for="ing in selectedProductDetails.fillings" :key="ing.id"
+													class="table-row">
+													<text class="col-ingredient">{{ ing.name }}</text>
+													<text class="col-brand">{{ ing.brand || '-' }}</text>
+													<text class="col-usage">{{ ing.weightInGrams.toFixed(1) }}g</text>
+												</view>
+											</view>
+										</template>
+
+										<view v-if="selectedProductDetails.procedure.length > 0"
+											class="procedure-notes">
+											<text class="notes-title">制作要点:</text>
+											<text v-for="(step, stepIndex) in selectedProductDetails.procedure"
+												:key="stepIndex" class="note-item">{{ stepIndex + 1 }}.
+												{{ step }}</text>
+										</view>
 									</template>
-								</view>
+								</template>
 							</view>
 						</view>
 					</template>
@@ -722,6 +725,6 @@
 	}
 
 	.animated-tabs-container {
-		margin-top: 20px;
+		margin-top: 10px;
 	}
 </style>

@@ -1,7 +1,7 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<DetailHeader title="新建生产任务" />
+		<DetailHeader title="新建任务" />
 		<DetailPageLayout>
 			<view class="page-content">
 				<view class="card">
@@ -23,21 +23,21 @@
 					</view>
 				</view>
 
-				<view class="summary-card">
-					<view v-if="summaryLines.length > 0" class="summary-content">
-						<view v-for="(line, index) in summaryLines" :key="index"
-							:class="line.type === 'title' ? 'summary-title' : 'summary-line'">
-							<text v-if="line.type === 'title'">{{ line.text }}</text>
-							<template v-if="line.type === 'line'">
-								<text class="summary-col">{{ line.col1 }}</text>
-								<text class="summary-col">{{ line.col2 }}</text>
-							</template>
-						</view>
-					</view>
-					<view v-else class="summary-placeholder">待添加产品...</view>
-				</view>
-
 				<view class="card">
+					<view class="card-title">产品数量</view>
+					<view class="summary-card">
+						<view v-if="summaryLines.length > 0" class="summary-content">
+							<view v-for="(line, index) in summaryLines" :key="index"
+								:class="line.type === 'title' ? 'summary-title' : 'summary-line'">
+								<text v-if="line.type === 'title'">{{ line.text }}</text>
+								<template v-if="line.type === 'line'">
+									<text class="summary-col">{{ line.col1 }}</text>
+									<text class="summary-col">{{ line.col2 }}</text>
+								</template>
+							</view>
+						</view>
+						<view v-else class="summary-placeholder">产品数量汇总</view>
+					</view>
 					<CssAnimatedTabs v-model="activeTab" :tabs="productTabs" />
 					<view class="product-grid">
 						<view v-for="product in productsInCurrentTab" :key="product.id" class="product-item">
@@ -257,18 +257,17 @@
 	}
 
 	.summary-card {
-		background-color: #f0ebe5;
+		background-color: var(--bg-color);
 		border-radius: 12px;
 		padding: 15px;
 		min-height: 100px;
 		margin-bottom: 20px;
-		font-family: monospace;
 	}
 
 	/* [核心新增] 汇总内容区域新样式 */
 	.summary-content {
 		color: var(--text-primary);
-		font-size: 14px;
+		font-size: 13px;
 	}
 
 	.summary-title {
@@ -276,7 +275,7 @@
 		color: var(--primary-color);
 		font-weight: 600;
 		margin-bottom: 5px;
-		margin-top: 5px;
+		margin-top: 10px;
 	}
 
 	.summary-title:first-child {
@@ -294,6 +293,7 @@
 	}
 
 	.summary-placeholder {
+		font-size: 13px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -337,7 +337,6 @@
 		box-sizing: border-box;
 		border: 1px solid var(--border-color);
 		flex-shrink: 0;
-		height: 44px;
-		line-height: 44px;
+		height: 36px;
 	}
 </style>
