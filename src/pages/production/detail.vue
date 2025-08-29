@@ -298,10 +298,43 @@
 		immediate: true
 	});
 
+	// [核心修改] 增加损耗数量校验
 	const onSpoilageQuantityInput = (stage : string, productId : string, event : any) => {
 		const value = event.target?.value ?? event.detail.value;
-		if (spoilageQuantities[stage]) {
-			spoilageQuantities[stage][productId] = value === '' ? null : Number(value);
+		const product = allProductsInTask.value.find(p => p.id === productId);
+		if (!product) return;
+
+		// 计算除当前输入框外，其他所有阶段的总损耗
+		let otherStagesSpoilage = 0;
+		for (const stageKey in spoilageQuantities) {
+			if (stageKey !== stage) {
+				const quantity = spoilageQuantities[stageKey][productId];
+				if (quantity && Number(quantity) > 0) {
+					otherStagesSpoilage += Number(quantity);
+				}
+			}
+		}
+
+		const newQuantity = value === '' ? null : Number(value);
+		const totalSpoilage = otherStagesSpoilage + (newQuantity || 0);
+
+		if (totalSpoilage > product.plannedQuantity) {
+			toastStore.show({
+				message: `总损耗不能超过计划数量 ${product.plannedQuantity}`,
+				type: 'error',
+				duration: 2000
+			});
+			// 使用 nextTick 确保在DOM更新后再设置值，防止双向绑定问题
+			nextTick(() => {
+				if (spoilageQuantities[stage]) {
+					const maxAllowed = product.plannedQuantity - otherStagesSpoilage;
+					spoilageQuantities[stage][productId] = maxAllowed > 0 ? maxAllowed : null;
+				}
+			});
+		} else {
+			if (spoilageQuantities[stage]) {
+				spoilageQuantities[stage][productId] = newQuantity;
+			}
 		}
 	};
 

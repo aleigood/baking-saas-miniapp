@@ -3,7 +3,8 @@
  * 文件描述: (已更新) 封装所有与原料(Ingredient)相关的API请求。
  */
 import { request } from '@/utils/request';
-import type { Ingredient, IngredientLedgerEntry } from '@/types/api'; // [修改] 导入新类型
+// [核心修改] 导入新的分页响应类型
+import type { Ingredient, IngredientLedgerResponse } from '@/types/api';
 
 /**
  * 获取当前店铺的原料列表
@@ -25,12 +26,19 @@ export function getIngredient(ingredientId : string) : Promise<Ingredient> {
 }
 
 /**
- * [新增] 获取原料的库存流水
+ * [核心修改] 获取原料的库存流水（支持分页）
  * @param ingredientId 原料的ID
+ * @param page 页码
+ * @param limit 每页数量
  */
-export function getIngredientLedger(ingredientId : string) : Promise<IngredientLedgerEntry[]> {
-	return request<IngredientLedgerEntry[]>({
+export function getIngredientLedger(ingredientId : string, page : number, limit : number) : Promise<IngredientLedgerResponse> {
+	return request<IngredientLedgerResponse>({
 		url: `/ingredients/${ingredientId}/ledger`,
+		// [核心修改] 将分页参数作为查询字符串发送
+		data: {
+			page: String(page),
+			limit: String(limit)
+		}
 	});
 }
 

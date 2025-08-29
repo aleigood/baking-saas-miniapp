@@ -31,7 +31,7 @@ export interface ProductionDataPayload {
 	tasks : ProductionTaskDto[];
 	prepTask : PrepTask | null;
 }
-// [新增] 任务详情页需要额外的字段
+// [修改] 为任务详情增加 productionTaskSpoilageLogs 字段
 export interface ProductionTaskDetailDto extends ProductionTaskDto {
 	totalIngredients : {
 		ingredientId : string;
@@ -41,6 +41,13 @@ export interface ProductionTaskDetailDto extends ProductionTaskDto {
 	stockWarning : string | null;
 	// [核心新增] 为任务详情增加备料清单字段
 	prepTask ?: PrepTask | null;
+	productionTaskSpoilageLogs : {
+		stage : string;
+		quantity : number;
+		product : {
+			name : string;
+		}
+	}[];
 }
 
 
@@ -193,13 +200,24 @@ export interface ProcurementRecord {
 	purchaseDate : string;
 }
 
-// [新增] 库存流水条目类型
+// [修改] 更新库存流水条目类型以包含损耗
 export interface IngredientLedgerEntry {
 	date : string;
-	type : '采购入库' | '生产消耗' | '库存调整';
+	type : '采购入库' | '生产消耗' | '库存调整' | '生产损耗';
 	change : number; // 单位: 克
 	details : string;
 	operator : string;
+}
+
+// [核心新增] 定义库存流水接口的完整响应类型
+export interface IngredientLedgerResponse {
+	data : IngredientLedgerEntry[];
+	meta : {
+		total : number;
+		page : number;
+		limit : number;
+		hasMore : boolean;
+	}
 }
 
 
@@ -275,14 +293,19 @@ export interface ProductionStatsResponse {
 	ingredientConsumption : IngredientStatDto[];
 }
 
-export interface ProductionTaskDetailDto extends ProductionTaskDto {
-	totalIngredients : {
-		ingredientId : string;
-		name : string;
-		totalWeightInGrams : number;
-	}[];
+// [核心新增] 为任务详情页增加一个类型，与后端的 TaskDetailResponseDto 对应
+export interface ProductionTaskDetailDto {
+	id : string;
+	status : 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+	notes : string | null;
 	stockWarning : string | null;
-	prepTask ?: PrepTask | null;
+	prepTask : PrepTask | null;
+	doughGroups : any[]; // 实际类型更复杂，这里用 any 简化
+	items : {
+		id : string;
+		name : string;
+		plannedQuantity : number;
+	}[];
 }
 
 // [核心修改] 移除了不再使用的 ProductionDashboardPayload 类型
