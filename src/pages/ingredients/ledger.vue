@@ -1,33 +1,28 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<!-- 页面头部，显示原料名称和“库存流水”标题 -->
-		<DetailHeader :title="`${ingredientName} - 库存流水`" />
-		<!-- [核心修改] 监听 scrolltolower 事件以触发加载更多 -->
+		<DetailHeader title="库存流水" />
 		<DetailPageLayout @scrolltolower="handleLoadMore">
-			<!-- [核心修改] 为 page-content 增加水平内边距 -->
 			<view class="page-content">
-				<!-- 加载中的提示 -->
+				<view class="ingredient-selector-btn" @click="isSelectorVisible = true">
+					<text class="selected-name">{{ selectedIngredient?.name || '请选择原料' }}</text>
+					<image class="dropdown-icon" src="/static/icons/dropdown.svg" />
+				</view>
+
 				<view v-if="isLoading" class="loading-spinner">
 					<text>加载中...</text>
 				</view>
-				<!-- 流水列表 -->
-				<template v-else-if="ledgerEntries.length > 0">
-					<!-- [核心修改] 移除 card class，变为常规列表 -->
+				<template v-else-if="selectedIngredient && ledgerEntries.length > 0">
 					<view class="procurement-list">
-						<!-- 列表头部 -->
 						<view class="list-header ledger-header">
-							<!-- [核心修改] 合并日期和操作人列头 -->
 							<text class="col-date-operator">日期/操作人</text>
 							<text class="col-type">类型</text>
 							<text class="col-change">变动</text>
 							<text class="col-details">详情</text>
 						</view>
-						<!-- 列表项 -->
 						<ListItem v-for="(entry, index) in ledgerEntries" :key="index" class="procurement-item"
 							:no-padding="true" :divider="index < ledgerEntries.length - 1">
 							<view class="procurement-item-content ledger-item-content">
-								<!-- [核心修改] 合并日期和操作人 -->
 								<view class="col-date-operator">
 									<view class="details-main">{{ formatDateTime(entry.date, 'MM-DD HH:mm') }}</view>
 									<view class="details-sub">{{ entry.operator }}</view>
@@ -37,87 +32,107 @@
 									:class="{ 'positive': entry.change > 0, 'negative': entry.change < 0 }">
 									{{ formatWeight(entry.change) }}
 								</text>
-								<!-- [核心修改] 详情列不再显示操作人 -->
 								<view class="col-details">
 									<view class="details-main">{{ entry.details }}</view>
 								</view>
 							</view>
 						</ListItem>
 					</view>
-					<!-- [核心新增] 加载更多提示 -->
 					<view class="load-more-container">
 						<view v-if="isLoadingMore" class="loading-spinner">加载中...</view>
 						<view v-if="!hasMore && !isLoading && ledgerEntries.length > 0" class="no-more-tasks">没有更多了
 						</view>
 					</view>
 				</template>
-				<!-- 空状态提示 -->
-				<view v-else class="empty-state">
+				<view v-else-if="selectedIngredient" class="empty-state">
 					<text>暂无库存流水记录</text>
 				</view>
 			</view>
 		</DetailPageLayout>
+
+		<AppModal :visible="isSelectorVisible" @update:visible="isSelectorVisible = false" title="选择原料"
+			:no-header-line="true">
+			<view class="options-list">
+				<ListItem v-for="ing in allIngredients" :key="ing.id" @click="handleIngredientSelect(ing)"
+					class="option-item" :bleed="true">
+					<view class="main-info">
+						<view class="name">{{ ing.name }}</view>
+					</view>
+					<view class="side-info" v-if="selectedIngredient?.id === ing.id">
+						<view class="value checkmark-icon">✓</view>
+					</view>
+				</ListItem>
+			</view>
+		</AppModal>
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref } from 'vue';
+	import { ref, computed } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useToastStore } from '@/store/toast';
-	import type { IngredientLedgerEntry } from '@/types/api';
+	import { useDataStore } from '@/store/data';
+	import type { IngredientLedgerEntry, Ingredient } from '@/types/api';
 	import { getIngredientLedger } from '@/api/ingredients';
 	import { formatDateTime, formatWeight } from '@/utils/format';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import ListItem from '@/components/ListItem.vue';
+	import AppModal from '@/components/AppModal.vue';
 
-	// [核心新增] 禁用属性继承，以解决控制台警告
 	defineOptions({
 		inheritAttrs: false
 	});
 
-	// 页面状态变量
-	const isLoading = ref(true);
-	const ingredientId = ref<string | null>(null);
-	const ingredientName = ref('');
-	const ledgerEntries = ref<IngredientLedgerEntry[]>([]);
+	const isLoading = ref(false);
 	const toastStore = useToastStore();
+	const dataStore = useDataStore();
 
-	// [核心新增] 分页相关状态
+	const selectedIngredient = ref<Ingredient | null>(null);
+	const ledgerEntries = ref<IngredientLedgerEntry[]>([]);
+	const isSelectorVisible = ref(false);
+
+	const allIngredients = computed(() => {
+		if (!dataStore.ingredients) return [];
+		return [...dataStore.ingredients].sort((a, b) => b.totalConsumptionInGrams - a.totalConsumptionInGrams);
+	});
+
 	const page = ref(1);
-	const limit = ref(20); // 每页加载20条
+	const limit = ref(20);
 	const hasMore = ref(true);
 	const isLoadingMore = ref(false);
 
-	// 页面加载时触发
-	onLoad(async (options) => {
-		ingredientId.value = options?.ingredientId || null;
-		// 从页面参数中获取原料名称，用于标题显示
-		ingredientName.value = options?.ingredientName || '原料';
-
-		if (!ingredientId.value) {
-			toastStore.show({ message: '无效的原料ID', type: 'error' });
-			uni.navigateBack();
-			return;
+	onLoad(async () => {
+		if (!dataStore.dataLoaded.ingredients) {
+			await dataStore.fetchIngredientsData();
 		}
-
-		await fetchLedgerData(false);
+		if (allIngredients.value.length > 0) {
+			selectedIngredient.value = allIngredients.value[0];
+			await fetchLedgerData(false);
+		}
 	});
 
-	// [核心新增] 获取流水数据的函数
+	const handleIngredientSelect = (ingredient : Ingredient) => {
+		if (selectedIngredient.value?.id !== ingredient.id) {
+			selectedIngredient.value = ingredient;
+			fetchLedgerData(false);
+		}
+		isSelectorVisible.value = false;
+	};
+
 	const fetchLedgerData = async (loadMore = false) => {
-		if (!ingredientId.value) return;
+		if (!selectedIngredient.value) return;
 
 		if (loadMore) {
 			isLoadingMore.value = true;
 		} else {
 			isLoading.value = true;
-			page.value = 1; // 重置页码
-			ledgerEntries.value = []; // 清空现有数据
+			page.value = 1;
+			ledgerEntries.value = [];
 		}
 
 		try {
-			const response = await getIngredientLedger(ingredientId.value, page.value, limit.value);
+			const response = await getIngredientLedger(selectedIngredient.value.id, page.value, limit.value);
 			ledgerEntries.value.push(...response.data);
 			hasMore.value = response.meta.hasMore;
 		} catch (error) {
@@ -129,7 +144,6 @@
 		}
 	};
 
-	// [核心新增] 处理上拉加载更多的函数
 	const handleLoadMore = async () => {
 		if (hasMore.value && !isLoadingMore.value) {
 			page.value++;
@@ -137,7 +151,6 @@
 		}
 	};
 
-	// [核心新增] 根据流水类型返回不同的CSS类
 	const getTypeClass = (type : IngredientLedgerEntry['type']) => {
 		switch (type) {
 			case '采购入库': return 'type-procurement';
@@ -151,6 +164,7 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+	@include list-item-option-style;
 
 	.page-wrapper {
 		display: flex;
@@ -158,7 +172,31 @@
 		height: 100vh;
 	}
 
-	// [核心修改] 移除 .card 背景，使用常规列表样式
+	/* [核心重构] 新的选择器按钮样式 */
+	.ingredient-selector-btn {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		background-color: var(--card-bg);
+		padding: 0 20px;
+		height: 50px;
+		border-radius: 12px;
+		margin-bottom: 20px;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+
+		.selected-name {
+			font-size: 16px;
+			color: var(--text-primary);
+			font-weight: 500;
+		}
+
+		.dropdown-icon {
+			width: 18px;
+			height: 18px;
+			opacity: 0.6;
+		}
+	}
+
 	.procurement-list {
 		.list-header {
 			display: grid;
@@ -172,20 +210,20 @@
 		}
 
 		.ledger-header {
-			grid-template-columns: 2.5fr 1.8fr 1.8fr 2.5fr; // [核心修改] 调整列宽以适应新布局
+			grid-template-columns: 2.5fr 1.8fr 1.8fr 2.5fr;
 		}
 
 		.procurement-item-content {
 			display: grid;
 			align-items: center;
 			width: 100%;
-			padding: 12px 5px; // [调整] 增加垂直内边距
+			padding: 12px 5px;
 			font-size: 13px;
 			color: var(--text-secondary);
 		}
 
 		.ledger-item-content {
-			grid-template-columns: 2.5fr 1.8fr 1.8fr 2.5fr; // [核心修改] 调整列宽以适应新布局
+			grid-template-columns: 2.5fr 1.8fr 1.8fr 2.5fr;
 		}
 
 		.col-change,
@@ -193,7 +231,6 @@
 			text-align: center;
 		}
 
-		// [核心新增] 日期/操作人列的样式
 		.col-date-operator {
 			padding-left: 5px;
 
@@ -208,7 +245,6 @@
 			}
 		}
 
-		// [核心新增] 为不同类型添加颜色区分
 		.col-type {
 			padding: 2px 4px;
 			border-radius: 4px;
@@ -258,11 +294,16 @@
 		}
 	}
 
-	// [核心新增] 加载更多容器样式
 	.load-more-container {
 		padding: 15px;
 		text-align: center;
 		color: #999;
 		font-size: 14px;
+	}
+
+	.checkmark-icon {
+		color: var(--primary-color);
+		font-weight: bold;
+		font-size: 18px;
 	}
 </style>

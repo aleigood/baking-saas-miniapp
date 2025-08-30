@@ -1,11 +1,14 @@
 <template>
 	<view>
 		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
-			<view class="content-padding">
+			<view class="filter-bar">
 				<FilterTabs>
 					<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
 					<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
 				</FilterTabs>
+				<IconButton @click="navigateToLedger">
+					<image class="header-icon" src="/static/icons/history.svg" />
+				</IconButton>
 			</view>
 
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
@@ -20,7 +23,6 @@
 							</view>
 							<view class="side-info">
 								<view class="value">
-									<!-- [核心修改] 对非追踪原料显示无穷大符号 -->
 									<template v-if="ing.type === 'UNTRACKED'">∞</template>
 									<template v-else>{{ formatWeight(ing.currentStockInGrams) }}</template>
 								</view>
@@ -107,7 +109,7 @@
 	import FilterTab from '@/components/FilterTab.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
-	// [核心新增] 引入新的格式化函数
+	import IconButton from '@/components/IconButton.vue'; // [核心新增] 引入图标按钮
 	import { formatWeight } from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -154,7 +156,6 @@
 
 	const lowStockIngredients = computed(() => {
 		if (!dataStore.ingredients) return [];
-		// [核心修改] 明确过滤掉非追踪原料
 		return [...dataStore.ingredients]
 			.filter((ing) => ing.type === 'STANDARD' && ing.daysOfSupply < 7)
 			.sort((a, b) => a.daysOfSupply - b.daysOfSupply);
@@ -203,6 +204,13 @@
 		});
 	};
 
+	// [核心新增] 跳转到库存流水页面的方法
+	const navigateToLedger = () => {
+		uni.navigateTo({
+			url: '/pages/ingredients/ledger'
+		});
+	};
+
 	const openIngredientActions = (ingredient : Ingredient) => {
 		if (!canEdit.value) return;
 		selectedIngredient.value = ingredient;
@@ -221,8 +229,7 @@
 			await deleteIngredient(selectedIngredient.value.id);
 			toastStore.show({ message: '删除成功', type: 'success' });
 			await dataStore.fetchIngredientsData();
-		} catch (error) { // [新增] 捕获API请求可能抛出的错误
-			// 错误信息已在 request 工具函数中通过 toast 显示
+		} catch (error) {
 			console.error("Failed to delete ingredient:", error);
 		} finally {
 			isSubmitting.value = false;
@@ -239,8 +246,20 @@
 	/* [核心修复] 修正 Mixin 的名称 */
 	@include list-item-option-style;
 
-	.content-padding {
+	/* [核心新增] 新增 filter-bar 样式，用于水平布局 */
+	.filter-bar {
+		display: flex;
+		justify-content: space-between;
+		align-items: start;
 		padding: 0 15px;
+		/* 与 page-content 的水平内边距保持一致 */
+		margin-bottom: 20px;
+		/* [核心新增] 增加底部外边距 */
+	}
+
+	.header-icon {
+		width: 24px;
+		height: 24px;
 	}
 
 	.side-info .consumption {

@@ -1,18 +1,16 @@
 <template>
 	<view class="card">
 		<view class="card-title">原料列表</view>
-		<view class="recipe-table-container">
-			<view class="recipe-table simple-table">
-				<view class="table-header">
-					<text class="col-ingredient">原料名称</text>
-					<text class="col-ratio">比例</text>
-					<text class="col-price">单价</text>
-				</view>
-				<view v-for="(ing, ingIndex) in nonMainRecipeIngredients" :key="ingIndex" class="table-row">
-					<text class="col-ingredient">{{ ing.ingredient.name }}</text>
-					<text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
-					<text class="col-price">{{ ing.pricePerKg }}</text>
-				</view>
+		<view class="recipe-table">
+			<view class="table-header">
+				<text class="col-ingredient">原料名称</text>
+				<text class="col-ratio">比例</text>
+				<text class="col-price">单价</text>
+			</view>
+			<view v-for="(ing, ingIndex) in nonMainRecipeIngredients" :key="ingIndex" class="table-row">
+				<text class="col-ingredient">{{ ing.ingredient.name }}</text>
+				<text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
+				<text class="col-price">{{ ing.pricePerKg }}</text>
 			</view>
 		</view>
 	</view>
@@ -67,19 +65,13 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* 此处样式与原 detail.vue 中简单表格相关的样式完全相同，直接复制过来即可 */
-	.recipe-table-container {
-		background-color: #faf8f5;
-		border-radius: 16px;
-		padding: 15px;
-		margin-top: 15px;
-	}
-
+	/* [核心修改] 样式现在与 MainRecipeDetail.vue 中的样式保持一致 */
 	.recipe-table {
 		display: table;
 		width: 100%;
 		font-size: 14px;
 		border-collapse: collapse;
+		margin-top: 15px;
 
 		.table-header,
 		.table-row {
@@ -117,20 +109,6 @@
 		.col-ingredient {
 			min-width: 80px;
 			word-break: break-word;
-		}
-
-		&.simple-table {
-			.col-ingredient {
-				width: 50%;
-			}
-
-			.col-ratio {
-				width: 25%;
-			}
-
-			.col-price {
-				width: 25%;
-			}
 		}
 	}
 </style>

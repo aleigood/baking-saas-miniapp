@@ -11,9 +11,6 @@
 						<span class="tag">单价: {{ ingredientPricePerKg }}</span>
 						<span class="tag">库存: {{ formatWeight(ingredient.currentStockInGrams) }}</span>
 					</view>
-					<IconButton @click="navigateToLedger">
-						<image class="header-icon" src="/static/icons/history.svg" />
-					</IconButton>
 				</view>
 
 
@@ -224,7 +221,6 @@
 	import { useUserStore } from '@/store/user';
 	import { useToastStore } from '@/store/toast';
 	import type { Ingredient, IngredientSKU, ProcurementRecord, IngredientLedgerEntry } from '@/types/api';
-	// [核心修改] 导入新的 API 函数
 	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteSku, updateProcurement, adjustStock, getIngredientLedger } from
 		'@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
@@ -241,10 +237,9 @@
 	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
-	import FilterTabs from '@/components/FilterTabs.vue'; // [新增] 引入 FilterTabs
-	import FilterTab from '@/components/FilterTab.vue'; // [新增] 引入 FilterTab
+	import FilterTabs from '@/components/FilterTabs.vue';
+	import FilterTab from '@/components/FilterTab.vue';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
-	// [核心修改] 引入新的格式化函数，但移除了 formatPricePerKg
 	import { formatChineseDate, formatDateTime, formatNumber, formatWeight } from '@/utils/format';
 
 	defineOptions({
@@ -258,7 +253,6 @@
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const ingredient = ref<Ingredient | null>(null);
-	// [核心修改] 移除“库存流水”标签页
 	const detailChartTab = ref<'price' | 'usage'>('price');
 	const chartTabs = ref([
 		{ key: 'price', label: '价格走势' },
@@ -307,16 +301,13 @@
 		totalPrice: 0,
 	});
 
-	// [核心修改] 用于库存调整弹窗的响应式数据
 	const stockAdjustment = reactive({
 		changeInKg: 0,
 		reason: ''
 	});
 
-	// [新增] 预设的库存调整原因
 	const presetReasons = ref(['盘点损耗', '盘点盈余', '过期损耗', '包装破损']);
 
-	// [核心修改] 根据用户角色动态生成 FAB 菜单
 	const fabActions = computed(() => {
 		const currentUserRole = userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role;
 		const actions = [
@@ -344,7 +335,6 @@
 	const loadIngredientData = async (id : string) => {
 		isLoading.value = true;
 		try {
-			// [核心修改] 不再获取库存流水数据
 			const [ingredientData, historyData, usageData] = await Promise.all([
 				getIngredient(id),
 				getIngredientCostHistory(id),
@@ -354,7 +344,6 @@
 			costHistory.value = historyData;
 			usageHistory.value = usageData;
 
-			// [核心修改] 当加载数据时，将小数含水量转换为百分比
 			ingredientForm.name = ingredientData.name;
 			ingredientForm.type = ingredientData.type;
 			ingredientForm.isFlour = ingredientData.isFlour;
@@ -378,7 +367,6 @@
 			ingredientForm.name = ingredient.value.name;
 			ingredientForm.type = ingredient.value.type;
 			ingredientForm.isFlour = ingredient.value.isFlour;
-			// [核心修改] 将小数含水量转换为百分比进行显示
 			ingredientForm.waterContent = ingredient.value.waterContent * 100;
 		}
 		showEditModal.value = true;
@@ -398,7 +386,6 @@
 		ingredientForm.type = availableTypes.value[e.detail.value].value as 'STANDARD' | 'UNTRACKED';
 	};
 
-	// [核心新增] 组件内部的 computed 属性，专门用于计算和格式化公斤单价
 	const ingredientPricePerKg = computed(() => {
 		const ing = ingredient.value;
 		if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
@@ -591,7 +578,6 @@
 				name: ingredientForm.name,
 				type: ingredientForm.type,
 				isFlour: ingredientForm.isFlour,
-				// [核心修改] 将用户输入的百分比转换为小数再提交
 				waterContent: (Number(ingredientForm.waterContent) || 0) / 100,
 			});
 			toastStore.show({ message: '保存成功', type: 'success' });
@@ -647,27 +633,18 @@
 		}
 	};
 
-	/**
-	 * [核心修改] 打开库存调整模态框
-	 */
 	const openUpdateStockModal = () => {
 		if (ingredient.value) {
-			stockAdjustment.changeInKg = 0; // 重置变化量
-			stockAdjustment.reason = ''; // 重置原因
+			stockAdjustment.changeInKg = 0;
+			stockAdjustment.reason = '';
 			uiStore.openModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
 		}
 	};
 
-	/**
-	 * [新增] 选择预设原因
-	 */
 	const selectReason = (reason : string) => {
 		stockAdjustment.reason = reason;
 	};
 
-	/**
-	 * [核心修改] 确认库存调整
-	 */
 	const handleConfirmUpdateStock = async () => {
 		if (!ingredient.value) return;
 		if (stockAdjustment.changeInKg === 0 || stockAdjustment.changeInKg === null) {
@@ -693,17 +670,8 @@
 		}
 	};
 
-	/**
-	 * [新增] 跳转到库存流水页面
-	 */
-	const navigateToLedger = () => {
-		if (ingredient.value) {
-			uni.navigateTo({
-				// 将原料ID和名称作为参数传递给流水页面
-				url: `/pages/ingredients/ledger?ingredientId=${ingredient.value.id}&ingredientName=${ingredient.value.name}`
-			});
-		}
-	};
+	// [核心修改] 移除此函数，因为它已不再需要
+	// const navigateToLedger = () => { ... };
 </script>
 
 <style scoped lang="scss">
@@ -722,7 +690,6 @@
 		height: 24px;
 	}
 
-	/* [新增] 顶部信息栏样式 */
 	.top-info-bar {
 		display: flex;
 		justify-content: space-between;
@@ -771,7 +738,6 @@
 		text-align: right;
 	}
 
-	/* [新增] 调整原因标签样式 */
 	.reason-tags {
 		margin-bottom: 15px;
 
