@@ -656,11 +656,6 @@
 		background-color: #faf8f5;
 		padding: 10px 15px;
 		border-radius: 12px;
-
-		&::before {
-			// [核心修改] 移除之前的短线装饰
-			display: none;
-		}
 	}
 
 	.card>.group-title:first-child {

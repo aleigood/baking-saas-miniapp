@@ -231,20 +231,11 @@
 		color: var(--text-primary);
 		border: none;
 		margin-top: 25px;
-		padding: 4px 10px 4px 15px;
 		position: relative;
-
-		&::before {
-			content: '';
-			position: absolute;
-			left: 0;
-			top: 50%;
-			transform: translateY(-50%);
-			width: 4px;
-			height: 16px;
-			background-color: var(--primary-color, #42b983);
-			border-radius: 2px;
-		}
+		// [核心修改] 增加背景色、圆角和内边距以增强分组感
+		background-color: #faf8f5;
+		padding: 10px 15px;
+		border-radius: 12px;
 	}
 
 	.arrow {

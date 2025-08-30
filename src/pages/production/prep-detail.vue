@@ -11,30 +11,26 @@
 							<span class="total-weight">总重: {{ formatWeight(item.totalWeight) }}</span>
 						</view>
 
-						<view class="content-section">
-							<view class="recipe-table">
-								<view class="table-header">
-									<text class="col-ingredient">原料</text>
-									<text class="col-brand">品牌</text>
-									<text class="col-usage">用量</text>
-								</view>
-								<view v-for="(ing, index) in item.ingredients" :key="index" class="table-row"
-									:class="{ 'is-added': addedIngredientsMap[item.id]?.has(ing.name) }"
-									@longpress.prevent="toggleIngredientAdded(item.id, ing.name)">
-									<text class="col-ingredient">{{ ing.name }}</text>
-									<text class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
-									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-								</view>
+						<view class="recipe-table">
+							<view class="table-header">
+								<text class="col-ingredient">原料</text>
+								<text class="col-brand">品牌</text>
+								<text class="col-usage">用量</text>
+							</view>
+							<view v-for="(ing, index) in item.ingredients" :key="index" class="table-row"
+								:class="{ 'is-added': addedIngredientsMap[item.id]?.has(ing.name) }"
+								@longpress.prevent="toggleIngredientAdded(item.id, ing.name)">
+								<text class="col-ingredient">{{ ing.name }}</text>
+								<text class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
+								<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 							</view>
 						</view>
 
-						<view v-if="item.procedure && item.procedure.length > 0" class="content-section">
-							<view class="section-title">制作要点</view>
-							<view class="procedure-list">
-								<view v-for="(step, index) in item.procedure" :key="index" class="procedure-item">
-									<text class="step-number">{{ index + 1 }}.</text>
-									<text class="step-text">{{ step }}</text>
-								</view>
+						<view class="section-title">制作要点</view>
+						<view class="procedure-list">
+							<view v-for="(step, index) in item.procedure" :key="index" class="procedure-item">
+								<text class="step-number">{{ index + 1 }}.</text>
+								<text class="step-text">{{ step }}</text>
 							</view>
 						</view>
 					</view>
@@ -115,24 +111,12 @@
 		font-weight: 400;
 	}
 
-	.content-section {
-		margin-top: 20px;
-		padding-top: 20px;
-		border-top: 1px solid var(--border-color);
-	}
-
-	.section-title {
-		font-size: 16px;
-		font-weight: 500;
-		color: var(--text-primary);
-		margin-bottom: 15px;
-	}
-
 	.recipe-table {
 		display: table;
 		width: 100%;
 		font-size: 14px;
 		border-collapse: collapse;
+		margin-bottom: 15px;
 
 		.table-header,
 		.table-row {
@@ -194,6 +178,12 @@
 		}
 	}
 
+	.section-title {
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--primary-color);
+		margin-bottom: 5px;
+	}
 
 	.procedure-list {
 		display: flex;
@@ -204,7 +194,7 @@
 	.procedure-item {
 		display: flex;
 		align-items: flex-start;
-		font-size: 15px;
+		font-size: 12px;
 		line-height: 1.6;
 
 		.step-number {
