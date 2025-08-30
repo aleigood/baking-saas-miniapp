@@ -3,11 +3,12 @@
  * 文件描述: (已更新) 使用 deletedAt 字段判断配方状态，并恢复 productionCount 字段。
  */
 
-// [核心修改] 为备料任务中的原料增加可选的 brand 字段
+// [核心修改] 为备料任务中的原料增加可选的 brand 和 isRecipe 字段
 export interface CalculatedRecipeIngredient {
 	name : string;
 	weightInGrams : number;
 	brand ?: string | null;
+	isRecipe : boolean; // 新增字段，用于标识该原料是否为另一个配方
 }
 export interface CalculatedRecipeDetails {
 	id : string;
@@ -26,7 +27,6 @@ export interface PrepTask {
 // [核心修改] 更新 ProductionDataPayload 类型，增加 stats 字段
 export interface ProductionDataPayload {
 	stats ?: {
-		// [核心修改] 字段从 pendingCount 重命名为 todayPendingCount
 		todayPendingCount : number;
 	};
 	tasks : ProductionTaskDto[];

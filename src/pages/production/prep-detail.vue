@@ -8,19 +8,22 @@
 					<view v-for="item in task.items" :key="item.id" class="card recipe-card">
 						<view class="card-title-wrapper">
 							<span class="card-title">{{ item.name }}</span>
-							<span class="total-weight">总重: {{ (item.totalWeight / 1000).toFixed(2) }} kg</span>
+							<span class="total-weight">总重: {{ formatWeight(item.totalWeight) }}</span>
 						</view>
 
 						<view class="content-section">
-							<view class="section-title">原料清单</view>
-							<view class="ingredient-list">
-								<!-- [核心修改] 调整原料条目结构以展示品牌 -->
-								<view v-for="(ing, index) in item.ingredients" :key="index" class="ingredient-item">
-									<view class="name-container">
-										<text class="name">{{ ing.name }}</text>
-										<text v-if="ing.brand" class="brand">&nbsp;({{ ing.brand }})</text>
-									</view>
-									<text class="weight">{{ ing.weightInGrams.toFixed(1) }} g</text>
+							<view class="recipe-table">
+								<view class="table-header">
+									<text class="col-ingredient">原料</text>
+									<text class="col-brand">品牌</text>
+									<text class="col-usage">用量</text>
+								</view>
+								<view v-for="(ing, index) in item.ingredients" :key="index" class="table-row"
+									:class="{ 'is-added': addedIngredientsMap[item.id]?.has(ing.name) }"
+									@longpress.prevent="toggleIngredientAdded(item.id, ing.name)">
+									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
+									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 								</view>
 							</view>
 						</view>
@@ -45,13 +48,12 @@
 </template>
 
 <script setup lang="ts">
-	import { ref } from 'vue';
+	import { ref, reactive } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
-	// [移除] 不再需要调用 API
-	// import { getTaskDetail } from '@/api/tasks';
 	import type { PrepTask } from '@/types/api';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
+	import { formatWeight } from '@/utils/format';
 
 	defineOptions({
 		inheritAttrs: false
@@ -60,11 +62,23 @@
 	const isLoading = ref(true);
 	const task = ref<PrepTask | null>(null);
 
-	// [修改] 优化数据加载逻辑，直接从页面参数获取
+	const addedIngredientsMap = reactive<Record<string, Set<string>>>({});
+
+	const toggleIngredientAdded = (itemId : string, ingredientName : string) => {
+		if (!addedIngredientsMap[itemId]) {
+			addedIngredientsMap[itemId] = new Set<string>();
+		}
+		const addedSet = addedIngredientsMap[itemId];
+		if (addedSet.has(ingredientName)) {
+			addedSet.delete(ingredientName);
+		} else {
+			addedSet.add(ingredientName);
+		}
+	};
+
 	onLoad(async (options) => {
 		if (options && options.taskData) {
 			try {
-				// 从 URL 参数中解析出 task 对象
 				const taskData = JSON.parse(decodeURIComponent(options.taskData));
 				task.value = taskData as PrepTask;
 			} catch (error) {
@@ -78,7 +92,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [核心新增] 6. 增加页面布局所需的核心样式 */
 	.page-wrapper {
 		display: flex;
 		flex-direction: column;
@@ -115,48 +128,69 @@
 		margin-bottom: 15px;
 	}
 
-	.ingredient-list {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: 12px 20px;
-	}
+	.recipe-table {
+		display: table;
+		width: 100%;
+		font-size: 14px;
+		border-collapse: collapse;
 
-	/* [核心修改] 更新原料条目样式以适应品牌显示 */
-	.ingredient-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		font-size: 15px;
-		overflow: hidden;
-
-		.name-container {
-			display: flex;
-			align-items: baseline;
-			overflow: hidden;
-			white-space: nowrap;
-			flex-shrink: 1;
-			margin-right: 8px;
+		.table-header,
+		.table-row {
+			display: table-row;
 		}
 
-		.name {
+		.table-header {
 			color: var(--text-secondary);
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
-		}
-
-		.brand {
-			color: #b0a8a2;
-			font-size: 13px;
-			white-space: nowrap;
-			flex-shrink: 0;
-		}
-
-		.weight {
-			color: var(--text-primary);
 			font-weight: 500;
+		}
+
+		.table-row {
+			color: var(--text-primary);
+			transition: background-color 0.3s ease;
+			border-bottom: 1px solid var(--border-color);
+		}
+
+		.table-row:last-child {
+			border-bottom: none;
+		}
+
+		.table-row.is-added {
+			background-color: #dcccc0;
+		}
+
+		[class^="col-"] {
+			display: table-cell;
+			padding: 10px 4px;
+			vertical-align: middle;
+		}
+
+		.col-ingredient {
+			min-width: 60px;
+			word-break: break-word;
+		}
+
+		.col-brand {
+			color: var(--text-secondary);
+			min-width: 60px;
 			white-space: nowrap;
-			flex-shrink: 0;
+			text-align: center;
+		}
+
+		.col-usage {
+			text-align: right;
+			white-space: nowrap;
+		}
+
+		.col-ingredient {
+			width: 40%;
+		}
+
+		.col-brand {
+			width: 30%;
+		}
+
+		.col-usage {
+			width: 30%;
 		}
 	}
 

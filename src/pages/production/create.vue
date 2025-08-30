@@ -62,6 +62,7 @@
 	import { ref, computed, reactive, onMounted } from 'vue';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
+	import { useUiStore } from '@/store/ui'; // [核心新增] 引入 uiStore
 	import { createTask } from '@/api/tasks';
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
@@ -76,6 +77,7 @@
 
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
+	const uiStore = useUiStore(); // [核心新增] 实例化 uiStore
 
 	const isLoading = ref(false);
 	const isCreating = ref(false);
@@ -203,15 +205,20 @@
 				products: productsToCreate,
 			};
 			const res = await createTask(payload);
+
+			// [核心修改] 使用“信箱”来传递消息，而不是直接显示
 			if (res.warning) {
-				toastStore.show({ message: res.warning, type: 'error', duration: 3000 });
+				// 如果有警告，将警告消息存入信箱
+				uiStore.setNextPageToast({ message: res.warning, type: 'error', duration: 3000 });
 			} else {
-				toastStore.show({ message: '任务已创建', type: 'success' });
+				// 如果没有警告，将成功消息存入信箱
+				uiStore.setNextPageToast({ message: '任务已创建', type: 'success' });
 			}
+
 			await dataStore.fetchProductionData();
-			setTimeout(() => {
-				uni.navigateBack();
-			}, 500);
+
+			// [核心修改] 不再使用setTimeout，立即返回
+			uni.navigateBack();
 
 		} catch (error) {
 			console.error('Failed to create tasks:', error);

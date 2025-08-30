@@ -5,14 +5,12 @@
 		<DetailPageLayout>
 			<view class="page-content" v-if="!isLoading && task">
 				<view class="detail-page">
-					<!-- [核心修改] 增加 !isReadOnly 条件，历史任务不显示警告，并增加 card class -->
 					<view v-if="task.stockWarning && !isReadOnly" class="warning-card card">
 						<view class="warning-content">
 							<text class="warning-text">{{ task.stockWarning }}</text>
 						</view>
 					</view>
 
-					<!-- [核心修改] 增加 view 容器并根据 isStarted 控制 pointer-events -->
 					<view :class="{ 'disabled-list': !isStarted && !isReadOnly }">
 						<view class="card-full-bleed-list">
 							<view class="card-title-wrapper">
@@ -30,7 +28,6 @@
 						</view>
 					</view>
 
-					<!-- [核心修改] 增加 !isReadOnly 条件 -->
 					<view v-if="!isStarted && !isReadOnly" class="start-task-button-container">
 						<AppButton type="primary" full-width @click="handleStartTask">
 							开始制作
@@ -40,7 +37,6 @@
 					<template v-if="isStarted && selectedDoughDetails">
 						<view class="card">
 							<view class="group-title" @click="toggleCollapse(selectedDoughDetails.familyId)">
-								<!-- [核心修改] 应用新的重量格式化函数 -->
 								<span>{{ selectedDoughDetails.familyName }} (总重:
 									{{ formatWeight(selectedDoughDetails.totalDoughWeight) }})</span>
 								<span class="arrow"
@@ -53,14 +49,12 @@
 										<text class="col-brand">品牌</text>
 										<text class="col-usage">用量</text>
 									</view>
-									<!-- [核心修改] 更新 class 绑定逻辑，并传递 familyId -->
 									<view v-for="ing in selectedDoughDetails.mainDoughIngredients" :key="ing.id"
 										class="table-row"
 										:class="{ 'is-added': addedIngredientsMap[selectedDoughDetails.familyId]?.has(ing.id) }"
 										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedDoughDetails.familyId, ing.id)">
 										<text class="col-ingredient">{{ ing.name }}</text>
-										<text class="col-brand">{{ ing.brand || '-' }}</text>
-										<!-- [核心修改] 应用新的重量格式化函数 -->
+										<text class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
 										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 									</view>
 								</view>
@@ -87,7 +81,6 @@
 										class="info-row">
 										<text class="col-product-name">{{ product.name }}</text>
 										<text class="col-quantity">{{ product.quantity }}</text>
-										<!-- [核心修改] 应用新的重量格式化函数 -->
 										<text
 											class="col-dough-weight">{{ formatWeight(product.totalBaseDoughWeight) }}</text>
 										<text
@@ -118,8 +111,8 @@
 												<view v-for="ing in selectedProductDetails.mixIns" :key="ing.id"
 													class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
-													<text class="col-brand">{{ ing.brand || '-' }}</text>
-													<!-- [核心修改] 应用新的重量格式化函数 -->
+													<text
+														class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
 													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
@@ -135,8 +128,8 @@
 												<view v-for="ing in selectedProductDetails.fillings" :key="ing.id"
 													class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
-													<text class="col-brand">{{ ing.brand || '-' }}</text>
-													<!-- [核心修改] 应用新的重量格式化函数 -->
+													<text
+														class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
 													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
@@ -155,7 +148,6 @@
 						</view>
 					</template>
 
-					<!-- [核心修改] 增加 !isReadOnly 条件 -->
 					<view class="bottom-actions-container">
 						<AppButton v-if="isStarted && !isReadOnly" type="primary" full-width
 							@click="openCompleteTaskModal">
@@ -200,7 +192,8 @@
 		ref,
 		computed,
 		reactive,
-		watch
+		watch,
+		nextTick, // [核心新增] 引入 nextTick
 	} from 'vue';
 	import {
 		onLoad
@@ -216,9 +209,10 @@
 	} from '@/store/temperature';
 	// [核心修改] 导入新的 DTO 类型
 	import type {
-		ProductionTaskDetailDto,
 		TaskCompletionItem
 	} from '@/types/api';
+	// [核心修改] 修正 ProductionTaskDetailDto 的导入路径
+	import type { ProductionTaskDetailDto } from '@/types/api';
 	import {
 		getTaskDetail,
 		updateTaskStatus,

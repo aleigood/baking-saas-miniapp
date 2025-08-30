@@ -187,6 +187,12 @@
 	});
 
 	onShow(async () => {
+		// [核心新增] 在页面显示时，检查并消费“信箱”中的消息
+		const toastMessage = uiStore.consumeNextPageToast();
+		if (toastMessage) {
+			toastStore.show(toastMessage);
+		}
+
 		isLoading.value = true;
 		try {
 			// [修改] 传入选定日期获取任务，并获取所有任务日期用于日历标记

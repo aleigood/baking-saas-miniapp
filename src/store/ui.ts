@@ -6,6 +6,9 @@ import { MODAL_KEYS, type ModalKey } from '@/constants/modalKeys';
 export const useUiStore = defineStore('ui', () => {
 	const activeTab = ref('production');
 
+	// [核心新增] 创建一个“信箱”来暂存需要跨页面显示的Toast消息
+	const toastMessageQueue = ref<{ message : string; type : 'success' | 'error' | 'info'; duration ?: number } | null>(null);
+
 	const modalVisibility = ref<Record<ModalKey, boolean>>({
 		[MODAL_KEYS.STORE]: false,
 		[MODAL_KEYS.USER_OPTIONS]: false,
@@ -56,6 +59,25 @@ export const useUiStore = defineStore('ui', () => {
 		modalVisibility.value[modalName] = false;
 	}
 
+	/**
+	 * [核心新增] 设置一个待显示的Toast消息到队列中
+	 * @param {object} options - Toast的配置项
+	 */
+	function setNextPageToast(options : { message : string; type : 'success' | 'error' | 'info'; duration ?: number }) {
+		toastMessageQueue.value = options;
+	}
+
+	/**
+	 * [核心新增] 从队列中取出并消费一个Toast消息
+	 * @returns {object | null} - 返回队列中的消息，然后清空队列
+	 */
+	function consumeNextPageToast() {
+		const message = toastMessageQueue.value;
+		toastMessageQueue.value = null;
+		return message;
+	}
+
+
 	return {
 		activeTab,
 		setActiveTab,
@@ -76,5 +98,8 @@ export const useUiStore = defineStore('ui', () => {
 		openModal,
 		closeModal,
 		isAnyModalOpen,
+		// [核心新增] 导出新的方法
+		setNextPageToast,
+		consumeNextPageToast,
 	};
 });
