@@ -36,8 +36,7 @@
 								<text class="col-ingredient">{{ ing.name }}</text>
 								<text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
 								<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-								<!-- [核心修复] 直接调用 formatPricePerKg 函数 -->
-								<text class="col-price">{{ formatPricePerKg(ing) }}</text>
+								<text class="col-price">¥{{ formatNumber(ing.pricePerKg) }}/kg</text>
 								<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
 							</view>
 						</view>
@@ -118,12 +117,11 @@
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
-	// [核心修改] 引入新的格式化函数
+	// [核心修改] 移除不再需要的 formatPricePerKg
 	import {
 		formatNumber,
 		formatWeight,
-		toPercentage,
-		formatPricePerKg
+		toPercentage
 	} from '@/utils/format';
 
 	// 定义组件接收的属性

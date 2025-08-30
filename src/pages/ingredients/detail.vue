@@ -8,7 +8,7 @@
 				<view class="top-info-bar">
 					<view class="tag-group">
 						<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
-						<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
+						<span class="tag">单价: {{ ingredientPricePerKg }}</span>
 						<span class="tag">库存: {{ formatWeight(ingredient.currentStockInGrams) }}</span>
 					</view>
 					<IconButton @click="navigateToLedger">
@@ -244,7 +244,7 @@
 	import FilterTabs from '@/components/FilterTabs.vue'; // [新增] 引入 FilterTabs
 	import FilterTab from '@/components/FilterTab.vue'; // [新增] 引入 FilterTab
 	import { MODAL_KEYS } from '@/constants/modalKeys';
-	// [核心修改] 引入新的格式化函数
+	// [核心修改] 引入新的格式化函数，但移除了 formatPricePerKg
 	import { formatChineseDate, formatDateTime, formatNumber, formatWeight } from '@/utils/format';
 
 	defineOptions({
@@ -398,15 +398,15 @@
 		ingredientForm.type = availableTypes.value[e.detail.value].value as 'STANDARD' | 'UNTRACKED';
 	};
 
-
-	const getIngredientPricePerKg = (ing : Ingredient | null) => {
+	// [核心新增] 组件内部的 computed 属性，专门用于计算和格式化公斤单价
+	const ingredientPricePerKg = computed(() => {
+		const ing = ingredient.value;
 		if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
-			return formatNumber(0);
+			return '¥0/kg';
 		}
 		const price = ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000);
-		// [核心修改] 应用新的数字格式化函数
-		return formatNumber(price);
-	};
+		return `¥${formatNumber(price)}/kg`;
+	});
 
 	const openAddSkuModal = () => {
 		newSkuForm.value = { brand: '', specName: '', specWeightInGrams: 0 };

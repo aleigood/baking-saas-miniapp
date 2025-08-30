@@ -200,15 +200,5 @@ export const toDecimal = (percentageValue : number | null | undefined) => {
 	return percentageValue / 100;
 };
 
-/**
- * [核心新增] 格式化并显示原料的公斤单价
- * @param ingredient - 原料对象
- * @returns 格式化后的单价字符串，如 "¥12.5/kg"
- */
-export const formatPricePerKg = (ing : { activeSku ?: { specWeightInGrams ?: number | null } | null, currentPricePerPackage ?: number | null } | null) => {
-	if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
-		return '¥0/kg';
-	}
-	const price = ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000);
-	return `¥${formatNumber(price)}/kg`;
-};
+// [核心修改] 移除此函数，将其逻辑分散到各自的组件中
+// export const formatPricePerKg = (ing : any) => { ... };
