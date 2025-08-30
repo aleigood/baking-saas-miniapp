@@ -627,7 +627,6 @@
 	// [核心新增] 禁用列表的样式
 	.disabled-list {
 		pointer-events: none;
-		opacity: 0.7;
 	}
 
 	.card-full-bleed-list .card-title-wrapper {
