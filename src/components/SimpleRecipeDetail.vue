@@ -10,7 +10,8 @@
 				</view>
 				<view v-for="(ing, ingIndex) in nonMainRecipeIngredients" :key="ingIndex" class="table-row">
 					<text class="col-ingredient">{{ ing.ingredient.name }}</text>
-					<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
+					<!-- [核心修改] 将小数比例乘以100来显示 -->
+					<text class="col-ratio">{{ formatNumber(ing.ratio * 100) }}%</text>
 					<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
 				</view>
 			</view>

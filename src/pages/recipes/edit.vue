@@ -127,8 +127,8 @@
 						lossRatio: 0,
 						procedure: [],
 						ingredients: d.ingredients.map(i => ({
-							name: i.name,
-							ratio: i.ratio,
+							name: i.ingredient.name, // [核心修改] 从嵌套对象中获取名称
+							ratio: i.ratio * 100, // [核心修改] 将小数转换为百分比进行显示
 						})),
 					}));
 					form.value.products = sourceVersion.products.map(p => ({
@@ -203,7 +203,11 @@
 				name: form.value.name,
 				type: form.value.type,
 				notes: form.value.notes,
-				ingredients: form.value.doughs[0]?.ingredients || [],
+				// [核心修改] 将用户输入的百分比数值转换为小数再提交
+				ingredients: form.value.doughs[0]?.ingredients.map(ing => ({
+					...ing,
+					ratio: ing.ratio / 100,
+				})) || [],
 				products: form.value.products.map(p => ({
 					name: p.name,
 					weight: p.baseDoughWeight,
