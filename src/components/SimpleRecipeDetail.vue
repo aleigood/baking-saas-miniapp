@@ -10,9 +10,9 @@
 				</view>
 				<view v-for="(ing, ingIndex) in nonMainRecipeIngredients" :key="ingIndex" class="table-row">
 					<text class="col-ingredient">{{ ing.ingredient.name }}</text>
-					<!-- [核心修改] 将小数比例乘以100来显示 -->
-					<text class="col-ratio">{{ formatNumber(ing.ratio * 100) }}%</text>
-					<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
+					<!-- [核心修改] 使用 toPercentage 函数处理比例 -->
+					<text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
+					<text class="col-price">{{ ing.pricePerKg }}</text>
 				</view>
 			</view>
 		</view>
@@ -24,7 +24,8 @@
 	import type { PropType } from 'vue';
 	import { useDataStore } from '@/store/data';
 	import type { RecipeVersion, Ingredient } from '@/types/api';
-	import { formatNumber } from '@/utils/format';
+	// [核心重构] 导入新的工具函数
+	import { formatPricePerKg, toPercentage } from '@/utils/format';
 
 	const props = defineProps({
 		version: {
@@ -47,22 +48,15 @@
 		}
 		return dough.ingredients.map(ing => {
 			// [核心修改] 从嵌套的 ingredient 对象中获取原料名称
-			const ingredientData = dataStore.ingredients.find(i => i.name === ing.ingredient.name);
-			const pricePerKg = ingredientData ? getPricePerKg(ingredientData) : '0.00';
+			const ingredientData = dataStore.ingredients.find(i => i.id === ing.ingredientId);
+			// [核心重构] 使用新的工具函数
+			const pricePerKg = formatPricePerKg(ingredientData);
 			return {
 				...ing,
 				pricePerKg,
 			};
 		});
 	});
-
-	// 辅助函数，用于查找并计算原料单价
-	const getPricePerKg = (ing : Ingredient) => {
-		if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
-			return '0.00';
-		}
-		return ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000).toFixed(2);
-	};
 </script>
 
 <style scoped lang="scss">

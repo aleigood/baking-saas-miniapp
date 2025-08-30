@@ -23,6 +23,10 @@
 					<FormItem label="面团名称">
 						<input class="input-field" v-model="dough.name" placeholder="例如：主面团" />
 					</FormItem>
+					<!-- [核心新增] 增加损耗率输入项 -->
+					<FormItem label="工艺损耗率 (%)">
+						<input class="input-field" type="number" v-model.number="dough.lossRatio" placeholder="例如: 2" />
+					</FormItem>
 					<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="ingredient-row">
 						<input class="input-field" v-model="ing.name" placeholder="原料名" />
 						<input class="input-field" type="number" v-model.number="ing.ratio" placeholder="比例%" />
@@ -67,6 +71,8 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import type { RecipeVersion } from '@/types/api';
+	// [核心重构] 从 utils 文件导入转换函数
+	import { toPercentage, toDecimal } from '@/utils/format';
 
 	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
@@ -124,11 +130,11 @@
 					form.value.doughs = sourceVersion.doughs.map(d => ({
 						name: d.name,
 						targetTemp: 0,
-						lossRatio: 0,
+						lossRatio: toPercentage(d.lossRatio), // [核心修改] 使用 toPercentage 函数处理
 						procedure: [],
 						ingredients: d.ingredients.map(i => ({
-							name: i.ingredient.name, // [核心修改] 从嵌套对象中获取名称
-							ratio: i.ratio * 100, // [核心修改] 将小数转换为百分比进行显示
+							name: i.ingredient.name,
+							ratio: toPercentage(i.ratio), // [核心修改] 使用 toPercentage 函数处理
 						})),
 					}));
 					form.value.products = sourceVersion.products.map(p => ({
@@ -203,10 +209,10 @@
 				name: form.value.name,
 				type: form.value.type,
 				notes: form.value.notes,
-				// [核心修改] 将用户输入的百分比数值转换为小数再提交
+				// [核心修改] 使用 toDecimal 函数进行转换
 				ingredients: form.value.doughs[0]?.ingredients.map(ing => ({
 					...ing,
-					ratio: ing.ratio / 100,
+					ratio: toDecimal(ing.ratio),
 				})) || [],
 				products: form.value.products.map(p => ({
 					name: p.name,
@@ -217,7 +223,7 @@
 					toppings: p.toppings,
 				})),
 				targetTemp: form.value.doughs[0]?.targetTemp,
-				lossRatio: form.value.doughs[0]?.lossRatio,
+				lossRatio: toDecimal(form.value.doughs[0]?.lossRatio), // [核心修改] 使用 toDecimal 函数进行转换
 				procedure: form.value.doughs[0]?.procedure,
 			};
 

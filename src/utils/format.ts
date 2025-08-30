@@ -167,3 +167,48 @@ export function formatDateTime(date : string | Date, format = 'YYYY-MM-DD HH:mm'
 		.replace('mm', minutes)
 		.replace('ss', seconds);
 }
+
+/**
+ * [核心新增] 智能地将小数转换为百分比，以避免浮点数精度问题
+ * @param decimalValue - 从后端获取的小数值 (例如 0.2576)
+ * @returns 格式化后的百分比数值 (例如 25.76)
+ */
+export const toPercentage = (decimalValue : number | null | undefined) => {
+	if (decimalValue === null || decimalValue === undefined || isNaN(decimalValue)) {
+		return 0;
+	}
+	const decimalStr = String(decimalValue);
+	const decimalParts = decimalStr.split('.');
+	if (decimalParts.length === 1) {
+		return decimalValue * 100;
+	}
+	const decimalPlaces = decimalParts[1].length;
+	const multiplier = Math.pow(10, decimalPlaces);
+	const enlarged = Math.round(decimalValue * multiplier);
+	return (enlarged * 100) / multiplier;
+};
+
+/**
+ * [核心新增] 安全地将百分比转换为小数
+ * @param percentageValue - 用户输入的百分比数值 (例如 25.76)
+ * @returns 转换后的小数值 (例如 0.2576)
+ */
+export const toDecimal = (percentageValue : number | null | undefined) => {
+	if (percentageValue === null || percentageValue === undefined) {
+		return 0;
+	}
+	return percentageValue / 100;
+};
+
+/**
+ * [核心新增] 格式化并显示原料的公斤单价
+ * @param ingredient - 原料对象
+ * @returns 格式化后的单价字符串，如 "¥12.5/kg"
+ */
+export const formatPricePerKg = (ing : { activeSku ?: { specWeightInGrams ?: number | null } | null, currentPricePerPackage ?: number | null } | null) => {
+	if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
+		return '¥0/kg';
+	}
+	const price = ((Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000);
+	return `¥${formatNumber(price)}/kg`;
+};

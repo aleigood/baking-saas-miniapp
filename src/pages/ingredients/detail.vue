@@ -53,7 +53,7 @@
 			<view class="form-row">
 				<label class="form-row-label">含水量 (%)</label>
 				<input class="input-field" type="number" v-model.number="ingredientForm.waterContent"
-					placeholder="输入百分比, 如 80" />
+					placeholder="例如: 75" />
 			</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditModal = false">取消</AppButton>
@@ -354,10 +354,11 @@
 			costHistory.value = historyData;
 			usageHistory.value = usageData;
 
+			// [核心修改] 当加载数据时，将小数含水量转换为百分比
 			ingredientForm.name = ingredientData.name;
 			ingredientForm.type = ingredientData.type;
 			ingredientForm.isFlour = ingredientData.isFlour;
-			ingredientForm.waterContent = ingredientData.waterContent;
+			ingredientForm.waterContent = ingredientData.waterContent * 100;
 
 
 			if (ingredientData.activeSku?.id) {
@@ -377,7 +378,8 @@
 			ingredientForm.name = ingredient.value.name;
 			ingredientForm.type = ingredient.value.type;
 			ingredientForm.isFlour = ingredient.value.isFlour;
-			ingredientForm.waterContent = ingredient.value.waterContent;
+			// [核心修改] 将小数含水量转换为百分比进行显示
+			ingredientForm.waterContent = ingredient.value.waterContent * 100;
 		}
 		showEditModal.value = true;
 	};
@@ -589,7 +591,8 @@
 				name: ingredientForm.name,
 				type: ingredientForm.type,
 				isFlour: ingredientForm.isFlour,
-				waterContent: Number(ingredientForm.waterContent) || 0,
+				// [核心修改] 将用户输入的百分比转换为小数再提交
+				waterContent: (Number(ingredientForm.waterContent) || 0) / 100,
 			});
 			toastStore.show({ message: '保存成功', type: 'success' });
 			showEditModal.value = false;

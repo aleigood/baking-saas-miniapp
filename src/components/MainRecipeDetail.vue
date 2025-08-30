@@ -34,10 +34,10 @@
 							</view>
 							<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="table-row">
 								<text class="col-ingredient">{{ ing.name }}</text>
-								<!-- [核心修改] 将小数比例乘以100来显示 -->
-								<text class="col-ratio">{{ formatNumber(ing.ratio * 100) }}%</text>
+								<text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
 								<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-								<text class="col-price">¥{{ ing.pricePerKg }}/kg</text>
+								<!-- [核心修复] 直接调用 formatPricePerKg 函数 -->
+								<text class="col-price">{{ formatPricePerKg(ing) }}</text>
 								<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
 							</view>
 						</view>
@@ -72,8 +72,7 @@
 									{{ formatWeight(pIng.weightInGrams) }}
 								</template>
 								<template v-else-if="pIng.type === '搅拌原料'">
-									<!-- [核心修改] 将小数比例乘以100来显示 -->
-									{{ formatNumber((pIng.ratio || 0) * 100) }}% ({{
+									{{ toPercentage(pIng.ratio) }}% ({{
 										formatWeight(pIng.weightInGrams)
 									}})
 								</template>
@@ -122,7 +121,9 @@
 	// [核心修改] 引入新的格式化函数
 	import {
 		formatNumber,
-		formatWeight
+		formatWeight,
+		toPercentage,
+		formatPricePerKg
 	} from '@/utils/format';
 
 	// 定义组件接收的属性

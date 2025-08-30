@@ -141,7 +141,7 @@ export interface CalculatedIngredientInfo {
 	name : string;
 	ratio : number;
 	weightInGrams : number;
-	pricePerKg : string;
+	pricePerKg : number;
 	cost : number;
 }
 export interface CalculatedDoughGroup {
