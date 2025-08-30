@@ -115,9 +115,9 @@ export const useDataStore = defineStore('data', () => {
 			const payload = await getTasks(date);
 			production.value = payload.tasks;
 			prepTask.value = payload.prepTask;
-			// 如果返回体中包含 stats，则更新它
+			// [核心修改] 如果返回体中包含 stats，则更新 homeStats 的 pendingCount
 			if (payload.stats) {
-				homeStats.value = payload.stats;
+				homeStats.value.pendingCount = payload.stats.todayPendingCount;
 			}
 
 			dataLoaded.value.production = true;

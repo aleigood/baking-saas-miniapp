@@ -4,7 +4,7 @@
 			<view class="summary-card">
 				<div>
 					<view class="value">{{ dataStore.homeStats.pendingCount }}</view>
-					<view class="label">待完成</view>
+					<view class="label">今日待完成</view>
 				</div>
 				<div>
 					<view class="value">{{ temperatureStore.settings.envTemp }}°C</view>

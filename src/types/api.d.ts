@@ -26,7 +26,8 @@ export interface PrepTask {
 // [核心修改] 更新 ProductionDataPayload 类型，增加 stats 字段
 export interface ProductionDataPayload {
 	stats ?: {
-		pendingCount : number;
+		// [核心修改] 字段从 pendingCount 重命名为 todayPendingCount
+		todayPendingCount : number;
 	};
 	tasks : ProductionTaskDto[];
 	prepTask : PrepTask | null;
