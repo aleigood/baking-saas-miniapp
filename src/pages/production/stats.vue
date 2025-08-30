@@ -5,15 +5,7 @@
 		<DetailPageLayout>
 			<view class="page-content">
 				<view class="date-range-selector">
-					<FilterTabs>
-						<FilterTab :active="activeDateRange === 'week'" @click="setDateRange('week')">本周</FilterTab>
-						<FilterTab :active="activeDateRange === 'month'" @click="setDateRange('month')">本月</FilterTab>
-						<FilterTab :active="activeDateRange === '7days'" @click="setDateRange('7days')">最近7天</FilterTab>
-						<FilterTab :active="activeDateRange === '30days'" @click="setDateRange('30days')">最近30天
-						</FilterTab>
-						<FilterTab :active="activeDateRange === 'custom'" @click="setDateRange('custom')">自定义
-						</FilterTab>
-					</FilterTabs>
+					<FilterTabs v-model="activeDateRange" :tabs="dateRangeTabs" />
 				</view>
 
 				<view v-if="activeDateRange === 'custom'" class="custom-date-picker card">
@@ -77,11 +69,10 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, computed, onMounted, reactive } from 'vue';
+	import { ref, computed, onMounted, reactive, watch } from 'vue';
 	import { useToastStore } from '@/store/toast';
 	import { getProductionStats } from '@/api/stats';
 	import FilterTabs from '@/components/FilterTabs.vue';
-	import FilterTab from '@/components/FilterTab.vue';
 	import BarChart from '@/components/BarChart.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
@@ -97,6 +88,15 @@
 	const statsData = ref<{ name : string, value : number }[]>([]);
 	const totalTasks = ref(0);
 	const toastStore = useToastStore();
+
+	// [核心新增] 定义用于驱动 FilterTabs 的数据
+	const dateRangeTabs = ref([
+		{ key: 'week', label: '本周' },
+		{ key: 'month', label: '本月' },
+		{ key: '7days', label: '最近7天' },
+		{ key: '30days', label: '最近30天' },
+		{ key: 'custom', label: '自定义' }
+	]);
 
 	const customDate = reactive({
 		start: new Date().toISOString().split('T')[0],
@@ -153,12 +153,12 @@
 		}
 	};
 
-	const setDateRange = (rangeType : typeof activeDateRange.value) => {
-		activeDateRange.value = rangeType;
-		if (rangeType !== 'custom') {
+	// [核心改造] 监听 activeDateRange 的变化来触发数据加载
+	watch(activeDateRange, (newRange) => {
+		if (newRange !== 'custom') {
 			fetchStatsData();
 		}
-	};
+	});
 
 	const handleCustomDateChange = (e : any, type : 'start' | 'end') => {
 		if (type === 'start') {

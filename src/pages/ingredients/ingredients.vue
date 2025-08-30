@@ -2,10 +2,7 @@
 	<view>
 		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
 			<view class="filter-bar">
-				<FilterTabs>
-					<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
-					<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
-				</FilterTabs>
+				<FilterTabs v-model="ingredientFilter" :tabs="ingredientFilterTabs" />
 				<IconButton @click="navigateToLedger">
 					<image class="header-icon" src="/static/icons/history.svg" />
 				</IconButton>
@@ -106,7 +103,6 @@
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
-	import FilterTab from '@/components/FilterTab.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import IconButton from '@/components/IconButton.vue'; // [核心新增] 引入图标按钮
@@ -122,6 +118,12 @@
 
 	const touchStartX = ref(0);
 	const touchStartY = ref(0);
+
+	// [核心新增] 定义用于驱动 FilterTabs 的数据
+	const ingredientFilterTabs = ref([
+		{ key: 'all', label: '全部' },
+		{ key: 'low', label: '库存紧张' }
+	]);
 
 	onShow(async () => {
 		if (!dataStore.dataLoaded.ingredients) {

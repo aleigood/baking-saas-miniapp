@@ -17,10 +17,7 @@
 					</view>
 				</view>
 
-				<FilterTabs class="recipe-filter-tabs">
-					<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">面团</FilterTab>
-					<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
-				</FilterTabs>
+				<FilterTabs class="recipe-filter-tabs" v-model="recipeFilter" :tabs="recipeFilterTabs" />
 			</view>
 
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
@@ -169,7 +166,6 @@
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
-	import FilterTab from '@/components/FilterTab.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
 
@@ -190,6 +186,12 @@
 		PRE_DOUGH: '面种',
 		EXTRA: '馅料',
 	};
+
+	// [核心新增] 定义用于驱动 FilterTabs 的数据
+	const recipeFilterTabs = ref([
+		{ key: 'MAIN', label: '面团' },
+		{ key: 'OTHER', label: '其他' }
+	]);
 
 	onShow(async () => {
 		if (!dataStore.dataLoaded.recipes) {

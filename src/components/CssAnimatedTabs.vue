@@ -51,7 +51,6 @@
 		getContainerInfo();
 	});
 
-	// 当tabs列表变化时，也需要重新获取容器信息
 	watch(() => props.tabs, () => {
 		nextTick(() => {
 			getContainerInfo();
@@ -64,6 +63,11 @@
 	};
 
 	watch(() => props.modelValue, (newValue) => {
+		// [Bug修复] 增加保护，确保 props.tabs 存在后再执行
+		if (!props.tabs) {
+			return;
+		}
+
 		nextTick(() => {
 			const activeIndex = props.tabs.findIndex(tab => tab.key === newValue);
 			if (activeIndex === -1) return;
@@ -73,36 +77,28 @@
 				query.selectAll('.tab-item').boundingClientRect(allTabsRects => {
 					if (containerInfo.value && Array.isArray(allTabsRects) && allTabsRects.length > 0) {
 
-						// [核心修正] 计算容器内容区域的实际左右边界，减去15px的内边距
 						const containerContentRight = containerInfo.value.right - 15;
 						const containerContentLeft = containerInfo.value.left + 15;
 
-						let targetIndex = activeIndex; // 默认目标是当前点击的tab
+						let targetIndex = activeIndex;
 
-						// [核心修正] 检查下一个tab是否在内容区可见
 						if (activeIndex < props.tabs.length - 1) {
 							const nextTabRect = allTabsRects[activeIndex + 1];
-							// 如果下一个tab的右边缘超出了内容区的右边缘，则需要滚动
 							if (nextTabRect.right > containerContentRight) {
 								targetIndex = activeIndex + 1;
 							}
 						}
 
-						// [核心修正] 检查上一个tab是否在内容区可见
 						if (activeIndex > 0) {
 							const prevTabRect = allTabsRects[activeIndex - 1];
-							// 如果上一个tab的左边缘超出了内容区的左边缘，则需要滚动
 							if (prevTabRect.left < containerContentLeft) {
 								targetIndex = activeIndex - 1;
 							}
 						}
 
-						// 只有在计算出的目标索引与当前不一致时才触发滚动
-						// 这样可以避免不必要的滚动
 						if (targetIndex !== activeIndex) {
 							activeTabDomId.value = `tab-${targetIndex}`;
 						} else {
-							// 如果不需要滚动到邻近的，也要确保当前点击的tab本身是可见的
 							const activeTabRect = allTabsRects[activeIndex];
 							if (activeTabRect.right > containerContentRight || activeTabRect.left < containerContentLeft) {
 								activeTabDomId.value = `tab-${activeIndex}`;
@@ -110,13 +106,11 @@
 						}
 
 					} else {
-						// Fallback: 如果获取布局失败，则直接滚动到当前点击的项
 						activeTabDomId.value = `tab-${activeIndex}`;
 					}
 				}).exec();
-				isFromClick.value = false; // 重置点击标记
+				isFromClick.value = false;
 			} else {
-				// 如果是程序化设置，不是用户点击，则直接滚动到目标项
 				activeTabDomId.value = `tab-${activeIndex}`;
 			}
 		});

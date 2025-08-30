@@ -191,12 +191,7 @@
 			</FormItem>
 			<FormItem label="调整原因 (可选)">
 				<view class="reason-tags">
-					<FilterTabs>
-						<FilterTab v-for="reason in presetReasons" :key="reason"
-							:active="stockAdjustment.reason === reason" @click="selectReason(reason)">
-							{{ reason }}
-						</FilterTab>
-					</FilterTabs>
+					<FilterTabs v-model="stockAdjustment.reason" :tabs="presetReasonTabs" />
 				</view>
 				<input class="input-field" v-model="stockAdjustment.reason" placeholder="或手动输入原因" />
 			</FormItem>
@@ -238,7 +233,6 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
-	import FilterTab from '@/components/FilterTab.vue';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { formatChineseDate, formatDateTime, formatNumber, formatWeight } from '@/utils/format';
 
@@ -306,7 +300,14 @@
 		reason: ''
 	});
 
-	const presetReasons = ref(['盘点损耗', '盘点盈余', '过期损耗', '包装破损']);
+	// [核心改造] 将 presetReasons 转换为符合 FilterTabs 组件要求的格式
+	const presetReasonTabs = computed(() => {
+		const reasons = ['盘点损耗', '盘点盈余', '过期损耗', '包装破损'];
+		return reasons.map(reason => ({
+			key: reason,
+			label: reason
+		}));
+	});
 
 	const fabActions = computed(() => {
 		const currentUserRole = userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role;
@@ -639,10 +640,6 @@
 			stockAdjustment.reason = '';
 			uiStore.openModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
 		}
-	};
-
-	const selectReason = (reason : string) => {
-		stockAdjustment.reason = reason;
 	};
 
 	const handleConfirmUpdateStock = async () => {

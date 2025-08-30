@@ -1,12 +1,8 @@
 <template>
 	<view>
 		<view class="product-tabs-wrapper">
-			<FilterTabs v-if="version && version.products.length > 0">
-				<FilterTab v-for="product in version.products" :key="product.id"
-					:active="selectedProductId === product.id" @click="handleProductClick(product.id)">
-					{{ product.name }}
-				</FilterTab>
-			</FilterTabs>
+			<FilterTabs v-if="version && version.products.length > 0" :tabs="productTabsForFilter"
+				v-model="selectedProductId" />
 		</view>
 
 		<view class="card" v-if="selectedProduct && recipeDetails">
@@ -115,7 +111,6 @@
 	import LineChart from '@/components/LineChart.vue';
 	import PieChart from '@/components/PieChart.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
-	import FilterTab from '@/components/FilterTab.vue';
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
 	// [核心修改] 移除不再需要的 formatPricePerKg
 	import {
@@ -153,6 +148,16 @@
 		label: '原料成本'
 	},]);
 
+	// [核心新增] 创建一个符合 FilterTabs 组件要求的 computed 属性
+	const productTabsForFilter = computed(() => {
+		if (!props.version) return [];
+		// @ts-ignore
+		return props.version.products.map(p => ({
+			key: p.id,
+			label: p.name
+		}));
+	});
+
 	// 计算属性，获取当前选中的产品对象
 	const selectedProduct = computed(() => {
 		if (!props.version || !selectedProductId.value) return null;
@@ -185,10 +190,8 @@
 		}
 	};
 
-	// 方法：处理产品标签点击
-	const handleProductClick = (productId : string) => {
-		selectedProductId.value = productId;
-	};
+	// [核心改造] 移除 handleProductClick 方法，因为 v-model 会自动处理
+	// const handleProductClick = (productId : string) => { ... };
 
 	// 方法：切换内容区域的折叠状态
 	const toggleCollapse = (sectionName : string) => {
