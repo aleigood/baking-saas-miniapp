@@ -212,7 +212,7 @@
 			{
 				id: `main_${Date.now()}`,
 				name: '主面团',
-				type: 'MAIN_DOUGH',
+				type: 'MAIN_DOUGH' as const,
 				lossRatio: 0,
 				ingredients: [
 					{ id: null as string | null, name: '', ratio: null as number | null },
@@ -407,18 +407,22 @@
 		}
 
 		const validMainIngredients = mainDough.value.ingredients.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0));
-		if (validMainIngredients.length === 0) {
-			toastStore.show({ message: '主面团中至少需要一个有效原料', type: 'error' });
+		if (validMainIngredients.length === 0 && form.value.doughs.filter(d => d.type === 'PRE_DOUGH').length === 0) {
+			toastStore.show({ message: '主面团中至少需要一个有效原料或一个面种', type: 'error' });
 			return;
 		}
 
 		let totalFlourPercentage = 0;
 		const allIngredientsMap = new Map(dataStore.ingredients.map(i => [i.id, i]));
 
+		// 验证面粉总比例时，只计算主面团和面种中的面粉
 		for (const dough of form.value.doughs) {
-			for (const ing of dough.ingredients) {
-				if (ing.id && allIngredientsMap.get(ing.id)?.isFlour) {
-					totalFlourPercentage += Number(ing.ratio) || 0;
+			if (dough.type === 'MAIN_DOUGH' || dough.type === 'PRE_DOUGH') {
+				for (const ing of dough.ingredients) {
+					// @ts-ignore
+					if (ing.id && allIngredientsMap.get(ing.id)?.isFlour) {
+						totalFlourPercentage += Number(ing.ratio) || 0;
+					}
 				}
 			}
 		}
@@ -430,25 +434,51 @@
 
 		isSubmitting.value = true;
 		try {
+			// [核心改造] 根据用户需求重构 payload 的生成逻辑
+			const mainDoughFromForm = form.value.doughs.find(d => d.type === 'MAIN_DOUGH');
+			if (!mainDoughFromForm) {
+				toastStore.show({ message: '主面团数据丢失，无法保存', type: 'error' });
+				isSubmitting.value = false;
+				return;
+			}
+
+			// 1. 初始化最终的主面团原料列表，首先包含用户手动添加的原料
+			const finalMainDoughIngredients = mainDoughFromForm.ingredients
+				.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0))
+				.map(ing => ({
+					ingredientId: ing.id,
+					ratio: toDecimal(ing.ratio),
+				}));
+
+			// 2. 遍历所有面种（PRE_DOUGH）
+			const preDoughs = form.value.doughs.filter(d => d.type === 'PRE_DOUGH');
+			for (const preDough of preDoughs) {
+				// 3. 计算面种所有原料的比例总和
+				const totalRatio = preDough.ingredients.reduce((sum, ing) => sum + (ing.ratio || 0), 0);
+
+				if (totalRatio > 0) {
+					// 4. 将整个面种作为一个新原料添加到主面团原料列表中
+					finalMainDoughIngredients.push({
+						// @ts-ignore - 在 confirmAddPreDough 中，我们将配方familyId存为了id
+						ingredientId: preDough.id,
+						ratio: toDecimal(totalRatio),
+					});
+				}
+			}
+
+			// 5. 构建最终的 payload
 			const payload = {
 				name: form.value.name,
 				type: form.value.type,
 				notes: form.value.notes,
-				doughs: form.value.doughs.map(d => ({
-					// @ts-ignore
-					id: d.type === 'MAIN_DOUGH' ? undefined : d.id,
-					name: d.name,
-					type: d.type,
-					lossRatio: toDecimal(d.lossRatio),
-					// @ts-ignore
-					flourRatioInMainDough: toDecimal(d.flourRatioInMainDough),
-					ingredients: d.ingredients
-						.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0))
-						.map(ing => ({
-							ingredientId: ing.id,
-							ratio: toDecimal(ing.ratio),
-						})),
-				})),
+				// doughs 数组现在只包含主面团
+				doughs: [{
+					name: mainDoughFromForm.name,
+					type: mainDoughFromForm.type,
+					lossRatio: toDecimal(mainDoughFromForm.lossRatio),
+					// 使用我们组合好的最终原料列表
+					ingredients: finalMainDoughIngredients,
+				}],
 				products: form.value.products.map(p => ({
 					name: p.name,
 					baseDoughWeight: p.baseDoughWeight,
@@ -460,6 +490,7 @@
 						.map(i => ({ ingredientId: i.id, weightInGrams: i.weightInGrams })),
 				})),
 			};
+
 
 			if (isEditing.value && familyId.value) {
 				await createRecipeVersion(familyId.value, payload);
