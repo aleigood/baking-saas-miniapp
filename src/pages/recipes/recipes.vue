@@ -73,7 +73,7 @@
 				</template>
 			</view>
 		</view>
-		<AppFab v-if="canEditRecipe" @click="navigateToEditPage(null)" />
+		<ExpandingFab v-if="canEditRecipe" :actions="fabActions" />
 
 		<AppModal :visible="uiStore.showRecipeActionsModal"
 			@update:visible="uiStore.closeModal(MODAL_KEYS.RECIPE_ACTIONS)" title="配方操作" :no-header-line="true">
@@ -163,7 +163,8 @@
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { discontinueRecipe, restoreRecipe, deleteRecipe } from '@/api/recipes';
 	import type { RecipeFamily } from '@/types/api';
-	import AppFab from '@/components/AppFab.vue';
+	// [核心改造] 引入 ExpandingFab
+	import ExpandingFab from '@/components/ExpandingFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import AppModal from '@/components/AppModal.vue';
@@ -177,21 +178,30 @@
 	const recipeFilter = ref<'MAIN' | 'OTHER'>('MAIN');
 	const isSubmitting = ref(false);
 	const selectedRecipe = ref<RecipeFamily | null>(null);
-
 	const touchStartX = ref(0);
 	const touchStartY = ref(0);
-
 	const recipeTypeMap = {
 		MAIN: '面团',
 		PRE_DOUGH: '面种',
 		EXTRA: '馅料',
 	};
-
-	// [核心新增] 定义用于驱动 FilterTabs 的数据
 	const recipeFilterTabs = ref([
 		{ key: 'MAIN', label: '面团' },
 		{ key: 'OTHER', label: '其他' }
 	]);
+
+	// [核心新增] 定义 FAB 菜单的动作
+	const fabActions = computed(() => {
+		return [{
+			icon: '/static/icons/add-dough.svg',
+			text: '面团配方',
+			action: () => navigateToEditPage(null) // 沿用旧的逻辑
+		}, {
+			icon: '/static/icons/add-extra.svg',
+			text: '其他配方',
+			action: navigateToOtherEditPage
+		}];
+	});
 
 	onShow(async () => {
 		if (!dataStore.dataLoaded.recipes) {
@@ -284,6 +294,11 @@
 		uni.navigateTo({ url });
 	};
 
+	// [核心新增] 跳转到新建其他配方页面的方法
+	const navigateToOtherEditPage = () => {
+		uni.navigateTo({ url: '/pages/recipes/edit-other' });
+	};
+
 	const navigateToDetail = (familyId : string) => {
 		uni.navigateTo({
 			url: `/pages/recipes/detail?familyId=${familyId}`,
@@ -362,10 +377,7 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-
-	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前页面作用域 */
 	@include list-item-content-style;
-	/* [兼容性修复] 引入新增的 Mixin */
 	@include list-item-option-style;
 
 	.card {
@@ -393,7 +405,6 @@
 		align-items: center;
 		font-size: 14px;
 
-		/* [样式修复] 将 .name 的样式规则嵌套在 .ranking-item 内部，以确保其作用域正确 */
 		.name {
 			flex-grow: 1;
 			margin: 0 8px 0 4px;

@@ -1,23 +1,26 @@
 <template>
-	<view class="icon-button ripple-container" :class="{ circle: circle }" @touchstart="handleTouchStart"
+	<view class="icon-button ripple-container" :class="[variantClass]" @touchstart="handleTouchStart"
 		@click="handleClick">
-		<!-- 水波纹效果的容器 -->
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 		<slot></slot>
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref, getCurrentInstance } from 'vue';
+	import { ref, computed, getCurrentInstance } from 'vue';
 
-	defineProps({
-		circle: {
-			type: Boolean,
-			default: false,
+	const props = defineProps({
+		variant: {
+			type: String,
+			default: 'default', // 'default' | 'stepper'
 		},
 	});
 
 	const emit = defineEmits(['click']);
+
+	const variantClass = computed(() => {
+		return `variant-${props.variant}`;
+	});
 
 	const ripples = ref<any[]>([]);
 	const instance = getCurrentInstance();
@@ -46,9 +49,7 @@
 		}).exec();
 	};
 
-	// [体验优化] 新增 handleClick 方法以延迟事件触发
 	const handleClick = (event : Event) => {
-		// [体验优化] 增加 300ms 延迟，确保水波纹动画可见后再执行点击操作
 		setTimeout(() => {
 			emit('click', event);
 		}, 300);
@@ -62,18 +63,30 @@
 		position: relative;
 		overflow: hidden;
 		transform: translateZ(0);
-		padding: 8px;
-		border-radius: 12px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-	}
-
-	.icon-button.circle {
+		width: 40px;
+		height: 40px;
+		padding: 0;
 		border-radius: 50%;
+		background-color: transparent;
+		/* [核心修正] 增加 flex-shrink: 0，防止按钮在 flex 布局中被压缩变形 */
+		flex-shrink: 0;
 	}
 
 	.ripple {
 		background-color: rgba(0, 0, 0, 0.08);
+	}
+
+	/* stepper 风格现在用于提供一个带背景的按钮外观 */
+	.icon-button.variant-stepper {
+		width: 40px;
+		height: 40px;
+		background-color: #f3e9e3;
+
+		.ripple {
+			background-color: rgba(0, 0, 0, 0.1);
+		}
 	}
 </style>

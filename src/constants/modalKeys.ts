@@ -9,18 +9,17 @@ export const MODAL_KEYS = {
 	LOGOUT_CONFIRM: 'logoutConfirm',
 	INVITE: 'invite',
 	TASK_ACTIONS: 'taskActions',
-	// [恢复] 恢复采购操作相关的模态框键名
 	PROCUREMENT_ACTIONS: 'procurementActions',
-	// [新增] 原料和配方操作相关的模态框
 	INGREDIENT_ACTIONS: 'ingredientActions',
 	DELETE_INGREDIENT_CONFIRM: 'deleteIngredientConfirm',
-	UPDATE_STOCK_CONFIRM: 'updateStockConfirm', // [新增] 更新库存确认
+	UPDATE_STOCK_CONFIRM: 'updateStockConfirm',
+	// [核心新增] 新增创建原料的模态框键名
+	CREATE_INGREDIENT: 'createIngredient',
 	RECIPE_ACTIONS: 'recipeActions',
 	DISCONTINUE_RECIPE_CONFIRM: 'discontinueRecipeConfirm',
 	RESTORE_RECIPE_CONFIRM: 'restoreRecipeConfirm',
 	DELETE_RECIPE_CONFIRM: 'deleteRecipeConfirm',
-	TEMPERATURE_SETTINGS: 'temperatureSettings', // [新增] 温度设置模态框
+	TEMPERATURE_SETTINGS: 'temperatureSettings',
 } as const;
 
-// 从常量对象中提取类型，用于类型安全检查
 export type ModalKey = typeof MODAL_KEYS[keyof typeof MODAL_KEYS];

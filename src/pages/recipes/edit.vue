@@ -5,63 +5,127 @@
 		<DetailPageLayout>
 			<view class="page-content">
 				<view class="card">
-					<FormItem label="配方家族名称">
-						<input class="input-field" v-model="form.name" placeholder="例如：贝果" :disabled="isEditing" />
+					<FormItem label="配方名称">
+						<input class="input-field" v-model="form.name" placeholder="例如：法式长棍" :disabled="isEditing" />
 					</FormItem>
 					<FormItem v-if="isEditing" label="版本说明">
 						<input class="input-field" v-model="form.notes" placeholder="例如：夏季版本，减少水量" />
 					</FormItem>
 				</view>
 
-				<view v-for="(dough, doughIndex) in form.doughs" :key="doughIndex" class="card">
+				<template v-for="(dough, doughIndex) in form.doughs" :key="dough.id">
+					<view class="card" v-if="dough.type === 'PRE_DOUGH'">
+						<view class="card-title-wrapper">
+							<span class="card-title">{{ dough.name }}</span>
+							<AppButton type="danger" size="sm" @click="removeDough(doughIndex)">
+								移除面种
+							</AppButton>
+						</view>
+						<view class="info-row">
+							<text class="info-label">面粉占比</text>
+							<text class="info-value">{{ dough.flourRatioInMainDough }}%</text>
+						</view>
+						<view v-for="ing in dough.ingredients" :key="ing.name" class="info-row">
+							<text class="info-label">{{ ing.name }}</text>
+							<text class="info-value">{{ ing.ratio }}%</text>
+						</view>
+					</view>
+				</template>
+				<AppButton type="dashed" full-width size="md" @click="openAddPreDoughModal" class="add-button">+ 添加面种
+				</AppButton>
+
+
+				<view class="card">
 					<view class="card-title-wrapper">
-						<span class="card-title">面团 {{ doughIndex + 1 }}</span>
-						<AppButton v-if="form.doughs.length > 1" type="danger" size="sm"
-							@click="removeDough(doughIndex)">
-							删除面团</AppButton>
+						<span class="card-title">主面团</span>
 					</view>
-					<FormItem label="面团名称">
-						<input class="input-field" v-model="dough.name" placeholder="例如：主面团" />
-					</FormItem>
-					<!-- [核心新增] 增加损耗率输入项 -->
 					<FormItem label="工艺损耗率 (%)">
-						<input class="input-field" type="number" v-model.number="dough.lossRatio" placeholder="例如: 2" />
+						<input class="input-field" type="number" v-model.number="mainDough.lossRatio"
+							placeholder="例如: 2" />
 					</FormItem>
-					<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="ingredient-row">
-						<input class="input-field" v-model="ing.name" placeholder="原料名" />
-						<input class="input-field" type="number" v-model.number="ing.ratio" placeholder="比例%" />
-						<AppButton type="danger" size="xs" @click="removeIngredient(doughIndex, ingIndex)">-</AppButton>
+					<view class="ingredient-header">
+						<text class="col-name">原料名称</text>
+						<text class="col-ratio">比例%</text>
+						<text class="col-action"></text>
 					</view>
-					<AppButton type="dashed" full-width @click="addIngredient(doughIndex)">+ 添加原料</AppButton>
+					<view v-for="(ing, ingIndex) in mainDough.ingredients" :key="ingIndex" class="ingredient-row">
+						<view class="picker-wrapper">
+							<picker class="ingredient-picker" mode="selector" :range="filteredAvailableIngredients"
+								range-key="name" @change="onIngredientChange($event, ingIndex)">
+								<view class="picker-display" :class="{ placeholder: !ing.id }">
+									{{ getIngredientName(ing.id) }}
+								</view>
+							</picker>
+						</view>
+						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
+							placeholder="%" />
+						<IconButton variant="stepper" @click="removeIngredient(ingIndex)">
+							<image class="remove-icon" src="/static/icons/close-x.svg" />
+						</IconButton>
+					</view>
+					<AppButton type="dashed" full-width size="md" @click="addIngredient" class="add-button">+ 添加原料
+					</AppButton>
 				</view>
-				<AppButton type="dashed" full-width @click="addDough">+ 添加面团</AppButton>
 
 				<view v-for="(product, prodIndex) in form.products" :key="prodIndex" class="card">
 					<view class="card-title-wrapper">
-						<span class="card-title">最终产品 {{ prodIndex + 1 }}</span>
-						<AppButton v-if="form.products.length > 1" type="danger" size="sm"
+						<span class="card-title">{{ product.name }}</span>
+						<AppButton v-if="form.products.length > 0" type="danger" size="sm"
 							@click="removeProduct(prodIndex)">删除产品</AppButton>
 					</view>
-					<FormItem label="产品名称">
-						<input class="input-field" v-model="product.name" placeholder="例如：原味贝果" />
-					</FormItem>
 					<FormItem label="产品克重 (g)">
 						<input class="input-field" type="number" v-model.number="product.baseDoughWeight"
 							placeholder="例如：100" />
 					</FormItem>
 				</view>
-				<AppButton type="dashed" full-width @click="addProduct">+ 添加最终产品</AppButton>
+				<AppButton type="dashed" full-width size="md" @click="openAddProductModal" class="add-button">+ 添加最终产品
+				</AppButton>
 
-				<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting">
+				<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting" class="save-button">
 					{{ isSubmitting ? '' : '保存配方' }}
 				</AppButton>
 			</view>
 		</DetailPageLayout>
+
+		<AppModal :visible="showAddPreDoughModal" @update:visible="showAddPreDoughModal = false" title="添加面种">
+			<FormItem label="选择面种配方">
+				<view class="picker-wrapper">
+					<picker mode="selector" :range="availablePreDoughs" range-key="name" @change="onPreDoughSelect">
+						<view class="picker-display" :class="{ placeholder: !selectedPreDough }">
+							{{ selectedPreDough?.name || '请选择' }}
+						</view>
+					</picker>
+				</view>
+			</FormItem>
+			<FormItem label="面种中面粉占总面粉的百分比 (%)">
+				<input class="input-field" type="number" v-model.number="preDoughFlourRatio" placeholder="例如：20" />
+			</FormItem>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showAddPreDoughModal = false">取消</AppButton>
+				<AppButton type="primary" @click="confirmAddPreDough" :loading="isAddingPreDough">
+					{{ isAddingPreDough ? '...' : '确认' }}
+				</AppButton>
+			</view>
+		</AppModal>
+
+		<AppModal :visible="showAddProductModal" @update:visible="showAddProductModal = false" title="添加最终产品">
+			<FormItem label="产品名称">
+				<input class="input-field" v-model="newProduct.name" placeholder="例如：原味贝果" />
+			</FormItem>
+			<FormItem label="产品克重 (g)">
+				<input class="input-field" type="number" v-model.number="newProduct.baseDoughWeight"
+					placeholder="例如：100" />
+			</FormItem>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showAddProductModal = false">取消</AppButton>
+				<AppButton type="primary" @click="confirmAddProduct">确认</AppButton>
+			</view>
+		</AppModal>
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref } from 'vue';
+	import { ref, computed, onMounted } from 'vue';
 	import { onLoad, onUnload } from '@dcloudio/uni-app';
 	import { createRecipe, createRecipeVersion, getRecipeFamily } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
@@ -70,11 +134,11 @@
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
-	import type { RecipeVersion } from '@/types/api';
-	// [核心重构] 从 utils 文件导入转换函数
+	import AppModal from '@/components/AppModal.vue';
+	import IconButton from '@/components/IconButton.vue';
+	import type { RecipeVersion, RecipeFamily, DoughIngredient, Ingredient } from '@/types/api';
 	import { toPercentage, toDecimal } from '@/utils/format';
 
-	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
 		inheritAttrs: false
 	});
@@ -91,111 +155,133 @@
 		notes: '',
 		doughs: [
 			{
+				id: `main_${Date.now()}`,
 				name: '主面团',
-				targetTemp: 26,
+				type: 'MAIN_DOUGH',
 				lossRatio: 0,
-				procedure: [],
 				ingredients: [
-					{ name: '高筋粉', ratio: 100 },
-					{ name: '水', ratio: 60 },
-					{ name: '酵母', ratio: 1 },
-					{ name: '盐', ratio: 2 },
+					{ id: null, name: '', ratio: null },
 				],
 			},
 		],
-		products: [
-			{
-				name: '原味',
-				baseDoughWeight: 100,
-				mixIn: [],
-				fillings: [],
-				toppings: [],
-				procedure: [],
-			},
-		],
-		procedure: [],
+		products: [] as { name : string; baseDoughWeight : number }[],
+	});
+
+	const showAddPreDoughModal = ref(false);
+	const showAddProductModal = ref(false);
+	const selectedPreDough = ref<RecipeFamily | null>(null);
+	const preDoughFlourRatio = ref<number | null>(null);
+	const newProduct = ref({ name: '', baseDoughWeight: 100 });
+	// [Bug修复] 增加一个加载状态，防止重复点击
+	const isAddingPreDough = ref(false);
+
+	const mainDough = computed(() => form.value.doughs.find(d => d.type === 'MAIN_DOUGH')!);
+
+	const availablePreDoughs = computed(() => dataStore.recipes.filter(r => r.type === 'PRE_DOUGH' && !r.deletedAt));
+
+	const filteredAvailableIngredients = computed(() => {
+		const preDoughNames = availablePreDoughs.value.map(r => r.name);
+		return dataStore.ingredients.filter(ing => !preDoughNames.includes(ing.name));
 	});
 
 	onLoad(async (options) => {
+		if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
+		if (!dataStore.dataLoaded.recipes) await dataStore.fetchRecipesData();
+
 		if (options && options.familyId) {
 			isEditing.value = true;
 			familyId.value = options.familyId;
-			try {
-				const sourceVersionJson = uni.getStorageSync('source_recipe_version');
-				if (sourceVersionJson) {
-					const sourceVersion : RecipeVersion = JSON.parse(sourceVersionJson);
-					const familyData = await getRecipeFamily(familyId.value);
-					form.value.name = familyData.name;
-					form.value.type = familyData.type;
-					form.value.doughs = sourceVersion.doughs.map(d => ({
-						name: d.name,
-						targetTemp: 0,
-						lossRatio: toPercentage(d.lossRatio), // [核心修改] 使用 toPercentage 函数处理
-						procedure: [],
-						ingredients: d.ingredients.map(i => ({
-							name: i.ingredient.name,
-							ratio: toPercentage(i.ratio), // [核心修改] 使用 toPercentage 函数处理
-						})),
-					}));
-					form.value.products = sourceVersion.products.map(p => ({
-						name: p.name,
-						baseDoughWeight: p.baseDoughWeight,
-						mixIn: [],
-						fillings: [],
-						toppings: [],
-						procedure: [],
-					}));
-				} else {
-					const familyData = await getRecipeFamily(familyId.value);
-					const activeVersion = familyData.versions.find(v => v.isActive);
-					if (activeVersion) {
-						form.value.name = familyData.name;
-						form.value.type = familyData.type;
-					}
-				}
-			} catch (error) {
-				console.error('Failed to load recipe for editing:', error);
-			} finally {
-				uni.hideLoading();
-			}
 		}
 	});
 
-	onUnload(() => {
-		uni.removeStorageSync('source_recipe_version');
-	});
-
-	const addDough = () => {
-		form.value.doughs.push({
-			name: '',
-			targetTemp: 0,
-			lossRatio: 0,
-			procedure: [],
-			ingredients: [{ name: '', ratio: 0 }],
-		});
+	const getIngredientName = (id : string | null) => {
+		if (!id) return '请选择原料';
+		const ingredient = dataStore.ingredients.find(i => i.id === id);
+		return ingredient?.name || '未知原料';
 	};
 
-	const removeDough = (index : number) => {
-		form.value.doughs.splice(index, 1);
+	const onIngredientChange = (e : any, ingIndex : number) => {
+		const selected = filteredAvailableIngredients.value[e.detail.value];
+		mainDough.value.ingredients[ingIndex].id = selected.id;
+		mainDough.value.ingredients[ingIndex].name = selected.name;
 	};
 
-	const addIngredient = (doughIndex : number) => {
-		form.value.doughs[doughIndex].ingredients.push({ name: '', ratio: 0 });
+	const addIngredient = () => {
+		mainDough.value.ingredients.push({ id: null, name: '', ratio: null });
 	};
 
-	const removeIngredient = (doughIndex : number, ingIndex : number) => {
-		form.value.doughs[doughIndex].ingredients.splice(ingIndex, 1);
+	const removeIngredient = (ingIndex : number) => {
+		mainDough.value.ingredients.splice(ingIndex, 1);
 	};
 
-	const addProduct = () => {
-		form.value.products.push({
-			name: '',
-			baseDoughWeight: 0,
-			mixIn: [],
-			fillings: [],
-			toppings: [],
-			procedure: [],
-		});
+	const removeDough = (doughIndex : number) => {
+		form.value.doughs.splice(doughIndex, 1);
+	};
+
+	const openAddPreDoughModal = () => {
+		selectedPreDough.value = null;
+		preDoughFlourRatio.value = null;
+		showAddPreDoughModal.value = true;
+	};
+
+	const onPreDoughSelect = (e : any) => {
+		selectedPreDough.value = availablePreDoughs.value[e.detail.value];
+	};
+
+	const confirmAddPreDough = async () => {
+		if (!selectedPreDough.value || !preDoughFlourRatio.value) {
+			toastStore.show({ message: '请选择面种并填写面粉占比', type: 'error' });
+			return;
+		}
+
+		isAddingPreDough.value = true;
+		try {
+			// [Bug修复] 从API重新获取完整的配方数据，确保信息是最全的
+			const fullPreDoughData = await getRecipeFamily(selectedPreDough.value.id);
+
+			const activeVersion = fullPreDoughData.versions?.find(v => v.isActive) || fullPreDoughData.versions?.[0];
+			const ingredients = activeVersion?.doughs?.[0]?.ingredients;
+
+			if (!ingredients) {
+				toastStore.show({ message: '所选面种没有有效的配方版本', type: 'error' });
+				return;
+			}
+
+			form.value.doughs.push({
+				// @ts-ignore
+				id: activeVersion.familyId,
+				name: fullPreDoughData.name,
+				type: 'PRE_DOUGH',
+				// @ts-ignore
+				flourRatioInMainDough: preDoughFlourRatio.value,
+				ingredients: ingredients.map(i => ({
+					id: i.ingredient.id,
+					name: i.ingredient.name,
+					ratio: toPercentage(i.ratio),
+				})),
+			});
+
+			showAddPreDoughModal.value = false;
+		} catch (error) {
+			toastStore.show({ message: '添加面种失败，请稍后再试', type: 'error' });
+			console.error("Failed to add pre-dough:", error);
+		} finally {
+			isAddingPreDough.value = false;
+		}
+	};
+
+	const openAddProductModal = () => {
+		newProduct.value = { name: '', baseDoughWeight: 100 };
+		showAddProductModal.value = true;
+	};
+
+	const confirmAddProduct = () => {
+		if (!newProduct.value.name || newProduct.value.baseDoughWeight <= 0) {
+			toastStore.show({ message: '请输入有效的产品名称和克重', type: 'error' });
+			return;
+		}
+		form.value.products.push({ ...newProduct.value });
+		showAddProductModal.value = false;
 	};
 
 	const removeProduct = (index : number) => {
@@ -209,22 +295,23 @@
 				name: form.value.name,
 				type: form.value.type,
 				notes: form.value.notes,
-				// [核心修改] 使用 toDecimal 函数进行转换
-				ingredients: form.value.doughs[0]?.ingredients.map(ing => ({
-					...ing,
-					ratio: toDecimal(ing.ratio),
-				})) || [],
+				doughs: form.value.doughs.map(d => ({
+					// @ts-ignore
+					id: d.type === 'MAIN_DOUGH' ? undefined : d.id,
+					name: d.name,
+					type: d.type,
+					lossRatio: toDecimal(d.lossRatio),
+					// @ts-ignore
+					flourRatioInMainDough: toDecimal(d.flourRatioInMainDough),
+					ingredients: d.ingredients.map(ing => ({
+						ingredientId: ing.id,
+						ratio: toDecimal(ing.ratio),
+					})),
+				})),
 				products: form.value.products.map(p => ({
 					name: p.name,
-					weight: p.baseDoughWeight,
-					procedure: p.procedure,
-					mixIn: p.mixIn,
-					fillings: p.fillings,
-					toppings: p.toppings,
+					baseDoughWeight: p.baseDoughWeight,
 				})),
-				targetTemp: form.value.doughs[0]?.targetTemp,
-				lossRatio: toDecimal(form.value.doughs[0]?.lossRatio), // [核心修改] 使用 toDecimal 函数进行转换
-				procedure: form.value.doughs[0]?.procedure,
 			};
 
 			if (isEditing.value && familyId.value) {
@@ -255,19 +342,78 @@
 
 	.input-field {
 		width: 100%;
-		height: 44px;
-		line-height: 44px;
+		height: 40px;
+		line-height: 40px;
 		padding: 0 12px;
 		border: 1px solid var(--border-color);
 		border-radius: 10px;
 		font-size: 14px;
 		background-color: #f8f9fa;
 		box-sizing: border-box;
+	}
 
-		&[disabled] {
-			background-color: #e9ecef;
-			color: #6c757d;
-		}
+	.picker-wrapper {
+		flex: 1;
+		width: 100%;
+		height: 40px;
+		border: 1px solid var(--border-color);
+		border-radius: 10px;
+		background-color: #f8f9fa;
+		position: relative;
+	}
+
+	.ingredient-picker {
+		width: 100%;
+		height: 100%;
+	}
+
+	.picker-display {
+		padding: 0 12px;
+		width: 100%;
+		height: 100%;
+		line-height: 40px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		color: var(--text-primary);
+		font-size: 14px;
+	}
+
+	.picker-display.placeholder {
+		color: #999;
+	}
+
+	.app-modal .picker-wrapper {
+		border: none;
+	}
+
+	.input-field[disabled] {
+		background-color: #e9ecef;
+		color: #6c757d;
+	}
+
+	.ingredient-header {
+		display: flex;
+		color: var(--text-secondary);
+		font-size: 13px;
+		padding: 0 5px;
+		margin-top: 15px;
+		margin-bottom: 8px;
+	}
+
+	.col-name {
+		flex: 1;
+	}
+
+	.col-ratio {
+		width: 60px;
+		text-align: center;
+		margin-left: 10px;
+	}
+
+	.col-action {
+		width: 40px;
+		text-align: right;
 	}
 
 	.ingredient-row {
@@ -276,12 +422,44 @@
 		gap: 10px;
 		margin-bottom: 10px;
 
-		.input-field {
-			flex: 1;
+		.ratio-input {
+			width: 60px;
+			text-align: center;
+			flex-shrink: 0;
 		}
+	}
 
-		checkbox {
-			transform: scale(0.8);
-		}
+	.remove-icon {
+		width: 12px;
+		height: 12px;
+	}
+
+	.save-button {
+		margin-top: 30px;
+	}
+
+	.info-row {
+		display: flex;
+		justify-content: space-between;
+		font-size: 14px;
+		padding: 8px 5px;
+		border-bottom: 1px solid var(--border-color);
+	}
+
+	.info-row:last-child {
+		border-bottom: none;
+	}
+
+	.info-label {
+		color: var(--text-secondary);
+	}
+
+	.info-value {
+		color: var(--text-primary);
+	}
+
+	.add-button {
+		margin-bottom: 20px;
+		min-height: 46px;
 	}
 </style>

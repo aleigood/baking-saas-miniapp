@@ -75,6 +75,7 @@
 		'btn-text-link': props.type === 'text-link',
 		'btn-sm': props.size === 'sm',
 		'btn-xs': props.size === 'xs',
+		'btn-md': props.size === 'md', // [核心新增] 增加 md 尺寸的 class 判断
 		'btn-full-width': props.fullWidth,
 		'loading': props.loading,
 		'is-disabled': props.disabled || props.loading,
@@ -82,7 +83,6 @@
 
 	const handleClick = (event : Event) => {
 		if (props.disabled || props.loading) return;
-		// [体验优化] 增加 300ms 延迟，确保水波纹动画可见后再执行点击操作
 		setTimeout(() => {
 			emit('click', event);
 		}, 300);
@@ -149,6 +149,14 @@
 	.btn-full-width {
 		width: 100%;
 		margin-top: 15px;
+	}
+
+	/* [核心新增] 为 md 尺寸添加新的样式规则 */
+	.btn-md {
+		padding: 0 15px;
+		/* 上下 padding 设为0，通过 min-height 控制高度 */
+		font-size: 14px;
+		min-height: 46px;
 	}
 
 	.btn-sm {

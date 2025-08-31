@@ -58,7 +58,7 @@
 				</template>
 			</view>
 		</view>
-		<AppFab @click="navigateToEditPage" />
+		<AppFab @click="openCreateIngredientModal" />
 
 		<AppModal :visible="uiStore.showIngredientActionsModal"
 			@update:visible="uiStore.closeModal(MODAL_KEYS.INGREDIENT_ACTIONS)" title="原料操作" :no-header-line="true">
@@ -88,16 +88,44 @@
 			</view>
 		</AppModal>
 
+		<AppModal :visible="uiStore.showCreateIngredientModal"
+			@update:visible="uiStore.closeModal(MODAL_KEYS.CREATE_INGREDIENT)" title="新增原料">
+			<FormItem label="原料名称">
+				<input class="input-field" v-model="newIngredientForm.name" placeholder="输入原料名称" />
+			</FormItem>
+			<FormItem label="原料类型">
+				<picker mode="selector" :range="availableTypes.map(t => t.label)" @change="onTypeChange">
+					<view class="picker-display">{{ currentTypeLabel }}</view>
+				</picker>
+			</FormItem>
+			<view class="form-row">
+				<label class="form-row-label">是否为面粉</label>
+				<switch :checked="newIngredientForm.isFlour" @change="onIsFlourChange" color="#8c5a3b" />
+			</view>
+			<view class="form-row">
+				<label class="form-row-label">含水量 (%)</label>
+				<input class="input-field" type="number" v-model.number="newIngredientForm.waterContent"
+					placeholder="例如: 75" />
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.CREATE_INGREDIENT)">取消</AppButton>
+				<AppButton type="primary" @click="handleCreateIngredient" :loading="isSubmitting">
+					{{ isSubmitting ? '保存中...' : '确认保存' }}
+				</AppButton>
+			</view>
+		</AppModal>
 	</view>
 </template>
+
 <script setup lang="ts">
-	import { ref, computed } from 'vue';
+	import { ref, computed, reactive } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
-	import { deleteIngredient } from '@/api/ingredients';
+	// [核心新增] 引入创建原料的 API
+	import { createIngredient, deleteIngredient } from '@/api/ingredients';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import type { Ingredient } from '@/types/api';
 	import AppFab from '@/components/AppFab.vue';
@@ -105,7 +133,8 @@
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
-	import IconButton from '@/components/IconButton.vue'; // [核心新增] 引入图标按钮
+	import IconButton from '@/components/IconButton.vue';
+	import FormItem from '@/components/FormItem.vue'; // [核心新增]
 	import { formatWeight } from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -115,15 +144,29 @@
 	const ingredientFilter = ref('all');
 	const isSubmitting = ref(false);
 	const selectedIngredient = ref<Ingredient | null>(null);
-
 	const touchStartX = ref(0);
 	const touchStartY = ref(0);
-
-	// [核心新增] 定义用于驱动 FilterTabs 的数据
 	const ingredientFilterTabs = ref([
 		{ key: 'all', label: '全部' },
 		{ key: 'low', label: '库存紧张' }
 	]);
+
+	// [核心新增] 新建原料表单
+	const newIngredientForm = reactive({
+		name: '',
+		type: 'STANDARD' as 'STANDARD' | 'UNTRACKED',
+		isFlour: false,
+		waterContent: 0,
+	});
+
+	const availableTypes = ref([
+		{ label: '标准原料 (追踪库存)', value: 'STANDARD' },
+		{ label: '非追踪原料 (不计库存)', value: 'UNTRACKED' },
+	]);
+
+	const currentTypeLabel = computed(() => {
+		return availableTypes.value.find(t => t.value === newIngredientForm.type)?.label || '未知类型';
+	});
 
 	onShow(async () => {
 		if (!dataStore.dataLoaded.ingredients) {
@@ -172,32 +215,16 @@
 	});
 
 	const getDaysOfSupplyText = (days : number) => {
-		if (!isFinite(days) || days > 365) {
-			return '充足';
-		}
-		if (days < 1 && days > 0) {
-			return '不足1天';
-		}
-		if (days <= 0) {
-			return '已用尽';
-		}
+		if (!isFinite(days) || days > 365) return '充足';
+		if (days < 1 && days > 0) return '不足1天';
+		if (days <= 0) return '已用尽';
 		return `约剩 ${Math.floor(days)} 天`;
 	};
 
 	const getStockStatusClass = (days : number) => {
-		if (days <= 0) {
-			return 'stock-danger';
-		}
-		if (days < 7) {
-			return 'stock-warning';
-		}
+		if (days <= 0) return 'stock-danger';
+		if (days < 7) return 'stock-warning';
 		return '';
-	};
-
-	const navigateToEditPage = () => {
-		uni.navigateTo({
-			url: '/pages/ingredients/edit',
-		});
 	};
 
 	const navigateToDetail = (ingredientId : string) => {
@@ -206,7 +233,6 @@
 		});
 	};
 
-	// [核心新增] 跳转到库存流水页面的方法
 	const navigateToLedger = () => {
 		uni.navigateTo({
 			url: '/pages/ingredients/ledger'
@@ -239,24 +265,60 @@
 			selectedIngredient.value = null;
 		}
 	};
+
+	// [核心新增] 创建原料的逻辑
+	const openCreateIngredientModal = () => {
+		// 重置表单
+		newIngredientForm.name = '';
+		newIngredientForm.type = 'STANDARD';
+		newIngredientForm.isFlour = false;
+		newIngredientForm.waterContent = 0;
+		uiStore.openModal(MODAL_KEYS.CREATE_INGREDIENT);
+	};
+
+	const onTypeChange = (e : any) => {
+		newIngredientForm.type = availableTypes.value[e.detail.value].value as 'STANDARD' | 'UNTRACKED';
+	};
+
+	const onIsFlourChange = (e : any) => {
+		newIngredientForm.isFlour = e.detail.value;
+	};
+
+	const handleCreateIngredient = async () => {
+		if (!newIngredientForm.name.trim()) {
+			toastStore.show({ message: '原料名称不能为空', type: 'error' });
+			return;
+		}
+		isSubmitting.value = true;
+		try {
+			await createIngredient({
+				name: newIngredientForm.name,
+				type: newIngredientForm.type,
+				isFlour: newIngredientForm.isFlour,
+				waterContent: (Number(newIngredientForm.waterContent) || 0) / 100,
+			});
+			toastStore.show({ message: '创建成功，请继续添加SKU和采购', type: 'success', duration: 3000 });
+			uiStore.closeModal(MODAL_KEYS.CREATE_INGREDIENT);
+			await dataStore.fetchIngredientsData();
+		} catch (error) {
+			console.error("Failed to create ingredient:", error);
+		} finally {
+			isSubmitting.value = false;
+		}
+	};
 </script>
+
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-
-	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前页面作用域 */
 	@include list-item-content-style;
-	/* [核心修复] 修正 Mixin 的名称 */
 	@include list-item-option-style;
 
-	/* [核心新增] 新增 filter-bar 样式，用于水平布局 */
 	.filter-bar {
 		display: flex;
 		justify-content: space-between;
 		align-items: start;
 		padding: 0 15px;
-		/* 与 page-content 的水平内边距保持一致 */
 		margin-bottom: 20px;
-		/* [核心新增] 增加底部外边距 */
 	}
 
 	.header-icon {
@@ -286,5 +348,37 @@
 	.value-tag.stock-danger {
 		background-color: #fee2e2;
 		color: #991b1b;
+	}
+
+	/* [核心新增] 新建原料对话框的样式 */
+	.picker-display,
+	.input-field {
+		width: 100%;
+		height: 44px;
+		line-height: 44px;
+		padding: 0 12px;
+		border: 1px solid var(--border-color);
+		border-radius: 10px;
+		font-size: 14px;
+		background-color: #f8f9fa;
+		box-sizing: border-box;
+		text-align: left;
+	}
+
+	.form-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 10px 0;
+	}
+
+	.form-row-label {
+		font-size: 15px;
+		color: var(--text-primary);
+	}
+
+	.form-row .input-field {
+		width: 120px;
+		text-align: right;
 	}
 </style>
