@@ -9,9 +9,11 @@
 						<input class="input-field" v-model="form.name" placeholder="例如：波兰种 或 奶酥馅" />
 					</FormItem>
 					<FormItem label="配方类型">
-						<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange">
-							<view class="picker-display">{{ currentTypeLabel }}</view>
-						</picker>
+						<view class="picker-wrapper">
+							<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange">
+								<view class="picker-display">{{ currentTypeLabel }}</view>
+							</picker>
+						</view>
 					</FormItem>
 				</view>
 
@@ -35,7 +37,7 @@
 						</view>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
-						<IconButton variant="stepper" @click="removeIngredient(ingIndex)">
+						<IconButton @click="removeIngredient(ingIndex)">
 							<image class="remove-icon" src="/static/icons/close-x.svg" />
 						</IconButton>
 					</view>
@@ -78,8 +80,9 @@
 	});
 
 	const recipeTypes = ref([
-		{ label: '面种 (PRE_DOUGH)', value: 'PRE_DOUGH' },
-		{ label: '馅料/其他 (EXTRA)', value: 'EXTRA' },
+		// [核心改造] 移除括号和英文
+		{ label: '面种', value: 'PRE_DOUGH' },
+		{ label: '馅料/其他', value: 'EXTRA' },
 	]);
 
 	const currentTypeLabel = computed(() => {
@@ -124,12 +127,11 @@
 			const payload = {
 				name: form.name,
 				type: form.type,
-				// 其他配方只有一个 dough，结构比较简单
 				ingredients: form.ingredients.map(ing => ({
 					ingredientId: ing.id,
 					ratio: toDecimal(ing.ratio),
 				})),
-				products: [], // 其他配方没有最终产品
+				products: [],
 			};
 
 			await createRecipe(payload);
@@ -147,15 +149,13 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* 样式与主配方编辑页保持高度一致 */
 	.page-wrapper {
 		display: flex;
 		flex-direction: column;
 		height: 100vh;
 	}
 
-	.input-field,
-	.picker-display {
+	.input-field {
 		width: 100%;
 		height: 40px;
 		line-height: 40px;
@@ -236,8 +236,8 @@
 	}
 
 	.remove-icon {
-		width: 12px;
-		height: 12px;
+		width: 20px;
+		height: 20px;
 	}
 
 	.save-button {

@@ -74,6 +74,8 @@
 	import { useToastStore } from '@/store/toast';
 	import type { RecipeFamily, RecipeVersion } from '@/types/api';
 	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion } from '@/api/recipes';
+	// [核心新增] 引入获取产品详情的API
+	import { getRecipeDetails } from '@/api/costing';
 
 	import RecipeVersionList from '@/components/RecipeVersionList.vue';
 	import MainRecipeDetail from '@/components/MainRecipeDetail.vue';
@@ -85,7 +87,6 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 
-	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
 		inheritAttrs: false
 	});
@@ -156,14 +157,63 @@
 		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
 
-	const navigateToEditPage = (familyId : string | null) => {
-		if (!familyId) return;
-		if (displayedVersion.value) {
-			uni.setStorageSync('source_recipe_version', JSON.stringify(displayedVersion.value));
+	// [核心改造] 创建新版本前，异步准备好所有详细数据
+	const navigateToEditPage = async (familyId : string | null) => {
+		if (!familyId || !displayedVersion.value) return;
+
+		uni.showLoading({ title: '准备数据中...' });
+		try {
+			// 1. 获取基础版本信息
+			const sourceVersion = displayedVersion.value;
+
+			// 2. 异步获取所有产品的详细信息（包含辅料和馅料）
+			const detailedProductsPromises = sourceVersion.products.map(p => getRecipeDetails(p.id));
+			const detailedProductsResults = await Promise.all(detailedProductsPromises);
+
+			// 3. 构建一个与 edit.vue 表单结构完全匹配的完整对象
+			const formTemplate = {
+				name: recipeFamily.value?.name || '',
+				type: recipeFamily.value?.type || 'MAIN',
+				notes: '',
+				doughs: sourceVersion.doughs.map(d => ({
+					// 注意：这里需要根据后端返回的 doughs 结构来确定哪个是主面团，哪个是面种
+					// 为简化起见，我们假设第一个 dough 是主面团，其他的需要重新添加
+					// 这是一个待优化的点，需要后端 API 支持更明确的 dough 类型
+					id: `main_${Date.now()}`,
+					name: '主面团',
+					type: 'MAIN_DOUGH',
+					lossRatio: 0, // 损耗率在新版本中重置
+					ingredients: d.ingredients.map(ing => ({
+						id: ing.ingredient.id,
+						name: ing.ingredient.name,
+						ratio: ing.ratio * 100, // API是小数，表单是百分比
+					}))
+				})),
+				products: sourceVersion.products.map((p, index) => {
+					const details = detailedProductsResults[index];
+					return {
+						name: p.name,
+						baseDoughWeight: p.baseDoughWeight,
+						mixIns: details.extraIngredients
+							.filter(ex => ex.type === '搅拌原料')
+							.map(ex => ({ id: ex.id, ratio: ex.ratio ? ex.ratio * 100 : null })),
+						fillings: details.extraIngredients
+							.filter(ex => ex.type === '馅料')
+							.map(ex => ({ id: ex.id, weightInGrams: ex.weightInGrams })),
+					};
+				})
+			};
+
+			uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
+			uni.navigateTo({
+				url: `/pages/recipes/edit?familyId=${familyId}`
+			});
+		} catch (error) {
+			console.error("准备新版本数据失败:", error);
+			toastStore.show({ message: '准备新版本数据失败', type: 'error' });
+		} finally {
+			uni.hideLoading();
 		}
-		uni.navigateTo({
-			url: `/pages/recipes/edit?familyId=${familyId}`
-		});
 	};
 
 	const handleCreateVersion = () => {
@@ -232,8 +282,6 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-
-	/* [兼容性修复] 引入新增的 Mixin */
 	@include list-item-option-style;
 
 	.page-wrapper {
@@ -241,8 +289,6 @@
 		flex-direction: column;
 		height: 100vh;
 	}
-
-	/* [核心修改] 移除不再需要的 .content-padding 样式 */
 
 	.modal-prompt-text {
 		font-size: 16px;
