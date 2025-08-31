@@ -23,11 +23,9 @@
 	} from 'vue';
 
 	const props = defineProps<{
-		// [新增] 接收一个由 { key, label } 对象组成的数组
 		tabs : {
 			key : string | number; label : string
 		}[];
-		// [新增] 使用 v-model 来双向绑定当前激活的 tab
 		modelValue : string | number;
 	}>();
 
@@ -38,12 +36,8 @@
 	const isFromClick = ref(false);
 	const containerInfo = ref<UniApp.BoundingClientRect | null>(null);
 
-	// [新增] 水波纹效果逻辑
 	const ripples = reactive<Record<number, any[]>>({});
 
-	/**
-	 * [新增] 获取并存储滚动容器的布局信息
-	 */
 	const getContainerInfo = () => {
 		setTimeout(() => {
 			const query = uni.createSelectorQuery().in(instance);
@@ -60,9 +54,7 @@
 	});
 
 	watch(() => props.tabs, (newTabs) => {
-		// 清空旧的水波纹记录
 		Object.keys(ripples).forEach(key => delete ripples[parseInt(key)]);
-		// 为新的 tabs 初始化
 		newTabs.forEach((_, index) => {
 			ripples[index] = [];
 		});
@@ -77,11 +69,9 @@
 
 	const handleClick = (key : string | number) => {
 		isFromClick.value = true;
-		// [核心改造] 移除了 setTimeout，实现立即切换
 		emit('update:modelValue', key);
 	};
 
-	// [新增] 水波纹触摸事件处理
 	const handleTouchStart = (event : TouchEvent, key : number) => {
 		const touch = event.touches[0];
 		const query = uni.createSelectorQuery().in(instance);
@@ -108,10 +98,7 @@
 		}).exec();
 	};
 
-
-	// [新增] 移植过来的核心智能滚动逻辑
 	watch(() => props.modelValue, (newValue) => {
-		// [Bug修复] 增加保护，确保 props.tabs 存在后再执行
 		if (!props.tabs) {
 			return;
 		}
@@ -125,8 +112,9 @@
 				query.selectAll('.tab-item').boundingClientRect(allTabsRects => {
 					if (containerInfo.value && Array.isArray(allTabsRects) && allTabsRects.length > 0) {
 
-						const containerContentRight = containerInfo.value.right - 15;
-						const containerContentLeft = containerInfo.value.left + 15;
+						// [布局修正] 内边距现在在 .filter-tabs 上，所以这里的计算是准确的
+						const containerContentRight = containerInfo.value.right;
+						const containerContentLeft = containerInfo.value.left;
 
 						let targetIndex = activeIndex;
 
@@ -168,29 +156,26 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [核心改造] 样式现在直接作用于 scroll-view */
 	.filter-tabs {
-		display: flex;
 		margin-bottom: 20px;
 		overflow-x: auto;
-		-ms-overflow-style: none;
-		scrollbar-width: none;
 		white-space: nowrap;
-		width: 100%;
+		/* [布局修正] 移除 width: 100% 和 display:flex，让 scroll-view 自然适应父容器宽度 */
+		/* [布局修正] 增加 box-sizing 并将内边距移到这里 */
+		box-sizing: border-box;
+		padding: 0 5px;
 	}
 
 	.filter-tabs::-webkit-scrollbar {
 		display: none;
 	}
 
-	/* 新增一个 wrapper 来处理内边距和 flex 布局 */
 	.tabs-wrapper {
 		display: flex;
 		gap: 12px;
-		padding: 0 15px;
+		/* [布局修正] 移除此处的 padding */
 	}
 
-	/* [核心改造] 将原 FilterTab 的样式直接整合到这里 */
 	.tab-item {
 		padding: 8px 12px;
 		border-radius: 20px;
@@ -203,7 +188,6 @@
 		transform: translateZ(0);
 		flex-shrink: 0;
 		transition: background-color 0.3s, color 0.3s;
-		/* [新增] 增加平滑的过渡效果 */
 	}
 
 	.tab-item.active {
@@ -211,7 +195,6 @@
 		color: white;
 	}
 
-	/* [新增] 水波纹和文本的样式 */
 	.ripple {
 		background-color: rgba(0, 0, 0, 0.1);
 	}
