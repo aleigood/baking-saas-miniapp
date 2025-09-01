@@ -26,14 +26,15 @@
 				<view class="card">
 					<view class="card-title">产品数量</view>
 					<view class="summary-card">
-						<view v-if="summaryLines.length > 0" class="summary-content">
-							<view v-for="(line, index) in summaryLines" :key="index"
-								:class="line.type === 'title' ? 'summary-title' : 'summary-line'">
-								<text v-if="line.type === 'title'">{{ line.text }}</text>
-								<template v-if="line.type === 'line'">
-									<text class="summary-col">{{ line.col1 }}</text>
-									<text class="summary-col">{{ line.col2 }}</text>
-								</template>
+						<view v-if="summaryGroups.length > 0" class="summary-content">
+							<view v-for="(group, groupIndex) in summaryGroups" :key="groupIndex" class="summary-group">
+								<text class="summary-group-title">{{ group.name }}:</text>
+								<view class="summary-items-wrapper">
+									<view v-for="(item, itemIndex) in group.items" :key="itemIndex"
+										class="summary-item">
+										{{ item }}<span v-if="itemIndex < group.items.length - 1">、 </span>
+									</view>
+								</view>
 							</view>
 						</view>
 						<view v-else class="summary-placeholder">产品数量汇总</view>
@@ -62,7 +63,7 @@
 	import { ref, computed, reactive, onMounted } from 'vue';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
-	import { useUiStore } from '@/store/ui'; // [核心新增] 引入 uiStore
+	import { useUiStore } from '@/store/ui';
 	import { createTask } from '@/api/tasks';
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
@@ -77,7 +78,7 @@
 
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
-	const uiStore = useUiStore(); // [核心新增] 实例化 uiStore
+	const uiStore = useUiStore();
 
 	const isLoading = ref(false);
 	const isCreating = ref(false);
@@ -89,8 +90,7 @@
 	});
 
 	const taskQuantities = reactive<Record<string, number | null>>({});
-	// [核心修改] 使用新的数据结构来驱动汇总区域
-	const summaryLines = ref<{ type : 'title' | 'line'; text ?: string; col1 ?: string; col2 ?: string; }[]>([]);
+	const summaryGroups = ref<{ name : string; items : string[] }[]>([]);
 	const activeTab = ref('');
 
 	onMounted(async () => {
@@ -107,11 +107,7 @@
 		isLoading.value = false;
 	});
 
-	/**
-	 * [核心修复] 兼容H5和微信小程序的输入事件
-	 */
 	const onQuantityInput = (productId : string, event : any) => {
-		// H5 event.target.value, 小程序 event.detail.value
 		const value = event.target?.value ?? event.detail.value;
 		taskQuantities[productId] = value === '' ? null : Number(value);
 		updateSummary();
@@ -152,11 +148,8 @@
 		}
 	};
 
-	/**
-	 * [核心修改] 更新汇总信息的逻辑，生成结构化数组
-	 */
 	const updateSummary = () => {
-		const lines : { type : 'title' | 'line'; text ?: string; col1 ?: string; col2 ?: string; }[] = [];
+		const groups : { name : string; items : string[] }[] = [];
 		for (const groupName in groupedProducts.value) {
 			const productsInGroup = groupedProducts.value[groupName];
 			const quantifiedProducts = productsInGroup
@@ -164,24 +157,13 @@
 				.filter(p => p.quantity > 0);
 
 			if (quantifiedProducts.length > 0) {
-				lines.push({ type: 'title', text: groupName });
-
-				const columns : string[][] = [[], []];
-				quantifiedProducts.forEach((p, index) => {
-					columns[index % 2].push(`${p.name} x${p.quantity}`);
+				groups.push({
+					name: groupName,
+					items: quantifiedProducts.map(p => `${p.name} x${p.quantity}`),
 				});
-
-				const maxRows = Math.max(columns[0].length, columns[1].length);
-				for (let i = 0; i < maxRows; i++) {
-					lines.push({
-						type: 'line',
-						col1: columns[0][i] || '',
-						col2: columns[1][i] || ''
-					});
-				}
 			}
 		}
-		summaryLines.value = lines;
+		summaryGroups.value = groups;
 	};
 
 	const handleCreateTasks = async () => {
@@ -206,18 +188,14 @@
 			};
 			const res = await createTask(payload);
 
-			// [核心修改] 使用“信箱”来传递消息，而不是直接显示
 			if (res.warning) {
-				// 如果有警告，将警告消息存入信箱
 				uiStore.setNextPageToast({ message: res.warning, type: 'error', duration: 3000 });
 			} else {
-				// 如果没有警告，将成功消息存入信箱
 				uiStore.setNextPageToast({ message: '任务已创建', type: 'success' });
 			}
 
 			await dataStore.fetchProductionData();
 
-			// [核心修改] 不再使用setTimeout，立即返回
 			uni.navigateBack();
 
 		} catch (error) {
@@ -271,32 +249,31 @@
 		margin-bottom: 20px;
 	}
 
-	/* [核心新增] 汇总内容区域新样式 */
 	.summary-content {
 		color: var(--text-primary);
 		font-size: 13px;
+		line-height: 1.8;
 	}
 
-	.summary-title {
-		display: block;
-		color: var(--primary-color);
-		font-weight: 600;
-		margin-bottom: 5px;
-		margin-top: 10px;
-	}
-
-	.summary-title:first-child {
-		margin-top: 0;
-	}
-
-	.summary-line {
+	.summary-group {
 		display: flex;
-		width: 100%;
+		flex-wrap: wrap;
+		align-items: baseline;
 	}
 
-	.summary-col {
-		width: 50%;
-		box-sizing: border-box;
+	.summary-group-title {
+		font-weight: 600;
+		color: var(--primary-color);
+		margin-right: 5px;
+		flex-shrink: 0;
+	}
+
+	.summary-items-wrapper {
+		display: inline;
+	}
+
+	.summary-item {
+		display: inline-block;
 	}
 
 	.summary-placeholder {
@@ -311,39 +288,37 @@
 
 	.product-grid {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 15px;
+		grid-template-columns: 1fr;
+		gap: 12px;
 		margin-top: 20px;
 	}
 
 	.product-item {
 		display: flex;
-		flex-direction: row;
 		align-items: center;
-		justify-content: space-between;
-		gap: 8px;
+		gap: 12px;
+		padding: 0 10%; // 保持向中间靠拢
 	}
 
 	.product-name {
+		width: calc(50% - 6px); // 占据50%宽度并减去一半的gap
 		font-size: 15px;
-		flex: 1;
 		min-width: 0;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+		text-align: right;
 	}
 
-	/* [核心修复] 统一输入框高度和行高，解决小程序显示问题 */
 	.quantity-input {
+		width: calc(50% - 6px); // 占据50%宽度并减去一半的gap
 		background-color: var(--bg-color);
 		border-radius: 8px;
 		padding: 0 10px;
 		text-align: center;
 		font-size: 15px;
-		width: 70px;
 		box-sizing: border-box;
 		border: 1px solid var(--border-color);
-		flex-shrink: 0;
 		height: 36px;
 	}
 </style>
