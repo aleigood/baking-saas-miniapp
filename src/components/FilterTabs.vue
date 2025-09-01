@@ -4,12 +4,12 @@
 		<view class="tabs-wrapper">
 			<view v-for="(tab, index) in tabs" :key="tab.key" :id="'filter-tab-' + tab.key"
 				class="tab-item ripple-container" :class="{ active: modelValue === tab.key }"
-				@click="handleClick(tab.key)" @touchstart="handleTouchStart($event, tab.key)">
+				@click="handleClick(tab.key)" @touchstart.passive="handleTouchStart($event, tab.key)">
 				<span v-for="ripple in ripples[tab.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 				<span class="tab-text">{{ tab.label }}</span>
 			</view>
 			<view v-if="editable" class="tab-item add-tab ripple-container" @click="$emit('add')"
-				@touchstart="handleTouchStart($event, 'add')">
+				@touchstart.passive="handleTouchStart($event, 'add')">
 				<span v-for="ripple in ripples['add']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 				<span class="tab-text">+ 添加产品</span>
 			</view>
@@ -37,7 +37,6 @@
 	const emit = defineEmits(['update:modelValue', 'add']);
 
 	const instance = getCurrentInstance();
-	const isFromClick = ref(false);
 	const scrollLeft = ref(0);
 
 	const ripples = reactive<Record<string | number, any[]>>({
@@ -58,7 +57,6 @@
 
 
 	const handleClick = (key : string | number) => {
-		isFromClick.value = true;
 		emit('update:modelValue', key);
 	};
 
@@ -100,21 +98,16 @@
 				return;
 			}
 
-			setTimeout(() => {
-				const query = uni.createSelectorQuery().in(instance);
-				query.select('.filter-tabs').fields({
-					rect: true,
-					scrollOffset: true
-				});
-				query.selectAll('.tab-item').boundingClientRect();
+			const query = uni.createSelectorQuery().in(instance);
+			query.select('.filter-tabs').boundingClientRect();
+			query.select('.tabs-wrapper').boundingClientRect();
+			query.selectAll('.tab-item').boundingClientRect();
 
-				query.exec((res) => {
-					const containerResult = res[0];
-					let allTabsRects = res[1];
-
-					if (!containerResult || !Array.isArray(allTabsRects) || allTabsRects.length === 0) {
-						return;
-					}
+			query.exec(rects => {
+				if (rects && rects[0] && rects[1] && Array.isArray(rects[2]) && rects[2].length > 0) {
+					const containerRect = rects[0];
+					const wrapperRect = rects[1];
+					let allTabsRects = rects[2];
 
 					if (props.editable && allTabsRects.length > props.tabs.length) {
 						allTabsRects = allTabsRects.slice(0, props.tabs.length);
@@ -124,52 +117,22 @@
 						return;
 					}
 
-					const currentScrollLeft = containerResult.scrollLeft;
-					const containerRect = containerResult;
-					const containerWidth = containerRect.width;
-					let newScrollLeft = currentScrollLeft;
+					const tabRect = allTabsRects[activeIndex];
+					const tabCenterPosition = (tabRect.left - wrapperRect.left) + (tabRect.width / 2);
+					const containerCenterPosition = containerRect.width / 2;
+					let targetScrollLeft = tabCenterPosition - containerCenterPosition;
 
-					if (isFromClick.value) {
-						isFromClick.value = false;
-
-						if (activeIndex < allTabsRects.length - 1) {
-							const nextTabRect = allTabsRects[activeIndex + 1];
-							if (nextTabRect.right > containerRect.right) {
-								newScrollLeft = currentScrollLeft + (nextTabRect.right - containerRect.right) + 10;
-							}
-						}
-
-						if (newScrollLeft === currentScrollLeft && activeIndex > 0) {
-							const prevTabRect = allTabsRects[activeIndex - 1];
-							if (prevTabRect.left < containerRect.left) {
-								newScrollLeft = currentScrollLeft - (containerRect.left - prevTabRect.left) - 10;
-							}
-						}
-
-						if (newScrollLeft === currentScrollLeft) {
-							const activeTabRect = allTabsRects[activeIndex];
-							if (activeTabRect.left < containerRect.left) {
-								newScrollLeft = currentScrollLeft + (activeTabRect.left - containerRect.left);
-							} else if (activeTabRect.right > containerRect.right) {
-								newScrollLeft = currentScrollLeft + (activeTabRect.right - containerRect.right);
-							}
-						}
-					} else {
-						const activeTabRect = allTabsRects[activeIndex];
-						if (activeTabRect.left < containerRect.left) {
-							newScrollLeft = currentScrollLeft + (activeTabRect.left - containerRect.left);
-						} else if (activeTabRect.right > containerRect.right) {
-							newScrollLeft = currentScrollLeft + (activeTabRect.right - containerRect.right);
-						}
-					}
-
-					if (Math.abs(newScrollLeft - currentScrollLeft) < 1) {
+					const maxScrollLeft = wrapperRect.width - (containerRect.width - 10);
+					if (maxScrollLeft <= 0) {
+						scrollLeft.value = 0;
 						return;
 					}
+					targetScrollLeft = Math.max(0, targetScrollLeft);
+					targetScrollLeft = Math.min(targetScrollLeft, maxScrollLeft);
 
-					scrollLeft.value = newScrollLeft;
-				});
-			}, 100);
+					scrollLeft.value = targetScrollLeft;
+				}
+			});
 		});
 	}, {
 		immediate: true
@@ -194,6 +157,8 @@
 	.tabs-wrapper {
 		display: flex;
 		gap: 12px;
+		width: max-content;
+		min-width: 100%;
 	}
 
 	.tab-item {
