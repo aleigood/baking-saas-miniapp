@@ -172,7 +172,6 @@
 			const mainDoughIngredientsForForm = [];
 			const preDoughObjectsForForm = [];
 
-			// 1. 解析主面团中的原料和预制面团
 			for (const ing of mainDoughSource.ingredients) {
 				// @ts-ignore
 				if (ing.linkedPreDough) {
@@ -201,7 +200,8 @@
 								id: i.ingredient.id,
 								name: i.ingredient.name,
 								ratio: (i.ratio * conversionFactor) * 100,
-							}))
+							})),
+							procedure: preDoughRecipe.procedure || [],
 						});
 					}
 					// @ts-ignore
@@ -223,16 +223,17 @@
 				// @ts-ignore
 				lossRatio: mainDoughSource.lossRatio ? mainDoughSource.lossRatio * 100 : 0,
 				ingredients: mainDoughIngredientsForForm,
+				// [核心新增] 将 procedure 也传递过去
+				procedure: mainDoughSource.procedure || [],
 			};
 
-			// 2. 构建与 edit.vue 表单结构完全匹配的完整对象
 			const formTemplate = {
 				name: recipeFamily.value?.name || '',
 				type: recipeFamily.value?.type || 'MAIN',
 				notes: '',
 				doughs: [mainDoughObjectForForm, ...preDoughObjectsForForm],
 				products: sourceVersion.products.map(p => {
-					const processProductIngredients = (type : 'MIX_IN' | 'FILLING') => {
+					const processProductIngredients = (type : 'MIX_IN' | 'FILLING' | 'TOPPING') => {
 						// @ts-ignore
 						return p.ingredients
 							.filter(ing => ing.type === type && (ing.ingredient || ing.linkedExtra))
@@ -253,6 +254,9 @@
 						baseDoughWeight: p.baseDoughWeight,
 						mixIns: processProductIngredients('MIX_IN'),
 						fillings: processProductIngredients('FILLING'),
+						toppings: processProductIngredients('TOPPING'),
+						// [核心新增] 将 procedure 也传递过去
+						procedure: p.procedure || [],
 					};
 				})
 			};

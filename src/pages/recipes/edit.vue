@@ -25,6 +25,12 @@
 							<text class="info-label">{{ ing.name }}</text>
 							<text class="info-value">{{ formatNumber(ing.ratio) }}%</text>
 						</view>
+						<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes read-only">
+							<text class="notes-title">制作要点:</text>
+							<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex" class="note-item">
+								{{ stepIndex + 1 }}. {{ step }}
+							</text>
+						</view>
 					</view>
 				</template>
 				<AppButton type="dashed" full-width size="md" @click="openAddPreDoughModal" class="add-button">+ 添加面种
@@ -61,35 +67,118 @@
 					</view>
 					<AppButton type="dashed" full-width size="md" @click="addIngredient" class="add-button">+ 添加原料
 					</AppButton>
+
+					<view class="procedure-notes">
+						<text class="notes-title">制作要点:</text>
+						<view v-for="(step, stepIndex) in mainDough.procedure" :key="stepIndex" class="procedure-item">
+							<input class="input-field" v-model="mainDough.procedure[stepIndex]" placeholder="输入制作步骤" />
+							<IconButton @click="removeProcedureStep(mainDough, stepIndex)">
+								<image class="remove-icon" src="/static/icons/close-x.svg" />
+							</IconButton>
+						</view>
+						<AppButton type="dashed" full-width size="md" @click="addProcedureStep(mainDough)">+ 添加要点
+						</AppButton>
+					</view>
 				</view>
 
-				<view v-for="(product, prodIndex) in form.products" :key="prodIndex" class="card">
-					<view class="card-title-wrapper">
-						<span class="card-title">{{ product.name }}</span>
-						<IconButton @click="removeProduct(prodIndex)">
-							<image class="remove-icon" src="/static/icons/close-x.svg" />
-						</IconButton>
-					</view>
-					<view class="info-row">
-						<text class="info-label">基础面团克重</text>
-						<text class="info-value">{{ product.baseDoughWeight }}g</text>
-					</view>
-					<template v-if="product.mixIns.length > 0">
-						<view class="product-sub-group-title">辅料</view>
-						<view v-for="ing in product.mixIns" :key="ing.id" class="info-row">
-							<text class="info-label">{{ getIngredientName(ing.id) }}</text>
-							<text class="info-value">{{ formatNumber(ing.ratio) }}%</text>
+				<FilterTabs v-if="form.products.length > 0" v-model="activeProductTab" :tabs="productTabs"
+					class="product-tabs" />
+
+				<view v-for="(product, prodIndex) in form.products" :key="prodIndex">
+					<view class="card" v-show="activeProductTab === prodIndex">
+						<view class="card-title-wrapper">
+							<span class="card-title">{{ product.name || `产品${prodIndex + 1}` }}</span>
+							<IconButton @click="removeProduct(prodIndex)">
+								<image class="remove-icon" src="/static/icons/close-x.svg" />
+							</IconButton>
 						</view>
-					</template>
-					<template v-if="product.fillings.length > 0">
-						<view class="product-sub-group-title">馅料</view>
-						<view v-for="ing in product.fillings" :key="ing.id" class="info-row">
-							<text class="info-label">{{ getIngredientName(ing.id) }}</text>
-							<text class="info-value">{{ ing.weightInGrams }}g/个</text>
+						<FormItem label="产品名称">
+							<input class="input-field" v-model="product.name" :placeholder="`产品${prodIndex + 1}`" />
+						</FormItem>
+						<FormItem label="基础面团克重 (g)">
+							<input class="input-field" type="number" v-model.number="product.baseDoughWeight"
+								placeholder="例如: 100" />
+						</FormItem>
+
+						<view class="sub-group">
+							<view class="sub-group-title">辅料 (Mix-ins)</view>
+							<view v-for="(ing, ingIndex) in product.mixIns" :key="ingIndex" class="ingredient-row">
+								<view class="picker-wrapper">
+									<picker mode="selector" :range="availableSubIngredients" range-key="name"
+										@change="onSubIngredientChange($event, prodIndex, 'mixIns', ingIndex)">
+										<view class="picker-display" :class="{ placeholder: !ing.id }">
+											{{ getIngredientName(ing.id) }}
+										</view>
+									</picker>
+								</view>
+								<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
+									placeholder="%" />
+								<IconButton @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
+									<image class="remove-icon" src="/static/icons/close-x.svg" />
+								</IconButton>
+							</view>
+							<AppButton type="dashed" full-width size="md"
+								@click="addSubIngredient(prodIndex, 'mixIns')">+ 添加辅料</AppButton>
 						</view>
-					</template>
+
+						<view class="sub-group">
+							<view class="sub-group-title">馅料 (Fillings)</view>
+							<view v-for="(ing, ingIndex) in product.fillings" :key="ingIndex" class="ingredient-row">
+								<view class="picker-wrapper">
+									<picker mode="selector" :range="availableSubIngredients" range-key="name"
+										@change="onSubIngredientChange($event, prodIndex, 'fillings', ingIndex)">
+										<view class="picker-display" :class="{ placeholder: !ing.id }">
+											{{ getIngredientName(ing.id) }}
+										</view>
+									</picker>
+								</view>
+								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
+									placeholder="g/个" />
+								<IconButton @click="removeSubIngredient(prodIndex, 'fillings', ingIndex)">
+									<image class="remove-icon" src="/static/icons/close-x.svg" />
+								</IconButton>
+							</view>
+							<AppButton type="dashed" full-width size="md"
+								@click="addSubIngredient(prodIndex, 'fillings')">+ 添加馅料</AppButton>
+						</view>
+
+						<view class="sub-group">
+							<view class="sub-group-title">表面装饰 (Toppings)</view>
+							<view v-for="(ing, ingIndex) in product.toppings" :key="ingIndex" class="ingredient-row">
+								<view class="picker-wrapper">
+									<picker mode="selector" :range="availableSubIngredients" range-key="name"
+										@change="onSubIngredientChange($event, prodIndex, 'toppings', ingIndex)">
+										<view class="picker-display" :class="{ placeholder: !ing.id }">
+											{{ getIngredientName(ing.id) }}
+										</view>
+									</picker>
+								</view>
+								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
+									placeholder="g/个" />
+								<IconButton @click="removeSubIngredient(prodIndex, 'toppings', ingIndex)">
+									<image class="remove-icon" src="/static/icons/close-x.svg" />
+								</IconButton>
+							</view>
+							<AppButton type="dashed" full-width size="md"
+								@click="addSubIngredient(prodIndex, 'toppings')">+ 添加表面装饰</AppButton>
+						</view>
+
+						<view class="procedure-notes">
+							<text class="notes-title">制作要点:</text>
+							<view v-for="(step, stepIndex) in product.procedure" :key="stepIndex"
+								class="procedure-item">
+								<input class="input-field" v-model="product.procedure[stepIndex]"
+									placeholder="输入制作步骤" />
+								<IconButton @click="removeProcedureStep(product, stepIndex)">
+									<image class="remove-icon" src="/static/icons/close-x.svg" />
+								</IconButton>
+							</view>
+							<AppButton type="dashed" full-width size="md" @click="addProcedureStep(product)">+ 添加要点
+							</AppButton>
+						</view>
+					</view>
 				</view>
-				<AppButton type="dashed" full-width size="md" @click="openAddProductModal" class="add-button">+ 添加最终产品
+				<AppButton type="dashed" full-width size="md" @click="addProduct" class="add-button">+ 添加最终产品
 				</AppButton>
 
 				<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting" class="save-button">
@@ -118,66 +207,11 @@
 				</AppButton>
 			</view>
 		</AppModal>
-
-		<AppModal :visible="showAddProductModal" @update:visible="showAddProductModal = false" title="添加最终产品">
-			<scroll-view scroll-y class="modal-scroll-view">
-				<FormItem label="产品名称">
-					<input class="input-field" v-model="newProduct.name" placeholder="例如：原味贝果" />
-				</FormItem>
-				<FormItem label="基础面团克重 (g)">
-					<input class="input-field" type="number" v-model.number="newProduct.baseDoughWeight"
-						placeholder="例如：100" />
-				</FormItem>
-
-				<view class="sub-group">
-					<view v-for="(ing, ingIndex) in newProduct.mixIns" :key="ingIndex" class="ingredient-row">
-						<view class="picker-wrapper">
-							<picker mode="selector" :range="availableSubIngredients" range-key="name"
-								@change="onSubIngredientChange($event, 'mixIns', ingIndex)">
-								<view class="picker-display" :class="{ placeholder: !ing.id }">
-									{{ getIngredientName(ing.id) }}
-								</view>
-							</picker>
-						</view>
-						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
-							placeholder="%" />
-						<IconButton @click="removeSubIngredient('mixIns', ingIndex)">
-							<image class="remove-icon" src="/static/icons/close-x.svg" />
-						</IconButton>
-					</view>
-					<AppButton type="dashed" full-width size="md" @click="addSubIngredient('mixIns')">+ 添加辅料</AppButton>
-				</view>
-
-				<view class="sub-group">
-					<view v-for="(ing, ingIndex) in newProduct.fillings" :key="ingIndex" class="ingredient-row">
-						<view class="picker-wrapper">
-							<picker mode="selector" :range="availableSubIngredients" range-key="name"
-								@change="onSubIngredientChange($event, 'fillings', ingIndex)">
-								<view class="picker-display" :class="{ placeholder: !ing.id }">
-									{{ getIngredientName(ing.id) }}
-								</view>
-							</picker>
-						</view>
-						<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
-							placeholder="g/个" />
-						<IconButton @click="removeSubIngredient('fillings', ingIndex)">
-							<image class="remove-icon" src="/static/icons/close-x.svg" />
-						</IconButton>
-					</view>
-					<AppButton type="dashed" full-width size="md" @click="addSubIngredient('fillings')">+ 添加馅料
-					</AppButton>
-				</view>
-			</scroll-view>
-			<view class="modal-actions">
-				<AppButton type="secondary" @click="showAddProductModal = false">取消</AppButton>
-				<AppButton type="primary" @click="confirmAddProduct">确认</AppButton>
-			</view>
-		</AppModal>
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref, computed, onMounted } from 'vue';
+	import { ref, computed, onMounted, nextTick } from 'vue';
 	import { onLoad, onUnload } from '@dcloudio/uni-app';
 	import { createRecipe, createRecipeVersion, getRecipeFamily } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
@@ -188,6 +222,7 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import IconButton from '@/components/IconButton.vue';
+	import FilterTabs from '@/components/FilterTabs.vue';
 	import type { RecipeVersion, RecipeFamily, DoughIngredient, Ingredient } from '@/types/api';
 	import { formatNumber, toDecimal, toPercentage } from '@/utils/format';
 
@@ -217,6 +252,7 @@
 				ingredients: [
 					{ id: null as string | null, name: '', ratio: null as number | null },
 				],
+				procedure: [''],
 			},
 		],
 		products: [] as {
@@ -224,22 +260,26 @@
 			baseDoughWeight : number;
 			mixIns : SubIngredientRatio[];
 			fillings : SubIngredientWeight[];
+			toppings : SubIngredientWeight[];
+			procedure : string[];
 		}[],
 	});
 
 	const showAddPreDoughModal = ref(false);
-	const showAddProductModal = ref(false);
 	const selectedPreDough = ref<RecipeFamily | null>(null);
 	const preDoughFlourRatio = ref<number | null>(null);
-	const newProduct = ref({
-		name: '',
-		baseDoughWeight: 100,
-		mixIns: [] as SubIngredientRatio[],
-		fillings: [] as SubIngredientWeight[],
-	});
 	const isAddingPreDough = ref(false);
 
+	const activeProductTab = ref(0);
+
 	const mainDough = computed(() => form.value.doughs.find(d => d.type === 'MAIN_DOUGH')!);
+
+	const productTabs = computed(() => {
+		return form.value.products.map((p, index) => ({
+			key: index,
+			label: p.name || `产品${index + 1}`
+		}));
+	});
 
 	const availablePreDoughs = computed(() => dataStore.recipes.filter(r => r.type === 'PRE_DOUGH' && !r.deletedAt));
 
@@ -270,6 +310,9 @@
 				try {
 					const sourceForm = JSON.parse(sourceFormJson);
 					form.value = sourceForm;
+					if (form.value.products.length > 0) {
+						activeProductTab.value = 0;
+					}
 				} catch (e) {
 					toastStore.show({ message: '加载配方模板失败', type: 'error' });
 				}
@@ -328,6 +371,7 @@
 			const fullPreDoughData = await getRecipeFamily(selectedPreDough.value.id);
 			const activeVersion = fullPreDoughData.versions?.find(v => v.isActive) || fullPreDoughData.versions?.sort((a, b) => b.version - a.version)[0];
 			const ingredients = activeVersion?.doughs?.[0]?.ingredients;
+			const procedure = activeVersion?.doughs?.[0]?.procedure || [];
 
 			if (!ingredients) {
 				toastStore.show({ message: '所选面种没有有效的配方版本', type: 'error' });
@@ -367,6 +411,7 @@
 				// @ts-ignore
 				flourRatioInMainDough: preDoughFlourRatio.value,
 				ingredients: calculatedIngredients,
+				procedure: procedure,
 			});
 
 			showAddPreDoughModal.value = false;
@@ -378,44 +423,53 @@
 		}
 	};
 
-	const openAddProductModal = () => {
-		newProduct.value = {
+	const addProduct = () => {
+		form.value.products.push({
 			name: '',
 			baseDoughWeight: 100,
 			mixIns: [],
 			fillings: [],
-		};
-		showAddProductModal.value = true;
-	};
-
-	const confirmAddProduct = () => {
-		if (!newProduct.value.name || newProduct.value.baseDoughWeight <= 0) {
-			toastStore.show({ message: '请输入有效的产品名称和克重', type: 'error' });
-			return;
-		}
-		form.value.products.push({ ...newProduct.value });
-		showAddProductModal.value = false;
+			toppings: [],
+			procedure: [''],
+		});
+		nextTick(() => {
+			activeProductTab.value = form.value.products.length - 1;
+		});
 	};
 
 	const removeProduct = (index : number) => {
 		form.value.products.splice(index, 1);
-	};
-
-	const addSubIngredient = (type : 'mixIns' | 'fillings') => {
-		if (type === 'mixIns') {
-			newProduct.value.mixIns.push({ id: null, ratio: null });
-		} else {
-			newProduct.value.fillings.push({ id: null, weightInGrams: null });
+		if (activeProductTab.value >= form.value.products.length) {
+			activeProductTab.value = Math.max(0, form.value.products.length - 1);
 		}
 	};
 
-	const removeSubIngredient = (type : 'mixIns' | 'fillings', index : number) => {
-		newProduct.value[type].splice(index, 1);
+	const addSubIngredient = (productIndex : number, type : 'mixIns' | 'fillings' | 'toppings') => {
+		if (type === 'mixIns') {
+			form.value.products[productIndex].mixIns.push({ id: null, ratio: null });
+		} else {
+			form.value.products[productIndex][type].push({ id: null, weightInGrams: null });
+		}
 	};
 
-	const onSubIngredientChange = (e : any, type : 'mixIns' | 'fillings', index : number) => {
+	const removeSubIngredient = (productIndex : number, type : 'mixIns' | 'fillings' | 'toppings', ingIndex : number) => {
+		form.value.products[productIndex][type].splice(ingIndex, 1);
+	};
+
+	const onSubIngredientChange = (e : any, productIndex : number, type : 'mixIns' | 'fillings' | 'toppings', ingIndex : number) => {
 		const selected = availableSubIngredients.value[e.detail.value];
-		newProduct.value[type][index].id = selected.id;
+		form.value.products[productIndex][type][ingIndex].id = selected.id;
+	};
+
+	const addProcedureStep = (itemWithProcedure : { procedure : string[] }) => {
+		if (!itemWithProcedure.procedure) {
+			itemWithProcedure.procedure = [];
+		}
+		itemWithProcedure.procedure.push('');
+	};
+
+	const removeProcedureStep = (itemWithProcedure : { procedure : string[] }, index : number) => {
+		itemWithProcedure.procedure.splice(index, 1);
 	};
 
 	const handleSubmit = async () => {
@@ -490,27 +544,29 @@
 				notes: form.value.notes,
 				targetTemp: 26,
 				lossRatio: toDecimal(mainDoughFromForm.lossRatio),
+				procedure: mainDoughFromForm.procedure.filter(p => p && p.trim()),
 				ingredients: allMainDoughIngredients,
 				products: form.value.products.map(p => ({
-					name: p.name,
-					baseDoughWeight: p.baseDoughWeight,
-					mixIns: p.mixIns
+					name: p.name || '未命名产品',
+					weight: p.baseDoughWeight,
+					procedure: p.procedure.filter(step => step && step.trim()),
+					mixIn: p.mixIns
 						.filter(i => i.id && (i.ratio !== null && i.ratio > 0))
 						.map(i => {
 							const item = availableSubIngredients.value.find(s => s.id === i.id);
-							return {
-								name: item?.name,
-								ratio: toDecimal(i.ratio)
-							}
+							return { name: item?.name, ratio: toDecimal(i.ratio), type: 'MIX_IN' }
 						}),
 					fillings: p.fillings
 						.filter(i => i.id && (i.weightInGrams !== null && i.weightInGrams > 0))
 						.map(i => {
 							const item = availableSubIngredients.value.find(s => s.id === i.id);
-							return {
-								name: item?.name,
-								weightInGrams: i.weightInGrams
-							}
+							return { name: item?.name, weightInGrams: i.weightInGrams, type: 'FILLING' }
+						}),
+					toppings: p.toppings
+						.filter(i => i.id && (i.weightInGrams !== null && i.weightInGrams > 0))
+						.map(i => {
+							const item = availableSubIngredients.value.find(s => s.id === i.id);
+							return { name: item?.name, weightInGrams: i.weightInGrams, type: 'TOPPING' }
 						}),
 				})),
 			};
@@ -551,6 +607,11 @@
 		font-size: 14px;
 		background-color: #f8f9fa;
 		box-sizing: border-box;
+	}
+
+	.title-input {
+		flex: 1;
+		margin-right: 10px;
 	}
 
 	.picker-wrapper {
@@ -625,7 +686,7 @@
 	}
 
 	.ratio-input {
-		width: 60px;
+		width: 80px;
 		text-align: center;
 		flex-shrink: 0;
 	}
@@ -670,14 +731,50 @@
 
 	.sub-group {
 		margin-top: 20px;
+		border-top: 1px solid var(--border-color);
+		padding-top: 20px;
 	}
 
-	.product-sub-group-title {
-		font-size: 13px;
-		font-weight: 600;
+	.sub-group-title {
+		font-size: 14px;
+		font-weight: 500;
+		color: var(--text-primary);
+		margin-bottom: 15px;
+	}
+
+	.procedure-notes {
+		margin-top: 20px;
+		border-top: 1px solid var(--border-color);
+		padding-top: 20px;
+	}
+
+	.procedure-notes.read-only {
+		border-top: none;
+		padding-top: 0;
+		margin-top: 10px;
+	}
+
+	.notes-title {
+		display: block;
+		margin-bottom: 8px;
+		font-size: 14px;
+		color: #606266;
+	}
+
+	.procedure-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin-bottom: 10px;
+	}
+
+	.note-item {
+		font-size: 14px;
 		color: var(--text-secondary);
-		padding: 8px 5px 0;
-		margin-top: 8px;
-		text-align: center;
+		line-height: 1.6;
+	}
+
+	.product-tabs {
+		margin: 0 0 20px 0;
 	}
 </style>
