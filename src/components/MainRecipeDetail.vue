@@ -16,7 +16,7 @@
 				<view v-for="(dough, index) in recipeDetails.doughGroups" :key="dough.name + index"
 					class="dough-section">
 					<view class="group-title" @click="toggleCollapse(dough.name)">
-						<span>{{ dough.name }}</span>
+						<span>{{ dough.name === recipeName && selectedProduct ? selectedProduct.name : dough.name }}</span>
 						<span class="arrow" :class="{ collapsed: collapsedSections.has(dough.name) }">&#10095;</span>
 					</view>
 					<view v-show="!collapsedSections.has(dough.name)">
@@ -50,36 +50,79 @@
 
 			<view class="other-ingredients-section">
 				<view class="group-title" @click="toggleCollapse('otherIngredients')">
-					<span>原料汇总 (总成本: ¥{{ formatNumber(recipeDetails.totalCost) }})</span>
+					<span>成本汇总</span>
 					<span class="arrow"
 						:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
 				</view>
 				<view v-show="!collapsedSections.has('otherIngredients')">
-					<view v-if="recipeDetails.extraIngredients.length > 0" class="product-ingredient-table">
-						<view v-for="pIng in recipeDetails.extraIngredients" :key="pIng.id" class="table-row">
-							<text class="col-ingredient">
-								{{ pIng.name }}
-								<text v-if="pIng.type !== '面团' && pIng.type"
-									class="ingredient-type">（{{ pIng.type }}）</text>
-							</text>
-							<text class="col-usage">
-								<template v-if="pIng.id === 'dough-summary'">
-									{{ formatWeight(pIng.weightInGrams) }}
-								</template>
-								<template v-else-if="pIng.type === '搅拌原料'">
-									{{ toPercentage(pIng.ratio) }}% ({{
-										formatWeight(pIng.weightInGrams)
-									}})
-								</template>
-								<template v-else-if="pIng.weightInGrams != null">
-									{{ formatWeight(pIng.weightInGrams) }}
-								</template>
-							</text>
-							<text class="col-cost">¥{{ formatNumber(pIng.cost) }}</text>
+					<view v-if="doughSummary" class="recipe-table detail-table">
+						<view class="table-row">
+							<text class="col-ingredient">{{ doughSummary.name }}</text>
+							<text class="col-usage">{{ formatWeight(doughSummary.weightInGrams) }}</text>
+							<text class="col-total">¥{{ formatNumber(doughSummary.cost) }}</text>
 						</view>
 					</view>
-					<view v-else class="empty-state" style="padding: 20px 0;">
-						暂无其他原料
+
+					<template
+						v-if="recipeDetails.groupedExtraIngredients['搅拌原料'] && recipeDetails.groupedExtraIngredients['搅拌原料'].length > 0">
+						<view class="summary-table-wrapper">
+							<view class="recipe-table detail-table">
+								<view class="table-header summary-header">
+									<text class="col-ingredient">辅料</text>
+									<text class="col-usage">总用量</text>
+									<text class="col-total">成本</text>
+								</view>
+								<view v-for="ing in recipeDetails.groupedExtraIngredients['搅拌原料']" :key="ing.id"
+									class="table-row">
+									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+								</view>
+							</view>
+						</view>
+					</template>
+
+					<template
+						v-if="recipeDetails.groupedExtraIngredients['馅料'] && recipeDetails.groupedExtraIngredients['馅料'].length > 0">
+						<view class="summary-table-wrapper">
+							<view class="recipe-table detail-table">
+								<view class="table-header summary-header">
+									<text class="col-ingredient">馅料</text>
+									<text class="col-usage">用量/个</text>
+									<text class="col-total">成本</text>
+								</view>
+								<view v-for="ing in recipeDetails.groupedExtraIngredients['馅料']" :key="ing.id"
+									class="table-row">
+									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+								</view>
+							</view>
+						</view>
+					</template>
+
+					<template
+						v-if="recipeDetails.groupedExtraIngredients['表面装饰'] && recipeDetails.groupedExtraIngredients['表面装饰'].length > 0">
+						<view class="summary-table-wrapper">
+							<view class="recipe-table detail-table">
+								<view class="table-header summary-header">
+									<text class="col-ingredient">表面装饰</text>
+									<text class="col-usage">用量/个</text>
+									<text class="col-total">成本</text>
+								</view>
+								<view v-for="ing in recipeDetails.groupedExtraIngredients['表面装饰']" :key="ing.id"
+									class="table-row">
+									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+								</view>
+							</view>
+						</view>
+					</template>
+
+					<view class="total-cost-summary">
+						<view class="summary-divider"></view>
+						<view class="summary-text">成本总计: ¥{{ formatNumber(recipeDetails.totalCost) }}</view>
 					</view>
 				</view>
 			</view>
@@ -108,18 +151,19 @@
 		getProductCostBreakdown,
 		getRecipeDetails
 	} from '@/api/costing';
+	import {
+		useDataStore
+	} from '@/store/data';
 	import LineChart from '@/components/LineChart.vue';
 	import PieChart from '@/components/PieChart.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
-	// [核心修改] 移除不再需要的 formatPricePerKg
 	import {
 		formatNumber,
 		formatWeight,
 		toPercentage
 	} from '@/utils/format';
 
-	// 定义组件接收的属性
 	const props = defineProps({
 		version: {
 			type: Object as PropType<RecipeVersion | null>,
@@ -127,7 +171,8 @@
 		}
 	});
 
-	// 内部状态
+	const dataStore = useDataStore();
+
 	const selectedProductId = ref<string | null>(null);
 	const recipeDetails = ref<RecipeDetails | null>(null);
 	const costHistory = ref<{
@@ -148,7 +193,12 @@
 		label: '原料成本'
 	},]);
 
-	// [核心新增] 创建一个符合 FilterTabs 组件要求的 computed 属性
+	const recipeName = computed(() => {
+		if (!props.version) return '';
+		const family = dataStore.recipes.find(r => r.id === props.version!.familyId);
+		return family ? family.name : '';
+	});
+
 	const productTabsForFilter = computed(() => {
 		if (!props.version) return [];
 		// @ts-ignore
@@ -158,14 +208,16 @@
 		}));
 	});
 
-	// 计算属性，获取当前选中的产品对象
 	const selectedProduct = computed(() => {
 		if (!props.version || !selectedProductId.value) return null;
 		// @ts-ignore
 		return props.version.products.find(p => p.id === selectedProductId.value);
 	});
 
-	// 方法：获取成本相关数据
+	const doughSummary = computed(() => {
+		return recipeDetails.value?.extraIngredients.find(item => item.id === 'dough-summary');
+	});
+
 	const fetchCostData = async (productId : string | null) => {
 		if (!productId) {
 			costHistory.value = [];
@@ -190,10 +242,6 @@
 		}
 	};
 
-	// [核心改造] 移除 handleProductClick 方法，因为 v-model 会自动处理
-	// const handleProductClick = (productId : string) => { ... };
-
-	// 方法：切换内容区域的折叠状态
 	const toggleCollapse = (sectionName : string) => {
 		const newSet = new Set(collapsedSections.value);
 		if (newSet.has(sectionName)) {
@@ -204,12 +252,10 @@
 		collapsedSections.value = newSet;
 	};
 
-	// 监听 selectedProductId 的变化，自动获取新数据
 	watch(selectedProductId, (newProductId) => {
 		fetchCostData(newProductId);
 	});
 
-	// 监听 version prop 的变化，当父组件切换版本时，重置选中产品并加载数据
 	watch(() => props.version, (newVersion) => {
 		if (newVersion && newVersion.products.length > 0) {
 			// @ts-ignore
@@ -219,7 +265,7 @@
 		}
 	}, {
 		immediate: true
-	}); // immediate: true 确保组件首次挂载时也执行
+	});
 </script>
 
 <style scoped lang="scss">
@@ -235,7 +281,6 @@
 		border: none;
 		margin-top: 25px;
 		position: relative;
-		// [核心修改] 增加背景色、圆角和内边距以增强分组感
 		background-color: #faf8f5;
 		padding: 10px 15px;
 		border-radius: 12px;
@@ -301,6 +346,11 @@
 		.col-ingredient {
 			min-width: 80px;
 			word-break: break-word;
+		}
+
+		/* [核心修正] 将 col-total 的加粗样式移除 */
+		.col-total {
+			font-weight: 400;
 		}
 	}
 
@@ -370,12 +420,41 @@
 		.col-cost {
 			text-align: right;
 			white-space: nowrap;
-			color: var(--text-secondary);
+			/* [核心修正] 移除颜色覆盖，使其与普通文本颜色一致 */
+			/* color: var(--text-secondary); */
 		}
 
 		.col-cost {
-			font-weight: 500;
+			/* [核心修正] 移除加粗样式 */
+			font-weight: 400;
 			color: var(--text-primary);
 		}
+	}
+
+	.detail-table {
+		margin-top: 15px;
+	}
+
+	.summary-header {
+		background-color: #faf8f5;
+	}
+
+	.summary-table-wrapper {
+		margin-top: 15px;
+	}
+
+	.total-cost-summary {
+		margin-top: 15px;
+		padding-top: 15px;
+		text-align: right;
+		font-size: 14px;
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	.summary-divider {
+		height: 1px;
+		background-color: var(--border-color);
+		margin-bottom: 15px;
 	}
 </style>

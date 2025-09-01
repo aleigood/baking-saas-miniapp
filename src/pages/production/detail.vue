@@ -100,10 +100,10 @@
 
 								<template v-if="selectedProductDetails">
 									<template
-										v-if="selectedProductDetails.mixIns.length > 0 || selectedProductDetails.fillings.length > 0 || selectedProductDetails.procedure.length > 0">
+										v-if="selectedProductDetails.mixIns.length > 0 || selectedProductDetails.fillings.length > 0">
 										<template v-if="selectedProductDetails.mixIns.length > 0">
 											<view class="recipe-table detail-table">
-												<view class="table-header">
+												<view class="table-header summary-header">
 													<text class="col-ingredient">辅料</text>
 													<text class="col-brand">品牌</text>
 													<text class="col-usage">总用量</text>
@@ -120,7 +120,7 @@
 
 										<template v-if="selectedProductDetails.fillings.length > 0">
 											<view class="recipe-table detail-table">
-												<view class="table-header">
+												<view class="table-header summary-header">
 													<text class="col-ingredient">馅料</text>
 													<text class="col-brand">品牌</text>
 													<text class="col-usage">用量/个</text>
@@ -134,15 +134,17 @@
 												</view>
 											</view>
 										</template>
-
-										<view v-if="selectedProductDetails.procedure.length > 0"
-											class="procedure-notes">
-											<text class="notes-title">制作要点:</text>
-											<text v-for="(step, stepIndex) in selectedProductDetails.procedure"
-												:key="stepIndex" class="note-item">{{ stepIndex + 1 }}.
-												{{ step }}</text>
-										</view>
 									</template>
+									<template v-else>
+										<view class="empty-state font-size-14" style="padding: 20px 0;">无其他原料</view>
+									</template>
+
+									<view v-if="selectedProductDetails.procedure.length > 0" class="procedure-notes">
+										<text class="notes-title">制作要点:</text>
+										<text v-for="(step, stepIndex) in selectedProductDetails.procedure"
+											:key="stepIndex" class="note-item">{{ stepIndex + 1 }}.
+											{{ step }}</text>
+									</view>
 								</template>
 							</view>
 						</view>
@@ -515,22 +517,20 @@
 	@import '@/styles/common.scss';
 	@include list-item-content-style;
 
-	/* [核心新增] 对话框内部的flex布局容器 */
+	/* [核心新增] 增加一个用于设置字体大小的通用类 */
+	.font-size-14 {
+		font-size: 14px;
+	}
+
 	.modal-body-footer-wrapper {
 		display: flex;
 		flex-direction: column;
-		/* 通过AppModal的max-height和此处的flex布局来控制高度 */
-		/* 注意：直接设置height: 100%可能在某些小程序中有问题，依赖flex:1来拉伸 */
 	}
 
-	/* [核心新增] 可滚动的主内容区 */
 	.modal-main-content {
 		flex: 1;
-		/* 占据所有可用垂直空间 */
 		min-height: 0;
-		/* flex布局中允许内容区缩小的关键 */
 		overflow-y: auto;
-		/* 内容超长时出现滚动条 */
 	}
 
 	.loss-product-list {
@@ -590,7 +590,6 @@
 		white-space: normal;
 	}
 
-	// [核心修改] 为 warning-card 增加圆角
 	.warning-card {
 		background-color: #faedcd;
 		border: none;
@@ -618,7 +617,6 @@
 		padding: 20px 0px;
 	}
 
-	// [核心新增] 禁用列表的样式
 	.disabled-list {
 		pointer-events: none;
 	}
@@ -652,7 +650,6 @@
 		border: none;
 		margin-top: 25px;
 		position: relative;
-		// [核心修改] 增加背景色、圆角和内边距以增强分组感
 		background-color: #faf8f5;
 		padding: 10px 15px;
 		border-radius: 12px;
@@ -697,6 +694,10 @@
 		.table-header {
 			color: var(--text-secondary);
 			font-weight: 500;
+		}
+
+		.table-header.summary-header {
+			background-color: #faf8f5;
 		}
 
 		.table-row {
