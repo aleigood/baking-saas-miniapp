@@ -81,8 +81,8 @@
 					</view>
 				</view>
 
-				<FilterTabs v-if="form.products.length > 0" v-model="activeProductTab" :tabs="productTabs"
-					class="product-tabs" />
+				<FilterTabs v-model="activeProductTab" :tabs="productTabs" class="product-tabs" editable
+					@add="addProduct" />
 
 				<view v-for="(product, prodIndex) in form.products" :key="prodIndex">
 					<view class="card" v-show="activeProductTab === prodIndex">
@@ -178,8 +178,6 @@
 						</view>
 					</view>
 				</view>
-				<AppButton type="dashed" full-width size="md" @click="addProduct" class="add-button">+ 添加最终产品
-				</AppButton>
 
 				<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting" class="save-button">
 					{{ isSubmitting ? '' : '保存配方' }}

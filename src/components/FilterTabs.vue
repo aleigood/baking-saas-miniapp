@@ -2,11 +2,16 @@
 	<scroll-view class="filter-tabs" :scroll-x="true" :show-scrollbar="false" scroll-with-animation
 		:scroll-into-view="scrollTargetId">
 		<view class="tabs-wrapper">
-			<view v-for="(tab, index) in tabs" :key="tab.key" :id="'filter-tab-' + index"
+			<view v-for="(tab, index) in tabs" :key="tab.key" :id="'filter-tab-' + tab.key"
 				class="tab-item ripple-container" :class="{ active: modelValue === tab.key }"
-				@click="handleClick(tab.key)" @touchstart="handleTouchStart($event, index)">
-				<span v-for="ripple in ripples[index]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
+				@click="handleClick(tab.key)" @touchstart="handleTouchStart($event, tab.key)">
+				<span v-for="ripple in ripples[tab.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 				<span class="tab-text">{{ tab.label }}</span>
+			</view>
+			<view v-if="editable" class="tab-item add-tab ripple-container" @click="$emit('add')"
+				@touchstart="handleTouchStart($event, 'add')">
+				<span v-for="ripple in ripples['add']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
+				<span class="tab-text">+ 添加产品</span>
 			</view>
 		</view>
 	</scroll-view>
@@ -27,16 +32,19 @@
 			key : string | number; label : string
 		}[];
 		modelValue : string | number;
+		editable ?: boolean;
 	}>();
 
-	const emit = defineEmits(['update:modelValue']);
+	const emit = defineEmits(['update:modelValue', 'add']);
 
 	const instance = getCurrentInstance();
 	const scrollTargetId = ref('');
 	const isFromClick = ref(false);
 	const containerInfo = ref<UniApp.BoundingClientRect | null>(null);
 
-	const ripples = reactive<Record<number, any[]>>({});
+	const ripples = reactive<Record<string | number, any[]>>({
+		add: []
+	});
 
 	const getContainerInfo = () => {
 		setTimeout(() => {
@@ -54,9 +62,11 @@
 	});
 
 	watch(() => props.tabs, (newTabs) => {
-		Object.keys(ripples).forEach(key => delete ripples[parseInt(key)]);
-		newTabs.forEach((_, index) => {
-			ripples[index] = [];
+		Object.keys(ripples).forEach(key => {
+			if (key !== 'add') delete ripples[String(key)];
+		});
+		newTabs.forEach((tab) => {
+			ripples[tab.key] = [];
 		});
 		nextTick(() => {
 			getContainerInfo();
@@ -72,10 +82,11 @@
 		emit('update:modelValue', key);
 	};
 
-	const handleTouchStart = (event : TouchEvent, key : number) => {
+	const handleTouchStart = (event : TouchEvent, key : string | number) => {
 		const touch = event.touches[0];
+		const selector = key === 'add' ? '.add-tab' : `#filter-tab-${key}`;
 		const query = uni.createSelectorQuery().in(instance);
-		query.select(`#filter-tab-${key}`).boundingClientRect(rect => {
+		query.select(selector).boundingClientRect(rect => {
 			if (rect) {
 				const x = touch.clientX - rect.left;
 				const y = touch.clientY - rect.top;
@@ -98,8 +109,9 @@
 		}).exec();
 	};
 
+	// [核心修复] 恢复并优化智能滚动逻辑
 	watch(() => props.modelValue, (newValue) => {
-		if (!props.tabs) {
+		if (!props.tabs || props.tabs.length === 0) {
 			return;
 		}
 
@@ -107,47 +119,57 @@
 			const activeIndex = props.tabs.findIndex(tab => tab.key === newValue);
 			if (activeIndex === -1) return;
 
+			const activeTabKey = props.tabs[activeIndex].key;
+
 			if (isFromClick.value) {
 				const query = uni.createSelectorQuery().in(instance);
-				query.selectAll('.tab-item').boundingClientRect(allTabsRects => {
-					if (containerInfo.value && Array.isArray(allTabsRects) && allTabsRects.length > 0) {
+				// 同时获取容器和所有标签项的布局信息
+				query.select('.filter-tabs').boundingClientRect();
+				query.selectAll('.tab-item:not(.add-tab)').boundingClientRect();
 
-						// [布局修正] 内边距现在在 .filter-tabs 上，所以这里的计算是准确的
-						const containerContentRight = containerInfo.value.right;
-						const containerContentLeft = containerInfo.value.left;
+				query.exec((res) => {
+					const containerRect = res[0];
+					const allTabsRects = res[1];
 
-						let targetIndex = activeIndex;
+					if (containerRect && Array.isArray(allTabsRects) && allTabsRects.length > 0 && activeIndex < allTabsRects.length) {
 
-						if (activeIndex < props.tabs.length - 1) {
+						const containerLeft = containerRect.left;
+						const containerRight = containerRect.right;
+
+						let targetScrollIndex = -1;
+
+						// 检查右侧是否需要滚动：下一个标签是否在屏幕外
+						if (activeIndex < allTabsRects.length - 1) {
 							const nextTabRect = allTabsRects[activeIndex + 1];
-							if (nextTabRect.right > containerContentRight) {
-								targetIndex = activeIndex + 1;
+							if (nextTabRect.right > containerRight) {
+								targetScrollIndex = activeIndex + 1;
 							}
 						}
 
+						// 检查左侧是否需要滚动：上一个标签是否在屏幕外
 						if (activeIndex > 0) {
 							const prevTabRect = allTabsRects[activeIndex - 1];
-							if (prevTabRect.left < containerContentLeft) {
-								targetIndex = activeIndex - 1;
+							if (prevTabRect.left < containerLeft) {
+								targetScrollIndex = activeIndex - 1;
 							}
 						}
 
-						if (targetIndex !== activeIndex) {
-							scrollTargetId.value = `filter-tab-${targetIndex}`;
+						// 如果计算出了需要滚动到的目标，则执行滚动
+						if (targetScrollIndex !== -1) {
+							scrollTargetId.value = `filter-tab-${props.tabs[targetScrollIndex].key}`;
 						} else {
+							// 如果目标标签自身就在屏幕外，也需要滚动
 							const activeTabRect = allTabsRects[activeIndex];
-							if (activeTabRect.right > containerContentRight || activeTabRect.left < containerContentLeft) {
-								scrollTargetId.value = `filter-tab-${activeIndex}`;
+							if (activeTabRect.right > containerRight || activeTabRect.left < containerLeft) {
+								scrollTargetId.value = `filter-tab-${activeTabKey}`;
 							}
 						}
-
-					} else {
-						scrollTargetId.value = `filter-tab-${activeIndex}`;
 					}
-				}).exec();
+				});
 				isFromClick.value = false;
 			} else {
-				scrollTargetId.value = `filter-tab-${activeIndex}`;
+				// 如果不是通过点击触发的（例如，页面初始化），直接滚动到目标
+				scrollTargetId.value = `filter-tab-${activeTabKey}`;
 			}
 		});
 	}, { immediate: true });
@@ -160,8 +182,6 @@
 		margin-bottom: 20px;
 		overflow-x: auto;
 		white-space: nowrap;
-		/* [布局修正] 移除 width: 100% 和 display:flex，让 scroll-view 自然适应父容器宽度 */
-		/* [布局修正] 增加 box-sizing 并将内边距移到这里 */
 		box-sizing: border-box;
 		padding: 0 5px;
 	}
@@ -173,7 +193,6 @@
 	.tabs-wrapper {
 		display: flex;
 		gap: 12px;
-		/* [布局修正] 移除此处的 padding */
 	}
 
 	.tab-item {
@@ -206,5 +225,11 @@
 	.tab-text {
 		z-index: 1;
 		position: relative;
+	}
+
+	.add-tab {
+		border: 1px dashed var(--primary-color);
+		background: transparent;
+		color: var(--primary-color);
 	}
 </style>
