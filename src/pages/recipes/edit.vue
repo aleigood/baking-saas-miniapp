@@ -132,7 +132,7 @@
 				<view class="sub-group">
 					<view v-for="(ing, ingIndex) in newProduct.mixIns" :key="ingIndex" class="ingredient-row">
 						<view class="picker-wrapper">
-							<picker mode="selector" :range="filteredAvailableIngredients" range-key="name"
+							<picker mode="selector" :range="availableSubIngredients" range-key="name"
 								@change="onSubIngredientChange($event, 'mixIns', ingIndex)">
 								<view class="picker-display" :class="{ placeholder: !ing.id }">
 									{{ getIngredientName(ing.id) }}
@@ -151,7 +151,7 @@
 				<view class="sub-group">
 					<view v-for="(ing, ingIndex) in newProduct.fillings" :key="ingIndex" class="ingredient-row">
 						<view class="picker-wrapper">
-							<picker mode="selector" :range="filteredAvailableIngredients" range-key="name"
+							<picker mode="selector" :range="availableSubIngredients" range-key="name"
 								@change="onSubIngredientChange($event, 'fillings', ingIndex)">
 								<view class="picker-display" :class="{ placeholder: !ing.id }">
 									{{ getIngredientName(ing.id) }}
@@ -248,6 +248,15 @@
 		return dataStore.ingredients.filter(ing => !preDoughNames.includes(ing.name));
 	});
 
+	const availableSubIngredients = computed(() => {
+		const extras = dataStore.recipes.filter(r => r.type === 'EXTRA' && !r.deletedAt);
+		const combined = [
+			...dataStore.ingredients.map(i => ({ id: i.id, name: i.name })),
+			...extras.map(e => ({ id: e.id, name: e.name })),
+		];
+		return combined.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+	});
+
 	onLoad(async (options) => {
 		if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
 		if (!dataStore.dataLoaded.recipes) await dataStore.fetchRecipesData();
@@ -256,7 +265,6 @@
 			isEditing.value = true;
 			familyId.value = options.familyId;
 
-			// [核心改造] 优先读取为新版本准备的完整表单数据
 			const sourceFormJson = uni.getStorageSync('source_recipe_version_form');
 			if (sourceFormJson) {
 				try {
@@ -273,13 +281,10 @@
 		uni.removeStorageSync('source_recipe_version_form');
 	});
 
-	// [核心改造] getIngredientName 现在也能识别配方名称了
 	const getIngredientName = (id : string | null) => {
 		if (!id) return '请选择原料';
-		// 优先在纯原料列表中查找
 		const ingredient = dataStore.ingredients.find(i => i.id === id);
 		if (ingredient) return ingredient.name;
-		// 如果找不到，再去配方列表里找（适用于面种、馅料等）
 		const recipe = dataStore.recipes.find(r => r.id === id);
 		if (recipe) return recipe.name;
 		return '未知原料';
@@ -326,20 +331,33 @@
 
 			if (!ingredients) {
 				toastStore.show({ message: '所选面种没有有效的配方版本', type: 'error' });
+				isAddingPreDough.value = false;
 				return;
 			}
 
-			const flourIngredient = ingredients.find(i => i.ingredient.isFlour);
-			const baseRatio = flourIngredient ? flourIngredient.ratio : 1;
+			// @ts-ignore
+			const preDoughTotalRatio = ingredients.reduce((sum, ing) => sum + ing.ratio, 0);
+			if (preDoughTotalRatio <= 0) {
+				toastStore.show({ message: '面种配方比例有误', type: 'error' });
+				isAddingPreDough.value = false;
+				return;
+			}
+			// @ts-ignore
+			const preDoughFlourRatioInPreDough = ingredients.filter(i => i.ingredient.isFlour).reduce((sum, ing) => sum + ing.ratio, 0);
+
+			const conversionFactor = (preDoughFlourRatio.value / 100) / preDoughFlourRatioInPreDough;
 
 			const calculatedIngredients = ingredients.map(i => {
-				const newRatio = (i.ratio / baseRatio) * preDoughFlourRatio.value!;
 				return {
+					// @ts-ignore
 					id: i.ingredient.id,
+					// @ts-ignore
 					name: i.ingredient.name,
-					ratio: newRatio,
+					// @ts-ignore
+					ratio: (i.ratio * conversionFactor) * 100,
 				}
 			});
+
 
 			form.value.doughs.push({
 				// @ts-ignore
@@ -396,7 +414,7 @@
 	};
 
 	const onSubIngredientChange = (e : any, type : 'mixIns' | 'fillings', index : number) => {
-		const selected = filteredAvailableIngredients.value[e.detail.value];
+		const selected = availableSubIngredients.value[e.detail.value];
 		newProduct.value[type][index].id = selected.id;
 	};
 
@@ -415,7 +433,6 @@
 		let totalFlourPercentage = 0;
 		const allIngredientsMap = new Map(dataStore.ingredients.map(i => [i.id, i]));
 
-		// 验证面粉总比例时，只计算主面团和面种中的面粉
 		for (const dough of form.value.doughs) {
 			if (dough.type === 'MAIN_DOUGH' || dough.type === 'PRE_DOUGH') {
 				for (const ing of dough.ingredients) {
@@ -434,7 +451,6 @@
 
 		isSubmitting.value = true;
 		try {
-			// [核心改造] 根据用户需求重构 payload 的生成逻辑
 			const mainDoughFromForm = form.value.doughs.find(d => d.type === 'MAIN_DOUGH');
 			if (!mainDoughFromForm) {
 				toastStore.show({ message: '主面团数据丢失，无法保存', type: 'error' });
@@ -442,55 +458,62 @@
 				return;
 			}
 
-			// 1. 初始化最终的主面团原料列表，首先包含用户手动添加的原料
-			const finalMainDoughIngredients = mainDoughFromForm.ingredients
+			const allMainDoughIngredients = [];
+
+			allMainDoughIngredients.push(...mainDoughFromForm.ingredients
 				.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0))
-				.map(ing => ({
-					ingredientId: ing.id,
-					ratio: toDecimal(ing.ratio),
+				.map(ing => {
+					// @ts-ignore
+					const ingredientInfo = allIngredientsMap.get(ing.id);
+					return {
+						ingredientId: ing.id,
+						ratio: toDecimal(ing.ratio),
+						isFlour: ingredientInfo?.isFlour || false,
+						name: ingredientInfo?.name
+					}
 				}));
 
-			// 2. 遍历所有面种（PRE_DOUGH）
 			const preDoughs = form.value.doughs.filter(d => d.type === 'PRE_DOUGH');
 			for (const preDough of preDoughs) {
-				// 3. 计算面种所有原料的比例总和
-				const totalRatio = preDough.ingredients.reduce((sum, ing) => sum + (ing.ratio || 0), 0);
-
-				if (totalRatio > 0) {
-					// 4. 将整个面种作为一个新原料添加到主面团原料列表中
-					finalMainDoughIngredients.push({
-						// @ts-ignore - 在 confirmAddPreDough 中，我们将配方familyId存为了id
-						ingredientId: preDough.id,
-						ratio: toDecimal(totalRatio),
-					});
-				}
+				// @ts-ignore
+				const totalRatioInMain = preDough.ingredients.reduce((sum, ing) => sum + toDecimal(ing.ratio), 0);
+				allMainDoughIngredients.push({
+					// @ts-ignore
+					name: preDough.name,
+					ratio: totalRatioInMain
+				});
 			}
 
-			// 5. 构建最终的 payload
 			const payload = {
 				name: form.value.name,
 				type: form.value.type,
 				notes: form.value.notes,
-				// doughs 数组现在只包含主面团
-				doughs: [{
-					name: mainDoughFromForm.name,
-					type: mainDoughFromForm.type,
-					lossRatio: toDecimal(mainDoughFromForm.lossRatio),
-					// 使用我们组合好的最终原料列表
-					ingredients: finalMainDoughIngredients,
-				}],
+				targetTemp: 26,
+				lossRatio: toDecimal(mainDoughFromForm.lossRatio),
+				ingredients: allMainDoughIngredients,
 				products: form.value.products.map(p => ({
 					name: p.name,
 					baseDoughWeight: p.baseDoughWeight,
 					mixIns: p.mixIns
 						.filter(i => i.id && (i.ratio !== null && i.ratio > 0))
-						.map(i => ({ ingredientId: i.id, ratio: toDecimal(i.ratio) })),
+						.map(i => {
+							const item = availableSubIngredients.value.find(s => s.id === i.id);
+							return {
+								name: item?.name,
+								ratio: toDecimal(i.ratio)
+							}
+						}),
 					fillings: p.fillings
 						.filter(i => i.id && (i.weightInGrams !== null && i.weightInGrams > 0))
-						.map(i => ({ ingredientId: i.id, weightInGrams: i.weightInGrams })),
+						.map(i => {
+							const item = availableSubIngredients.value.find(s => s.id === i.id);
+							return {
+								name: item?.name,
+								weightInGrams: i.weightInGrams
+							}
+						}),
 				})),
 			};
-
 
 			if (isEditing.value && familyId.value) {
 				await createRecipeVersion(familyId.value, payload);

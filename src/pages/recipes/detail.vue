@@ -74,8 +74,6 @@
 	import { useToastStore } from '@/store/toast';
 	import type { RecipeFamily, RecipeVersion } from '@/types/api';
 	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion } from '@/api/recipes';
-	// [核心新增] 引入获取产品详情的API
-	import { getRecipeDetails } from '@/api/costing';
 
 	import RecipeVersionList from '@/components/RecipeVersionList.vue';
 	import MainRecipeDetail from '@/components/MainRecipeDetail.vue';
@@ -157,49 +155,104 @@
 		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
 
-	// [核心改造] 创建新版本前，异步准备好所有详细数据
 	const navigateToEditPage = async (familyId : string | null) => {
 		if (!familyId || !displayedVersion.value) return;
 
 		uni.showLoading({ title: '准备数据中...' });
 		try {
-			// 1. 获取基础版本信息
 			const sourceVersion = displayedVersion.value;
 
-			// 2. 异步获取所有产品的详细信息（包含辅料和馅料）
-			const detailedProductsPromises = sourceVersion.products.map(p => getRecipeDetails(p.id));
-			const detailedProductsResults = await Promise.all(detailedProductsPromises);
+			const mainDoughSource = sourceVersion.doughs[0];
+			if (!mainDoughSource) {
+				toastStore.show({ message: '源配方数据不完整', type: 'error' });
+				uni.hideLoading();
+				return;
+			}
 
-			// 3. 构建一个与 edit.vue 表单结构完全匹配的完整对象
+			const mainDoughIngredientsForForm = [];
+			const preDoughObjectsForForm = [];
+
+			// 1. 解析主面团中的原料和预制面团
+			for (const ing of mainDoughSource.ingredients) {
+				// @ts-ignore
+				if (ing.linkedPreDough) {
+					// @ts-ignore
+					const preDough = ing.linkedPreDough;
+					const preDoughActiveVersion = preDough.versions.find((v : any) => v.isActive);
+					if (preDoughActiveVersion && preDoughActiveVersion.doughs[0]) {
+						const preDoughRecipe = preDoughActiveVersion.doughs[0];
+
+						const preDoughTotalRatio = preDoughRecipe.ingredients.reduce((sum : number, i : any) => sum + i.ratio, 0);
+
+						const conversionFactor = preDoughTotalRatio > 0 ? ing.ratio / preDoughTotalRatio : 0;
+
+						const preDoughFlourRatioInPreDough = preDoughRecipe.ingredients
+							.filter((i : any) => i.ingredient?.isFlour)
+							.reduce((sum : number, i : any) => sum + i.ratio, 0);
+
+						const effectiveFlourRatio = preDoughFlourRatioInPreDough * conversionFactor;
+
+						preDoughObjectsForForm.push({
+							id: preDough.id,
+							name: preDough.name,
+							type: 'PRE_DOUGH',
+							flourRatioInMainDough: effectiveFlourRatio * 100,
+							ingredients: preDoughRecipe.ingredients.map((i : any) => ({
+								id: i.ingredient.id,
+								name: i.ingredient.name,
+								ratio: (i.ratio * conversionFactor) * 100,
+							}))
+						});
+					}
+					// @ts-ignore
+				} else if (ing.ingredient) {
+					mainDoughIngredientsForForm.push({
+						// @ts-ignore
+						id: ing.ingredient.id,
+						// @ts-ignore
+						name: ing.ingredient.name,
+						ratio: ing.ratio * 100,
+					});
+				}
+			}
+
+			const mainDoughObjectForForm = {
+				id: `main_${Date.now()}`,
+				name: '主面团',
+				type: 'MAIN_DOUGH',
+				// @ts-ignore
+				lossRatio: mainDoughSource.lossRatio ? mainDoughSource.lossRatio * 100 : 0,
+				ingredients: mainDoughIngredientsForForm,
+			};
+
+			// 2. 构建与 edit.vue 表单结构完全匹配的完整对象
 			const formTemplate = {
 				name: recipeFamily.value?.name || '',
 				type: recipeFamily.value?.type || 'MAIN',
 				notes: '',
-				doughs: sourceVersion.doughs.map(d => ({
-					// 注意：这里需要根据后端返回的 doughs 结构来确定哪个是主面团，哪个是面种
-					// 为简化起见，我们假设第一个 dough 是主面团，其他的需要重新添加
-					// 这是一个待优化的点，需要后端 API 支持更明确的 dough 类型
-					id: `main_${Date.now()}`,
-					name: '主面团',
-					type: 'MAIN_DOUGH',
-					lossRatio: 0, // 损耗率在新版本中重置
-					ingredients: d.ingredients.map(ing => ({
-						id: ing.ingredient.id,
-						name: ing.ingredient.name,
-						ratio: ing.ratio * 100, // API是小数，表单是百分比
-					}))
-				})),
-				products: sourceVersion.products.map((p, index) => {
-					const details = detailedProductsResults[index];
+				doughs: [mainDoughObjectForForm, ...preDoughObjectsForForm],
+				products: sourceVersion.products.map(p => {
+					const processProductIngredients = (type : 'MIX_IN' | 'FILLING') => {
+						// @ts-ignore
+						return p.ingredients
+							.filter(ing => ing.type === type && (ing.ingredient || ing.linkedExtra))
+							.map(ing => {
+								return {
+									// @ts-ignore
+									id: ing.ingredient?.id || ing.linkedExtra?.id,
+									// @ts-ignore
+									ratio: ing.ratio ? ing.ratio * 100 : null,
+									// @ts-ignore
+									weightInGrams: ing.weightInGrams
+								};
+							});
+					};
+
 					return {
 						name: p.name,
 						baseDoughWeight: p.baseDoughWeight,
-						mixIns: details.extraIngredients
-							.filter(ex => ex.type === '搅拌原料')
-							.map(ex => ({ id: ex.id, ratio: ex.ratio ? ex.ratio * 100 : null })),
-						fillings: details.extraIngredients
-							.filter(ex => ex.type === '馅料')
-							.map(ex => ({ id: ex.id, weightInGrams: ex.weightInGrams })),
+						mixIns: processProductIngredients('MIX_IN'),
+						fillings: processProductIngredients('FILLING'),
 					};
 				})
 			};
@@ -208,6 +261,7 @@
 			uni.navigateTo({
 				url: `/pages/recipes/edit?familyId=${familyId}`
 			});
+
 		} catch (error) {
 			console.error("准备新版本数据失败:", error);
 			toastStore.show({ message: '准备新版本数据失败', type: 'error' });
