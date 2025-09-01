@@ -312,6 +312,8 @@
 		.table-header {
 			color: var(--text-secondary);
 			font-weight: 500;
+			background-color: transparent;
+			border-bottom: 1px solid var(--border-color);
 		}
 
 		.table-row {
@@ -348,7 +350,6 @@
 			word-break: break-word;
 		}
 
-		/* [核心修正] 将 col-total 的加粗样式移除 */
 		.col-total {
 			font-weight: 400;
 		}
@@ -420,12 +421,9 @@
 		.col-cost {
 			text-align: right;
 			white-space: nowrap;
-			/* [核心修正] 移除颜色覆盖，使其与普通文本颜色一致 */
-			/* color: var(--text-secondary); */
 		}
 
 		.col-cost {
-			/* [核心修正] 移除加粗样式 */
 			font-weight: 400;
 			color: var(--text-primary);
 		}
@@ -433,10 +431,24 @@
 
 	.detail-table {
 		margin-top: 15px;
+		table-layout: fixed;
+
+		.col-ingredient {
+			width: 50%;
+		}
+
+		.col-usage {
+			width: 25%;
+		}
+
+		.col-total {
+			width: 25%;
+		}
 	}
 
 	.summary-header {
-		background-color: #faf8f5;
+		background-color: transparent;
+		border-bottom: 1px solid var(--border-color);
 	}
 
 	.summary-table-wrapper {

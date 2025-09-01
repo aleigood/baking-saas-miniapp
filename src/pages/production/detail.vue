@@ -100,7 +100,7 @@
 
 								<template v-if="selectedProductDetails">
 									<template
-										v-if="selectedProductDetails.mixIns.length > 0 || selectedProductDetails.fillings.length > 0">
+										v-if="selectedProductDetails.mixIns.length > 0 || selectedProductDetails.fillings.length > 0 || (selectedProductDetails.toppings && selectedProductDetails.toppings.length > 0)">
 										<template v-if="selectedProductDetails.mixIns.length > 0">
 											<view class="recipe-table detail-table">
 												<view class="table-header summary-header">
@@ -126,6 +126,24 @@
 													<text class="col-usage">用量/个</text>
 												</view>
 												<view v-for="ing in selectedProductDetails.fillings" :key="ing.id"
+													class="table-row">
+													<text class="col-ingredient">{{ ing.name }}</text>
+													<text
+														class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
+													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+												</view>
+											</view>
+										</template>
+
+										<template
+											v-if="selectedProductDetails.toppings && selectedProductDetails.toppings.length > 0">
+											<view class="recipe-table detail-table">
+												<view class="table-header summary-header">
+													<text class="col-ingredient">表面装饰</text>
+													<text class="col-brand">品牌</text>
+													<text class="col-usage">用量/个</text>
+												</view>
+												<view v-for="ing in selectedProductDetails.toppings" :key="ing.id"
 													class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
 													<text
@@ -195,7 +213,7 @@
 		computed,
 		reactive,
 		watch,
-		nextTick, // [核心新增] 引入 nextTick
+		nextTick,
 	} from 'vue';
 	import {
 		onLoad
@@ -209,11 +227,9 @@
 	import {
 		useTemperatureStore
 	} from '@/store/temperature';
-	// [核心修改] 导入新的 DTO 类型
 	import type {
 		TaskCompletionItem
 	} from '@/types/api';
-	// [核心修改] 修正 ProductionTaskDetailDto 的导入路径
 	import type { ProductionTaskDetailDto } from '@/types/api';
 	import {
 		getTaskDetail,
@@ -226,7 +242,6 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import AnimatedTabs from '@/components/CssAnimatedTabs.vue';
-	// [核心新增] 引入新的格式化函数
 	import { formatWeight } from '@/utils/format';
 
 	defineOptions({
@@ -239,16 +254,12 @@
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
-	// [核心修改] task 的类型更新为新的 DTO
 	const task = ref<ProductionTaskDetailDto | null>(null);
-	// [核心新增] 增加一个 taskId 的 ref 用于重新加载数据
 	const taskId = ref<string | null>(null);
 	const showCompleteTaskModal = ref(false);
 	const isStarted = ref(false);
-	// [核心新增] 新增只读状态
 	const isReadOnly = ref(false);
 	const selectedDoughFamilyId = ref<string | null>(null);
-	// [核心修改] 将 addedIngredients 改造为支持多面团的 reactive 对象
 	const addedIngredientsMap = reactive<Record<string, Set<string>>>({});
 	const collapsedSections = ref(new Set<string>());
 	const selectedProductId = ref<string>('');
@@ -282,7 +293,6 @@
 		showCompleteTaskModal.value = true;
 	};
 
-	// [核心修改] 计算属性现在直接从 task.value.items 获取数据
 	const allProductsInTask = computed(() => {
 		return task.value?.items || [];
 	});
@@ -315,13 +325,11 @@
 		immediate: true
 	});
 
-	// [核心修改] 增加损耗数量校验
 	const onSpoilageQuantityInput = (stage : string, productId : string, event : any) => {
 		const value = event.target?.value ?? event.detail.value;
 		const product = allProductsInTask.value.find(p => p.id === productId);
 		if (!product) return;
 
-		// 计算除当前输入框外，其他所有阶段的总损耗
 		let otherStagesSpoilage = 0;
 		for (const stageKey in spoilageQuantities) {
 			if (stageKey !== stage) {
@@ -341,7 +349,6 @@
 				type: 'error',
 				duration: 2000
 			});
-			// 使用 nextTick 确保在DOM更新后再设置值，防止双向绑定问题
 			nextTick(() => {
 				if (spoilageQuantities[stage]) {
 					const maxAllowed = product.plannedQuantity - otherStagesSpoilage;
@@ -395,7 +402,6 @@
 
 	onLoad(async (options) => {
 		taskId.value = options?.taskId || null;
-		// [核心新增] 检查来源参数
 		if (options?.from === 'history') {
 			isReadOnly.value = true;
 		}
@@ -407,18 +413,15 @@
 		await loadTaskData(taskId.value);
 	});
 
-	// [核心新增] 将加载逻辑封装成一个函数
 	const loadTaskData = async (id : string) => {
 		isLoading.value = true;
 		try {
 			temperatureStore.initTemperatureSettings();
-			// [核心修改] API 返回的就是处理好的数据，直接赋值
 			const response = await getTaskDetail(id, temperatureStore.settings);
 			task.value = response;
 
 			if (task.value.status === 'IN_PROGRESS' || task.value.status === 'COMPLETED' || task.value.status === 'CANCELLED') {
 				isStarted.value = true;
-				// [核心修改] 初始化时默认选中第一个面团和该面团的第一个产品
 				if (task.value.doughGroups.length > 0) {
 					const firstDough = task.value.doughGroups[0];
 					selectedDoughFamilyId.value = firstDough.familyId;
@@ -444,7 +447,6 @@
 		collapsedSections.value = newSet;
 	};
 
-	// [核心修改] 更新 toggleIngredientAdded 逻辑以支持多面团
 	const toggleIngredientAdded = (doughFamilyId : string, ingredientId : string) => {
 		if (isReadOnly.value) return;
 		if (!addedIngredientsMap[doughFamilyId]) {
@@ -464,7 +466,6 @@
 		try {
 			await updateTaskStatus(task.value.id, 'IN_PROGRESS');
 			isStarted.value = true;
-			// [核心修复] 开始任务后，立即重新加载任务数据
 			await loadTaskData(taskId.value);
 			toastStore.show({
 				message: '任务已开始',
@@ -477,11 +478,9 @@
 	};
 
 	const selectDough = (familyId : string) => {
-		// [核心修改] 任务未开始时不允许选择
 		if (!isStarted.value && !isReadOnly.value) return;
 
 		selectedDoughFamilyId.value = familyId;
-		// [核心修改] 当切换面团时，自动选中该面团下的第一个产品
 		const doughDetails = selectedDoughDetails.value;
 		if (doughDetails && doughDetails.productDetails.length > 0) {
 			selectedProductId.value = doughDetails.productDetails[0].id;
@@ -490,20 +489,16 @@
 		}
 	};
 
-	// [核心重构] 移除 groupedDoughs 计算属性，直接使用 task.value.doughGroups
-	// [核心重构] selectedDoughDetails 现在是一个简单的查找
 	const selectedDoughDetails = computed(() => {
 		if (!task.value || !selectedDoughFamilyId.value) return null;
 		return task.value.doughGroups.find(d => d.familyId === selectedDoughFamilyId.value) || null;
 	});
 
-	// [核心重构] selectedProductDetails 现在是一个简单的查找
 	const selectedProductDetails = computed(() => {
 		if (!selectedDoughDetails.value || !selectedProductId.value) return null;
 		return selectedDoughDetails.value.productDetails.find(p => p.id === selectedProductId.value);
 	});
 
-	// [核心重构] productTabs 现在是一个简单的映射
 	const productTabs = computed(() => {
 		if (!selectedDoughDetails.value) return [];
 		return selectedDoughDetails.value.productDetails.map(p => ({
@@ -517,7 +512,6 @@
 	@import '@/styles/common.scss';
 	@include list-item-content-style;
 
-	/* [核心新增] 增加一个用于设置字体大小的通用类 */
 	.font-size-14 {
 		font-size: 14px;
 	}
@@ -596,7 +590,7 @@
 		padding: 15px;
 		margin-bottom: 20px;
 		color: var(--primary-color);
-		border-radius: 20px; // 新增
+		border-radius: 20px;
 	}
 
 	.warning-content {
@@ -679,6 +673,13 @@
 		padding: 0 5px;
 	}
 
+	.recipe-table,
+	.info-table {
+		.table-header {
+			border-bottom: 1px solid var(--border-color);
+		}
+	}
+
 	.recipe-table {
 		display: table;
 		width: 100%;
@@ -697,7 +698,7 @@
 		}
 
 		.table-header.summary-header {
-			background-color: #faf8f5;
+			background-color: transparent;
 		}
 
 		.table-row {
