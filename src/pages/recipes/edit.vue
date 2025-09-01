@@ -17,9 +17,11 @@
 					<view class="card" v-if="dough.type === 'PRE_DOUGH'">
 						<view class="card-title-wrapper">
 							<span class="card-title">{{ dough.name }}</span>
-							<IconButton class="card-delete-btn" @click="removeDough(doughIndex)">
-								<image class="remove-icon" src="/static/icons/close-x.svg" />
-							</IconButton>
+							<view class="card-delete-btn-wrapper">
+								<IconButton @click="removeDough(doughIndex)">
+									<image class="remove-icon" src="/static/icons/close-x.svg" />
+								</IconButton>
+							</view>
 						</view>
 						<view v-for="ing in dough.ingredients" :key="ing.name" class="info-row">
 							<text class="info-label">{{ ing.name }}</text>
@@ -33,8 +35,10 @@
 						</view>
 					</view>
 				</template>
-				<AppButton type="dashed" full-width size="md" @click="openAddPreDoughModal" class="add-button">+ 添加面种
-				</AppButton>
+				<view class="add-button-container">
+					<AppButton type="dashed" full-width size="md" @click="openAddPreDoughModal">+ 添加面种
+					</AppButton>
+				</view>
 
 
 				<view class="card">
@@ -88,9 +92,11 @@
 					<view class="card" v-show="activeProductTab === prodIndex">
 						<view class="card-title-wrapper">
 							<span class="card-title">{{ product.name || `产品${prodIndex + 1}` }}</span>
-							<IconButton class="card-delete-btn" @click="removeProduct(prodIndex)">
-								<image class="remove-icon" src="/static/icons/close-x.svg" />
-							</IconButton>
+							<view class="card-delete-btn-wrapper">
+								<IconButton @click="removeProduct(prodIndex)">
+									<image class="remove-icon" src="/static/icons/close-x.svg" />
+								</IconButton>
+							</view>
 						</view>
 						<FormItem label="产品名称">
 							<input class="input-field" v-model="product.name" :placeholder="`产品${prodIndex + 1}`" />
@@ -224,7 +230,9 @@
 	import IconButton from '@/components/IconButton.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import type { RecipeVersion, RecipeFamily, DoughIngredient, Ingredient } from '@/types/api';
-	import { formatNumber, toDecimal, toPercentage } from '@/utils/format';
+	// [核心修改] 引入高精度乘法函数
+	import { formatNumber, toDecimal, toPercentage, multiply } from '@/utils/format';
+
 
 	defineOptions({
 		inheritAttrs: false
@@ -397,8 +405,9 @@
 					id: i.ingredient.id,
 					// @ts-ignore
 					name: i.ingredient.name,
+					// [核心修复] 使用高精度乘法进行计算
 					// @ts-ignore
-					ratio: parseFloat(((i.ratio * conversionFactor) * 100).toFixed(4)),
+					ratio: multiply(multiply(i.ratio, conversionFactor), 100),
 				}
 			});
 
@@ -473,12 +482,13 @@
 	};
 
 	const handleSubmit = async () => {
+		// [功能增强] 增加更全面的前端验证
 		if (!form.value.name.trim()) {
 			toastStore.show({ message: '请输入配方名称', type: 'error' });
 			return;
 		}
 
-		if (form.value.products.some(p => !p.name.trim())) {
+		if (form.value.products.length > 0 && form.value.products.some(p => !p.name.trim())) {
 			toastStore.show({ message: '所有产品都必须填写名称', type: 'error' });
 			return;
 		}
@@ -503,6 +513,7 @@
 			}
 		}
 
+		// [功能增强] 增加一个小的容错区间来处理浮点数问题
 		if (Math.abs(totalFlourPercentage - 100) > 0.01) {
 			toastStore.show({ message: `所有面粉类原料的比例之和必须为100%，当前为${formatNumber(totalFlourPercentage)}%`, type: 'error', duration: 4000 });
 			return;
@@ -534,8 +545,21 @@
 
 			const preDoughs = form.value.doughs.filter(d => d.type === 'PRE_DOUGH');
 			for (const preDough of preDoughs) {
+				// [核心诊断与修复] 使用高精度加法来汇总面种中所有原料在主面团中的总比例
+				let totalRatioInteger = 0;
+				// 设定一个固定的、足够大的乘数，例如 10^8
+				const multiplier = 100000000;
+
+				// 1. 将所有比例都转为整数再相加
 				// @ts-ignore
-				const totalRatioInMain = preDough.ingredients.reduce((sum, ing) => sum + toDecimal(ing.ratio), 0);
+				preDough.ingredients.forEach(ing => {
+					const ratio = ing.ratio || 0;
+					totalRatioInteger += Math.round(multiply(ratio, multiplier));
+				});
+
+				// 2. 将整数和还原为小数，并除以100得到最终的 Baker's Percentage 小数值
+				const totalRatioInMain = (totalRatioInteger / multiplier) / 100;
+
 				allMainDoughIngredients.push({
 					// @ts-ignore
 					name: preDough.name,
@@ -728,8 +752,15 @@
 		color: var(--text-primary);
 	}
 
-	.add-button {
+	/* [样式修复] 增加外层容器来控制按钮的上下外边距 */
+	.add-button-container {
+		padding: 0 15px;
 		margin-bottom: 20px;
+	}
+
+	.add-button {
+		/* [样式修复] 移除按钮自身的 margin-bottom */
+		margin-bottom: 0;
 		min-height: 46px;
 	}
 
@@ -787,9 +818,16 @@
 		margin-bottom: 20px;
 	}
 
-	.card-delete-btn {
+	/* [样式修复] 使用 wrapper 容器来解决小程序中的样式问题 */
+	.card-delete-btn-wrapper {
 		width: 32px;
 		height: 32px;
+		border-radius: 50%;
+		/* 设置一个背景色以确保在小程序中渲染正确 */
 		background-color: #f8f9fa;
+		/* 让内部的 IconButton 组件可以完美对齐 */
+		display: flex;
+		justify-content: center;
+		align-items: center;
 	}
 </style>

@@ -4,6 +4,27 @@
  */
 
 /**
+ * [核心新增] 高精度乘法函数，用于避免浮点数计算的精度问题
+ * @param a - 第一个乘数
+ * @param b - 第二个乘数
+ * @returns 准确的乘法结果
+ */
+export const multiply = (a : number, b : number) : number => {
+	// 获取数字的小数位数
+	const getDecimalLength = (n : number) => (String(n).split('.')[1] || '').length;
+	const lenA = getDecimalLength(a);
+	const lenB = getDecimalLength(b);
+	// 计算放大倍数
+	const multiplier = Math.pow(10, lenA + lenB);
+	// 将浮点数转换为整数进行计算
+	const intA = Math.round(a * Math.pow(10, lenA));
+	const intB = Math.round(b * Math.pow(10, lenB));
+	// 计算结果并还原小数位数
+	return (intA * intB) / multiplier;
+};
+
+
+/**
  * 格式化日期为 "YYYY/M/D" 的格式
  * @param dateInput - 可以是日期字符串或Date对象
  * @returns 格式化后的中文字符串，如果输入无效则返回空字符串
@@ -177,15 +198,8 @@ export const toPercentage = (decimalValue : number | null | undefined) => {
 	if (decimalValue === null || decimalValue === undefined || isNaN(decimalValue)) {
 		return 0;
 	}
-	const decimalStr = String(decimalValue);
-	const decimalParts = decimalStr.split('.');
-	if (decimalParts.length === 1) {
-		return decimalValue * 100;
-	}
-	const decimalPlaces = decimalParts[1].length;
-	const multiplier = Math.pow(10, decimalPlaces);
-	const enlarged = Math.round(decimalValue * multiplier);
-	return (enlarged * 100) / multiplier;
+	// 直接使用高精度乘法
+	return multiply(decimalValue, 100);
 };
 
 /**

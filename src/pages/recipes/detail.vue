@@ -84,21 +84,13 @@
 	import Toast from '@/components/Toast.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
+	// [核心修改] 引入高精度乘法函数
+	import { multiply } from '@/utils/format';
+
 
 	defineOptions({
 		inheritAttrs: false
 	});
-
-	// [核心新增] 高精度乘法函数
-	const multiply = (a : number, b : number) : number => {
-		const getDecimalLength = (n : number) => (String(n).split('.')[1] || '').length;
-		const lenA = getDecimalLength(a);
-		const lenB = getDecimalLength(b);
-		const multiplier = Math.pow(10, lenA + lenB);
-		const intA = Math.round(a * Math.pow(10, lenA));
-		const intB = Math.round(b * Math.pow(10, lenB));
-		return (intA * intB) / multiplier;
-	};
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -199,17 +191,19 @@
 						const preDoughFlourRatioInPreDough = preDoughRecipe.ingredients
 							.filter((i : any) => i.ingredient?.isFlour)
 							.reduce((sum : number, i : any) => sum + i.ratio, 0);
-
+						// [核心修复] 使用高精度乘法进行计算
 						const effectiveFlourRatio = multiply(preDoughFlourRatioInPreDough, conversionFactor);
 
 						preDoughObjectsForForm.push({
 							id: preDough.id,
 							name: preDough.name,
 							type: 'PRE_DOUGH',
+							// [核心修复] 使用高精度乘法进行计算
 							flourRatioInMainDough: multiply(effectiveFlourRatio, 100),
 							ingredients: preDoughRecipe.ingredients.map((i : any) => ({
 								id: i.ingredient.id,
 								name: i.ingredient.name,
+								// [核心修复] 使用高精度乘法进行计算
 								ratio: multiply(multiply(i.ratio, conversionFactor), 100),
 							})),
 							procedure: preDoughRecipe.procedure || [],
@@ -222,7 +216,8 @@
 						id: ing.ingredient.id,
 						// @ts-ignore
 						name: ing.ingredient.name,
-						ratio: ing.ratio * 100,
+						// [核心修复] 使用高精度乘法进行计算
+						ratio: multiply(ing.ratio, 100),
 					});
 				}
 			}
@@ -232,7 +227,7 @@
 				name: '主面团',
 				type: 'MAIN_DOUGH',
 				// @ts-ignore
-				lossRatio: mainDoughSource.lossRatio ? mainDoughSource.lossRatio * 100 : 0,
+				lossRatio: mainDoughSource.lossRatio ? multiply(mainDoughSource.lossRatio, 100) : 0,
 				ingredients: mainDoughIngredientsForForm,
 				procedure: mainDoughSource.procedure || [],
 			};
@@ -252,7 +247,7 @@
 									// @ts-ignore
 									id: ing.ingredient?.id || ing.linkedExtra?.id,
 									// @ts-ignore
-									ratio: ing.ratio ? ing.ratio * 100 : null,
+									ratio: ing.ratio ? multiply(ing.ratio, 100) : null,
 									// @ts-ignore
 									weightInGrams: ing.weightInGrams
 								};
