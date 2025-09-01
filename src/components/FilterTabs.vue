@@ -1,6 +1,6 @@
 <template>
-	<scroll-view class="filter-tabs" :scroll-x="true" :show-scrollbar="false" scroll-with-animation
-		:scroll-into-view="scrollTargetId">
+	<scroll-view class="filter-tabs" :scroll-x="true" :show-scrollbar="false" :scroll-left="scrollLeft"
+		scroll-with-animation>
 		<view class="tabs-wrapper">
 			<view v-for="(tab, index) in tabs" :key="tab.key" :id="'filter-tab-' + tab.key"
 				class="tab-item ripple-container" :class="{ active: modelValue === tab.key }"
@@ -22,7 +22,6 @@
 		ref,
 		watch,
 		nextTick,
-		onMounted,
 		getCurrentInstance,
 		reactive
 	} from 'vue';
@@ -38,27 +37,11 @@
 	const emit = defineEmits(['update:modelValue', 'add']);
 
 	const instance = getCurrentInstance();
-	const scrollTargetId = ref('');
 	const isFromClick = ref(false);
-	const containerInfo = ref<UniApp.BoundingClientRect | null>(null);
+	const scrollLeft = ref(0);
 
 	const ripples = reactive<Record<string | number, any[]>>({
 		add: []
-	});
-
-	const getContainerInfo = () => {
-		setTimeout(() => {
-			const query = uni.createSelectorQuery().in(instance);
-			query.select('.filter-tabs').boundingClientRect(rect => {
-				if (rect) {
-					containerInfo.value = rect;
-				}
-			}).exec();
-		}, 100);
-	};
-
-	onMounted(() => {
-		getContainerInfo();
 	});
 
 	watch(() => props.tabs, (newTabs) => {
@@ -67,9 +50,6 @@
 		});
 		newTabs.forEach((tab) => {
 			ripples[tab.key] = [];
-		});
-		nextTick(() => {
-			getContainerInfo();
 		});
 	}, {
 		deep: true,
@@ -109,7 +89,6 @@
 		}).exec();
 	};
 
-	// [核心修复] 恢复并优化智能滚动逻辑
 	watch(() => props.modelValue, (newValue) => {
 		if (!props.tabs || props.tabs.length === 0) {
 			return;
@@ -117,62 +96,84 @@
 
 		nextTick(() => {
 			const activeIndex = props.tabs.findIndex(tab => tab.key === newValue);
-			if (activeIndex === -1) return;
+			if (activeIndex === -1) {
+				return;
+			}
 
-			const activeTabKey = props.tabs[activeIndex].key;
-
-			if (isFromClick.value) {
+			setTimeout(() => {
 				const query = uni.createSelectorQuery().in(instance);
-				// 同时获取容器和所有标签项的布局信息
-				query.select('.filter-tabs').boundingClientRect();
-				query.selectAll('.tab-item:not(.add-tab)').boundingClientRect();
+				query.select('.filter-tabs').fields({
+					rect: true,
+					scrollOffset: true
+				});
+				query.selectAll('.tab-item').boundingClientRect();
 
 				query.exec((res) => {
-					const containerRect = res[0];
-					const allTabsRects = res[1];
+					const containerResult = res[0];
+					let allTabsRects = res[1];
 
-					if (containerRect && Array.isArray(allTabsRects) && allTabsRects.length > 0 && activeIndex < allTabsRects.length) {
+					if (!containerResult || !Array.isArray(allTabsRects) || allTabsRects.length === 0) {
+						return;
+					}
 
-						const containerLeft = containerRect.left;
-						const containerRight = containerRect.right;
+					if (props.editable && allTabsRects.length > props.tabs.length) {
+						allTabsRects = allTabsRects.slice(0, props.tabs.length);
+					}
 
-						let targetScrollIndex = -1;
+					if (activeIndex >= allTabsRects.length) {
+						return;
+					}
 
-						// 检查右侧是否需要滚动：下一个标签是否在屏幕外
+					const currentScrollLeft = containerResult.scrollLeft;
+					const containerRect = containerResult;
+					const containerWidth = containerRect.width;
+					let newScrollLeft = currentScrollLeft;
+
+					if (isFromClick.value) {
+						isFromClick.value = false;
+
 						if (activeIndex < allTabsRects.length - 1) {
 							const nextTabRect = allTabsRects[activeIndex + 1];
-							if (nextTabRect.right > containerRight) {
-								targetScrollIndex = activeIndex + 1;
+							if (nextTabRect.right > containerRect.right) {
+								newScrollLeft = currentScrollLeft + (nextTabRect.right - containerRect.right) + 10;
 							}
 						}
 
-						// 检查左侧是否需要滚动：上一个标签是否在屏幕外
-						if (activeIndex > 0) {
+						if (newScrollLeft === currentScrollLeft && activeIndex > 0) {
 							const prevTabRect = allTabsRects[activeIndex - 1];
-							if (prevTabRect.left < containerLeft) {
-								targetScrollIndex = activeIndex - 1;
+							if (prevTabRect.left < containerRect.left) {
+								newScrollLeft = currentScrollLeft - (containerRect.left - prevTabRect.left) - 10;
 							}
 						}
 
-						// 如果计算出了需要滚动到的目标，则执行滚动
-						if (targetScrollIndex !== -1) {
-							scrollTargetId.value = `filter-tab-${props.tabs[targetScrollIndex].key}`;
-						} else {
-							// 如果目标标签自身就在屏幕外，也需要滚动
+						if (newScrollLeft === currentScrollLeft) {
 							const activeTabRect = allTabsRects[activeIndex];
-							if (activeTabRect.right > containerRight || activeTabRect.left < containerLeft) {
-								scrollTargetId.value = `filter-tab-${activeTabKey}`;
+							if (activeTabRect.left < containerRect.left) {
+								newScrollLeft = currentScrollLeft + (activeTabRect.left - containerRect.left);
+							} else if (activeTabRect.right > containerRect.right) {
+								newScrollLeft = currentScrollLeft + (activeTabRect.right - containerRect.right);
 							}
+						}
+					} else {
+						const activeTabRect = allTabsRects[activeIndex];
+						if (activeTabRect.left < containerRect.left) {
+							newScrollLeft = currentScrollLeft + (activeTabRect.left - containerRect.left);
+						} else if (activeTabRect.right > containerRect.right) {
+							newScrollLeft = currentScrollLeft + (activeTabRect.right - containerRect.right);
 						}
 					}
+
+					if (Math.abs(newScrollLeft - currentScrollLeft) < 1) {
+						return;
+					}
+
+					scrollLeft.value = newScrollLeft;
 				});
-				isFromClick.value = false;
-			} else {
-				// 如果不是通过点击触发的（例如，页面初始化），直接滚动到目标
-				scrollTargetId.value = `filter-tab-${activeTabKey}`;
-			}
+			}, 100);
 		});
-	}, { immediate: true });
+	}, {
+		immediate: true
+	});
 </script>
 
 <style scoped lang="scss">
