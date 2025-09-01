@@ -72,10 +72,28 @@
 	onLoad(async (options) => {
 		const memberId = options?.memberId;
 		if (memberId) {
-			const memberFromStore = dataStore.members.find(m => m.id === memberId);
-			if (memberFromStore) {
-				selectedMember.value = JSON.parse(JSON.stringify(memberFromStore));
-				editableMemberRole.value = selectedMember.value.role;
+			// [核心修复] 检查要查看的ID是否是当前登录用户的ID
+			if (memberId === userStore.userInfo?.id) {
+				// 如果是，直接从 userStore 构建成员信息，确保个人信息页能正确显示
+				const currentUserTenantInfo = userStore.userInfo.tenants.find(t => t.tenant.id === dataStore.currentTenantId);
+				if (currentUserTenantInfo) {
+					selectedMember.value = {
+						id: userStore.userInfo.id,
+						name: userStore.userInfo.name || '',
+						phone: userStore.userInfo.phone,
+						role: currentUserTenantInfo.role,
+						status: 'ACTIVE', // 假设当前用户总是激活状态
+						joinDate: userStore.userInfo.createdAt, // 使用账户创建日期作为加入日期
+					};
+					editableMemberRole.value = selectedMember.value.role;
+				}
+			} else {
+				// 如果不是，执行原有逻辑，从成员列表中查找
+				const memberFromStore = dataStore.members.find(m => m.id === memberId);
+				if (memberFromStore) {
+					selectedMember.value = JSON.parse(JSON.stringify(memberFromStore));
+					editableMemberRole.value = selectedMember.value.role;
+				}
 			}
 		}
 		isLoading.value = false;
