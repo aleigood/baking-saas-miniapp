@@ -89,6 +89,17 @@
 		inheritAttrs: false
 	});
 
+	// [核心新增] 高精度乘法函数
+	const multiply = (a : number, b : number) : number => {
+		const getDecimalLength = (n : number) => (String(n).split('.')[1] || '').length;
+		const lenA = getDecimalLength(a);
+		const lenB = getDecimalLength(b);
+		const multiplier = Math.pow(10, lenA + lenB);
+		const intA = Math.round(a * Math.pow(10, lenA));
+		const intB = Math.round(b * Math.pow(10, lenB));
+		return (intA * intB) / multiplier;
+	};
+
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
@@ -189,17 +200,17 @@
 							.filter((i : any) => i.ingredient?.isFlour)
 							.reduce((sum : number, i : any) => sum + i.ratio, 0);
 
-						const effectiveFlourRatio = preDoughFlourRatioInPreDough * conversionFactor;
+						const effectiveFlourRatio = multiply(preDoughFlourRatioInPreDough, conversionFactor);
 
 						preDoughObjectsForForm.push({
 							id: preDough.id,
 							name: preDough.name,
 							type: 'PRE_DOUGH',
-							flourRatioInMainDough: effectiveFlourRatio * 100,
+							flourRatioInMainDough: multiply(effectiveFlourRatio, 100),
 							ingredients: preDoughRecipe.ingredients.map((i : any) => ({
 								id: i.ingredient.id,
 								name: i.ingredient.name,
-								ratio: (i.ratio * conversionFactor) * 100,
+								ratio: multiply(multiply(i.ratio, conversionFactor), 100),
 							})),
 							procedure: preDoughRecipe.procedure || [],
 						});
@@ -223,7 +234,6 @@
 				// @ts-ignore
 				lossRatio: mainDoughSource.lossRatio ? mainDoughSource.lossRatio * 100 : 0,
 				ingredients: mainDoughIngredientsForForm,
-				// [核心新增] 将 procedure 也传递过去
 				procedure: mainDoughSource.procedure || [],
 			};
 
@@ -255,7 +265,6 @@
 						mixIns: processProductIngredients('MIX_IN'),
 						fillings: processProductIngredients('FILLING'),
 						toppings: processProductIngredients('TOPPING'),
-						// [核心新增] 将 procedure 也传递过去
 						procedure: p.procedure || [],
 					};
 				})

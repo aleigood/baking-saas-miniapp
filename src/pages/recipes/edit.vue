@@ -17,7 +17,7 @@
 					<view class="card" v-if="dough.type === 'PRE_DOUGH'">
 						<view class="card-title-wrapper">
 							<span class="card-title">{{ dough.name }}</span>
-							<IconButton @click="removeDough(doughIndex)">
+							<IconButton class="card-delete-btn" @click="removeDough(doughIndex)">
 								<image class="remove-icon" src="/static/icons/close-x.svg" />
 							</IconButton>
 						</view>
@@ -61,7 +61,7 @@
 						</view>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
-						<IconButton @click="removeIngredient(ingIndex)">
+						<IconButton variant="field" @click="removeIngredient(ingIndex)">
 							<image class="remove-icon" src="/static/icons/close-x.svg" />
 						</IconButton>
 					</view>
@@ -72,7 +72,7 @@
 						<text class="notes-title">制作要点:</text>
 						<view v-for="(step, stepIndex) in mainDough.procedure" :key="stepIndex" class="procedure-item">
 							<input class="input-field" v-model="mainDough.procedure[stepIndex]" placeholder="输入制作步骤" />
-							<IconButton @click="removeProcedureStep(mainDough, stepIndex)">
+							<IconButton variant="field" @click="removeProcedureStep(mainDough, stepIndex)">
 								<image class="remove-icon" src="/static/icons/close-x.svg" />
 							</IconButton>
 						</view>
@@ -88,7 +88,7 @@
 					<view class="card" v-show="activeProductTab === prodIndex">
 						<view class="card-title-wrapper">
 							<span class="card-title">{{ product.name || `产品${prodIndex + 1}` }}</span>
-							<IconButton @click="removeProduct(prodIndex)">
+							<IconButton class="card-delete-btn" @click="removeProduct(prodIndex)">
 								<image class="remove-icon" src="/static/icons/close-x.svg" />
 							</IconButton>
 						</view>
@@ -113,7 +113,7 @@
 								</view>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 									placeholder="%" />
-								<IconButton @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
+								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
 									<image class="remove-icon" src="/static/icons/close-x.svg" />
 								</IconButton>
 							</view>
@@ -134,7 +134,8 @@
 								</view>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
 									placeholder="g/个" />
-								<IconButton @click="removeSubIngredient(prodIndex, 'fillings', ingIndex)">
+								<IconButton variant="field"
+									@click="removeSubIngredient(prodIndex, 'fillings', ingIndex)">
 									<image class="remove-icon" src="/static/icons/close-x.svg" />
 								</IconButton>
 							</view>
@@ -155,7 +156,8 @@
 								</view>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
 									placeholder="g/个" />
-								<IconButton @click="removeSubIngredient(prodIndex, 'toppings', ingIndex)">
+								<IconButton variant="field"
+									@click="removeSubIngredient(prodIndex, 'toppings', ingIndex)">
 									<image class="remove-icon" src="/static/icons/close-x.svg" />
 								</IconButton>
 							</view>
@@ -169,7 +171,7 @@
 								class="procedure-item">
 								<input class="input-field" v-model="product.procedure[stepIndex]"
 									placeholder="输入制作步骤" />
-								<IconButton @click="removeProcedureStep(product, stepIndex)">
+								<IconButton variant="field" @click="removeProcedureStep(product, stepIndex)">
 									<image class="remove-icon" src="/static/icons/close-x.svg" />
 								</IconButton>
 							</view>
@@ -396,7 +398,7 @@
 					// @ts-ignore
 					name: i.ingredient.name,
 					// @ts-ignore
-					ratio: (i.ratio * conversionFactor) * 100,
+					ratio: parseFloat(((i.ratio * conversionFactor) * 100).toFixed(4)),
 				}
 			});
 
@@ -476,6 +478,11 @@
 			return;
 		}
 
+		if (form.value.products.some(p => !p.name.trim())) {
+			toastStore.show({ message: '所有产品都必须填写名称', type: 'error' });
+			return;
+		}
+
 		const validMainIngredients = mainDough.value.ingredients.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0));
 		if (validMainIngredients.length === 0 && form.value.doughs.filter(d => d.type === 'PRE_DOUGH').length === 0) {
 			toastStore.show({ message: '主面团中至少需要一个有效原料或一个面种', type: 'error' });
@@ -536,6 +543,26 @@
 				});
 			}
 
+			const processSubIngredients = (subIngredients : SubIngredientWeight[] | SubIngredientRatio[], type : 'MIX_IN' | 'FILLING' | 'TOPPING') => {
+				return subIngredients
+					.filter(i => i.id && (('ratio' in i && i.ratio !== null && i.ratio > 0) || ('weightInGrams' in i && i.weightInGrams !== null && i.weightInGrams > 0)))
+					.map(i => {
+						const item = availableSubIngredients.value.find(s => s.id === i.id);
+						if (!item) return null;
+
+						const base = { name: item.name, type };
+						if ('ratio' in i) {
+							// @ts-ignore
+							base.ratio = toDecimal(i.ratio);
+						}
+						if ('weightInGrams' in i) {
+							// @ts-ignore
+							base.weightInGrams = i.weightInGrams;
+						}
+						return base;
+					}).filter(Boolean);
+			}
+
 			const payload = {
 				name: form.value.name,
 				type: form.value.type,
@@ -545,27 +572,15 @@
 				procedure: mainDoughFromForm.procedure.filter(p => p && p.trim()),
 				ingredients: allMainDoughIngredients,
 				products: form.value.products.map(p => ({
-					name: p.name || '未命名产品',
+					name: p.name,
 					weight: p.baseDoughWeight,
 					procedure: p.procedure.filter(step => step && step.trim()),
-					mixIn: p.mixIns
-						.filter(i => i.id && (i.ratio !== null && i.ratio > 0))
-						.map(i => {
-							const item = availableSubIngredients.value.find(s => s.id === i.id);
-							return { name: item?.name, ratio: toDecimal(i.ratio), type: 'MIX_IN' }
-						}),
-					fillings: p.fillings
-						.filter(i => i.id && (i.weightInGrams !== null && i.weightInGrams > 0))
-						.map(i => {
-							const item = availableSubIngredients.value.find(s => s.id === i.id);
-							return { name: item?.name, weightInGrams: i.weightInGrams, type: 'FILLING' }
-						}),
-					toppings: p.toppings
-						.filter(i => i.id && (i.weightInGrams !== null && i.weightInGrams > 0))
-						.map(i => {
-							const item = availableSubIngredients.value.find(s => s.id === i.id);
-							return { name: item?.name, weightInGrams: i.weightInGrams, type: 'TOPPING' }
-						}),
+					// @ts-ignore
+					mixIn: processSubIngredients(p.mixIns, 'MIX_IN'),
+					// @ts-ignore
+					fillings: processSubIngredients(p.fillings, 'FILLING'),
+					// @ts-ignore
+					toppings: processSubIngredients(p.toppings, 'TOPPING'),
 				})),
 			};
 
@@ -605,11 +620,6 @@
 		font-size: 14px;
 		background-color: #f8f9fa;
 		box-sizing: border-box;
-	}
-
-	.title-input {
-		flex: 1;
-		margin-right: 10px;
 	}
 
 	.picker-wrapper {
@@ -773,6 +783,13 @@
 	}
 
 	.product-tabs {
-		margin: 0 0 20px 0;
+		margin-top: 20px;
+		margin-bottom: 20px;
+	}
+
+	.card-delete-btn {
+		width: 32px;
+		height: 32px;
+		background-color: #f8f9fa;
 	}
 </style>

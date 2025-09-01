@@ -12,7 +12,7 @@
 	const props = defineProps({
 		variant: {
 			type: String,
-			default: 'default', // 'default' | 'stepper'
+			default: 'default', // 'default' | 'stepper' | 'field'
 		},
 	});
 
@@ -71,7 +71,6 @@
 		padding: 0;
 		border-radius: 50%;
 		background-color: transparent;
-		/* [核心修正] 增加 flex-shrink: 0，防止按钮在 flex 布局中被压缩变形 */
 		flex-shrink: 0;
 	}
 
@@ -79,7 +78,6 @@
 		background-color: rgba(0, 0, 0, 0.08);
 	}
 
-	/* stepper 风格现在用于提供一个带背景的按钮外观 */
 	.icon-button.variant-stepper {
 		width: 40px;
 		height: 40px;
@@ -88,5 +86,13 @@
 		.ripple {
 			background-color: rgba(0, 0, 0, 0.1);
 		}
+	}
+
+	/* [核心新增] 新的 field 变体样式 */
+	.icon-button.variant-field {
+		width: 40px;
+		height: 40px;
+		border: 1px dashed var(--border-color);
+		border-radius: 10px;
 	}
 </style>
