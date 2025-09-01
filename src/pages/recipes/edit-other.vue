@@ -37,12 +37,23 @@
 						</view>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
-						<IconButton @click="removeIngredient(ingIndex)">
+						<IconButton variant="field" @click="removeIngredient(ingIndex)">
 							<image class="remove-icon" src="/static/icons/close-x.svg" />
 						</IconButton>
 					</view>
 					<AppButton type="dashed" full-width size="md" @click="addIngredient" class="add-button">+ 添加原料
 					</AppButton>
+					<view class="procedure-notes">
+						<text class="notes-title">制作要点:</text>
+						<view v-for="(step, stepIndex) in form.procedure" :key="stepIndex" class="procedure-item">
+							<input class="input-field" v-model="form.procedure[stepIndex]" placeholder="输入制作步骤" />
+							<IconButton variant="field" @click="removeProcedureStep(stepIndex)">
+								<image class="remove-icon" src="/static/icons/close-x.svg" />
+							</IconButton>
+						</view>
+						<AppButton type="dashed" full-width size="md" @click="addProcedureStep">+ 添加要点
+						</AppButton>
+					</view>
 				</view>
 
 				<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting" class="save-button">
@@ -77,6 +88,8 @@
 		name: '',
 		type: 'PRE_DOUGH' as 'PRE_DOUGH' | 'EXTRA',
 		ingredients: [{ id: null as string | null, name: '', ratio: null as number | null }],
+		// [核心新增] 增加 procedure 字段以存储制作要点
+		procedure: [''],
 	});
 
 	const recipeTypes = ref([
@@ -121,6 +134,15 @@
 		form.ingredients.splice(ingIndex, 1);
 	};
 
+	// [核心新增] 增加和删除制作步骤的方法
+	const addProcedureStep = () => {
+		form.procedure.push('');
+	};
+
+	const removeProcedureStep = (index : number) => {
+		form.procedure.splice(index, 1);
+	};
+
 	const handleSubmit = async () => {
 		isSubmitting.value = true;
 		try {
@@ -131,6 +153,8 @@
 					ingredientId: ing.id,
 					ratio: toDecimal(ing.ratio),
 				})),
+				// [核心新增] 在提交的数据中包含制作要点
+				procedure: form.procedure.filter(p => p && p.trim()),
 				products: [],
 			};
 
@@ -230,7 +254,7 @@
 	}
 
 	.ratio-input {
-		width: 60px;
+		width: 80px;
 		text-align: center;
 		flex-shrink: 0;
 	}
@@ -247,5 +271,26 @@
 	.add-button {
 		margin-bottom: 20px;
 		min-height: 46px;
+	}
+
+	/* [核心新增] 制作要点相关样式 */
+	.procedure-notes {
+		margin-top: 20px;
+		border-top: 1px solid var(--border-color);
+		padding-top: 20px;
+	}
+
+	.notes-title {
+		display: block;
+		margin-bottom: 8px;
+		font-size: 14px;
+		color: #606266;
+	}
+
+	.procedure-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin-bottom: 10px;
 	}
 </style>

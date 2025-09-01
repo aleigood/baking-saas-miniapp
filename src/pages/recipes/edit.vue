@@ -824,7 +824,7 @@
 		height: 32px;
 		border-radius: 50%;
 		/* 设置一个背景色以确保在小程序中渲染正确 */
-		background-color: #f8f9fa;
+		background-color: #fcf7f1;
 		/* 让内部的 IconButton 组件可以完美对齐 */
 		display: flex;
 		justify-content: center;

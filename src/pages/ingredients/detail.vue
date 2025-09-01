@@ -317,7 +317,7 @@
 		];
 
 		if (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') {
-			actions.splice(1, 0, { icon: '/static/icons/settings.svg', text: '库存调整', action: () => openUpdateStockModal() });
+			actions.splice(2, 0, { icon: '/static/icons/adjust.svg', text: '库存调整', action: () => openUpdateStockModal() });
 		}
 
 		return actions;

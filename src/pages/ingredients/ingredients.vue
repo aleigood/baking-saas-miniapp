@@ -4,7 +4,7 @@
 			<view class="filter-bar">
 				<FilterTabs v-model="ingredientFilter" :tabs="ingredientFilterTabs" />
 				<IconButton @click="navigateToLedger">
-					<image class="header-icon" src="/static/icons/history.svg" />
+					<image class="header-icon" src="/static/icons/log.svg" />
 				</IconButton>
 			</view>
 

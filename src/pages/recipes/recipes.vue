@@ -193,11 +193,11 @@
 	// [核心新增] 定义 FAB 菜单的动作
 	const fabActions = computed(() => {
 		return [{
-			icon: '/static/icons/add-dough.svg',
+			icon: '/static/icons/add.svg',
 			text: '面团配方',
 			action: () => navigateToEditPage(null) // 沿用旧的逻辑
 		}, {
-			icon: '/static/icons/add-extra.svg',
+			icon: '/static/icons/add.svg',
 			text: '其他配方',
 			action: navigateToOtherEditPage
 		}];

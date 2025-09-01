@@ -23,13 +23,13 @@
 			<view class="action-list">
 				<ListItem v-if="canManagePersonnel" class="action-item" @click="navigateToPersonnelList" :bleed="true">
 					<view class="action-item-content">
-						<image class="action-icon" src="/static/icons/settings.svg" />
+						<image class="action-icon" src="/static/icons/person.svg" />
 						<text>人员管理</text>
 					</view>
 				</ListItem>
 				<ListItem class="action-item" @click="handleOpenLogoutConfirm" :bleed="true">
 					<view class="action-item-content">
-						<image class="action-icon" src="/static/icons/remove.svg" />
+						<image class="action-icon" src="/static/icons/logout.svg" />
 						<text>退出登录</text>
 					</view>
 				</ListItem>
