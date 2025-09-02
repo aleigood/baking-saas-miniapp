@@ -289,19 +289,19 @@
 		}));
 	});
 
-	// [核心修改] availablePreDoughs 现在从 dataStore.recipes.otherRecipes 中获取数据
 	const availablePreDoughs = computed(() => dataStore.recipes.otherRecipes.filter(r => r.type === 'PRE_DOUGH' && !r.deletedAt));
 
 	const filteredAvailableIngredients = computed(() => {
 		const preDoughNames = availablePreDoughs.value.map(r => r.name);
-		return dataStore.ingredients.filter(ing => !preDoughNames.includes(ing.name));
+		// [核心修改] 使用新的 allIngredients 计算属性
+		return dataStore.allIngredients.filter(ing => !preDoughNames.includes(ing.name));
 	});
 
 	const availableSubIngredients = computed(() => {
-		// [核心修改] 从 dataStore.recipes.otherRecipes 中获取 'EXTRA' 类型的配方
 		const extras = dataStore.recipes.otherRecipes.filter(r => r.type === 'EXTRA' && !r.deletedAt);
 		const combined = [
-			...dataStore.ingredients.map(i => ({ id: i.id, name: i.name })),
+			// [核心修改] 使用新的 allIngredients 计算属性
+			...dataStore.allIngredients.map(i => ({ id: i.id, name: i.name })),
 			...extras.map(e => ({ id: e.id, name: e.name })),
 		];
 		return combined.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
@@ -336,9 +336,9 @@
 
 	const getIngredientName = (id : string | null) => {
 		if (!id) return '请选择原料';
-		const ingredient = dataStore.ingredients.find(i => i.id === id);
+		// [核心修改] 使用新的 allIngredients 计算属性
+		const ingredient = dataStore.allIngredients.find(i => i.id === id);
 		if (ingredient) return ingredient.name;
-		// [核心修改] 从 dataStore.allRecipes 中查找配方
 		const recipe = dataStore.allRecipes.find(r => r.id === id);
 		if (recipe) return recipe.name;
 		return '未知原料';
@@ -503,7 +503,8 @@
 		}
 
 		let totalFlourPercentage = 0;
-		const allIngredientsMap = new Map(dataStore.ingredients.map(i => [i.id, i]));
+		// [核心修改] 使用新的 allIngredients 计算属性
+		const allIngredientsMap = new Map(dataStore.allIngredients.map(i => [i.id, i]));
 
 		for (const dough of form.value.doughs) {
 			if (dough.type === 'MAIN_DOUGH' || dough.type === 'PRE_DOUGH') {

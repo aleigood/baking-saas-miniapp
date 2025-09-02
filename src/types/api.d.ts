@@ -193,6 +193,12 @@ export interface Ingredient {
 	totalConsumptionInGrams : number;
 }
 
+// [核心新增] 定义原料列表接口的返回类型
+export interface IngredientsListResponse {
+	allIngredients : Ingredient[];
+	lowStockIngredients : Ingredient[];
+}
+
 export interface IngredientSKU {
 	id : string;
 	brand : string | null;

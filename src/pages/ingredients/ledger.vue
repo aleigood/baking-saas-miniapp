@@ -91,9 +91,10 @@
 	const ledgerEntries = ref<IngredientLedgerEntry[]>([]);
 	const isSelectorVisible = ref(false);
 
+	// [核心修改] 使用新的 allIngredients 计算属性
 	const allIngredients = computed(() => {
-		if (!dataStore.ingredients) return [];
-		return [...dataStore.ingredients].sort((a, b) => b.totalConsumptionInGrams - a.totalConsumptionInGrams);
+		if (!dataStore.allIngredients) return [];
+		return [...dataStore.allIngredients].sort((a, b) => b.totalConsumptionInGrams - a.totalConsumptionInGrams);
 	});
 
 	const page = ref(1);

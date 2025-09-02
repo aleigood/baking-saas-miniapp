@@ -102,7 +102,8 @@
 		return recipeTypes.value.find(t => t.value === form.type)?.label || '请选择';
 	});
 
-	const availableIngredients = computed(() => dataStore.ingredients);
+	// [核心修改] 使用新的 allIngredients 计算属性
+	const availableIngredients = computed(() => dataStore.allIngredients);
 
 	onMounted(async () => {
 		if (!dataStore.dataLoaded.ingredients) {

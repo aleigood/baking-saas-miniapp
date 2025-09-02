@@ -4,13 +4,14 @@
  */
 import { request } from '@/utils/request';
 // [核心修改] 导入新的分页响应类型
-import type { Ingredient, IngredientLedgerResponse } from '@/types/api';
+import type { Ingredient, IngredientLedgerResponse, IngredientsListResponse } from '@/types/api';
 
 /**
  * 获取当前店铺的原料列表
  */
-export function getIngredients() : Promise<Ingredient[]> {
-	return request<Ingredient[]>({
+// [核心修改] 更新 getIngredients 的返回类型
+export function getIngredients() : Promise<IngredientsListResponse> {
+	return request<IngredientsListResponse>({
 		url: '/ingredients',
 	});
 }

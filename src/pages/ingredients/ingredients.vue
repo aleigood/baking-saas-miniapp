@@ -10,10 +10,11 @@
 
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
 				<template v-if="ingredientFilter === 'all'">
-					<template v-if="allIngredients.length > 0">
-						<ListItem v-for="(ing, index) in allIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
-							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit" :bleed="true"
-							:divider="index < allIngredients.length - 1">
+					<template v-if="dataStore.ingredients.allIngredients.length > 0">
+						<ListItem v-for="(ing, index) in dataStore.ingredients.allIngredients" :key="ing.id"
+							@click="navigateToDetail(ing.id)" @longpress="openIngredientActions(ing)"
+							:vibrate-on-long-press="canEdit" :bleed="true"
+							:divider="index < dataStore.ingredients.allIngredients.length - 1">
 							<view class="main-info">
 								<view class="name">{{ ing.name }}</view>
 								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
@@ -35,11 +36,11 @@
 				</template>
 
 				<template v-if="ingredientFilter === 'low'">
-					<template v-if="lowStockIngredients.length > 0">
-						<ListItem v-for="(ing, index) in lowStockIngredients" :key="ing.id"
+					<template v-if="dataStore.ingredients.lowStockIngredients.length > 0">
+						<ListItem v-for="(ing, index) in dataStore.ingredients.lowStockIngredients" :key="ing.id"
 							@click="navigateToDetail(ing.id)" @longpress="openIngredientActions(ing)"
 							:vibrate-on-long-press="canEdit" :bleed="true"
-							:divider="index < lowStockIngredients.length - 1">
+							:divider="index < dataStore.ingredients.lowStockIngredients.length - 1">
 							<view class="main-info">
 								<view class="name">{{ ing.name }}</view>
 								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
@@ -194,17 +195,8 @@
 		}
 	};
 
-	const allIngredients = computed(() => {
-		if (!dataStore.ingredients) return [];
-		return [...dataStore.ingredients].sort((a, b) => b.totalConsumptionInGrams - a.totalConsumptionInGrams);
-	});
-
-	const lowStockIngredients = computed(() => {
-		if (!dataStore.ingredients) return [];
-		return [...dataStore.ingredients]
-			.filter((ing) => ing.type === 'STANDARD' && ing.daysOfSupply < 7)
-			.sort((a, b) => a.daysOfSupply - b.daysOfSupply);
-	});
+	// [核心修改] 删除 allIngredients 计算属性
+	// [核心修改] 删除 lowStockIngredients 计算属性
 
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
