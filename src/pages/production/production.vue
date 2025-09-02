@@ -483,7 +483,7 @@
 		padding: 0 10px;
 		text-align: center;
 		font-size: 15px;
-		width: 70px;
+		width: 90px;
 		box-sizing: border-box;
 		border: 1px solid var(--border-color);
 		height: 36px;

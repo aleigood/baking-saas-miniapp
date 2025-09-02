@@ -6,7 +6,6 @@
 			<view class="page-content">
 				<view class="ingredient-selector-btn" @click="isSelectorVisible = true">
 					<text class="selected-name">{{ selectedIngredient?.name || '请选择原料' }}</text>
-					<image class="dropdown-icon" src="/static/icons/dropdown.svg" />
 				</view>
 
 				<view v-if="isLoading" class="loading-spinner">
@@ -188,12 +187,6 @@
 			font-size: 16px;
 			color: var(--text-primary);
 			font-weight: 500;
-		}
-
-		.dropdown-icon {
-			width: 18px;
-			height: 18px;
-			opacity: 0.6;
 		}
 	}
 
