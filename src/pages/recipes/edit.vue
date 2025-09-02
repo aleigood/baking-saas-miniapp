@@ -229,7 +229,7 @@
 	import AppModal from '@/components/AppModal.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
-	import type { RecipeVersion, RecipeFamily, DoughIngredient, Ingredient } from '@/types/api';
+	import type { RecipeVersion, RecipeFamily, DoughIngredient, Ingredient, RecipeFormTemplate } from '@/types/api';
 	// [核心修改] 引入高精度乘法函数
 	import { formatNumber, toDecimal, toPercentage, multiply } from '@/utils/format';
 
@@ -247,30 +247,13 @@
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
 
-	const form = ref({
+	// [核心修改] form 的初始值现在是一个更简洁的结构
+	const form = ref<RecipeFormTemplate>({
 		name: '',
-		type: 'MAIN' as const,
+		type: 'MAIN',
 		notes: '',
-		doughs: [
-			{
-				id: `main_${Date.now()}`,
-				name: '主面团',
-				type: 'MAIN_DOUGH' as const,
-				lossRatio: 0,
-				ingredients: [
-					{ id: null as string | null, name: '', ratio: null as number | null },
-				],
-				procedure: [''],
-			},
-		],
-		products: [] as {
-			name : string;
-			baseDoughWeight : number;
-			mixIns : SubIngredientRatio[];
-			fillings : SubIngredientWeight[];
-			toppings : SubIngredientWeight[];
-			procedure : string[];
-		}[],
+		doughs: [],
+		products: [],
 	});
 
 	const showAddPreDoughModal = ref(false);
@@ -293,14 +276,12 @@
 
 	const filteredAvailableIngredients = computed(() => {
 		const preDoughNames = availablePreDoughs.value.map(r => r.name);
-		// [核心修改] 使用新的 allIngredients 计算属性
 		return dataStore.allIngredients.filter(ing => !preDoughNames.includes(ing.name));
 	});
 
 	const availableSubIngredients = computed(() => {
 		const extras = dataStore.recipes.otherRecipes.filter(r => r.type === 'EXTRA' && !r.deletedAt);
 		const combined = [
-			// [核心修改] 使用新的 allIngredients 计算属性
 			...dataStore.allIngredients.map(i => ({ id: i.id, name: i.name })),
 			...extras.map(e => ({ id: e.id, name: e.name })),
 		];
@@ -327,6 +308,22 @@
 					toastStore.show({ message: '加载配方模板失败', type: 'error' });
 				}
 			}
+		} else {
+			// [核心新增] 当不是编辑模式（即新建配方时），也要初始化 form 结构
+			form.value = {
+				name: '',
+				type: 'MAIN',
+				notes: '',
+				doughs: [{
+					id: `main_${Date.now()}`,
+					name: '主面团',
+					type: 'MAIN_DOUGH',
+					lossRatio: 0,
+					ingredients: [{ id: null, name: '', ratio: null }],
+					procedure: [''],
+				}],
+				products: []
+			};
 		}
 	});
 
@@ -336,7 +333,6 @@
 
 	const getIngredientName = (id : string | null) => {
 		if (!id) return '请选择原料';
-		// [核心修改] 使用新的 allIngredients 计算属性
 		const ingredient = dataStore.allIngredients.find(i => i.id === id);
 		if (ingredient) return ingredient.name;
 		const recipe = dataStore.allRecipes.find(r => r.id === id);
@@ -503,7 +499,6 @@
 		}
 
 		let totalFlourPercentage = 0;
-		// [核心修改] 使用新的 allIngredients 计算属性
 		const allIngredientsMap = new Map(dataStore.allIngredients.map(i => [i.id, i]));
 
 		for (const dough of form.value.doughs) {

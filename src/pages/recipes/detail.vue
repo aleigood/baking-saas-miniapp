@@ -73,7 +73,8 @@
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
 	import type { RecipeFamily, RecipeVersion } from '@/types/api';
-	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion } from '@/api/recipes';
+	// [核心修改] 导入新的 API 函数
+	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion, getRecipeVersionFormTemplate } from '@/api/recipes';
 
 	import RecipeVersionList from '@/components/RecipeVersionList.vue';
 	import MainRecipeDetail from '@/components/MainRecipeDetail.vue';
@@ -85,7 +86,7 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	// [核心修改] 引入高精度乘法函数
-	import { multiply } from '@/utils/format';
+	import { multiply, toPercentage } from '@/utils/format';
 
 
 	defineOptions({
@@ -158,118 +159,47 @@
 		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
 
+	// [核心重构] navigateToEditPage 现在会根据配方类型进行不同的处理
 	const navigateToEditPage = async (familyId : string | null) => {
-		if (!familyId || !displayedVersion.value) return;
+		if (!familyId || !displayedVersion.value || !recipeFamily.value) return;
 
 		uni.showLoading({ title: '准备数据中...' });
 		try {
-			const sourceVersion = displayedVersion.value;
+			// 判断配方类型
+			if (recipeFamily.value.type === 'MAIN') {
+				// 对于主配方，调用后端接口获取模板数据
+				const formTemplate = await getRecipeVersionFormTemplate(familyId, displayedVersion.value.id);
+				uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
+				uni.navigateTo({ url: `/pages/recipes/edit?familyId=${familyId}` });
+			} else {
+				// 对于 PRE_DOUGH 或 EXTRA，在前端准备数据
+				const sourceVersion = displayedVersion.value;
+				const doughSource = sourceVersion.doughs?.[0];
+				if (!doughSource) {
+					toastStore.show({ message: '源配方数据不完整', type: 'error' });
+					return;
+				}
 
-			const mainDoughSource = sourceVersion.doughs[0];
-			if (!mainDoughSource) {
-				toastStore.show({ message: '源配方数据不完整', type: 'error' });
-				uni.hideLoading();
-				return;
-			}
-
-			const mainDoughIngredientsForForm = [];
-			const preDoughObjectsForForm = [];
-
-			for (const ing of mainDoughSource.ingredients) {
-				// @ts-ignore
-				if (ing.linkedPreDough) {
-					// @ts-ignore
-					const preDough = ing.linkedPreDough;
-					const preDoughActiveVersion = preDough.versions.find((v : any) => v.isActive);
-					if (preDoughActiveVersion && preDoughActiveVersion.doughs[0]) {
-						const preDoughRecipe = preDoughActiveVersion.doughs[0];
-
-						const preDoughTotalRatio = preDoughRecipe.ingredients.reduce((sum : number, i : any) => sum + i.ratio, 0);
-
-						const conversionFactor = preDoughTotalRatio > 0 ? ing.ratio / preDoughTotalRatio : 0;
-
-						const preDoughFlourRatioInPreDough = preDoughRecipe.ingredients
-							.filter((i : any) => i.ingredient?.isFlour)
-							.reduce((sum : number, i : any) => sum + i.ratio, 0);
-						// [核心修复] 使用高精度乘法进行计算
-						const effectiveFlourRatio = multiply(preDoughFlourRatioInPreDough, conversionFactor);
-
-						preDoughObjectsForForm.push({
-							id: preDough.id,
-							name: preDough.name,
-							type: 'PRE_DOUGH',
-							// [核心修复] 使用高精度乘法进行计算
-							flourRatioInMainDough: multiply(effectiveFlourRatio, 100),
-							ingredients: preDoughRecipe.ingredients.map((i : any) => ({
-								id: i.ingredient.id,
-								name: i.ingredient.name,
-								// [核心修复] 使用高精度乘法进行计算
-								ratio: multiply(multiply(i.ratio, conversionFactor), 100),
-							})),
-							procedure: preDoughRecipe.procedure || [],
-						});
-					}
-					// @ts-ignore
-				} else if (ing.ingredient) {
-					mainDoughIngredientsForForm.push({
+				// 准备传递给 edit-other.vue 的数据
+				const formTemplate = {
+					familyId: familyId, // 传递 familyId 以便提交时调用正确的接口
+					name: recipeFamily.value.name,
+					type: recipeFamily.value.type,
+					notes: '', // 新版本备注为空
+					ingredients: doughSource.ingredients.map(ing => ({
 						// @ts-ignore
 						id: ing.ingredient.id,
 						// @ts-ignore
 						name: ing.ingredient.name,
-						// [核心修复] 使用高精度乘法进行计算
-						ratio: multiply(ing.ratio, 100),
-					});
-				}
-			}
-
-			const mainDoughObjectForForm = {
-				id: `main_${Date.now()}`,
-				name: '主面团',
-				type: 'MAIN_DOUGH',
-				// @ts-ignore
-				lossRatio: mainDoughSource.lossRatio ? multiply(mainDoughSource.lossRatio, 100) : 0,
-				ingredients: mainDoughIngredientsForForm,
-				procedure: mainDoughSource.procedure || [],
-			};
-
-			const formTemplate = {
-				name: recipeFamily.value?.name || '',
-				type: recipeFamily.value?.type || 'MAIN',
-				notes: '',
-				doughs: [mainDoughObjectForForm, ...preDoughObjectsForForm],
-				products: sourceVersion.products.map(p => {
-					const processProductIngredients = (type : 'MIX_IN' | 'FILLING' | 'TOPPING') => {
 						// @ts-ignore
-						return p.ingredients
-							.filter(ing => ing.type === type && (ing.ingredient || ing.linkedExtra))
-							.map(ing => {
-								return {
-									// @ts-ignore
-									id: ing.ingredient?.id || ing.linkedExtra?.id,
-									// @ts-ignore
-									ratio: ing.ratio ? multiply(ing.ratio, 100) : null,
-									// @ts-ignore
-									weightInGrams: ing.weightInGrams
-								};
-							});
-					};
+						ratio: toPercentage(ing.ratio)
+					})),
+					procedure: doughSource.procedure || ['']
+				};
 
-					return {
-						name: p.name,
-						baseDoughWeight: p.baseDoughWeight,
-						mixIns: processProductIngredients('MIX_IN'),
-						fillings: processProductIngredients('FILLING'),
-						toppings: processProductIngredients('TOPPING'),
-						procedure: p.procedure || [],
-					};
-				})
-			};
-
-			uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
-			uni.navigateTo({
-				url: `/pages/recipes/edit?familyId=${familyId}`
-			});
-
+				uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
+				uni.navigateTo({ url: `/pages/recipes/edit-other?familyId=${familyId}` });
+			}
 		} catch (error) {
 			console.error("准备新版本数据失败:", error);
 			toastStore.show({ message: '准备新版本数据失败', type: 'error' });

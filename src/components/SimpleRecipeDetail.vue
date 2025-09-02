@@ -44,8 +44,8 @@
 			return [];
 		}
 		return dough.ingredients.map(ing => {
-			// [核心修改] 从 dataStore 中查找完整的原料信息
-			const ingredientData = dataStore.ingredients.find(i => i.id === ing.ingredientId);
+			// [核心修复] 从 dataStore.allIngredients (扁平化数组) 中查找完整的原料信息
+			const ingredientData = dataStore.allIngredients.find(i => i.id === ing.ingredientId);
 
 			// [核心修改] 在组件内部进行单价计算和格式化
 			let pricePerKg = '¥0/kg';

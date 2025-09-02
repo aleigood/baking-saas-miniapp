@@ -4,7 +4,7 @@
  */
 import { request } from '@/utils/request';
 // [更新] 导入新增的类型
-import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductListItem } from '@/types/api';
+import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductListItem, RecipeFormTemplate } from '@/types/api';
 
 /**
  * 获取当前店铺的配方/产品列表
@@ -47,6 +47,17 @@ export function getRecipeVersions(familyId : string) : Promise<RecipeVersion[]> 
 export function getRecipeFamily(familyId : string) : Promise<RecipeFamily> {
 	return request<RecipeFamily>({
 		url: `/recipes/${familyId}`,
+	});
+}
+
+/**
+ * [核心新增] 获取用于“创建新版本”的表单预填充数据
+ * @param familyId 配方家族的ID
+ * @param versionId 源版本的ID
+ */
+export function getRecipeVersionFormTemplate(familyId : string, versionId : string) : Promise<RecipeFormTemplate> {
+	return request<RecipeFormTemplate>({
+		url: `/recipes/${familyId}/versions/${versionId}/form-template`,
 	});
 }
 

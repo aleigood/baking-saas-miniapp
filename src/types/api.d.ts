@@ -104,6 +104,34 @@ export interface RecipesListResponse {
 	otherRecipes : RecipeFamily[];
 }
 
+// [核心新增] 定义“创建新版本”表单模板的类型
+export interface RecipeFormTemplate {
+	name : string;
+	type : 'MAIN';
+	notes : string;
+	doughs : {
+		id : string;
+		name : string;
+		type : 'MAIN_DOUGH' | 'PRE_DOUGH';
+		lossRatio ?: number;
+		flourRatioInMainDough ?: number;
+		ingredients : {
+			id : string | null;
+			name : string;
+			ratio : number | null;
+		}[];
+		procedure : string[];
+	}[];
+	products : {
+		name : string;
+		baseDoughWeight : number;
+		mixIns : { id : string | null; ratio : number | null }[];
+		fillings : { id : string | null; weightInGrams : number | null }[];
+		toppings : { id : string | null; weightInGrams : number | null }[];
+		procedure : string[];
+	}[];
+}
+
 export interface RecipeVersion {
 	id : string;
 	familyId : string;
