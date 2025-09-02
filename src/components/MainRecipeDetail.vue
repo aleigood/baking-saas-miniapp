@@ -16,7 +16,7 @@
 				<view v-for="(dough, index) in recipeDetails.doughGroups" :key="dough.name + index"
 					class="dough-section">
 					<view class="group-title" @click="toggleCollapse(dough.name)">
-						<span>{{ dough.name === recipeName && selectedProduct ? selectedProduct.name : dough.name }}</span>
+						<span>{{ dough.name }}</span>
 						<span class="arrow" :class="{ collapsed: collapsedSections.has(dough.name) }">&#10095;</span>
 					</view>
 					<view v-show="!collapsedSections.has(dough.name)">
