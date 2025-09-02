@@ -31,8 +31,8 @@
 			<view v-if="isLoading" class="loading-spinner">
 				<text>加载中...</text>
 			</view>
-			<view v-else-if="allTasksForDisplay.length > 0">
-				<ListItem v-for="task in allTasksForDisplay" :key="task.id" @click="navigateToDetail(task)"
+			<view v-else-if="dataStore.production.length > 0">
+				<ListItem v-for="task in dataStore.production" :key="task.id" @click="navigateToDetail(task)"
 					@longpress="openTaskActions(task)" :vibrate-on-long-press="true" card-mode
 					:style="getTaskCardStyle(task)">
 					<view class="task-info">
@@ -216,19 +216,7 @@
 		isLoading.value = false;
 	};
 
-	const allTasksForDisplay = computed(() => {
-		const activeTasks = dataStore.production; // 直接使用从 store 获取的任务列表
-		const inProgressTasks = activeTasks.filter(task => task.status === 'IN_PROGRESS');
-		const pendingTasks = activeTasks.filter(task => task.status === 'PENDING');
-		inProgressTasks.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-		pendingTasks.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-		const sortedRegularTasks = [...inProgressTasks, ...pendingTasks];
-		if (dataStore.prepTask) {
-			const prepTaskForList = { ...dataStore.prepTask, status: 'PREP' };
-			return [prepTaskForList, ...sortedRegularTasks];
-		}
-		return sortedRegularTasks;
-	});
+	// [核心修改] 移除 allTasksForDisplay 计算属性
 
 	const getTaskTitle = (task : ProductionTaskDto | PrepTask) => {
 		if (task.status === 'PREP') {
@@ -286,8 +274,9 @@
 
 	const navigateToDetail = (task : any) => {
 		const isPrepTask = task.status === 'PREP';
-		if (isPrepTask && dataStore.prepTask) {
-			const prepTaskData = encodeURIComponent(JSON.stringify(dataStore.prepTask));
+		// [核心修改] prepTask 的数据现在也包含在 task 对象中
+		if (isPrepTask) {
+			const prepTaskData = encodeURIComponent(JSON.stringify(task));
 			uni.navigateTo({ url: `/pages/production/prep-detail?taskData=${prepTaskData}` });
 		} else {
 			uni.navigateTo({ url: `/pages/production/detail?taskId=${task.id}` });

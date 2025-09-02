@@ -37,9 +37,9 @@ function getMonthDateRange() {
 export const useDataStore = defineStore('data', () => {
 	const tenants = ref<Tenant[]>([]);
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
-	const production = ref<ProductionTaskDto[]>([]);
-	const prepTask = ref<PrepTask | null>(null);
-	// [修改] homeStats 不再包含 completedThisWeekCount
+	// [核心修改] production 的类型现在是一个联合类型数组
+	const production = ref<(ProductionTaskDto | (PrepTask & { status : 'PREP' }))[]>([]);
+	// [核心修改] prepTask 不再需要单独存储
 	const homeStats = ref({ pendingCount: 0 });
 	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
 	const historicalTasksMeta = ref({
@@ -51,7 +51,6 @@ export const useDataStore = defineStore('data', () => {
 		mainRecipes: [],
 		otherRecipes: [],
 	});
-	// [核心新增] 新增 state 用于存储创建任务页的产品列表
 	const productsForTaskCreation = ref<Record<string, ProductListItem[]>>({});
 	const ingredients = ref<{ allIngredients : Ingredient[]; lowStockIngredients : Ingredient[] }>({
 		allIngredients: [],
@@ -64,7 +63,6 @@ export const useDataStore = defineStore('data', () => {
 	const dataLoaded = ref({
 		production: false,
 		recipes: false,
-		// [核心新增] 新增加载状态
 		productsForTaskCreation: false,
 		ingredients: false,
 		members: false,
@@ -72,8 +70,6 @@ export const useDataStore = defineStore('data', () => {
 	});
 
 	const currentTenant = computed(() => tenants.value.find((t) => t.id === currentTenantId.value));
-
-	// [核心修改] 移除 productList 计算属性
 
 	const allRecipes = computed(() => [...recipes.value.mainRecipes, ...recipes.value.otherRecipes]);
 
@@ -104,19 +100,15 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	// [修改] fetchProductionData 现在接收日期参数
 	async function fetchProductionData(date ?: string) {
 		if (!currentTenantId.value) return;
 		try {
-			// [核心修复] 简化逻辑，始终调用 getTasks 接口。后端已优化此接口，无论是否传入日期都能返回正确的数据结构。
 			const payload = await getTasks(date);
+			// [核心修改] 直接使用后端返回的已合并和排序的 tasks 列表
 			production.value = payload.tasks;
-			prepTask.value = payload.prepTask;
-			// [核心修改] 如果返回体中包含 stats，则更新 homeStats 的 pendingCount
 			if (payload.stats) {
 				homeStats.value.pendingCount = payload.stats.todayPendingCount;
 			}
-
 			dataLoaded.value.production = true;
 		} catch (error) {
 			console.error('Failed to fetch production data', error);
@@ -176,7 +168,6 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	// [核心新增] 新增一个 action 来获取用于创建任务的产品列表
 	async function fetchProductsForTaskCreation() {
 		if (!currentTenantId.value) return;
 		try {
@@ -231,11 +222,9 @@ export const useDataStore = defineStore('data', () => {
 
 	function resetData() {
 		production.value = [];
-		prepTask.value = null;
-		// [修改] 重置 homeStats
+		// [核心修改] 移除 prepTask.value 的重置
 		homeStats.value = { pendingCount: 0 };
 		recipes.value = { mainRecipes: [], otherRecipes: [] };
-		// [核心新增] 重置 state
 		productsForTaskCreation.value = {};
 		ingredients.value = { allIngredients: [], lowStockIngredients: [] };
 		members.value = [];
@@ -244,7 +233,6 @@ export const useDataStore = defineStore('data', () => {
 		dataLoaded.value = {
 			production: false,
 			recipes: false,
-			// [核心新增] 重置加载状态
 			productsForTaskCreation: false,
 			ingredients: false,
 			members: false,
@@ -264,12 +252,11 @@ export const useDataStore = defineStore('data', () => {
 		currentTenantId,
 		currentTenant,
 		production,
-		prepTask,
+		// [核心修改] 移除 prepTask 的导出
 		homeStats,
 		historicalTasks,
 		historicalTasksMeta,
 		recipes,
-		// [核心新增] 导出 state 和 action
 		productsForTaskCreation,
 		allRecipes,
 		ingredients,

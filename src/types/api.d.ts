@@ -24,13 +24,15 @@ export interface PrepTask {
 	items : CalculatedRecipeDetails[];
 	status ?: 'PREP';
 }
-// [核心修改] 更新 ProductionDataPayload 类型，增加 stats 字段
+// [核心重构] 更新 ProductionDataPayload 类型，以反映后端返回的统一任务列表
 export interface ProductionDataPayload {
 	stats ?: {
 		todayPendingCount : number;
 	};
-	tasks : ProductionTaskDto[];
-	prepTask : PrepTask | null;
+	// tasks 现在是一个包含常规任务和备料任务的联合类型数组
+	tasks : (ProductionTaskDto | (PrepTask & { status : 'PREP' }))[];
+	// prepTask 不再由该接口单独返回
+	prepTask : null;
 }
 // [修改] 为任务详情增加 productionTaskSpoilageLogs 字段
 export interface ProductionTaskDetailDto extends ProductionTaskDto {
