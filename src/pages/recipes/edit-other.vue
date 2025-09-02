@@ -1,16 +1,21 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<DetailHeader title="新建其他配方" />
+		<DetailHeader :title="isEditing ? '创建新版本' : '新建其他配方'" />
 		<DetailPageLayout>
 			<view class="page-content">
 				<view class="card">
 					<FormItem label="配方名称">
-						<input class="input-field" v-model="form.name" placeholder="例如：波兰种 或 奶酥馅" />
+						<input class="input-field" v-model="form.name" placeholder="例如：波兰种 或 奶酥馅"
+							:disabled="isEditing" />
+					</FormItem>
+					<FormItem v-if="isEditing" label="版本说明">
+						<input class="input-field" v-model="form.notes" placeholder="例如：更换了黄油品牌" />
 					</FormItem>
 					<FormItem label="配方类型">
 						<view class="picker-wrapper">
-							<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange">
+							<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange"
+								:disabled="isEditing">
 								<view class="picker-display">{{ currentTypeLabel }}</view>
 							</picker>
 						</view>
@@ -66,7 +71,8 @@
 
 <script setup lang="ts">
 	import { ref, computed, onMounted, reactive } from 'vue';
-	import { createRecipe } from '@/api/recipes';
+	import { onLoad, onUnload } from '@dcloudio/uni-app';
+	import { createRecipe, createRecipeVersion } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
 	import FormItem from '@/components/FormItem.vue';
@@ -84,16 +90,18 @@
 	const toastStore = useToastStore();
 	const isSubmitting = ref(false);
 
+	const isEditing = ref(false);
+	const familyId = ref<string | null>(null);
+
 	const form = reactive({
 		name: '',
 		type: 'PRE_DOUGH' as 'PRE_DOUGH' | 'EXTRA',
+		notes: '',
 		ingredients: [{ id: null as string | null, name: '', ratio: null as number | null }],
-		// [核心新增] 增加 procedure 字段以存储制作要点
 		procedure: [''],
 	});
 
 	const recipeTypes = ref([
-		// [核心改造] 移除括号和英文
 		{ label: '面种', value: 'PRE_DOUGH' },
 		{ label: '馅料/其他', value: 'EXTRA' },
 	]);
@@ -102,14 +110,33 @@
 		return recipeTypes.value.find(t => t.value === form.type)?.label || '请选择';
 	});
 
-	// [核心修改] 使用新的 allIngredients 计算属性
 	const availableIngredients = computed(() => dataStore.allIngredients);
 
-	onMounted(async () => {
+	onLoad(async (options) => {
 		if (!dataStore.dataLoaded.ingredients) {
 			await dataStore.fetchIngredientsData();
 		}
+
+		if (options && options.familyId) {
+			isEditing.value = true;
+			familyId.value = options.familyId;
+
+			const sourceFormJson = uni.getStorageSync('source_recipe_version_form');
+			if (sourceFormJson) {
+				try {
+					const sourceForm = JSON.parse(sourceFormJson);
+					Object.assign(form, sourceForm);
+				} catch (e) {
+					toastStore.show({ message: '加载配方模板失败', type: 'error' });
+				}
+			}
+		}
 	});
+
+	onUnload(() => {
+		uni.removeStorageSync('source_recipe_version_form');
+	});
+
 
 	const getIngredientName = (id : string | null) => {
 		if (!id) return '请选择原料';
@@ -135,7 +162,6 @@
 		form.ingredients.splice(ingIndex, 1);
 	};
 
-	// [核心新增] 增加和删除制作步骤的方法
 	const addProcedureStep = () => {
 		form.procedure.push('');
 	};
@@ -147,22 +173,43 @@
 	const handleSubmit = async () => {
 		isSubmitting.value = true;
 		try {
+			// [核心修复] 创建一个Map以便快速查找原料的isFlour属性
+			const allIngredientsMap = new Map(dataStore.allIngredients.map(i => [i.id, i]));
+
 			const payload = {
 				name: form.name,
 				type: form.type,
-				ingredients: form.ingredients.map(ing => ({
-					ingredientId: ing.id,
-					ratio: toDecimal(ing.ratio),
-				})),
-				// [核心新增] 在提交的数据中包含制作要点
+				notes: form.notes,
+				ingredients: form.ingredients
+					.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0))
+					.map(ing => {
+						// 从Map中查找原料的完整信息
+						const ingredientDetails = allIngredientsMap.get(ing.id!);
+						return {
+							ingredientId: ing.id,
+							name: ing.name,
+							ratio: toDecimal(ing.ratio),
+							// [核心修复] 确保isFlour字段被正确地包含在提交的数据中
+							isFlour: ingredientDetails ? ingredientDetails.isFlour : false,
+						}
+					}),
 				procedure: form.procedure.filter(p => p && p.trim()),
 				products: [],
 			};
 
-			await createRecipe(payload);
+			// [日志打印] 按您的要求增加日志，方便在控制台查看提交的数据
+			console.log('Submitting payload to createRecipeVersion:', JSON.stringify(payload, null, 2));
+
+			if (isEditing.value && familyId.value) {
+				await createRecipeVersion(familyId.value, payload);
+			} else {
+				await createRecipe(payload);
+			}
+
 			toastStore.show({ message: '配方保存成功', type: 'success' });
 			await dataStore.fetchRecipesData();
 			uni.navigateBack();
+
 		} catch (error) {
 			console.error("Failed to save recipe:", error);
 		} finally {
@@ -190,6 +237,11 @@
 		font-size: 14px;
 		background-color: #f8f9fa;
 		box-sizing: border-box;
+	}
+
+	.input-field[disabled] {
+		background-color: #e9ecef;
+		color: #6c757d;
 	}
 
 	.picker-wrapper {
@@ -274,7 +326,6 @@
 		min-height: 46px;
 	}
 
-	/* [核心新增] 制作要点相关样式 */
 	.procedure-notes {
 		margin-top: 20px;
 		border-top: 1px solid var(--border-color);

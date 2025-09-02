@@ -73,7 +73,6 @@
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
 	import type { RecipeFamily, RecipeVersion } from '@/types/api';
-	// [核心修改] 导入新的 API 函数
 	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion, getRecipeVersionFormTemplate } from '@/api/recipes';
 
 	import RecipeVersionList from '@/components/RecipeVersionList.vue';
@@ -85,7 +84,6 @@
 	import Toast from '@/components/Toast.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
-	// [核心修改] 引入高精度乘法函数
 	import { multiply, toPercentage } from '@/utils/format';
 
 
@@ -159,45 +157,17 @@
 		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
 
-	// [核心重构] navigateToEditPage 现在会根据配方类型进行不同的处理
 	const navigateToEditPage = async (familyId : string | null) => {
 		if (!familyId || !displayedVersion.value || !recipeFamily.value) return;
 
 		uni.showLoading({ title: '准备数据中...' });
 		try {
-			// 判断配方类型
+			const formTemplate = await getRecipeVersionFormTemplate(familyId, displayedVersion.value.id);
+			uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
+
 			if (recipeFamily.value.type === 'MAIN') {
-				// 对于主配方，调用后端接口获取模板数据
-				const formTemplate = await getRecipeVersionFormTemplate(familyId, displayedVersion.value.id);
-				uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
 				uni.navigateTo({ url: `/pages/recipes/edit?familyId=${familyId}` });
 			} else {
-				// 对于 PRE_DOUGH 或 EXTRA，在前端准备数据
-				const sourceVersion = displayedVersion.value;
-				const doughSource = sourceVersion.doughs?.[0];
-				if (!doughSource) {
-					toastStore.show({ message: '源配方数据不完整', type: 'error' });
-					return;
-				}
-
-				// 准备传递给 edit-other.vue 的数据
-				const formTemplate = {
-					familyId: familyId, // 传递 familyId 以便提交时调用正确的接口
-					name: recipeFamily.value.name,
-					type: recipeFamily.value.type,
-					notes: '', // 新版本备注为空
-					ingredients: doughSource.ingredients.map(ing => ({
-						// @ts-ignore
-						id: ing.ingredient.id,
-						// @ts-ignore
-						name: ing.ingredient.name,
-						// @ts-ignore
-						ratio: toPercentage(ing.ratio)
-					})),
-					procedure: doughSource.procedure || ['']
-				};
-
-				uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
 				uni.navigateTo({ url: `/pages/recipes/edit-other?familyId=${familyId}` });
 			}
 		} catch (error) {
