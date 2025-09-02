@@ -116,11 +116,12 @@
 		width: 100%;
 		font-size: 14px;
 		border-collapse: collapse;
-		margin-bottom: 15px;
+		margin-bottom: 25px;
 
 		.table-header,
 		.table-row {
 			display: table-row;
+			border-bottom: 1px solid var(--border-color);
 		}
 
 		.table-header {
@@ -181,7 +182,7 @@
 	.section-title {
 		font-size: 12px;
 		font-weight: 600;
-		color: var(--primary-color);
+		color: var(--text-secondary);
 		margin-bottom: 5px;
 	}
 

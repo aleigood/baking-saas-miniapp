@@ -685,7 +685,7 @@
 		width: 100%;
 		font-size: 14px;
 		border-collapse: collapse;
-		margin-top: 15px;
+		margin-top: 25px;
 
 		.table-header,
 		.table-row {
@@ -774,7 +774,7 @@
 		display: table;
 		width: 100%;
 		border-collapse: collapse;
-		margin-top: 15px;
+		margin-top: 25px;
 
 		.table-header,
 		.info-row {
@@ -822,6 +822,6 @@
 	}
 
 	.animated-tabs-container {
-		margin-top: 10px;
+		margin-top: 25px;
 	}
 </style>

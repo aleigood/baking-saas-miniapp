@@ -81,6 +81,7 @@
 		.table-header {
 			color: var(--text-secondary);
 			font-weight: 500;
+			border-bottom: 1px solid var(--border-color);
 		}
 
 		.table-row {
