@@ -289,7 +289,8 @@
 		}));
 	});
 
-	const availablePreDoughs = computed(() => dataStore.recipes.filter(r => r.type === 'PRE_DOUGH' && !r.deletedAt));
+	// [核心修改] availablePreDoughs 现在从 dataStore.recipes.otherRecipes 中获取数据
+	const availablePreDoughs = computed(() => dataStore.recipes.otherRecipes.filter(r => r.type === 'PRE_DOUGH' && !r.deletedAt));
 
 	const filteredAvailableIngredients = computed(() => {
 		const preDoughNames = availablePreDoughs.value.map(r => r.name);
@@ -297,7 +298,8 @@
 	});
 
 	const availableSubIngredients = computed(() => {
-		const extras = dataStore.recipes.filter(r => r.type === 'EXTRA' && !r.deletedAt);
+		// [核心修改] 从 dataStore.recipes.otherRecipes 中获取 'EXTRA' 类型的配方
+		const extras = dataStore.recipes.otherRecipes.filter(r => r.type === 'EXTRA' && !r.deletedAt);
 		const combined = [
 			...dataStore.ingredients.map(i => ({ id: i.id, name: i.name })),
 			...extras.map(e => ({ id: e.id, name: e.name })),
@@ -336,7 +338,8 @@
 		if (!id) return '请选择原料';
 		const ingredient = dataStore.ingredients.find(i => i.id === id);
 		if (ingredient) return ingredient.name;
-		const recipe = dataStore.recipes.find(r => r.id === id);
+		// [核心修改] 从 dataStore.allRecipes 中查找配方
+		const recipe = dataStore.allRecipes.find(r => r.id === id);
 		if (recipe) return recipe.name;
 		return '未知原料';
 	};

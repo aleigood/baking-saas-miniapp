@@ -46,7 +46,11 @@ export const useDataStore = defineStore('data', () => {
 		limit: 10,
 		hasMore: true,
 	});
-	const recipes = ref<RecipeFamily[]>([]);
+	// [核心修改] recipes 现在存储分类好的配方列表
+	const recipes = ref<{ mainRecipes : RecipeFamily[]; otherRecipes : RecipeFamily[] }>({
+		mainRecipes: [],
+		otherRecipes: [],
+	});
 	const ingredients = ref<Ingredient[]>([]);
 	const members = ref<Member[]>([]);
 	const recipeStats = ref<RecipeStatDto[]>([]);
@@ -62,9 +66,11 @@ export const useDataStore = defineStore('data', () => {
 
 	const currentTenant = computed(() => tenants.value.find((t) => t.id === currentTenantId.value));
 
+	// [核心修改] 更新 productList 计算属性以适配新的 recipes 结构
 	const productList = computed(() : ProductListItem[] => {
 		const list : ProductListItem[] = [];
-		recipes.value
+		// 只从 mainRecipes 中提取产品
+		recipes.value.mainRecipes
 			.filter((family) => !family.deletedAt)
 			.forEach((family) => {
 				family.versions
@@ -82,6 +88,10 @@ export const useDataStore = defineStore('data', () => {
 			});
 		return list;
 	});
+
+	// [核心新增] 提供一个包含所有配方的扁平化列表，用于其他页面的查找逻辑
+	const allRecipes = computed(() => [...recipes.value.mainRecipes, ...recipes.value.otherRecipes]);
+
 
 	async function fetchTenants() {
 		try {
@@ -170,8 +180,9 @@ export const useDataStore = defineStore('data', () => {
 		if (!currentTenantId.value) return;
 		try {
 			const { startDate, endDate } = getMonthDateRange();
+			// [核心修改] 更新 fetchRecipesData 以处理新的API响应
 			const [recipeData, recipeStatData] = await Promise.all([getRecipes(), getRecipeStats(startDate, endDate)]);
-			recipes.value = recipeData;
+			recipes.value = recipeData; // 直接将返回的对象赋值给 recipes
 			recipeStats.value = recipeStatData;
 			dataLoaded.value.recipes = true;
 		} catch (error) {
@@ -226,7 +237,8 @@ export const useDataStore = defineStore('data', () => {
 		prepTask.value = null;
 		// [修改] 重置 homeStats
 		homeStats.value = { pendingCount: 0 };
-		recipes.value = [];
+		// [核心修改] 重置 recipes 状态
+		recipes.value = { mainRecipes: [], otherRecipes: [] };
 		ingredients.value = [];
 		members.value = [];
 		recipeStats.value = [];
@@ -258,6 +270,7 @@ export const useDataStore = defineStore('data', () => {
 		historicalTasksMeta,
 		recipes,
 		productList,
+		allRecipes, // [核心新增] 导出扁平化列表
 		ingredients,
 		members,
 		recipeStats,

@@ -193,11 +193,7 @@
 		label: '原料成本'
 	},]);
 
-	const recipeName = computed(() => {
-		if (!props.version) return '';
-		const family = dataStore.recipes.find(r => r.id === props.version!.familyId);
-		return family ? family.name : '';
-	});
+	// [核心修改] 移除不再需要的 recipeName 计算属性
 
 	const productTabsForFilter = computed(() => {
 		if (!props.version) return [];

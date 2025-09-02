@@ -22,18 +22,18 @@
 
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
 				<template v-if="recipeFilter === 'MAIN'">
-					<template v-if="mainRecipes.length > 0">
-						<ListItem v-for="(family, index) in mainRecipes" :key="family.id"
+					<template v-if="dataStore.recipes.mainRecipes.length > 0">
+						<ListItem v-for="(family, index) in dataStore.recipes.mainRecipes" :key="family.id"
 							@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
 							:vibrate-on-long-press="canEditRecipe" :bleed="true"
-							:divider="index < mainRecipes.length - 1">
+							:divider="index < dataStore.recipes.mainRecipes.length - 1">
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}
 									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 								</view>
 								<view class="desc">
-									{{ getProductCount(family) }} 种面包
+									{{ family.productCount }} 种面包
 								</view>
 							</view>
 							<view class="side-info">
@@ -48,11 +48,11 @@
 				</template>
 
 				<template v-if="recipeFilter === 'OTHER'">
-					<template v-if="otherRecipes.length > 0">
-						<ListItem v-for="(family, index) in otherRecipes" :key="family.id"
+					<template v-if="dataStore.recipes.otherRecipes.length > 0">
+						<ListItem v-for="(family, index) in dataStore.recipes.otherRecipes" :key="family.id"
 							@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
 							:vibrate-on-long-press="canEditRecipe" :bleed="true"
-							:divider="index < otherRecipes.length - 1">
+							:divider="index < dataStore.recipes.otherRecipes.length - 1">
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}
@@ -63,7 +63,7 @@
 								</view>
 							</view>
 							<view class="side-info">
-								<view class="desc">{{ getIngredientCount(family) }} 种原料</view>
+								<view class="desc">{{ family.ingredientCount }} 种原料</view>
 							</view>
 						</ListItem>
 					</template>
@@ -238,39 +238,15 @@
 			.sort((a, b) => b.value - a.value);
 	});
 
-	const mainRecipes = computed(() => {
-		if (!dataStore.recipes) return [];
-		return [...dataStore.recipes]
-			.filter((family) => family.type === 'MAIN')
-			.sort((a, b) => (b.productionTaskCount || 0) - (a.productionTaskCount || 0));
-	});
-
-	const otherRecipes = computed(() => {
-		if (!dataStore.recipes) return [];
-		return [...dataStore.recipes]
-			.filter((family) => family.type === 'PRE_DOUGH' || family.type === 'EXTRA')
-			.sort((a, b) => a.name.localeCompare(b.name));
-	});
+	// [核心修改] 删除 mainRecipes 计算属性
+	// [核心修改] 删除 otherRecipes 计算属性
 
 	const getRecipeTypeDisplay = (type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA') => {
 		return recipeTypeMap[type] || type;
 	};
 
-	const getProductCount = (family : RecipeFamily) => {
-		if (family.type !== 'MAIN' || !family.versions || family.versions.length === 0) {
-			return 0;
-		}
-		const activeVersion = family.versions.find(v => v.isActive);
-		return activeVersion?.products?.length || 0;
-	};
-
-	const getIngredientCount = (family : RecipeFamily) => {
-		if (family.type === 'MAIN' || !family.versions || family.versions.length === 0) {
-			return 0;
-		}
-		const activeVersion = family.versions.find(v => v.isActive);
-		return activeVersion?.doughs.reduce((sum, dough) => sum + (dough._count?.ingredients || 0), 0) || 0;
-	};
+	// [核心修改] 删除 getProductCount 方法，因为现在直接使用后端数据
+	// [核心修改] 删除 getIngredientCount 方法，因为现在直接使用后端数据
 
 	const getRating = (count : number) => {
 		if (count > 20) return '4.9';

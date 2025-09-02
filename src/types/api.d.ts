@@ -91,6 +91,15 @@ export interface RecipeFamily {
 	versions : RecipeVersion[];
 	productionCount ?: number; // [修复] 恢复误删除的字段
 	productionTaskCount ?: number;
+	// [核心新增] 新增由后端计算好的聚合字段
+	productCount ?: number;
+	ingredientCount ?: number;
+}
+
+// [核心新增] 定义配方列表接口的返回类型
+export interface RecipesListResponse {
+	mainRecipes : RecipeFamily[];
+	otherRecipes : RecipeFamily[];
 }
 
 export interface RecipeVersion {
