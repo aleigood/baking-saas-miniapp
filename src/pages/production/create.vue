@@ -297,7 +297,7 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		padding: 0 10%; // 保持向中间靠拢
+		padding: 0 5%;; // 保持向中间靠拢
 	}
 
 	.product-name {
@@ -320,5 +320,6 @@
 		box-sizing: border-box;
 		border: 1px solid var(--border-color);
 		height: 36px;
+		max-width: 120px;
 	}
 </style>
