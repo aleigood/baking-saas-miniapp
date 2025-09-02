@@ -8,8 +8,8 @@
 					<text>加载中...</text>
 				</view>
 				<template v-else>
-					<view v-if="Object.keys(sortedGroupedTasks).length > 0">
-						<view v-for="(tasks, date) in sortedGroupedTasks" :key="date" class="task-group">
+					<view v-if="Object.keys(dataStore.historicalTasks).length > 0">
+						<view v-for="(tasks, date) in dataStore.historicalTasks" :key="date" class="task-group">
 							<view class="date-header">{{ date }}</view>
 							<ListItem v-for="task in tasks" :key="task.id" card-mode :style="getTaskCardStyle(task)"
 								@click="navigateToDetail(task)">
@@ -34,7 +34,7 @@
 					<view class="load-more-container">
 						<view v-if="isLoadingMore" class="loading-spinner">加载中...</view>
 						<view
-							v-if="!dataStore.historicalTasksMeta.hasMore && !isLoading && Object.keys(sortedGroupedTasks).length > 0"
+							v-if="!dataStore.historicalTasksMeta.hasMore && !isLoading && Object.keys(dataStore.historicalTasks).length > 0"
 							class="no-more-tasks">没有更多了
 						</view>
 					</view>
@@ -95,22 +95,7 @@
 		}
 	};
 
-	const sortedGroupedTasks = computed(() => {
-		const allTasks = Object.values(dataStore.historicalTasks).flat();
-		// [核心修复] 按 startDate 排序
-		allTasks.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-		const grouped : Record<string, ProductionTaskDto[]> = {};
-		allTasks.forEach(task => {
-			// [核心修复] 使用 startDate 进行分组
-			const dateKey = formatChineseDate(task.startDate);
-			if (!grouped[dateKey]) {
-				grouped[dateKey] = [];
-			}
-			grouped[dateKey].push(task);
-		});
-		return grouped;
-	});
-
+	// [核心修改] 删除 sortedGroupedTasks 计算属性，因为后端已经处理好分组
 
 	const getTaskTitle = (task : ProductionTaskDto) => {
 		if (!task.items || task.items.length === 0) {
