@@ -95,13 +95,15 @@
 
 	onMounted(async () => {
 		isLoading.value = true;
-		if (!dataStore.dataLoaded.recipes) {
-			await dataStore.fetchRecipesData();
+		// [核心修改] 调用新的 action 来获取产品列表
+		if (!dataStore.dataLoaded.productsForTaskCreation) {
+			await dataStore.fetchProductsForTaskCreation();
 		}
 		if (productTabs.value.length > 0) {
 			activeTab.value = productTabs.value[0].key;
 		}
-		dataStore.productList.forEach(p => {
+		// [核心修改] 初始化 taskQuantities
+		Object.values(dataStore.productsForTaskCreation).flat().forEach(p => {
 			taskQuantities[p.id] = null;
 		});
 		isLoading.value = false;
@@ -113,23 +115,16 @@
 		updateSummary();
 	};
 
-	const groupedProducts = computed(() => {
-		return dataStore.productList.reduce((groups, product) => {
-			const groupName = product.type;
-			if (!groups[groupName]) {
-				groups[groupName] = [];
-			}
-			groups[groupName].push(product);
-			return groups;
-		}, {} as Record<string, ProductListItem[]>);
-	});
+	// [核心修改] 删除 groupedProducts 计算属性
 
 	const productTabs = computed(() => {
-		return Object.keys(groupedProducts.value).map(name => ({ key: name, label: name }));
+		// [核心修改] 直接使用 store 中的数据生成 tabs
+		return Object.keys(dataStore.productsForTaskCreation).map(name => ({ key: name, label: name }));
 	});
 
 	const productsInCurrentTab = computed(() => {
-		return groupedProducts.value[activeTab.value] || [];
+		// [核心修改] 直接从 store 中获取当前 tab 的产品
+		return dataStore.productsForTaskCreation[activeTab.value] || [];
 	});
 
 	const isCreatable = computed(() => {
@@ -150,8 +145,9 @@
 
 	const updateSummary = () => {
 		const groups : { name : string; items : string[] }[] = [];
-		for (const groupName in groupedProducts.value) {
-			const productsInGroup = groupedProducts.value[groupName];
+		// [核心修改] 遍历 store 中的数据
+		for (const groupName in dataStore.productsForTaskCreation) {
+			const productsInGroup = dataStore.productsForTaskCreation[groupName];
 			const quantifiedProducts = productsInGroup
 				.map(p => ({ name: p.name, quantity: taskQuantities[p.id] || 0 }))
 				.filter(p => p.quantity > 0);
@@ -297,7 +293,8 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		padding: 0 5%;; // 保持向中间靠拢
+		padding: 0 5%;
+		; // 保持向中间靠拢
 	}
 
 	.product-name {

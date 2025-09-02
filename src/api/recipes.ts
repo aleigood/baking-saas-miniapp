@@ -4,16 +4,24 @@
  */
 import { request } from '@/utils/request';
 // [更新] 导入新增的类型
-import type { RecipeFamily, RecipeVersion, RecipesListResponse } from '@/types/api';
+import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductListItem } from '@/types/api';
 
 /**
  * 获取当前店铺的配方/产品列表
  * @returns 返回配方家族列表，每个家族包含其激活的版本信息
  */
-// [核心修改] 更新 getRecipes 的返回类型
 export function getRecipes() : Promise<RecipesListResponse> {
 	return request<RecipesListResponse>({
 		url: '/recipes',
+	});
+}
+
+/**
+ * [核心新增] 获取用于创建生产任务的、按配方分组的产品列表
+ */
+export function getProductsForTasks() : Promise<Record<string, ProductListItem[]>> {
+	return request<Record<string, ProductListItem[]>>({
+		url: '/recipes/products-for-tasks',
 	});
 }
 

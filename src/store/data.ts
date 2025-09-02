@@ -20,7 +20,8 @@ import { useToastStore } from './toast';
 import { getTenants as getTenantsApi } from '@/api/tenants';
 import { switchTenant as switchTenantApi } from '@/api/auth';
 import { getTasks, getHistoryTasks } from '@/api/tasks';
-import { getRecipes } from '@/api/recipes';
+// [核心修改] 导入新的 API 函数
+import { getRecipes, getProductsForTasks } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
 import { getMembers } from '@/api/members';
 // [核心修复] 移除了对 getProductionDashboard 的导入
@@ -50,7 +51,8 @@ export const useDataStore = defineStore('data', () => {
 		mainRecipes: [],
 		otherRecipes: [],
 	});
-	// [核心修改] 更新 ingredients 的类型以匹配新的API响应
+	// [核心新增] 新增 state 用于存储创建任务页的产品列表
+	const productsForTaskCreation = ref<Record<string, ProductListItem[]>>({});
 	const ingredients = ref<{ allIngredients : Ingredient[]; lowStockIngredients : Ingredient[] }>({
 		allIngredients: [],
 		lowStockIngredients: [],
@@ -62,6 +64,8 @@ export const useDataStore = defineStore('data', () => {
 	const dataLoaded = ref({
 		production: false,
 		recipes: false,
+		// [核心新增] 新增加载状态
+		productsForTaskCreation: false,
 		ingredients: false,
 		members: false,
 		historicalTasks: false,
@@ -69,30 +73,10 @@ export const useDataStore = defineStore('data', () => {
 
 	const currentTenant = computed(() => tenants.value.find((t) => t.id === currentTenantId.value));
 
-	const productList = computed(() : ProductListItem[] => {
-		const list : ProductListItem[] = [];
-		recipes.value.mainRecipes
-			.filter((family) => !family.deletedAt)
-			.forEach((family) => {
-				family.versions
-					.filter((v) => v.isActive)
-					.forEach((version) => {
-						version.products.forEach((product) => {
-							list.push({
-								id: product.id,
-								name: product.name,
-								type: family.name,
-								familyId: family.id,
-							});
-						});
-					});
-			});
-		return list;
-	});
+	// [核心修改] 移除 productList 计算属性
 
 	const allRecipes = computed(() => [...recipes.value.mainRecipes, ...recipes.value.otherRecipes]);
 
-	// [核心新增] 提供一个包含所有原料的扁平化列表，供其他页面使用
 	const allIngredients = computed(() => ingredients.value.allIngredients);
 
 
@@ -192,10 +176,20 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
+	// [核心新增] 新增一个 action 来获取用于创建任务的产品列表
+	async function fetchProductsForTaskCreation() {
+		if (!currentTenantId.value) return;
+		try {
+			productsForTaskCreation.value = await getProductsForTasks();
+			dataLoaded.value.productsForTaskCreation = true;
+		} catch (error) {
+			console.error('Failed to fetch products for task creation', error);
+		}
+	}
+
 	async function fetchIngredientsData() {
 		if (!currentTenantId.value) return;
 		try {
-			// [核心修改] 更新 fetchIngredientsData 以处理新的API响应
 			ingredients.value = await getIngredients();
 			dataLoaded.value.ingredients = true;
 		} catch (error) {
@@ -241,7 +235,8 @@ export const useDataStore = defineStore('data', () => {
 		// [修改] 重置 homeStats
 		homeStats.value = { pendingCount: 0 };
 		recipes.value = { mainRecipes: [], otherRecipes: [] };
-		// [核心修改] 重置 ingredients 状态
+		// [核心新增] 重置 state
+		productsForTaskCreation.value = {};
 		ingredients.value = { allIngredients: [], lowStockIngredients: [] };
 		members.value = [];
 		recipeStats.value = [];
@@ -249,6 +244,8 @@ export const useDataStore = defineStore('data', () => {
 		dataLoaded.value = {
 			production: false,
 			recipes: false,
+			// [核心新增] 重置加载状态
+			productsForTaskCreation: false,
 			ingredients: false,
 			members: false,
 			historicalTasks: false,
@@ -272,10 +269,11 @@ export const useDataStore = defineStore('data', () => {
 		historicalTasks,
 		historicalTasksMeta,
 		recipes,
-		productList,
+		// [核心新增] 导出 state 和 action
+		productsForTaskCreation,
 		allRecipes,
 		ingredients,
-		allIngredients, // [核心新增] 导出扁平化列表
+		allIngredients,
 		members,
 		recipeStats,
 		ingredientStats,
@@ -286,6 +284,7 @@ export const useDataStore = defineStore('data', () => {
 		fetchProductionData,
 		fetchHistoricalTasks,
 		fetchRecipesData,
+		fetchProductsForTaskCreation,
 		fetchIngredientsData,
 		fetchMembersData,
 	};
