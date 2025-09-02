@@ -104,12 +104,12 @@ export interface RecipesListResponse {
 	otherRecipes : RecipeFamily[];
 }
 
-// [核心新增] 定义“创建新版本”表单模板的类型
+// [核心修改] 更新表单模板类型以匹配后端
 export interface RecipeFormTemplate {
 	name : string;
-	type : 'MAIN';
+	type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	notes : string;
-	doughs : {
+	doughs ?: { // 主配方使用
 		id : string;
 		name : string;
 		type : 'MAIN_DOUGH' | 'PRE_DOUGH';
@@ -122,14 +122,20 @@ export interface RecipeFormTemplate {
 		}[];
 		procedure : string[];
 	}[];
-	products : {
+	products ?: { // 主配方使用
 		name : string;
 		baseDoughWeight : number;
-		mixIns : { id : string | null; ratio : number | null }[];
-		fillings : { id : string | null; weightInGrams : number | null }[];
-		toppings : { id : string | null; weightInGrams : number | null }[];
+		mixIns : { id : string | null; ratio : number | null; weightInGrams ?: number | null }[];
+		fillings : { id : string | null; ratio : number | null; weightInGrams ?: number | null }[];
+		toppings : { id : string | null; ratio : number | null; weightInGrams ?: number | null }[];
 		procedure : string[];
 	}[];
+	ingredients ?: { // 其他配方使用
+		id : string | null;
+		name : string;
+		ratio : number | null;
+	}[];
+	procedure ?: string[]; // 其他配方使用
 }
 
 export interface RecipeVersion {
@@ -144,22 +150,39 @@ export interface RecipeVersion {
 		id : string;
 		name : string;
 		ingredients : DoughIngredient[];
+		procedure : string[];
 		_count : {
 			ingredients : number;
 		};
 	}[];
 }
 
-// [核心修改] 更新 DoughIngredient 类型以反映新的数据结构
+// [核心修改] 更新 DoughIngredient 类型以完全匹配后端返回的嵌套结构
 export interface DoughIngredient {
 	id : string;
-	ratio : number;
-	ingredientId : string;
+	ratio : number | null;
+	flourRatio : number | null;
+	ingredientId : string | null;
 	ingredient : {
 		id : string;
 		name : string;
 		isFlour : boolean;
-	};
+	} | null;
+	linkedPreDough : {
+		id : string;
+		name : string;
+		versions : {
+			doughs : {
+				ingredients : {
+					ratio : number;
+					ingredient : {
+						name : string;
+						isFlour : boolean;
+					};
+				}[];
+			}[];
+		}[];
+	} | null;
 }
 
 
