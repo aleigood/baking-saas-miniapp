@@ -1,5 +1,5 @@
 <template>
-	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<page-meta :page-style="pageStyle"></page-meta>
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader title="任务详情" />
 		<DetailPageLayout>
@@ -188,51 +188,52 @@
 		</DetailPageLayout>
 
 		<AppModal v-model:visible="showCompleteTaskModal" :title="completionStep === 1 ? '提报完成数量' : '提报产品损耗'">
-			<view class="modal-body-footer-wrapper">
-				<view class="modal-main-content">
-					<template v-if="completionStep === 1">
+			<view class="modal-slider-container"
+				:style="{ height: modalContentHeight ? `${modalContentHeight}px` : 'auto' }">
+				<view class="modal-slider-track" :class="{ 'go-to-step2': completionStep === 2 }">
+					<view class="modal-step-content" id="step1-content">
 						<view class="loss-product-list">
 							<view v-for="product in allProductsInTask" :key="product.id" class="loss-product-item">
 								<text class="loss-product-name">{{ product.name }} (计划 {{ product.plannedQuantity
 									}})</text>
-								<input class="loss-quantity-input" type="number" placeholder="实际数量"
-									v-model.number="completionForm[product.id].completedQuantity"
+								<input v-if="completionForm[product.id]" class="loss-quantity-input" type="number"
+									placeholder="实际数量" v-model.number="completionForm[product.id].completedQuantity"
 									@input="onCompletedQuantityInput(product.id, $event)" />
 							</view>
 						</view>
-					</template>
-					<template v-if="completionStep === 2">
+					</view>
+					<view class="modal-step-content" id="step2-content">
 						<view class="spoilagestages-tabs-container" v-if="spoilageStages.length > 0">
 							<AnimatedTabs v-model="activeLossTab" :tabs="spoilageStages" />
 						</view>
 						<view class="loss-product-list">
 							<view v-for="product in productsWithSpoilage" :key="product.id"
 								class="loss-product-item spoilage-item">
-								<text class="loss-product-name">{{ product.name }} (剩余 {{ product.spoilageQuantity
-									}})</text>
-								<input class="loss-quantity-input" type="number" placeholder="数量"
-									:value="completionForm[product.id].spoilageDetails[activeLossTab]"
+								<text class="loss-product-name">{{ product.name }} (剩余 {{
+									remainingSpoilageQuantity(product.id) }})</text>
+								<input v-if="completionForm[product.id]" class="loss-quantity-input" type="number"
+									placeholder="数量" :value="completionForm[product.id].spoilageDetails[activeLossTab]"
 									@input="onSpoilageQuantityInput(product.id, activeLossTab, $event)" />
 							</view>
 						</view>
 						<textarea class="spoilage-notes-input" v-model="completionNotes"
 							placeholder="关于损耗情况的附加说明（可选）"></textarea>
-					</template>
+					</view>
 				</view>
-				<view class="modal-actions">
-					<AppButton type="secondary" @click="handleCompletionModalBack">
-						{{ completionStep === 1 ? '取消' : '上一步' }}
-					</AppButton>
-					<AppButton type="primary" @click="handleCompletionModalNext" :loading="isSubmitting"
-						:disabled="!isStep1Valid">
-						{{ completionStep === 1 ? (hasSpoilage ? '下一步' : '确认完成') : '确认完成' }}
-					</AppButton>
-				</view>
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="handleCompletionModalBack">
+					{{ completionStep === 1 ? '取消' : '上一步' }}
+				</AppButton>
+				<AppButton type="primary" @click="handleCompletionModalNext" :loading="isSubmitting"
+					:disabled="!isStep1Valid">
+					{{ completionStep === 1 ? (hasSpoilage ? '下一步' : '确认完成') : '确认完成' }}
+				</AppButton>
 			</view>
 		</AppModal>
 
 		<AppPopover :visible="popover.visible" :content="popover.content" :targetRect="popover.targetRect"
-			:offsetY="10" />
+			placement="right" :offsetY="0" />
 	</view>
 </template>
 
@@ -258,9 +259,8 @@
 		useTemperatureStore
 	} from '@/store/temperature';
 	import type {
-		TaskCompletionItem
+		ProductionTaskDetailDto
 	} from '@/types/api';
-	import type { ProductionTaskDetailDto } from '@/types/api';
 	import {
 		getTaskDetail,
 		updateTaskStatus,
@@ -274,7 +274,9 @@
 	import ListItem from '@/components/ListItem.vue';
 	import AnimatedTabs from '@/components/CssAnimatedTabs.vue';
 	import AppPopover from '@/components/AppPopover.vue';
-	import { formatWeight } from '@/utils/format';
+	import {
+		formatWeight
+	} from '@/utils/format';
 
 	defineOptions({
 		inheritAttrs: false
@@ -297,7 +299,6 @@
 	const collapsedSections = ref(new Set<string>());
 	const selectedProductId = ref<string>('');
 
-	// [核心重构] 完成任务模态框的状态
 	const completionStep = ref(1);
 	const completionForm = reactive<Record<string, {
 		plannedQuantity : number;
@@ -305,8 +306,12 @@
 		spoilageDetails : Record<string, number | null>;
 	}>>({});
 	const completionNotes = ref('');
-	const spoilageStages = ref<{ key : string, label : string }[]>([]);
+	const spoilageStages = ref<{
+		key : string,
+		label : string
+	}[]>([]);
 	const activeLossTab = ref('');
+	const modalContentHeight = ref<number | string>('auto');
 
 
 	const popover = reactive<{
@@ -324,7 +329,43 @@
 		targetRect: null,
 	});
 
-	// [核心重构] 重置完成任务表单
+	const pageStyle = computed(() => {
+		let style = 'background-color: #fdf8f2;';
+		if (popover.visible) {
+			style += 'overflow: hidden;';
+		}
+		return style;
+	});
+
+	const updateModalContentHeight = () => {
+		nextTick(() => {
+			const stepId = `#step${completionStep.value}-content`;
+			// console.log(`[Debug] Calculating height for step: ${completionStep.value}, selector: ${stepId}`);
+
+			const query = uni.createSelectorQuery().in(instance);
+			query.select(stepId).boundingClientRect(rect => {
+				// console.log('[Debug] Query result rect:', rect);
+				if (rect && rect.height) {
+					// console.log(`[Debug] Setting modalContentHeight to: ${rect.height}px`);
+					modalContentHeight.value = rect.height;
+				}
+			}).exec();
+		});
+	};
+
+	watch(showCompleteTaskModal, (visible) => {
+		if (visible) {
+			updateModalContentHeight();
+		} else {
+			modalContentHeight.value = 'auto';
+		}
+	});
+
+	watch(completionStep, (newStep) => {
+		// console.log(`[Debug] completionStep changed to: ${newStep}`);
+		updateModalContentHeight();
+	});
+
 	const resetCompletionForm = () => {
 		completionStep.value = 1;
 		completionNotes.value = '';
@@ -378,7 +419,8 @@
 			const response = await getTaskDetail(id, temperatureStore.settings);
 			task.value = response;
 
-			if (task.value.status === 'IN_PROGRESS' || task.value.status === 'COMPLETED' || task.value.status === 'CANCELLED') {
+			if (task.value.status === 'IN_PROGRESS' || task.value.status === 'COMPLETED' || task.value.status ===
+				'CANCELLED') {
 				isStarted.value = true;
 				if (task.value.doughGroups.length > 0) {
 					const firstDough = task.value.doughGroups[0];
@@ -395,7 +437,6 @@
 		}
 	}
 
-	// [核心重构] 完成任务流程相关计算属性
 	const productsWithSpoilage = computed(() => {
 		return allProductsInTask.value
 			.map(p => ({
@@ -415,8 +456,18 @@
 		return Object.values(completionForm).every(item => item.completedQuantity !== null);
 	});
 
+	const remainingSpoilageQuantity = (productId : string) => {
+		const productData = completionForm[productId];
+		if (!productData) return 0;
 
-	// [核心重构] 完成任务流程相关方法
+		const totalSpoilage = productData.plannedQuantity - (productData.completedQuantity || 0);
+		const reportedSpoilage = Object.values(productData.spoilageDetails).reduce((sum, current) => sum + (current ||
+			0),
+			0);
+
+		return totalSpoilage - reportedSpoilage;
+	};
+
 	const onCompletedQuantityInput = (productId : string, event : any) => {
 		const value = event.target?.value ?? event.detail.value;
 		const numValue = value === '' ? null : Number(value);
@@ -485,7 +536,9 @@
 			const item : {
 				productId : string;
 				completedQuantity : number;
-				spoilageDetails ?: { stage : string; quantity : number; notes ?: string }[];
+				spoilageDetails ?: {
+					stage : string; quantity : number; notes ?: string
+				}[];
 			} = {
 					productId,
 					completedQuantity: data.completedQuantity!,
@@ -519,7 +572,10 @@
 				notes: completionNotes.value,
 				completedItems
 			});
-			toastStore.show({ message: '任务已完成', type: 'success' });
+			toastStore.show({
+				message: '任务已完成',
+				type: 'success'
+			});
 			setTimeout(() => uni.navigateBack(), 500);
 		} catch (error) {
 			console.error('Failed to complete task:', error);
@@ -632,15 +688,27 @@
 		font-size: 14px;
 	}
 
-	.modal-body-footer-wrapper {
-		display: flex;
-		flex-direction: column;
+	.modal-slider-container {
+		overflow: hidden;
+		transition: height 0.3s ease-in-out;
 	}
 
-	.modal-main-content {
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
+	.modal-slider-track {
+		display: flex;
+		width: 200%;
+		transition: transform 0.3s ease-in-out;
+		/* [核心修改] 阻止 flex item 被拉伸，保持其内容自然高度 */
+		align-items: flex-start;
+	}
+
+	.modal-slider-track.go-to-step2 {
+		transform: translateX(-50%);
+	}
+
+	.modal-step-content {
+		width: 50%;
+		flex-shrink: 0;
+		box-sizing: border-box;
 	}
 
 	.loss-product-list {
