@@ -39,7 +39,9 @@
 						</view>
 						<view v-else class="summary-placeholder">产品数量汇总</view>
 					</view>
-					<CssAnimatedTabs v-model="activeTab" :tabs="productTabs" />
+					<view class="product-tabs-container" v-if="productTabs.length > 0">
+						<CssAnimatedTabs v-model="activeTab" :tabs="productTabs" />
+					</view>
 					<view class="product-grid">
 						<view v-for="product in productsInCurrentTab" :key="product.id" class="product-item">
 							<text class="product-name">{{ product.name }}</text>
@@ -48,11 +50,12 @@
 						</view>
 					</view>
 				</view>
-
-				<AppButton type="primary" full-width :disabled="!isCreatable" @click="handleCreateTasks"
-					:loading="isCreating">
-					{{ isCreating ? '' : '创建任务' }}
-				</AppButton>
+				<view class="bottom-actions-container">
+					<AppButton type="primary" full-width :disabled="!isCreatable" @click="handleCreateTasks"
+						:loading="isCreating">
+						{{ isCreating ? '' : '创建任务' }}
+					</AppButton>
+				</view>
 			</view>
 		</DetailPageLayout>
 		<Toast />
@@ -216,6 +219,7 @@
 		justify-content: space-between;
 		align-items: center;
 		gap: 15px;
+		margin-bottom: 20px;
 	}
 
 	.date-picker-item {
@@ -287,6 +291,7 @@
 		grid-template-columns: 1fr;
 		gap: 12px;
 		margin-top: 20px;
+		margin-bottom: 20px;
 	}
 
 	.product-item {
@@ -295,6 +300,10 @@
 		gap: 12px;
 		padding: 0 5%;
 		; // 保持向中间靠拢
+	}
+
+	.product-tabs-container {
+		margin-top: 25px;
 	}
 
 	.product-name {

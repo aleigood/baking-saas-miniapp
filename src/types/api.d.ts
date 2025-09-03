@@ -10,9 +10,11 @@ export interface CalculatedRecipeIngredient {
 	brand ?: string | null;
 	isRecipe : boolean; // 新增字段，用于标识该原料是否为另一个配方
 }
+// [核心修改] 为备料详情增加 type 字段
 export interface CalculatedRecipeDetails {
 	id : string;
 	name : string;
+	type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA'; // 新增字段，用于明确备料类型
 	totalWeight : number;
 	procedure : string[];
 	ingredients : CalculatedRecipeIngredient[];

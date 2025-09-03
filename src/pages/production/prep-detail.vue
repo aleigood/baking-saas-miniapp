@@ -5,35 +5,50 @@
 		<DetailPageLayout>
 			<view class="page-content">
 				<template v-if="task">
-					<view v-for="item in task.items" :key="item.id" class="card recipe-card">
-						<view class="card-title-wrapper">
-							<span class="card-title">{{ item.name }}</span>
-							<span class="total-weight">总重: {{ formatWeight(item.totalWeight) }}</span>
-						</view>
+					<view class="filter-wrapper">
+						<FilterTabs v-model="activeTab" :tabs="filterTabs" />
+					</view>
 
-						<view class="recipe-table">
-							<view class="table-header">
-								<text class="col-ingredient">原料</text>
-								<text class="col-brand">品牌</text>
-								<text class="col-usage">用量</text>
+					<view v-if="filteredItems.length > 0">
+						<view v-for="item in filteredItems" :key="item.id" class="card recipe-card">
+							<view class="card-title-wrapper" @click="toggleCollapse(item.id)">
+								<span class="card-title">{{ item.name }}</span>
+								<span class="arrow"
+									:class="{ collapsed: collapsedSections.has(item.id) }">&#10095;</span>
 							</view>
-							<view v-for="(ing, index) in item.ingredients" :key="index" class="table-row"
-								:class="{ 'is-added': addedIngredientsMap[item.id]?.has(ing.name) }"
-								@longpress.prevent="toggleIngredientAdded(item.id, ing.name)">
-								<text class="col-ingredient">{{ ing.name }}</text>
-								<text class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
-								<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-							</view>
-						</view>
 
-						<view class="section-title">制作要点</view>
-						<view class="procedure-list">
-							<view v-for="(step, index) in item.procedure" :key="index" class="procedure-item">
-								<text class="step-number">{{ index + 1 }}.</text>
-								<text class="step-text">{{ step }}</text>
+							<view v-show="!collapsedSections.has(item.id)">
+								<view class="recipe-table">
+									<view class="table-header">
+										<text class="col-ingredient">原料</text>
+										<text class="col-brand">品牌</text>
+										<text class="col-usage">用量</text>
+									</view>
+									<view v-for="(ing, index) in item.ingredients" :key="index" class="table-row"
+										:class="{ 'is-added': addedIngredientsMap[item.id]?.has(ing.name) }"
+										@longpress.prevent="toggleIngredientAdded(item.id, ing.name)">
+										<text class="col-ingredient">{{ ing.name }}</text>
+										<text class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
+										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+									</view>
+								</view>
+
+								<view class="total-weight-summary">
+									<text>重量总计: {{ formatWeight(item.totalWeight) }}</text>
+								</view>
+
+								<view v-if="item.procedure && item.procedure.length > 0" class="procedure-notes">
+									<text class="notes-title">制作要点:</text>
+									<text v-for="(step, stepIndex) in item.procedure" :key="stepIndex"
+										class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+								</view>
 							</view>
 						</view>
 					</view>
+					<view v-else class="empty-state">
+						<text>该分类下暂无备料</text>
+					</view>
+
 				</template>
 				<view v-else-if="isLoading" class="loading-spinner">
 					<text>加载中...</text>
@@ -44,11 +59,13 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, reactive } from 'vue';
+	import { ref, reactive, computed } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
-	import type { PrepTask } from '@/types/api';
+	// [核心修改] 从 api 类型中导入 CalculatedRecipeDetails
+	import type { PrepTask, CalculatedRecipeDetails } from '@/types/api';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
+	import FilterTabs from '@/components/FilterTabs.vue';
 	import { formatWeight } from '@/utils/format';
 
 	defineOptions({
@@ -59,6 +76,42 @@
 	const task = ref<PrepTask | null>(null);
 
 	const addedIngredientsMap = reactive<Record<string, Set<string>>>({});
+
+	const activeTab = ref<'PRE_DOUGH' | 'OTHER'>('PRE_DOUGH');
+	const filterTabs = ref([
+		{ key: 'PRE_DOUGH', label: '面种' },
+		{ key: 'OTHER', label: '其他' },
+	]);
+
+	const collapsedSections = ref(new Set<string>());
+
+	const toggleCollapse = (itemId : string) => {
+		const newSet = new Set(collapsedSections.value);
+		if (newSet.has(itemId)) {
+			newSet.delete(itemId);
+		} else {
+			newSet.add(itemId);
+		}
+		collapsedSections.value = newSet;
+	};
+
+
+	// [核心修改] 使用新的 type 字段进行分类
+	const preDoughItems = computed(() => {
+		if (!task.value) return [];
+		return task.value.items.filter(item => item.type === 'PRE_DOUGH');
+	});
+
+	// [核心修改] 使用新的 type 字段进行分类
+	const otherItems = computed(() => {
+		if (!task.value) return [];
+		return task.value.items.filter(item => item.type !== 'PRE_DOUGH');
+	});
+
+	const filteredItems = computed(() => {
+		return activeTab.value === 'PRE_DOUGH' ? preDoughItems.value : otherItems.value;
+	});
+
 
 	const toggleIngredientAdded = (itemId : string, ingredientName : string) => {
 		if (!addedIngredientsMap[itemId]) {
@@ -94,29 +147,36 @@
 		height: 100vh;
 	}
 
+	.filter-wrapper {
+		margin-bottom: 20px;
+	}
+
 	.recipe-card {
 		margin-bottom: 20px;
 	}
 
 	.card-title-wrapper {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		width: 100%;
+		margin-bottom: 0px;
 	}
 
-	.total-weight {
+	.arrow {
 		font-size: 14px;
 		color: var(--text-secondary);
-		font-weight: 400;
+		transform: rotate(90deg);
+		transition: transform 0.3s ease;
+		padding: 5px;
+	}
+
+	.arrow.collapsed {
+		transform: rotate(0deg);
 	}
 
 	.recipe-table {
 		display: table;
 		width: 100%;
 		font-size: 14px;
+		margin-top: 25px;
 		border-collapse: collapse;
-		margin-bottom: 25px;
 
 		.table-header,
 		.table-row {
@@ -179,6 +239,15 @@
 		}
 	}
 
+	.total-weight-summary {
+		display: flex;
+		justify-content: flex-end;
+		padding: 10px 4px;
+		font-size: 13px;
+		color: var(--text-secondary);
+		border-top: 1px solid var(--border-color);
+	}
+
 	.section-title {
 		font-size: 12px;
 		font-weight: 600;
@@ -186,26 +255,19 @@
 		margin-bottom: 5px;
 	}
 
-	.procedure-list {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-	}
-
-	.procedure-item {
-		display: flex;
-		align-items: flex-start;
+	.procedure-notes {
 		font-size: 12px;
+		color: var(--text-secondary);
 		line-height: 1.6;
 
-		.step-number {
-			color: var(--primary-color);
-			font-weight: 500;
-			margin-right: 8px;
+		.notes-title {
+			font-weight: 600;
+			display: block;
+			margin-bottom: 5px;
 		}
 
-		.step-text {
-			color: var(--text-secondary);
+		.note-item {
+			display: block;
 		}
 	}
 </style>

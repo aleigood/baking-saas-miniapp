@@ -7,10 +7,7 @@
 				<view class="detail-page">
 					<view v-if="task.stockWarning && !isReadOnly" class="warning-card card">
 						<view class="warning-content">
-							<view class="warning-text">
-								<text class="warning-title">{{ stockWarningParts.title }}</text>
-								<text>{{ stockWarningParts.details }}</text>
-							</view>
+							<text class="warning-text">{{ task.stockWarning }}</text>
 						</view>
 					</view>
 
@@ -31,7 +28,7 @@
 						</view>
 					</view>
 
-					<view v-if="!isStarted && !isReadOnly" class="start-task-button-container">
+					<view v-if="!isStarted && !isReadOnly" class="bottom-actions-container">
 						<AppButton type="primary" full-width @click="handleStartTask">
 							开始制作
 						</AppButton>
@@ -103,7 +100,7 @@
 									:class="{ collapsed: collapsedSections.has('productSummary') }">&#10095;</span>
 							</view>
 							<view v-show="!collapsedSections.has('productSummary')">
-								<view class="animated-tabs-container" v-if="productTabs.length > 0">
+								<view class="product-tabs-container" v-if="productTabs.length > 0">
 									<AnimatedTabs v-model="selectedProductId" :tabs="productTabs" />
 								</view>
 
@@ -205,11 +202,13 @@
 						</view>
 					</template>
 					<template v-if="completionStep === 2">
-						<AnimatedTabs v-model="activeLossTab" :tabs="spoilageStages" />
+						<view class="spoilagestages-tabs-container" v-if="spoilageStages.length > 0">
+							<AnimatedTabs v-model="activeLossTab" :tabs="spoilageStages" />
+						</view>
 						<view class="loss-product-list">
 							<view v-for="product in productsWithSpoilage" :key="product.id"
 								class="loss-product-item spoilage-item">
-								<text class="loss-product-name">{{ product.name }} (损耗 {{ product.spoilageQuantity
+								<text class="loss-product-name">{{ product.name }} (剩余 {{ product.spoilageQuantity
 									}})</text>
 								<input class="loss-quantity-input" type="number" placeholder="数量"
 									:value="completionForm[product.id].spoilageDetails[activeLossTab]"
@@ -217,7 +216,7 @@
 							</view>
 						</view>
 						<textarea class="spoilage-notes-input" v-model="completionNotes"
-							placeholder="可在此输入关于本次任务的附加说明..."></textarea>
+							placeholder="关于损耗情况的附加说明（可选）"></textarea>
 					</template>
 				</view>
 				<view class="modal-actions">
@@ -323,17 +322,6 @@
 		visible: false,
 		content: '',
 		targetRect: null,
-	});
-
-	const stockWarningParts = computed(() => {
-		if (!task.value?.stockWarning) {
-			return { title: '', details: '' };
-		}
-		const parts = task.value.stockWarning.split(/:\s|：\s/);
-		if (parts.length > 1) {
-			return { title: parts[0] + '：', details: parts.slice(1).join(': ') };
-		}
-		return { title: '', details: task.value.stockWarning };
 	});
 
 	// [核心重构] 重置完成任务表单
@@ -659,7 +647,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
-		margin-top: 20px;
+		margin-top: 10px;
 		padding: 5px;
 	}
 
@@ -692,7 +680,7 @@
 		padding: 0 10px;
 		text-align: center;
 		font-size: 15px;
-		width: 85px;
+		width: 95px;
 		box-sizing: border-box;
 		border: 1px solid var(--border-color);
 		height: 36px;
@@ -745,10 +733,6 @@
 	.warning-text {
 		font-size: 14px;
 		line-height: 1.6;
-
-		.warning-title {
-			font-weight: bold;
-		}
 	}
 
 	.card-full-bleed-list {
@@ -777,15 +761,6 @@
 		margin-top: 4px;
 	}
 
-	.start-task-button-container {
-		margin-top: 20px;
-	}
-
-	.bottom-actions-container {
-		margin-top: 30px;
-		margin-bottom: 15px;
-	}
-
 	.group-title {
 		display: flex;
 		justify-content: space-between;
@@ -794,7 +769,7 @@
 		font-weight: 600;
 		color: var(--text-primary);
 		border: none;
-		margin-top: 25px;
+		margin-top: 30px;
 		position: relative;
 		background-color: #faf8f5;
 		padding: 10px 15px;
@@ -913,11 +888,12 @@
 		display: inline-flex;
 		justify-content: center;
 		align-items: center;
+		margin-left: 8px;
 		width: 16px;
 		height: 16px;
 		border-radius: 50%;
-		background-color: #e9ecef;
-		color: #adb5bd;
+		background-color: var(--bg-color);
+		color: #8c5a3b;
 		font-size: 11px;
 		font-weight: bold;
 		flex-shrink: 0;
@@ -1002,7 +978,11 @@
 		margin-top: 15px;
 	}
 
-	.animated-tabs-container {
+	.product-tabs-container {
 		margin-top: 25px;
+	}
+
+	.spoilagestages-tabs-container {
+		margin-top: 0px;
 	}
 </style>

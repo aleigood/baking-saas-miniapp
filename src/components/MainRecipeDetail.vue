@@ -55,14 +55,6 @@
 						:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
 				</view>
 				<view v-show="!collapsedSections.has('otherIngredients')">
-					<view v-if="doughSummary" class="recipe-table detail-table">
-						<view class="table-row">
-							<text class="col-ingredient">{{ doughSummary.name }}</text>
-							<text class="col-usage">{{ formatWeight(doughSummary.weightInGrams) }}</text>
-							<text class="col-total">¥{{ formatNumber(doughSummary.cost) }}</text>
-						</view>
-					</view>
-
 					<template
 						v-if="recipeDetails.groupedExtraIngredients['搅拌原料'] && recipeDetails.groupedExtraIngredients['搅拌原料'].length > 0">
 						<view class="summary-table-wrapper">
@@ -119,7 +111,14 @@
 							</view>
 						</view>
 					</template>
-
+					<view class="summary-divider"></view>
+					<view v-if="doughSummary" class="recipe-table detail-table">
+						<view class="table-row">
+							<text class="col-ingredient">{{ doughSummary.name }}</text>
+							<text class="col-usage">{{ formatWeight(doughSummary.weightInGrams) }}</text>
+							<text class="col-total">¥{{ formatNumber(doughSummary.cost) }}</text>
+						</view>
+					</view>
 					<view class="total-cost-summary">
 						<view class="summary-divider"></view>
 						<view class="summary-text">成本总计: ¥{{ formatNumber(recipeDetails.totalCost) }}</view>
@@ -275,7 +274,7 @@
 		font-weight: 600;
 		color: var(--text-primary);
 		border: none;
-		margin-top: 25px;
+		margin-top: 30px;
 		position: relative;
 		background-color: #faf8f5;
 		padding: 10px 15px;
@@ -298,7 +297,7 @@
 		width: 100%;
 		font-size: 14px;
 		border-collapse: collapse;
-		margin-top: 15px;
+		margin-top: 25px;
 
 		.table-header,
 		.table-row {
@@ -370,7 +369,7 @@
 
 	.product-tabs-wrapper {
 		padding: 0;
-		margin-bottom: 20px;
+		margin-bottom: 35px;
 	}
 
 	.data-analysis-section {
@@ -452,17 +451,20 @@
 	}
 
 	.total-cost-summary {
-		margin-top: 15px;
-		padding-top: 15px;
 		text-align: right;
 		font-size: 14px;
 		font-weight: 600;
 		color: var(--text-primary);
+		margin-bottom: 15px;
 	}
 
 	.summary-divider {
 		height: 1px;
 		background-color: var(--border-color);
 		margin-bottom: 15px;
+	}
+
+	.summary-text {
+		padding: 0px 4px;
 	}
 </style>

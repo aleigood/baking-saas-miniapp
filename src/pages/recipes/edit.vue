@@ -70,7 +70,7 @@
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
-							<image class="remove-icon" src="/static/icons/close-x.svg" />
+							<image class="remove-icon" src="/static/icons/trash.svg" />
 						</IconButton>
 					</view>
 					<AppButton type="dashed" full-width size="md" @click="addIngredient" class="add-button">+ 添加原料
@@ -81,7 +81,7 @@
 						<view v-for="(step, stepIndex) in mainDough.procedure" :key="stepIndex" class="procedure-item">
 							<input class="input-field" v-model="mainDough.procedure[stepIndex]" placeholder="输入制作步骤" />
 							<IconButton variant="field" @click="removeProcedureStep(mainDough, stepIndex)">
-								<image class="remove-icon" src="/static/icons/close-x.svg" />
+								<image class="remove-icon" src="/static/icons/trash.svg" />
 							</IconButton>
 						</view>
 						<AppButton type="dashed" full-width size="md" @click="addProcedureStep(mainDough)">+ 添加要点
@@ -124,7 +124,7 @@
 								<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 									placeholder="%" />
 								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
-									<image class="remove-icon" src="/static/icons/close-x.svg" />
+									<image class="remove-icon" src="/static/icons/trash.svg" />
 								</IconButton>
 							</view>
 							<AppButton type="dashed" full-width size="md"
@@ -146,7 +146,7 @@
 									placeholder="g/个" />
 								<IconButton variant="field"
 									@click="removeSubIngredient(prodIndex, 'fillings', ingIndex)">
-									<image class="remove-icon" src="/static/icons/close-x.svg" />
+									<image class="remove-icon" src="/static/icons/trash.svg" />
 								</IconButton>
 							</view>
 							<AppButton type="dashed" full-width size="md"
@@ -168,7 +168,7 @@
 									placeholder="g/个" />
 								<IconButton variant="field"
 									@click="removeSubIngredient(prodIndex, 'toppings', ingIndex)">
-									<image class="remove-icon" src="/static/icons/close-x.svg" />
+									<image class="remove-icon" src="/static/icons/trash.svg" />
 								</IconButton>
 							</view>
 							<AppButton type="dashed" full-width size="md"
@@ -182,7 +182,7 @@
 								<input class="input-field" v-model="product.procedure[stepIndex]"
 									placeholder="输入制作步骤" />
 								<IconButton variant="field" @click="removeProcedureStep(product, stepIndex)">
-									<image class="remove-icon" src="/static/icons/close-x.svg" />
+									<image class="remove-icon" src="/static/icons/trash.svg" />
 								</IconButton>
 							</view>
 							<AppButton type="dashed" full-width size="md" @click="addProcedureStep(product)">+ 添加要点
