@@ -13,6 +13,11 @@
 				<text class="col-price">{{ ing.pricePerKg }}</text>
 			</view>
 		</view>
+		<view v-if="procedure && procedure.length > 0" class="procedure-notes">
+			<text class="notes-title">制作要点:</text>
+			<text v-for="(step, stepIndex) in procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}.
+				{{ step }}</text>
+		</view>
 	</view>
 </template>
 
@@ -32,6 +37,14 @@
 	});
 
 	const dataStore = useDataStore();
+
+	// [核心新增] 提取制作要点
+	const procedure = computed(() => {
+		if (!props.version || !props.version.doughs || props.version.doughs.length === 0) {
+			return [];
+		}
+		return props.version.doughs[0].procedure || [];
+	});
 
 	// 计算属性，用于处理并格式化非主面团配方的原料列表
 	const nonMainRecipeIngredients = computed(() => {
@@ -110,6 +123,24 @@
 		.col-ingredient {
 			min-width: 80px;
 			word-break: break-word;
+		}
+	}
+
+	/* [核心新增] 增加制作要点样式 */
+	.procedure-notes {
+		margin-top: 10px;
+		font-size: 12px;
+		color: var(--text-secondary);
+		line-height: 1.6;
+
+		.notes-title {
+			font-weight: 600;
+			display: block;
+			margin-bottom: 5px;
+		}
+
+		.note-item {
+			display: block;
 		}
 	}
 </style>
