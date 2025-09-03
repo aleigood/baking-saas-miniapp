@@ -68,8 +68,7 @@
 				<input class="input-field" v-model="newSkuForm.specName" placeholder="例如：1kg袋装" />
 			</FormItem>
 			<FormItem label="规格重量 (g)">
-				<input class="input-field" type="number" v-model.number="newSkuForm.specWeightInGrams"
-					placeholder="例如：1000" />
+				<input class="input-field" type="number" v-model="newSkuForm.specWeightInGrams" placeholder="例如：1000" />
 			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showAddSkuModal = false">取消</AppButton>
@@ -84,12 +83,11 @@
 				<input class="input-field" :value="activeSkuName" readonly disabled />
 			</FormItem>
 			<FormItem label="采购数量">
-				<input class="input-field" type="number" v-model.number="procurementForm.packagesPurchased"
+				<input class="input-field" type="number" v-model="procurementForm.packagesPurchased"
 					placeholder="例如：10包" />
 			</FormItem>
 			<FormItem label="采购总价 (元)">
-				<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
-					placeholder="例如：255" />
+				<input class="input-field" type="number" v-model="procurementForm.totalPrice" placeholder="例如：255" />
 			</FormItem>
 			<view class="form-row" style="margin-bottom: 20px;">
 				<label class="form-row-label">采购补录</label>
@@ -186,7 +184,7 @@
 		<AppModal :visible="uiStore.showUpdateStockConfirmModal"
 			@update:visible="uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM)" title="库存调整">
 			<FormItem label="库存变化量 (kg)">
-				<input class="input-field" type="digit" v-model="stockAdjustment.changeInKg"
+				<input class="input-field" type="digit" v-model.number="stockAdjustment.changeInKg"
 					placeholder="正数代表盘盈，负数代表损耗" />
 			</FormItem>
 			<FormItem label="调整原因 (可选)">
@@ -253,16 +251,27 @@
 		{ key: 'usage', label: '用量走势' },
 	]);
 	const showAddSkuModal = ref(false);
-	const newSkuForm = ref({
+	// [核心修改] 将类型改为 number | null
+	const newSkuForm = ref<{
+		brand : string;
+		specName : string;
+		specWeightInGrams : number | null;
+	}>({
 		brand: '',
 		specName: '',
-		specWeightInGrams: 0,
+		specWeightInGrams: null,
 	});
 	const showProcurementModal = ref(false);
-	const procurementForm = ref({
+	// [核心修改] 将类型改为 number | null
+	const procurementForm = ref<{
+		skuId : string;
+		packagesPurchased : number | null;
+		totalPrice : number | null;
+		purchaseDate : string;
+	}>({
 		skuId: '',
-		packagesPurchased: 0,
-		totalPrice: 0,
+		packagesPurchased: null,
+		totalPrice: null,
 		purchaseDate: '',
 	});
 
@@ -295,8 +304,12 @@
 		totalPrice: 0,
 	});
 
-	const stockAdjustment = reactive({
-		changeInKg: 0,
+	// [核心修改] 将类型改为 number | null
+	const stockAdjustment = reactive<{
+		changeInKg : number | null;
+		reason : string;
+	}>({
+		changeInKg: null,
 		reason: ''
 	});
 
@@ -397,7 +410,8 @@
 	});
 
 	const openAddSkuModal = () => {
-		newSkuForm.value = { brand: '', specName: '', specWeightInGrams: 0 };
+		// [核心修改] 重置为空值
+		newSkuForm.value = { brand: '', specName: '', specWeightInGrams: null };
 		showAddSkuModal.value = true;
 	};
 
@@ -409,7 +423,11 @@
 		}
 		isSubmitting.value = true;
 		try {
-			const skuRes = await createSku(ingredient.value.id, newSkuForm.value);
+			// [核心修改] 确保提交的是 number
+			const skuRes = await createSku(ingredient.value.id, {
+				...newSkuForm.value,
+				specWeightInGrams: Number(newSkuForm.value.specWeightInGrams)
+			});
 			const skuId = skuRes.id;
 
 			if (ingredient.value.skus.length === 0) {
@@ -441,10 +459,11 @@
 			toastStore.show({ message: '请先激活一个SKU才能进行采购', type: 'error' });
 			return;
 		}
+		// [核心修改] 重置为空值
 		procurementForm.value = {
 			skuId: ingredient.value.activeSku.id,
-			packagesPurchased: 0,
-			totalPrice: 0,
+			packagesPurchased: null,
+			totalPrice: null,
 			purchaseDate: '',
 		};
 		isBackEntry.value = false;
@@ -465,7 +484,7 @@
 	};
 
 	const handleCreateProcurement = async () => {
-		if (!procurementForm.value.skuId || procurementForm.value.packagesPurchased <= 0 || procurementForm.value.totalPrice <= 0) {
+		if (!procurementForm.value.skuId || !procurementForm.value.packagesPurchased || procurementForm.value.packagesPurchased <= 0 || !procurementForm.value.totalPrice || procurementForm.value.totalPrice <= 0) {
 			toastStore.show({ message: '请填写所有有效的采购信息', type: 'error' });
 			return;
 		}
@@ -636,7 +655,8 @@
 
 	const openUpdateStockModal = () => {
 		if (ingredient.value) {
-			stockAdjustment.changeInKg = 0;
+			// [核心修改] 重置为空值
+			stockAdjustment.changeInKg = null;
 			stockAdjustment.reason = '';
 			uiStore.openModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
 		}
