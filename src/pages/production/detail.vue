@@ -1,13 +1,16 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
-	<view class="page-wrapper">
+	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader title="任务详情" />
 		<DetailPageLayout>
 			<view class="page-content" v-if="!isLoading && task">
 				<view class="detail-page">
 					<view v-if="task.stockWarning && !isReadOnly" class="warning-card card">
 						<view class="warning-content">
-							<text class="warning-text">{{ task.stockWarning }}</text>
+							<view class="warning-text">
+								<text class="warning-title">{{ stockWarningParts.title }}</text>
+								<text>{{ stockWarningParts.details }}</text>
+							</view>
 						</view>
 					</view>
 
@@ -37,8 +40,7 @@
 					<template v-if="isStarted && selectedDoughDetails">
 						<view class="card">
 							<view class="group-title" @click="toggleCollapse(selectedDoughDetails.familyId)">
-								<span>{{ selectedDoughDetails.familyName }} (总重:
-									{{ formatWeight(selectedDoughDetails.totalDoughWeight) }})</span>
+								<span>{{ selectedDoughDetails.familyName }}</span>
 								<span class="arrow"
 									:class="{ collapsed: collapsedSections.has(selectedDoughDetails.familyId) }">&#10095;</span>
 							</view>
@@ -53,10 +55,19 @@
 										class="table-row"
 										:class="{ 'is-added': addedIngredientsMap[selectedDoughDetails.familyId]?.has(ing.id) }"
 										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedDoughDetails.familyId, ing.id)">
-										<text class="col-ingredient">{{ ing.name }}</text>
+										<view class="col-ingredient ingredient-name-cell">
+											<text>{{ ing.name }}</text>
+											<text v-if="ing.extraInfo" class="info-icon" :id="'info-icon-' + ing.id"
+												@click.stop="showExtraInfo(ing.extraInfo, ing.id)">
+												!
+											</text>
+										</view>
 										<text class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
 										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 									</view>
+								</view>
+								<view class="total-weight-summary">
+									<text>面团总重: {{ formatWeight(selectedDoughDetails.totalDoughWeight) }}</text>
 								</view>
 								<view v-if="selectedDoughDetails.mainDoughProcedure.length > 0" class="procedure-notes">
 									<text class="notes-title">制作要点:</text>
@@ -204,6 +215,9 @@
 				</view>
 			</view>
 		</AppModal>
+
+		<AppPopover :visible="popover.visible" :content="popover.content" :targetRect="popover.targetRect"
+			:offsetY="10" />
 	</view>
 </template>
 
@@ -214,6 +228,7 @@
 		reactive,
 		watch,
 		nextTick,
+		getCurrentInstance
 	} from 'vue';
 	import {
 		onLoad
@@ -242,6 +257,7 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import AnimatedTabs from '@/components/CssAnimatedTabs.vue';
+	import AppPopover from '@/components/AppPopover.vue'; // [核心新增] 导入 AppPopover
 	import { formatWeight } from '@/utils/format';
 
 	defineOptions({
@@ -251,6 +267,7 @@
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
 	const temperatureStore = useTemperatureStore();
+	const instance = getCurrentInstance(); // 获取当前组件实例
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
@@ -263,6 +280,22 @@
 	const addedIngredientsMap = reactive<Record<string, Set<string>>>({});
 	const collapsedSections = ref(new Set<string>());
 	const selectedProductId = ref<string>('');
+
+	// [核心修改] popover状态，现在包含targetRect用于定位
+	const popover = reactive<{
+		visible : boolean;
+		content : string;
+		targetRect : {
+			left : number;
+			top : number;
+			width : number;
+			height : number;
+		} | null;
+	}>({
+		visible: false,
+		content: '',
+		targetRect: null,
+	});
 
 	const lossTabs = ref([{
 		key: 'kneading',
@@ -287,6 +320,21 @@
 		shaping: {},
 		baking: {},
 		other: {},
+	});
+
+	// [核心新增] 用于拆分库存警告信息的计算属性
+	const stockWarningParts = computed(() => {
+		if (!task.value?.stockWarning) {
+			return { title: '', details: '' };
+		}
+		// 使用正则表达式来匹配 "库存不足:" 或 "库存不足："
+		const parts = task.value.stockWarning.split(/:\s|：\s/);
+		if (parts.length > 1) {
+			// 将标题和冒号组合起来，其余部分作为详情
+			return { title: parts[0] + '：', details: parts.slice(1).join(': ') };
+		}
+		// 如果没有匹配到，则将整个消息作为详情
+		return { title: '', details: task.value.stockWarning };
 	});
 
 	const openCompleteTaskModal = () => {
@@ -388,7 +436,6 @@
 				message: '任务已完成',
 				type: 'success'
 			});
-			await dataStore.fetchProductionData();
 			setTimeout(() => {
 				uni.navigateBack();
 			}, 500);
@@ -487,6 +534,36 @@
 		} else {
 			selectedProductId.value = '';
 		}
+	};
+
+	// [核心修改] 更新 showExtraInfo 方法以使用 AppPopover
+	const showExtraInfo = (info : string | null | undefined, ingredientId : string) => {
+		if (!info) return;
+
+		// 如果当前显示的浮框是同一个，则隐藏
+		if (popover.visible && popover.content === info) {
+			popover.visible = false;
+			return;
+		}
+
+		const query = uni.createSelectorQuery().in(instance);
+		query.select('#info-icon-' + ingredientId).boundingClientRect((rect : UniApp.NodeInfo) => {
+			if (rect) {
+				popover.content = info;
+				popover.targetRect = {
+					left: rect.left,
+					top: rect.top,
+					width: rect.width,
+					height: rect.height
+				};
+				popover.visible = true;
+			}
+		}).exec();
+	};
+
+	// [核心修改] 关闭浮框的方法，点击页面任意空白处触发
+	const hidePopover = () => {
+		popover.visible = false;
 	};
 
 	const selectedDoughDetails = computed(() => {
@@ -601,6 +678,10 @@
 	.warning-text {
 		font-size: 14px;
 		line-height: 1.6;
+
+		.warning-title {
+			font-weight: bold;
+		}
 	}
 
 	.card-full-bleed-list {
@@ -629,9 +710,13 @@
 		margin-top: 4px;
 	}
 
-	.start-task-button-container,
-	.bottom-actions-container {
+	.start-task-button-container {
 		margin-top: 20px;
+	}
+
+	.bottom-actions-container {
+		margin-top: 30px;
+		margin-bottom: 15px;
 	}
 
 	.group-title {
@@ -721,7 +806,7 @@
 			vertical-align: middle;
 		}
 
-		.col-ingredient {
+		view.col-ingredient {
 			min-width: 60px;
 			word-break: break-word;
 		}
@@ -749,6 +834,37 @@
 		.col-usage {
 			width: 30%;
 		}
+	}
+
+	.ingredient-name-cell {
+		display: flex;
+		align-items: center;
+		/* 确保文字和图标垂直居中对齐 */
+		gap: 5px;
+		/* [核心修改] 增加间隙 */
+	}
+
+	.info-icon {
+		display: inline-flex;
+		justify-content: center;
+		align-items: center;
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		background-color: #e9ecef;
+		color: #adb5bd;
+		font-size: 11px;
+		font-weight: bold;
+		flex-shrink: 0;
+	}
+
+	.total-weight-summary {
+		display: flex;
+		justify-content: flex-end;
+		padding: 10px 4px;
+		font-size: 13px;
+		color: var(--text-secondary);
+		border-top: 1px solid var(--border-color);
 	}
 
 	.procedure-notes {
