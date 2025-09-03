@@ -8,7 +8,7 @@
 					<FormItem label="配方名称">
 						<input class="input-field" v-model="form.name" placeholder="例如：法式长棍" :disabled="isEditing" />
 					</FormItem>
-					<FormItem v-if="isEditing" label="版本说明">
+					<FormItem label="版本说明">
 						<input class="input-field" v-model="form.notes" placeholder="例如：夏季版本，减少水量" />
 					</FormItem>
 				</view>
@@ -45,6 +45,10 @@
 					<view class="card-title-wrapper">
 						<span class="card-title">主面团</span>
 					</view>
+					<FormItem label="面团出缸温度 (°C)">
+						<input class="input-field" type="number" v-model.number="form.targetTemp"
+							placeholder="例如: 26" />
+					</FormItem>
 					<FormItem label="工艺损耗率 (%)">
 						<input class="input-field" type="number" v-model.number="mainDough.lossRatio"
 							placeholder="例如: 2" />
@@ -246,10 +250,12 @@
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
 
-	const form = ref<RecipeFormTemplate>({
+	// [核心修改] 为 form 类型增加 targetTemp 字段
+	const form = ref<RecipeFormTemplate & { targetTemp ?: number }>({
 		name: '',
 		type: 'MAIN',
 		notes: '',
+		targetTemp: undefined, // 初始化
 		doughs: [],
 		products: [],
 	});
@@ -530,10 +536,12 @@
 					}).filter(Boolean);
 			};
 
+			// [核心修改] 在提交的数据中包含 notes 和 targetTemp
 			const payload = {
 				name: form.value.name,
 				type: form.value.type,
 				notes: form.value.notes,
+				targetTemp: form.value.targetTemp, // 新增
 				lossRatio: toDecimal(mainDoughFromForm.lossRatio),
 				procedure: mainDoughFromForm.procedure.filter(p => p && p.trim()),
 				ingredients: ingredientsPayload,

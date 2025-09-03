@@ -20,6 +20,10 @@
 							</picker>
 						</view>
 					</FormItem>
+					<FormItem label="面团出缸温度 (°C)">
+						<input class="input-field" type="number" v-model.number="form.targetTemp"
+							placeholder="例如: 26" />
+					</FormItem>
 				</view>
 
 				<view class="card">
@@ -93,10 +97,12 @@
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
 
+	// [核心修改] 为 form 类型增加 targetTemp 字段
 	const form = reactive({
 		name: '',
 		type: 'PRE_DOUGH' as 'PRE_DOUGH' | 'EXTRA',
 		notes: '',
+		targetTemp: undefined as number | undefined, // 初始化
 		ingredients: [{ id: null as string | null, name: '', ratio: null as number | null }],
 		procedure: [''],
 	});
@@ -176,10 +182,12 @@
 			// [核心修复] 创建一个Map以便快速查找原料的isFlour属性
 			const allIngredientsMap = new Map(dataStore.allIngredients.map(i => [i.id, i]));
 
+			// [核心修改] 在提交的数据中包含 targetTemp
 			const payload = {
 				name: form.name,
 				type: form.type,
 				notes: form.notes,
+				targetTemp: form.targetTemp, // 新增
 				ingredients: form.ingredients
 					.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0))
 					.map(ing => {
@@ -197,9 +205,7 @@
 				products: [],
 			};
 
-			// [日志打印] 按您的要求增加日志，方便在控制台查看提交的数据
-			console.log('Submitting payload to createRecipeVersion:', JSON.stringify(payload, null, 2));
-
+			// [核心修改] 移除调试日志
 			if (isEditing.value && familyId.value) {
 				await createRecipeVersion(familyId.value, payload);
 			} else {

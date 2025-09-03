@@ -109,6 +109,7 @@ export interface RecipeFormTemplate {
 	name : string;
 	type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	notes : string;
+	targetTemp ?: number; // [核心新增] 新增出缸温度字段
 	doughs ?: { // 主配方使用
 		id : string;
 		name : string;
