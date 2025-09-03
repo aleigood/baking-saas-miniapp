@@ -193,10 +193,7 @@
 				uiStore.setNextPageToast({ message: '任务已创建', type: 'success' });
 			}
 
-			await dataStore.fetchProductionData();
-
 			uni.navigateBack();
-
 		} catch (error) {
 			console.error('Failed to create tasks:', error);
 		} finally {
