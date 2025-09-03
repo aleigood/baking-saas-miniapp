@@ -1,5 +1,5 @@
 <template>
-	<view v-if="visible" class="app-popover" :class="[`placement-${placement}`]"
+	<view v-if="isPopoverVisible" class="app-popover" :class="[`placement-${placement}`, { 'fade-out': isFadingOut }]"
 		:style="{ top: finalTop + 'px', left: finalLeft + 'px', zIndex: zIndex }" @click.stop>
 		<view class="popover-content" :style="{ maxWidth: maxWidth, minWidth: minWidth, padding: padding }">
 			{{ content }}
@@ -10,7 +10,9 @@
 
 <script setup lang="ts">
 	import {
-		computed
+		computed,
+		ref,
+		watch
 	} from 'vue';
 
 	const props = withDefaults(
@@ -33,13 +35,36 @@
 		}>(), {
 		offsetY: 10,
 		offsetX: 10,
-		placement: 'right', // [核心修改] 默认放置位置改为 'right'
+		placement: 'right',
 		maxWidth: '200px',
 		minWidth: 'unset',
 		padding: '6px 10px',
 		zIndex: 1000,
 	}
 	);
+
+	// [核心新增] 内部状态，用于控制动画效果
+	const isPopoverVisible = ref(false); // 控制 v-if，决定组件是否在DOM中
+	const isFadingOut = ref(false); // 控制退场动画的class
+
+	// [核心新增] 监听父组件传递的 visible 属性
+	watch(() => props.visible, (newValue) => {
+		if (newValue) {
+			// 当需要显示时
+			isFadingOut.value = false; // 清除退场动画状态
+			isPopoverVisible.value = true; // 添加到DOM中，触发入场动画
+		} else {
+			// 当需要隐藏时
+			if (isPopoverVisible.value) { // 仅当当前是可见状态时才执行退场动画
+				isFadingOut.value = true; // 添加退场动画class
+				setTimeout(() => {
+					isPopoverVisible.value = false; // 动画结束后从DOM中移除
+				}, 100); // 这个时间必须与 pop-out 动画的持续时间一致
+			}
+		}
+	}, {
+		immediate: true // 立即执行一次，确保初始化时状态正确
+	});
 
 	const finalTop = computed(() => {
 		if (!props.targetRect) return 0;
@@ -56,7 +81,7 @@
 				return props.targetRect.top + props.targetRect.height + arrowHeight + props.offsetY;
 			case 'left':
 			case 'right':
-				// [核心修改] 左右布局时，箭头指向感叹号图标的垂直中间部分
+				// 左右布局时，箭头指向感叹号图标的垂直中间部分
 				return props.targetRect.top + (props.targetRect.height / 2) - (popoverHeight / 2) + props.offsetY;
 			default:
 				return 0;
@@ -86,8 +111,8 @@
 	.app-popover {
 		position: fixed;
 		z-index: var(--popover-z-index, 1000);
-		/* [核心新增] 动画效果 */
-		animation: pop-in 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+		/* [核心修改] 修改动画效果，增加加速和回弹效果 */
+		animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 		transform-origin: center center;
 		/* 根据需要调整原点 */
 	}
@@ -98,9 +123,7 @@
 
 	.popover-content {
 		background-color: #faedcd;
-		/* [核心修改] 背景色 */
 		color: var(--primary-color);
-		/* [核心修改] 文字颜色 */
 		border-radius: 6px;
 		font-size: 12px;
 		line-height: 1.4;
@@ -124,36 +147,31 @@
 
 	.app-popover.placement-top .popover-arrow {
 		border-top-color: #faedcd;
-		/* [核心修改] 箭头颜色 */
 		bottom: -12px;
 	}
 
 	.app-popover.placement-bottom .popover-arrow {
 		border-bottom-color: #faedcd;
-		/* [核心修改] 箭头颜色 */
 		top: -12px;
 	}
 
 	.app-popover.placement-right .popover-arrow,
 	.app-popover.placement-left .popover-arrow {
 		top: 50%;
-		/* [核心修改] Y轴位置调整，指向中心，如果需要更精确指向感叹号，可能需要进一步微调 offsetY */
 		transform: translateY(-50%);
 	}
 
 	.app-popover.placement-right .popover-arrow {
 		border-right-color: #faedcd;
-		/* [核心修改] 箭头颜色 */
 		left: -12px;
 	}
 
 	.app-popover.placement-left .popover-arrow {
 		border-left-color: #faedcd;
-		/* [核心修改] 箭头颜色 */
 		right: -12px;
 	}
 
-	/* [核心新增] 冒泡动画 */
+	/* 冒泡动画 */
 	@keyframes pop-in {
 		from {
 			opacity: 0;
