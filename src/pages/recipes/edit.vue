@@ -27,7 +27,7 @@
 							<text class="info-label">{{ ing.name }}</text>
 							<text class="info-value">{{ formatNumber(ing.ratio) }}%</text>
 						</view>
-						<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes read-only">
+						<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes-read-only">
 							<text class="notes-title">制作要点:</text>
 							<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex" class="note-item">
 								{{ stepIndex + 1 }}. {{ step }}
@@ -39,7 +39,6 @@
 					<AppButton type="dashed" full-width size="md" @click="openAddPreDoughModal">+ 添加面种
 					</AppButton>
 				</view>
-
 
 				<view class="card">
 					<view class="card-title-wrapper">
@@ -190,10 +189,12 @@
 						</view>
 					</view>
 				</view>
-
-				<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting" class="save-button">
-					{{ isSubmitting ? '' : '保存配方' }}
-				</AppButton>
+				<view class="bottom-actions-container">
+					<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting"
+						class="save-button">
+						{{ isSubmitting ? '' : '保存配方' }}
+					</AppButton>
+				</view>
 			</view>
 		</DetailPageLayout>
 
@@ -705,7 +706,7 @@
 	/* [样式修复] 增加外层容器来控制按钮的上下外边距 */
 	.add-button-container {
 		padding: 0 15px;
-		margin-bottom: 20px;
+		margin: 35px 0px;
 	}
 
 	.add-button {
@@ -735,37 +736,49 @@
 		margin-top: 20px;
 		border-top: 1px solid var(--border-color);
 		padding-top: 20px;
+		padding-bottom: 15px;
+
+		.notes-title {
+			display: block;
+			margin-bottom: 8px;
+			font-size: 14px;
+			color: #606266;
+		}
+
+		.procedure-item {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin-bottom: 10px;
+		}
+
+		.note-item {
+			font-size: 14px;
+			color: var(--text-secondary);
+			line-height: 1.6;
+		}
 	}
 
-	.procedure-notes.read-only {
-		border-top: none;
-		padding-top: 0;
-		margin-top: 10px;
-	}
-
-	.notes-title {
-		display: block;
-		margin-bottom: 8px;
-		font-size: 14px;
-		color: #606266;
-	}
-
-	.procedure-item {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		margin-bottom: 10px;
-	}
-
-	.note-item {
-		font-size: 14px;
+	.procedure-notes-read-only {
+		margin-top: 25px;
+		font-size: 12px;
 		color: var(--text-secondary);
 		line-height: 1.6;
+
+		.notes-title {
+			font-weight: 600;
+			display: block;
+			margin-bottom: 5px;
+		}
+
+		.note-item {
+			display: block;
+		}
 	}
 
 	.product-tabs {
-		margin-top: 20px;
-		margin-bottom: 20px;
+		margin-top: 35px;
+		margin-bottom: 35px;
 	}
 
 	/* [样式修复] 使用 wrapper 容器来解决小程序中的样式问题 */

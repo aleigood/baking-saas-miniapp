@@ -1,6 +1,6 @@
 <template>
 	<view class="card" v-if="selectedSku">
-		<view class="card-title">{{ selectedSku.brand || '无品牌' }} - {{ selectedSku.specName }} 的采购记录
+		<view class="card-title">{{ selectedSku.brand || '无品牌' }}的采购记录
 		</view>
 		<view class="procurement-list">
 			<view class="list-header">

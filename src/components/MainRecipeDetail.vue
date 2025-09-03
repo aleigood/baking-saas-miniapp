@@ -111,7 +111,6 @@
 							</view>
 						</view>
 					</template>
-					<view class="summary-divider"></view>
 					<view v-if="doughSummary" class="recipe-table detail-table">
 						<view class="table-row">
 							<text class="col-ingredient">{{ doughSummary.name }}</text>

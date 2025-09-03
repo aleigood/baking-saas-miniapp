@@ -47,7 +47,7 @@
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
-							<image class="remove-icon" src="/static/icons/close-x.svg" />
+							<image class="remove-icon" src="/static/icons/trash.svg" />
 						</IconButton>
 					</view>
 					<AppButton type="dashed" full-width size="md" @click="addIngredient" class="add-button">+ 添加原料
@@ -57,17 +57,19 @@
 						<view v-for="(step, stepIndex) in form.procedure" :key="stepIndex" class="procedure-item">
 							<input class="input-field" v-model="form.procedure[stepIndex]" placeholder="输入制作步骤" />
 							<IconButton variant="field" @click="removeProcedureStep(stepIndex)">
-								<image class="remove-icon" src="/static/icons/close-x.svg" />
+								<image class="remove-icon" src="/static/icons/trash.svg" />
 							</IconButton>
 						</view>
 						<AppButton type="dashed" full-width size="md" @click="addProcedureStep">+ 添加要点
 						</AppButton>
 					</view>
 				</view>
-
-				<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting" class="save-button">
-					{{ isSubmitting ? '' : '保存配方' }}
-				</AppButton>
+				<view class="bottom-actions-container">
+					<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting"
+						class="save-button">
+						{{ isSubmitting ? '' : '保存配方' }}
+					</AppButton>
+				</view>
 			</view>
 		</DetailPageLayout>
 	</view>
@@ -336,6 +338,7 @@
 		margin-top: 20px;
 		border-top: 1px solid var(--border-color);
 		padding-top: 20px;
+		padding-bottom: 15px;
 	}
 
 	.notes-title {
