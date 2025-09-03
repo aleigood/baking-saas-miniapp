@@ -58,9 +58,7 @@
 										<view class="col-ingredient ingredient-name-cell">
 											<text>{{ ing.name }}</text>
 											<text v-if="ing.extraInfo" class="info-icon" :id="'info-icon-' + ing.id"
-												@click.stop="showExtraInfo(ing.extraInfo, ing.id)">
-												!
-											</text>
+												@click.stop="showExtraInfo(ing.extraInfo, ing.id)">!</text>
 										</view>
 										<text class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
 										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
@@ -192,25 +190,43 @@
 			</view>
 		</DetailPageLayout>
 
-		<AppModal v-model:visible="showCompleteTaskModal" title="完成任务并提报损耗">
+		<AppModal v-model:visible="showCompleteTaskModal" :title="completionStep === 1 ? '提报完成数量' : '提报产品损耗'">
 			<view class="modal-body-footer-wrapper">
 				<view class="modal-main-content">
-					<AnimatedTabs v-model="activeLossTab" :tabs="lossTabs" />
-					<view class="loss-product-list">
-						<view v-for="product in allProductsInTask" :key="product.id" class="loss-product-item">
-							<text class="loss-product-name">{{ product.name }} (剩余
-								{{ getRemainingQuantity(product) }}/{{ product.plannedQuantity }})</text>
-							<input class="loss-quantity-input" type="number" placeholder="损耗数量"
-								:value="spoilageQuantities[activeLossTab][product.id]"
-								@input="onSpoilageQuantityInput(activeLossTab, product.id, $event)" />
+					<template v-if="completionStep === 1">
+						<view class="loss-product-list">
+							<view v-for="product in allProductsInTask" :key="product.id" class="loss-product-item">
+								<text class="loss-product-name">{{ product.name }} (计划 {{ product.plannedQuantity
+									}})</text>
+								<input class="loss-quantity-input" type="number" placeholder="实际数量"
+									v-model.number="completionForm[product.id].completedQuantity"
+									@input="onCompletedQuantityInput(product.id, $event)" />
+							</view>
 						</view>
-					</view>
+					</template>
+					<template v-if="completionStep === 2">
+						<AnimatedTabs v-model="activeLossTab" :tabs="spoilageStages" />
+						<view class="loss-product-list">
+							<view v-for="product in productsWithSpoilage" :key="product.id"
+								class="loss-product-item spoilage-item">
+								<text class="loss-product-name">{{ product.name }} (损耗 {{ product.spoilageQuantity
+									}})</text>
+								<input class="loss-quantity-input" type="number" placeholder="数量"
+									:value="completionForm[product.id].spoilageDetails[activeLossTab]"
+									@input="onSpoilageQuantityInput(product.id, activeLossTab, $event)" />
+							</view>
+						</view>
+						<textarea class="spoilage-notes-input" v-model="completionNotes"
+							placeholder="可在此输入关于本次任务的附加说明..."></textarea>
+					</template>
 				</view>
-
 				<view class="modal-actions">
-					<AppButton type="secondary" @click="showCompleteTaskModal = false">取消</AppButton>
-					<AppButton type="primary" @click="handleConfirmComplete" :loading="isSubmitting">
-						{{ isSubmitting ? '提交中...' : '确认完成' }}
+					<AppButton type="secondary" @click="handleCompletionModalBack">
+						{{ completionStep === 1 ? '取消' : '上一步' }}
+					</AppButton>
+					<AppButton type="primary" @click="handleCompletionModalNext" :loading="isSubmitting"
+						:disabled="!isStep1Valid">
+						{{ completionStep === 1 ? (hasSpoilage ? '下一步' : '确认完成') : '确认完成' }}
 					</AppButton>
 				</view>
 			</view>
@@ -249,7 +265,8 @@
 	import {
 		getTaskDetail,
 		updateTaskStatus,
-		completeTask
+		completeTask,
+		getSpoilageStages
 	} from '@/api/tasks';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
@@ -257,7 +274,7 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import AnimatedTabs from '@/components/CssAnimatedTabs.vue';
-	import AppPopover from '@/components/AppPopover.vue'; // [核心新增] 导入 AppPopover
+	import AppPopover from '@/components/AppPopover.vue';
 	import { formatWeight } from '@/utils/format';
 
 	defineOptions({
@@ -267,7 +284,7 @@
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
 	const temperatureStore = useTemperatureStore();
-	const instance = getCurrentInstance(); // 获取当前组件实例
+	const instance = getCurrentInstance();
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
@@ -281,7 +298,18 @@
 	const collapsedSections = ref(new Set<string>());
 	const selectedProductId = ref<string>('');
 
-	// [核心修改] popover状态，现在包含targetRect用于定位
+	// [核心重构] 完成任务模态框的状态
+	const completionStep = ref(1);
+	const completionForm = reactive<Record<string, {
+		plannedQuantity : number;
+		completedQuantity : number | null;
+		spoilageDetails : Record<string, number | null>;
+	}>>({});
+	const completionNotes = ref('');
+	const spoilageStages = ref<{ key : string, label : string }[]>([]);
+	const activeLossTab = ref('');
+
+
 	const popover = reactive<{
 		visible : boolean;
 		content : string;
@@ -297,155 +325,50 @@
 		targetRect: null,
 	});
 
-	const lossTabs = ref([{
-		key: 'kneading',
-		label: '揉面失败'
-	}, {
-		key: 'fermentation',
-		label: '发酵失败'
-	}, {
-		key: 'shaping',
-		label: '整形失败'
-	}, {
-		key: 'baking',
-		label: '烘烤失败'
-	}, {
-		key: 'other',
-		label: '其他原因'
-	},]);
-	const activeLossTab = ref('kneading');
-	const spoilageQuantities = reactive<Record<string, Record<string, number | null>>>({
-		kneading: {},
-		fermentation: {},
-		shaping: {},
-		baking: {},
-		other: {},
-	});
-
-	// [核心新增] 用于拆分库存警告信息的计算属性
 	const stockWarningParts = computed(() => {
 		if (!task.value?.stockWarning) {
 			return { title: '', details: '' };
 		}
-		// 使用正则表达式来匹配 "库存不足:" 或 "库存不足："
 		const parts = task.value.stockWarning.split(/:\s|：\s/);
 		if (parts.length > 1) {
-			// 将标题和冒号组合起来，其余部分作为详情
 			return { title: parts[0] + '：', details: parts.slice(1).join(': ') };
 		}
-		// 如果没有匹配到，则将整个消息作为详情
 		return { title: '', details: task.value.stockWarning };
 	});
 
-	const openCompleteTaskModal = () => {
+	// [核心重构] 重置完成任务表单
+	const resetCompletionForm = () => {
+		completionStep.value = 1;
+		completionNotes.value = '';
+		Object.keys(completionForm).forEach(key => delete completionForm[key]);
+		if (task.value) {
+			task.value.items.forEach(item => {
+				completionForm[item.id] = {
+					plannedQuantity: item.plannedQuantity,
+					completedQuantity: null,
+					spoilageDetails: {},
+				};
+				spoilageStages.value.forEach(stage => {
+					completionForm[item.id].spoilageDetails[stage.key] = null;
+				});
+			});
+		}
+	};
+
+	const openCompleteTaskModal = async () => {
+		resetCompletionForm();
+		if (spoilageStages.value.length === 0) {
+			spoilageStages.value = await getSpoilageStages();
+			if (spoilageStages.value.length > 0) {
+				activeLossTab.value = spoilageStages.value[0].key;
+			}
+		}
 		showCompleteTaskModal.value = true;
 	};
 
 	const allProductsInTask = computed(() => {
 		return task.value?.items || [];
 	});
-
-	const getRemainingQuantity = (product : TaskCompletionItem) => {
-		let totalSpoilage = 0;
-		for (const stageKey in spoilageQuantities) {
-			const quantity = spoilageQuantities[stageKey][product.id];
-			if (quantity && Number(quantity) > 0) {
-				totalSpoilage += Number(quantity);
-			}
-		}
-		return product.plannedQuantity - totalSpoilage;
-	};
-
-
-	watch(allProductsInTask, (newProducts) => {
-		if (newProducts.length > 0) {
-			const initialQuantities : Record<string, null> = {};
-			for (const product of newProducts) {
-				initialQuantities[product.id] = null;
-			}
-			spoilageQuantities.kneading = { ...initialQuantities };
-			spoilageQuantities.fermentation = { ...initialQuantities };
-			spoilageQuantities.shaping = { ...initialQuantities };
-			spoilageQuantities.baking = { ...initialQuantities };
-			spoilageQuantities.other = { ...initialQuantities };
-		}
-	}, {
-		immediate: true
-	});
-
-	const onSpoilageQuantityInput = (stage : string, productId : string, event : any) => {
-		const value = event.target?.value ?? event.detail.value;
-		const product = allProductsInTask.value.find(p => p.id === productId);
-		if (!product) return;
-
-		let otherStagesSpoilage = 0;
-		for (const stageKey in spoilageQuantities) {
-			if (stageKey !== stage) {
-				const quantity = spoilageQuantities[stageKey][productId];
-				if (quantity && Number(quantity) > 0) {
-					otherStagesSpoilage += Number(quantity);
-				}
-			}
-		}
-
-		const newQuantity = value === '' ? null : Number(value);
-		const totalSpoilage = otherStagesSpoilage + (newQuantity || 0);
-
-		if (totalSpoilage > product.plannedQuantity) {
-			toastStore.show({
-				message: `总损耗不能超过计划数量 ${product.plannedQuantity}`,
-				type: 'error',
-				duration: 2000
-			});
-			nextTick(() => {
-				if (spoilageQuantities[stage]) {
-					const maxAllowed = product.plannedQuantity - otherStagesSpoilage;
-					spoilageQuantities[stage][productId] = maxAllowed > 0 ? maxAllowed : null;
-				}
-			});
-		} else {
-			if (spoilageQuantities[stage]) {
-				spoilageQuantities[stage][productId] = newQuantity;
-			}
-		}
-	};
-
-	const handleConfirmComplete = async () => {
-		if (!task.value) return;
-
-		const losses = [];
-		for (const stage in spoilageQuantities) {
-			for (const productId in spoilageQuantities[stage]) {
-				const quantity = spoilageQuantities[stage][productId];
-				if (quantity !== null && quantity > 0) {
-					losses.push({
-						productId,
-						stage,
-						quantity,
-					});
-				}
-			}
-		}
-
-		isSubmitting.value = true;
-		try {
-			await completeTask(task.value.id, {
-				losses
-			});
-			toastStore.show({
-				message: '任务已完成',
-				type: 'success'
-			});
-			setTimeout(() => {
-				uni.navigateBack();
-			}, 500);
-		} catch (error) {
-			console.error('Failed to complete task:', error);
-		} finally {
-			isSubmitting.value = false;
-			showCompleteTaskModal.value = false;
-		}
-	};
 
 	onLoad(async (options) => {
 		taskId.value = options?.taskId || null;
@@ -483,6 +406,140 @@
 			isLoading.value = false;
 		}
 	}
+
+	// [核心重构] 完成任务流程相关计算属性
+	const productsWithSpoilage = computed(() => {
+		return allProductsInTask.value
+			.map(p => ({
+				...p,
+				spoilageQuantity: p.plannedQuantity - (completionForm[p.id]?.completedQuantity ?? p.plannedQuantity)
+			}))
+			.filter(p => p.spoilageQuantity > 0);
+	});
+
+	const hasSpoilage = computed(() => {
+		return Object.values(completionForm).some(item =>
+			item.completedQuantity !== null && item.completedQuantity < item.plannedQuantity
+		);
+	});
+
+	const isStep1Valid = computed(() => {
+		return Object.values(completionForm).every(item => item.completedQuantity !== null);
+	});
+
+
+	// [核心重构] 完成任务流程相关方法
+	const onCompletedQuantityInput = (productId : string, event : any) => {
+		const value = event.target?.value ?? event.detail.value;
+		const numValue = value === '' ? null : Number(value);
+		if (numValue !== null && numValue < 0) {
+			completionForm[productId].completedQuantity = 0;
+		} else {
+			completionForm[productId].completedQuantity = numValue;
+		}
+	};
+
+	const onSpoilageQuantityInput = (productId : string, stage : string, event : any) => {
+		const value = event.target?.value ?? event.detail.value;
+		const currentSpoilage = value === '' ? null : Number(value);
+
+		const product = completionForm[productId];
+		if (!product) return;
+
+		let otherStagesSpoilage = 0;
+		for (const key in product.spoilageDetails) {
+			if (key !== stage) {
+				otherStagesSpoilage += product.spoilageDetails[key] || 0;
+			}
+		}
+
+		const totalSpoilage = otherStagesSpoilage + (currentSpoilage || 0);
+		const maxSpoilage = product.plannedQuantity - (product.completedQuantity || 0);
+
+		if (totalSpoilage > maxSpoilage) {
+			toastStore.show({
+				message: `总损耗不能超过 ${maxSpoilage}`,
+				type: 'error'
+			});
+			nextTick(() => {
+				product.spoilageDetails[stage] = maxSpoilage - otherStagesSpoilage > 0 ? maxSpoilage -
+					otherStagesSpoilage : null;
+			});
+		} else {
+			product.spoilageDetails[stage] = currentSpoilage;
+		}
+	};
+
+	const handleCompletionModalBack = () => {
+		if (completionStep.value === 1) {
+			showCompleteTaskModal.value = false;
+		} else {
+			completionStep.value = 1;
+		}
+	};
+
+	const handleCompletionModalNext = () => {
+		if (completionStep.value === 1) {
+			if (hasSpoilage.value) {
+				completionStep.value = 2;
+			} else {
+				handleConfirmComplete();
+			}
+		} else {
+			handleConfirmComplete();
+		}
+	};
+
+	const handleConfirmComplete = async () => {
+		if (!task.value) return;
+
+		const completedItems = Object.entries(completionForm).map(([productId, data]) => {
+			const item : {
+				productId : string;
+				completedQuantity : number;
+				spoilageDetails ?: { stage : string; quantity : number; notes ?: string }[];
+			} = {
+					productId,
+					completedQuantity: data.completedQuantity!,
+				};
+
+			if (data.completedQuantity! < data.plannedQuantity) {
+				item.spoilageDetails = Object.entries(data.spoilageDetails)
+					.filter(([, quantity]) => quantity !== null && quantity > 0)
+					.map(([stage, quantity]) => ({
+						stage,
+						quantity: quantity!,
+						notes: completionNotes.value || undefined
+					}));
+
+				const totalReportedSpoilage = item.spoilageDetails.reduce((sum, s) => sum + s.quantity, 0);
+				const calculatedSpoilage = data.plannedQuantity - data.completedQuantity!;
+				if (totalReportedSpoilage !== calculatedSpoilage) {
+					toastStore.show({
+						message: `产品损耗总数 ${totalReportedSpoilage} 与计算损耗 ${calculatedSpoilage} 不符`,
+						type: 'error'
+					});
+					throw new Error("损耗数量不一致");
+				}
+			}
+			return item;
+		});
+
+		isSubmitting.value = true;
+		try {
+			await completeTask(task.value.id, {
+				notes: completionNotes.value,
+				completedItems
+			});
+			toastStore.show({ message: '任务已完成', type: 'success' });
+			setTimeout(() => uni.navigateBack(), 500);
+		} catch (error) {
+			console.error('Failed to complete task:', error);
+		} finally {
+			isSubmitting.value = false;
+			showCompleteTaskModal.value = false;
+		}
+	};
 
 	const toggleCollapse = (sectionName : string) => {
 		const newSet = new Set(collapsedSections.value);
@@ -526,7 +583,6 @@
 
 	const selectDough = (familyId : string) => {
 		if (!isStarted.value && !isReadOnly.value) return;
-
 		selectedDoughFamilyId.value = familyId;
 		const doughDetails = selectedDoughDetails.value;
 		if (doughDetails && doughDetails.productDetails.length > 0) {
@@ -536,16 +592,12 @@
 		}
 	};
 
-	// [核心修改] 更新 showExtraInfo 方法以使用 AppPopover
 	const showExtraInfo = (info : string | null | undefined, ingredientId : string) => {
 		if (!info) return;
-
-		// 如果当前显示的浮框是同一个，则隐藏
 		if (popover.visible && popover.content === info) {
 			popover.visible = false;
 			return;
 		}
-
 		const query = uni.createSelectorQuery().in(instance);
 		query.select('#info-icon-' + ingredientId).boundingClientRect((rect : UniApp.NodeInfo) => {
 			if (rect) {
@@ -561,7 +613,6 @@
 		}).exec();
 	};
 
-	// [核心修改] 关闭浮框的方法，点击页面任意空白处触发
 	const hidePopover = () => {
 		popover.visible = false;
 	};
@@ -608,7 +659,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
-		margin-top: 10px;
+		margin-top: 20px;
 		padding: 5px;
 	}
 
@@ -618,6 +669,10 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 8px;
+	}
+
+	.spoilage-item {
+		flex-wrap: wrap;
 	}
 
 	.loss-product-name {
@@ -642,6 +697,18 @@
 		border: 1px solid var(--border-color);
 		height: 36px;
 		flex-shrink: 0;
+	}
+
+	.spoilage-notes-input {
+		width: 100%;
+		height: 80px;
+		border: 1px solid var(--border-color);
+		border-radius: 8px;
+		padding: 8px 12px;
+		font-size: 14px;
+		margin-top: 20px;
+		box-sizing: border-box;
+		background-color: var(--bg-color);
 	}
 
 	.page-wrapper {
@@ -839,9 +906,7 @@
 	.ingredient-name-cell {
 		display: flex;
 		align-items: center;
-		/* 确保文字和图标垂直居中对齐 */
 		gap: 5px;
-		/* [核心修改] 增加间隙 */
 	}
 
 	.info-icon {

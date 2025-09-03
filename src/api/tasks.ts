@@ -46,6 +46,16 @@ export function getTaskDates() : Promise<string[]> {
 }
 
 /**
+ * [核心新增] 获取预设的损耗阶段列表
+ */
+export function getSpoilageStages() : Promise<{ key : string, label : string }[]> {
+	return request<{ key : string, label : string }[]>({
+		url: '/production-tasks/spoilage-stages',
+		method: 'GET',
+	});
+}
+
+/**
  * [核心修改] 获取单个生产任务或前置任务的详情, 返回重构后的数据结构
  * @param taskId 任务ID
  * @param params 温度相关的查询参数
@@ -91,12 +101,25 @@ export function updateTaskStatus(
 	});
 }
 
+// [核心修改] 更新 completeTask 的 payload 类型
+interface SpoilageDetail {
+	stage : string;
+	quantity : number;
+	notes ?: string;
+}
+
+interface CompletedTaskItem {
+	productId : string;
+	completedQuantity : number;
+	spoilageDetails ?: SpoilageDetail[];
+}
+
 /**
- * 完成一个生产任务的专用接口
+ * [核心修改] 完成一个生产任务的专用接口，使用新的数据结构
  * @param taskId 任务ID
- * @param data 包含备注等信息
+ * @param data 包含 completedItems 数组等信息
  */
-export function completeTask(taskId : string, data : { notes ?: string, losses ?: any[] }) : Promise<any> { // [修改] 增加 losses
+export function completeTask(taskId : string, data : { notes ?: string, completedItems : CompletedTaskItem[] }) : Promise<any> {
 	return request({
 		url: `/production-tasks/${taskId}/complete`,
 		method: 'POST',
