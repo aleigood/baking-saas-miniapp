@@ -2,7 +2,7 @@
 	<page-meta :page-style="pageStyle"></page-meta>
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader title="任务详情" />
-		<DetailPageLayout>
+		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content" v-if="!isLoading && task">
 				<view class="detail-page">
 					<view v-if="task.stockWarning && !isReadOnly" class="warning-card card">
@@ -54,8 +54,12 @@
 										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedDoughDetails.familyId, ing.id)">
 										<view class="col-ingredient ingredient-name-cell">
 											<text>{{ ing.name }}</text>
-											<text v-if="ing.extraInfo" class="info-icon" :id="'info-icon-' + ing.id"
-												@click.stop="showExtraInfo(ing.extraInfo, ing.id)">!</text>
+											<view v-if="ing.extraInfo" class="info-icon-button"
+												:id="'info-icon-' + ing.id"
+												@click.stop="showExtraInfo(ing.extraInfo, ing.id)">
+												<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit">
+												</image>
+											</view>
 										</view>
 										<text class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
 										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
@@ -340,13 +344,9 @@
 	const updateModalContentHeight = () => {
 		nextTick(() => {
 			const stepId = `#step${completionStep.value}-content`;
-			// console.log(`[Debug] Calculating height for step: ${completionStep.value}, selector: ${stepId}`);
-
 			const query = uni.createSelectorQuery().in(instance);
 			query.select(stepId).boundingClientRect(rect => {
-				// console.log('[Debug] Query result rect:', rect);
 				if (rect && rect.height) {
-					// console.log(`[Debug] Setting modalContentHeight to: ${rect.height}px`);
 					modalContentHeight.value = rect.height;
 				}
 			}).exec();
@@ -361,8 +361,7 @@
 		}
 	});
 
-	watch(completionStep, (newStep) => {
-		// console.log(`[Debug] completionStep changed to: ${newStep}`);
+	watch(completionStep, () => {
 		updateModalContentHeight();
 	});
 
@@ -411,6 +410,12 @@
 
 		await loadTaskData(taskId.value);
 	});
+
+	const handleScroll = () => {
+		if (popover.visible) {
+			popover.visible = false;
+		}
+	};
 
 	const loadTaskData = async (id : string) => {
 		isLoading.value = true;
@@ -501,8 +506,9 @@
 				type: 'error'
 			});
 			nextTick(() => {
-				product.spoilageDetails[stage] = maxSpoilage - otherStagesSpoilage > 0 ? maxSpoilage -
-					otherStagesSpoilage : null;
+				product.spoilageDetails[stage] = maxSpoilage -
+					otherStagesSpoilage > 0 ? maxSpoilage -
+				otherStagesSpoilage : null;
 			});
 		} else {
 			product.spoilageDetails[stage] = currentSpoilage;
@@ -697,7 +703,6 @@
 		display: flex;
 		width: 200%;
 		transition: transform 0.3s ease-in-out;
-		/* [核心修改] 阻止 flex item 被拉伸，保持其内容自然高度 */
 		align-items: flex-start;
 	}
 
@@ -952,19 +957,30 @@
 		gap: 5px;
 	}
 
-	.info-icon {
+	/* [核心新增] 父级容器作为点击区域 */
+	.info-icon-button {
 		display: inline-flex;
+		/* 使用 flex 布局来居中内部的图标 */
 		justify-content: center;
 		align-items: center;
-		margin-left: 8px;
-		width: 16px;
-		height: 16px;
+		vertical-align: middle;
+		/* 让整个按钮与旁边的文字垂直对齐 */
+		margin-left: 4px;
+		/* 调整与左边文字的间距 */
+		width: 28px;
+		/* 扩大的点击区域宽度 */
+		height: 28px;
+		/* 扩大的点击区域高度 */
 		border-radius: 50%;
-		background-color: var(--bg-color);
-		color: #8c5a3b;
-		font-size: 11px;
-		font-weight: bold;
-		flex-shrink: 0;
+		/* 保持圆形 */
+	}
+
+	/* [核心改造] 内部图标样式，尺寸改小 */
+	.info-icon {
+		width: 16px;
+		/* 图标本身宽度 */
+		height: 16px;
+		/* 图标本身高度 */
 	}
 
 	.total-weight-summary {

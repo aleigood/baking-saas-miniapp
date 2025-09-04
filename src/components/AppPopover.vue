@@ -1,10 +1,12 @@
 <template>
 	<view v-if="isPopoverVisible" class="app-popover" :class="[`placement-${placement}`, { 'fade-out': isFadingOut }]"
 		:style="{ top: finalTop + 'px', left: finalLeft + 'px', zIndex: zIndex }" @click.stop>
-		<view class="popover-content" :style="{ maxWidth: maxWidth, minWidth: minWidth, padding: padding }">
-			{{ content }}
+		<view class="popover-wrapper">
+			<view class="popover-content" :style="{ maxWidth: maxWidth, minWidth: minWidth, padding: padding }">
+				{{ content }}
+			</view>
+			<view class="popover-arrow"></view>
 		</view>
-		<view class="popover-arrow"></view>
 	</view>
 </template>
 
@@ -68,21 +70,24 @@
 
 	const finalTop = computed(() => {
 		if (!props.targetRect) return 0;
-		const estimatedLineHeight = 18;
-		const estimatedPadding = 12;
-		const lines = props.content.length / 10;
-		const popoverHeight = (lines * estimatedLineHeight) + estimatedPadding;
 		const arrowHeight = 6;
 
 		switch (props.placement) {
-			case 'top':
+			case 'top': {
+				// [核心说明] top/bottom 布局依赖估算高度，可能存在不精确的问题。当前仅根据您的需求精确优化左右布局。
+				const estimatedLineHeight = 18;
+				const estimatedPadding = 12;
+				const lines = props.content.split('\n').length; // 基于换行符估算行数
+				const popoverHeight = (lines * estimatedLineHeight) + estimatedPadding;
 				return props.targetRect.top - popoverHeight - arrowHeight - props.offsetY;
+			}
 			case 'bottom':
 				return props.targetRect.top + props.targetRect.height + arrowHeight + props.offsetY;
 			case 'left':
 			case 'right':
-				// 左右布局时，箭头指向感叹号图标的垂直中间部分
-				return props.targetRect.top + (props.targetRect.height / 2) - (popoverHeight / 2) + props.offsetY;
+				// [核心修改] JS 只负责将 popover 的顶部定位到目标元素的垂直中心
+				// 实际的居中效果由 CSS 的 transform: translateY(-50%) 完成，不再需要估算高度
+				return props.targetRect.top + (props.targetRect.height / 2);
 			default:
 				return 0;
 		}
@@ -121,6 +126,17 @@
 		animation: pop-out 0.2s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
 	}
 
+	/* [核心新增] 新增 wrapper 容器，用于应用垂直居中 transform */
+	.popover-wrapper {
+		position: relative;
+
+		// 对于左右布局，通过 transform 实现真正的垂直居中，不再依赖 JS 估算高度
+		.app-popover.placement-left &,
+		.app-popover.placement-right & {
+			transform: translateY(-50%);
+		}
+	}
+
 	.popover-content {
 		background-color: #faedcd;
 		color: var(--primary-color);
@@ -130,6 +146,8 @@
 		word-break: break-word;
 		text-align: left;
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+		/* [核心新增] 新增 white-space 属性，让 \n 能够被正确渲染为换行 */
+		white-space: pre-line;
 	}
 
 	.popover-arrow {

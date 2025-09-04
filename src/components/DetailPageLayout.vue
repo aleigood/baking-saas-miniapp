@@ -9,8 +9,7 @@
 		- [核心修改] @scrolltolower="$emit('scrolltolower')": 监听滚动到底部的事件，并向父组件派发 'scrolltolower' 事件。
 	-->
 	<scroll-view :scroll-y="true" :show-scrollbar="false" class="scroll-area" :style="{ height: scrollAreaHeight }"
-		enhanced @scrolltolower="$emit('scrolltolower')">
-		<!-- 通过插槽，让父组件可以填充任意内容 -->
+		enhanced @scrolltolower="$emit('scrolltolower')" @scroll="$emit('scroll')">
 		<slot></slot>
 	</scroll-view>
 </template>
@@ -19,8 +18,8 @@
 	import { computed } from 'vue';
 	import { useSystemStore } from '@/store/system';
 
-	// [核心修改] 定义组件可以派发的事件
-	defineEmits(['scrolltolower']);
+	// [核心修改] 定义组件可以派发的事件，增加 'scroll'
+	defineEmits(['scrolltolower', 'scroll']);
 
 	// 引入系统信息 store
 	const systemStore = useSystemStore();
