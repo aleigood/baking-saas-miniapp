@@ -40,24 +40,6 @@ export interface ProductionDataPayload {
 	// prepTask 不再由该接口单独返回
 	prepTask : null;
 }
-// [修改] 为任务详情增加 productionTaskSpoilageLogs 字段
-export interface ProductionTaskDetailDto extends ProductionTaskDto {
-	totalIngredients : {
-		ingredientId : string;
-		name : string;
-		totalWeightInGrams : number;
-	}[];
-	stockWarning : string | null;
-	// [核心新增] 为任务详情增加备料清单字段
-	prepTask ?: PrepTask | null;
-	productionTaskSpoilageLogs : {
-		stage : string;
-		quantity : number;
-		product : {
-			name : string;
-		}
-	}[];
-}
 
 
 // --- 认证与用户 ---
@@ -378,19 +360,64 @@ export interface ProductionStatsResponse {
 	ingredientConsumption : IngredientStatDto[];
 }
 
-// [核心新增] 为任务详情页增加一个类型，与后端的 TaskDetailResponseDto 对应
+// [核心修改] 为任务详情页增加一个类型，与后端的 TaskDetailResponseDto 对应
+// 定义原料详情的数据结构
+export interface TaskIngredientDetail {
+	id : string;
+	name : string;
+	brand : string | null;
+	weightInGrams : number;
+	isRecipe : boolean;
+	extraInfo ?: string | null;
+}
+
+// 定义面团汇总中每个产品的数据结构
+export interface DoughProductSummary {
+	id : string;
+	name : string;
+	quantity : number;
+	totalBaseDoughWeight : number;
+	divisionWeight : number;
+}
+
+// 定义单个产品的详细信息（如辅料、馅料等）
+export interface ProductDetails {
+	id : string;
+	name : string;
+	mixIns : TaskIngredientDetail[];
+	fillings : TaskIngredientDetail[];
+	toppings : TaskIngredientDetail[];
+	procedure : string[];
+}
+
+// 定义按面团类型分组的数据结构
+export interface DoughGroup {
+	familyId : string;
+	familyName : string;
+	productsDescription : string;
+	totalDoughWeight : number;
+	mainDoughIngredients : TaskIngredientDetail[];
+	mainDoughProcedure : string[];
+	products : DoughProductSummary[];
+	productDetails : ProductDetails[];
+}
+
+// 定义用于完成任务模态框的产品列表项
+export interface TaskCompletionItem {
+	id : string;
+	name : string;
+	plannedQuantity : number;
+}
+
+// [核心重构] 彻底重写 ProductionTaskDetailDto 以匹配后端 TaskDetailResponseDto
 export interface ProductionTaskDetailDto {
 	id : string;
 	status : 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 	notes : string | null;
 	stockWarning : string | null;
 	prepTask : PrepTask | null;
-	doughGroups : any[]; // 实际类型更复杂，这里用 any 简化
-	items : {
-		id : string;
-		name : string;
-		plannedQuantity : number;
-	}[];
+	doughGroups : DoughGroup[];
+	items : TaskCompletionItem[];
 }
 
 // [核心修改] 移除了不再使用的 ProductionDashboardPayload 类型
