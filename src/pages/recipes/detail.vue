@@ -1,16 +1,17 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
-	<view class="page-wrapper">
+	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader :title="recipeFamily?.name || '加载中...'" />
-		<DetailPageLayout>
+		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content" v-if="!isLoading && recipeFamily">
 				<RecipeVersionList :versions="recipeVersions" :selected-version-id="displayedVersionId"
 					:can-edit="canEditRecipe" :is-discontinued="recipeFamily.deletedAt !== null"
 					@select-version="handleVersionClick" @create-version="handleCreateVersion"
 					@longpress-version="handleVersionLongPressAction" />
 
-				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" />
-				<SimpleRecipeDetail v-else :version="displayedVersion" />
+				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion"
+					@show-popover="handleShowPopover" />
+				<SimpleRecipeDetail v-else :version="displayedVersion" @show-popover="handleShowPopover" />
 			</view>
 			<view class="loading-spinner" v-else>
 				<text>加载中...</text>
@@ -62,18 +63,42 @@
 			</view>
 		</AppModal>
 
+		<AppPopover :visible="popover.visible" :content="popover.content" :target-rect="popover.targetRect"
+			placement="right" :offsetY="0" />
+
 		<Toast />
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref, computed } from 'vue';
-	import { onLoad, onShow } from '@dcloudio/uni-app';
-	import { useUserStore } from '@/store/user';
-	import { useDataStore } from '@/store/data';
-	import { useToastStore } from '@/store/toast';
-	import type { RecipeFamily, RecipeVersion } from '@/types/api';
-	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion, getRecipeVersionFormTemplate } from '@/api/recipes';
+	import {
+		ref,
+		computed,
+		reactive
+	} from 'vue';
+	import {
+		onLoad,
+		onShow
+	} from '@dcloudio/uni-app';
+	import {
+		useUserStore
+	} from '@/store/user';
+	import {
+		useDataStore
+	} from '@/store/data';
+	import {
+		useToastStore
+	} from '@/store/toast';
+	import type {
+		RecipeFamily,
+		RecipeVersion
+	} from '@/types/api';
+	import {
+		getRecipeFamily,
+		activateRecipeVersion,
+		deleteRecipeVersion,
+		getRecipeVersionFormTemplate
+	} from '@/api/recipes';
 
 	import RecipeVersionList from '@/components/RecipeVersionList.vue';
 	import MainRecipeDetail from '@/components/MainRecipeDetail.vue';
@@ -84,6 +109,7 @@
 	import Toast from '@/components/Toast.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
+	import AppPopover from '@/components/AppPopover.vue';
 
 	defineOptions({
 		inheritAttrs: false
@@ -104,6 +130,21 @@
 	const showDeleteVersionConfirmModal = ref(false);
 	const selectedVersionForAction = ref<RecipeVersion | null>(null);
 
+	const popover = reactive<{
+		visible : boolean;
+		content : string;
+		targetRect : {
+			left : number;
+			top : number;
+			width : number;
+			height : number;
+		} | null;
+	}>({
+		visible: false,
+		content: '',
+		targetRect: null,
+	});
+
 	onLoad(async (options) => {
 		if (options?.familyId) {
 			familyId.value = options.familyId;
@@ -118,6 +159,13 @@
 		}
 	});
 
+	// [核心新增] 处理页面滚动的函数，当滚动发生时，隐藏 popover
+	const handleScroll = () => {
+		if (popover.visible) {
+			popover.visible = false;
+		}
+	};
+
 	const loadRecipeData = async (id : string) => {
 		isLoading.value = true;
 		try {
@@ -126,7 +174,8 @@
 			recipeVersions.value = fullFamilyData.versions.sort((a, b) => b.version - a.version);
 
 			const currentActiveVersion = recipeVersions.value.find(v => v.isActive);
-			let versionToShow = currentActiveVersion || (recipeVersions.value.length > 0 ? recipeVersions.value[0] : null);
+			let versionToShow = currentActiveVersion || (recipeVersions.value.length > 0 ? recipeVersions.value[0] :
+				null);
 
 			if (versionToShow) {
 				if (!displayedVersionId.value || !recipeVersions.value.some(v => v.id === displayedVersionId.value)) {
@@ -137,7 +186,10 @@
 			}
 		} catch (error) {
 			console.error('Failed to fetch recipe details:', error);
-			toastStore.show({ message: '获取配方详情失败', type: 'error' });
+			toastStore.show({
+				message: '获取配方详情失败',
+				type: 'error'
+			});
 		} finally {
 			isLoading.value = false;
 		}
@@ -159,21 +211,56 @@
 		if (!familyId || !displayedVersion.value || !recipeFamily.value) return;
 
 		try {
-			// [核心重构] 调用后端接口获取为“创建新版本”准备的、经过精确计算的表单模板
 			const formTemplate = await getRecipeVersionFormTemplate(familyId, displayedVersion.value.id);
 			uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
 
 			if (recipeFamily.value.type === 'MAIN') {
-				uni.navigateTo({ url: `/pages/recipes/edit?familyId=${familyId}` });
+				uni.navigateTo({
+					url: `/pages/recipes/edit?familyId=${familyId}`
+				});
 			} else {
-				uni.navigateTo({ url: `/pages/recipes/edit-other?familyId=${familyId}` });
+				uni.navigateTo({
+					url: `/pages/recipes/edit-other?familyId=${familyId}`
+				});
 			}
 		} catch (error) {
 			console.error("准备新版本数据失败:", error);
-			toastStore.show({ message: '准备新版本数据失败', type: 'error' });
+			toastStore.show({
+				message: '准备新版本数据失败',
+				type: 'error'
+			});
 		} finally {
 			uni.hideLoading();
 		}
+	};
+
+	const handleShowPopover = (payload : {
+		info : string,
+		rect : any
+	}) => {
+		const {
+			info,
+			rect
+		} = payload;
+		if (!info || !rect) return;
+
+		if (popover.visible && popover.content === info) {
+			popover.visible = false;
+			return;
+		}
+
+		popover.content = info;
+		popover.targetRect = {
+			left: rect.left,
+			top: rect.top,
+			width: rect.width,
+			height: rect.height
+		};
+		popover.visible = true;
+	};
+
+	const hidePopover = () => {
+		popover.visible = false;
 	};
 
 	const handleCreateVersion = () => {
@@ -211,7 +298,10 @@
 		isSubmitting.value = true;
 		try {
 			await activateRecipeVersion(recipeFamily.value.id, versionToActivate.id);
-			toastStore.show({ message: '设置成功', type: 'success' });
+			toastStore.show({
+				message: '设置成功',
+				type: 'success'
+			});
 			await loadRecipeData(recipeFamily.value.id);
 			dataStore.fetchRecipesData();
 		} catch (error) {
@@ -227,7 +317,10 @@
 		isSubmitting.value = true;
 		try {
 			await deleteRecipeVersion(familyId.value, selectedVersionForAction.value.id);
-			toastStore.show({ message: '删除成功', type: 'success' });
+			toastStore.show({
+				message: '删除成功',
+				type: 'success'
+			});
 			showDeleteVersionConfirmModal.value = false;
 			selectedVersionForAction.value = null;
 			await loadRecipeData(familyId.value);

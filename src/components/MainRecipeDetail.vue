@@ -29,7 +29,14 @@
 								<text class="col-total">成本</text>
 							</view>
 							<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="table-row">
-								<text class="col-ingredient">{{ ing.name }}</text>
+								<view class="col-ingredient ingredient-name-cell">
+									<text>{{ ing.name }}</text>
+									<view v-if="ing.extraInfo" class="info-icon-button"
+										:id="'main-ing-icon-' + ing.id + ingIndex"
+										@click.stop="handleIconClick(ing.extraInfo, 'main-ing-icon-' + ing.id + ingIndex)">
+										<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
+									</view>
+								</view>
 								<text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
 								<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 								<text class="col-price">¥{{ formatNumber(ing.pricePerKg) }}/kg</text>
@@ -135,7 +142,8 @@
 	import {
 		ref,
 		computed,
-		watch
+		watch,
+		getCurrentInstance
 	} from 'vue';
 	import type {
 		PropType
@@ -162,11 +170,18 @@
 		toPercentage
 	} from '@/utils/format';
 
+	// [核心新增] 获取当前组件实例，用于 popover 定位
+	const instance = getCurrentInstance();
+
+	// [核心新增] 定义组件可以向外触发的事件
+	const emit = defineEmits(['show-popover']);
+
 	const props = defineProps({
 		version: {
 			type: Object as PropType<RecipeVersion | null>,
 			default: null
 		}
+		// [核心修改] 移除 onShowExtraInfo prop
 	});
 
 	const dataStore = useDataStore();
@@ -191,8 +206,6 @@
 		label: '原料成本'
 	},]);
 
-	// [核心修改] 移除不再需要的 recipeName 计算属性
-
 	const productTabsForFilter = computed(() => {
 		if (!props.version) return [];
 		// @ts-ignore
@@ -211,6 +224,17 @@
 	const doughSummary = computed(() => {
 		return recipeDetails.value?.extraIngredients.find(item => item.id === 'dough-summary');
 	});
+
+	// [核心新增] 在组件内部处理点击和查询逻辑
+	const handleIconClick = (info : string, elementId : string) => {
+		const query = uni.createSelectorQuery().in(instance);
+		query.select('#' + elementId).boundingClientRect((rect : UniApp.NodeInfo) => {
+			if (rect) {
+				// 通过 emit 将信息和位置数据发送给父组件
+				emit('show-popover', { info, rect });
+			}
+		}).exec();
+	};
 
 	const fetchCostData = async (productId : string | null) => {
 		if (!productId) {
@@ -264,6 +288,28 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	.ingredient-name-cell {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+	}
+
+	.info-icon-button {
+		display: inline-flex;
+		justify-content: center;
+		align-items: center;
+		vertical-align: middle;
+		margin-left: 4px;
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+	}
+
+	.info-icon {
+		width: 16px;
+		height: 16px;
+	}
 
 	.group-title {
 		display: flex;
