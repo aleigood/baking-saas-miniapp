@@ -20,10 +20,6 @@
 							</picker>
 						</view>
 					</FormItem>
-					<FormItem label="面团出缸温度 (°C)">
-						<input class="input-field" type="number" v-model.number="form.targetTemp"
-							placeholder="例如: 26" />
-					</FormItem>
 				</view>
 
 				<view class="card">
@@ -99,12 +95,11 @@
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
 
-	// [核心修改] 为 form 类型增加 targetTemp 字段
 	const form = reactive({
 		name: '',
 		type: 'PRE_DOUGH' as 'PRE_DOUGH' | 'EXTRA',
 		notes: '',
-		targetTemp: undefined as number | undefined, // 初始化
+		// [核心修改] 移除 targetTemp 属性
 		ingredients: [{ id: null as string | null, name: '', ratio: null as number | null }],
 		procedure: [''],
 	});
@@ -181,25 +176,21 @@
 	const handleSubmit = async () => {
 		isSubmitting.value = true;
 		try {
-			// [核心修复] 创建一个Map以便快速查找原料的isFlour属性
 			const allIngredientsMap = new Map(dataStore.allIngredients.map(i => [i.id, i]));
 
-			// [核心修改] 在提交的数据中包含 targetTemp
 			const payload = {
 				name: form.name,
 				type: form.type,
 				notes: form.notes,
-				targetTemp: form.targetTemp, // 新增
+				// [核心修改] 移除 targetTemp 属性
 				ingredients: form.ingredients
 					.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0))
 					.map(ing => {
-						// 从Map中查找原料的完整信息
 						const ingredientDetails = allIngredientsMap.get(ing.id!);
 						return {
 							ingredientId: ing.id,
 							name: ing.name,
 							ratio: toDecimal(ing.ratio),
-							// [核心修复] 确保isFlour字段被正确地包含在提交的数据中
 							isFlour: ingredientDetails ? ingredientDetails.isFlour : false,
 						}
 					}),
@@ -207,7 +198,6 @@
 				products: [],
 			};
 
-			// [核心修改] 移除调试日志
 			if (isEditing.value && familyId.value) {
 				await createRecipeVersion(familyId.value, payload);
 			} else {

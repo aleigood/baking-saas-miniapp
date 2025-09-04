@@ -158,7 +158,6 @@
 	const navigateToEditPage = async (familyId : string | null) => {
 		if (!familyId || !displayedVersion.value || !recipeFamily.value) return;
 
-		uni.showLoading({ title: '准备数据中...' });
 		try {
 			// [核心重构] 调用后端接口获取为“创建新版本”准备的、经过精确计算的表单模板
 			const formTemplate = await getRecipeVersionFormTemplate(familyId, displayedVersion.value.id);

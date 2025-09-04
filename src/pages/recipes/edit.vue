@@ -8,7 +8,7 @@
 					<FormItem label="配方名称">
 						<input class="input-field" v-model="form.name" placeholder="例如：法式长棍" :disabled="isEditing" />
 					</FormItem>
-					<FormItem label="版本说明">
+					<FormItem v-if="isEditing" label="版本说明">
 						<input class="input-field" v-model="form.notes" placeholder="例如：夏季版本，减少水量" />
 					</FormItem>
 				</view>
@@ -251,13 +251,21 @@
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
 
-	// [核心修改] 为 form 类型增加 targetTemp 字段
+	// [核心修改] 将新建配方的默认结构作为 ref 的初始值。
+	// 这样可以确保 mainDough 计算属性在组件首次渲染时不会因 doughs 为空而返回 undefined，从而修复小程序端的报错。
 	const form = ref<RecipeFormTemplate & { targetTemp ?: number }>({
 		name: '',
 		type: 'MAIN',
 		notes: '',
-		targetTemp: undefined, // 初始化
-		doughs: [],
+		targetTemp: undefined,
+		doughs: [{
+			id: `main_${Date.now()}`,
+			name: '主面团',
+			type: 'MAIN_DOUGH',
+			lossRatio: 0,
+			ingredients: [{ id: null, name: '', ratio: null }],
+			procedure: [''],
+		}],
 		products: [],
 	});
 
@@ -297,6 +305,7 @@
 		if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
 		if (!dataStore.dataLoaded.recipes) await dataStore.fetchRecipesData();
 
+		// [核心修改] 新建配方的逻辑已移至 ref 初始化，此处仅处理编辑情况
 		if (options && options.familyId) {
 			isEditing.value = true;
 			familyId.value = options.familyId;
@@ -313,23 +322,8 @@
 					toastStore.show({ message: '加载配方模板失败', type: 'error' });
 				}
 			}
-		} else {
-			// [核心新增] 当不是编辑模式（即新建配方时），也要初始化 form 结构
-			form.value = {
-				name: '',
-				type: 'MAIN',
-				notes: '',
-				doughs: [{
-					id: `main_${Date.now()}`,
-					name: '主面团',
-					type: 'MAIN_DOUGH',
-					lossRatio: 0,
-					ingredients: [{ id: null, name: '', ratio: null }],
-					procedure: [''],
-				}],
-				products: []
-			};
 		}
+		// [核心修改] 移除 else 块，因为初始状态已经是新建状态
 	});
 
 	onUnload(() => {
