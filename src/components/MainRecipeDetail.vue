@@ -423,7 +423,7 @@
 
 	.product-tabs-wrapper {
 		padding: 0;
-		margin-bottom: 35px;
+		margin-bottom: 30px;
 	}
 
 	.data-analysis-section {

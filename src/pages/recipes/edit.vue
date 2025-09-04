@@ -87,9 +87,10 @@
 						</AppButton>
 					</view>
 				</view>
-
-				<FilterTabs v-model="activeProductTab" :tabs="productTabs" class="product-tabs" editable
-					@add="addProduct" />
+				<view class="product-tabs-wrapper">
+					<FilterTabs v-model="activeProductTab" :tabs="productTabs" class="product-tabs" editable
+						@add="addProduct" />
+				</view>
 
 				<view v-for="(product, prodIndex) in form.products" :key="prodIndex">
 					<view class="card" v-show="activeProductTab === prodIndex">
@@ -700,7 +701,7 @@
 	/* [样式修复] 增加外层容器来控制按钮的上下外边距 */
 	.add-button-container {
 		padding: 0 15px;
-		margin: 35px 0px;
+		margin: 30px 0px;
 	}
 
 	.add-button {
@@ -770,9 +771,9 @@
 		}
 	}
 
-	.product-tabs {
-		margin-top: 35px;
-		margin-bottom: 35px;
+	.product-tabs-wrapper {
+		margin-top: 30px;
+		margin-bottom: 30px;
 	}
 
 	/* [样式修复] 使用 wrapper 容器来解决小程序中的样式问题 */
