@@ -1,7 +1,8 @@
 <template>
 	<view class="custom-tab-bar">
 		<view v-for="item in list" :key="item.key" :id="'tab-item-' + item.key" class="tab-item ripple-container"
-			@touchstart="handleTouchStart($event, item.key)" @click="switchTab(item)">
+			:class="{ 'active': uiStore.activeTab === item.key }" @touchstart="handleTouchStart($event, item.key)"
+			@click="switchTab(item)">
 			<span v-for="ripple in ripples[item.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 			<image class="icon" :src="uiStore.activeTab === item.key ? item.selectedIconPath : item.iconPath" />
 			<view class="text" :class="{ 'text-active': uiStore.activeTab === item.key }">{{ item.text }}</view>
@@ -110,6 +111,11 @@
 		overflow: hidden;
 	}
 
+	/* [新增] 当标签被选中时，修改背景颜色 */
+	.tab-item.active {
+		background-color: #fdf8f2;
+	}
+
 	.icon {
 		width: 24px;
 		height: 24px;
@@ -125,6 +131,8 @@
 
 	.text-active {
 		color: var(--primary-color);
+		/* [新增] 选中时字体加粗 */
+		font-weight: bold;
 	}
 
 	.ripple {

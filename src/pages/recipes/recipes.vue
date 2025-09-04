@@ -401,6 +401,7 @@
 	.count {
 		color: var(--text-secondary);
 		font-size: 13px;
+		flex-shrink: 0; // 新增样式，防止元素被压缩换行
 	}
 
 	.empty-state {
