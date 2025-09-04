@@ -9,6 +9,8 @@ export interface CalculatedRecipeIngredient {
 	weightInGrams : number;
 	brand ?: string | null;
 	isRecipe : boolean; // 新增字段，用于标识该原料是否为另一个配方
+	// [核心新增] 增加一个可选的 extraInfo 字段
+	extraInfo ?: string;
 }
 // [核心修改] 为备料详情增加 type 字段
 export interface CalculatedRecipeDetails {
@@ -32,7 +34,9 @@ export interface ProductionDataPayload {
 		todayPendingCount : number;
 	};
 	// tasks 现在是一个包含常规任务和备料任务的联合类型数组
-	tasks : (ProductionTaskDto | (PrepTask & { status : 'PREP' }))[];
+	tasks : (ProductionTaskDto | (PrepTask & {
+		status : 'PREP'
+	}))[];
 	// prepTask 不再由该接口单独返回
 	prepTask : null;
 }
@@ -128,9 +132,15 @@ export interface RecipeFormTemplate {
 	products ?: { // 主配方使用
 		name : string;
 		baseDoughWeight : number;
-		mixIns : { id : string | null; ratio : number | null; weightInGrams ?: number | null }[];
-		fillings : { id : string | null; ratio : number | null; weightInGrams ?: number | null }[];
-		toppings : { id : string | null; ratio : number | null; weightInGrams ?: number | null }[];
+		mixIns : {
+			id : string | null; ratio : number | null; weightInGrams ?: number | null
+		}[];
+		fillings : {
+			id : string | null; ratio : number | null; weightInGrams ?: number | null
+		}[];
+		toppings : {
+			id : string | null; ratio : number | null; weightInGrams ?: number | null
+		}[];
 		procedure : string[];
 	}[];
 	ingredients ?: { // 其他配方使用
@@ -204,11 +214,14 @@ export interface ProductListItem {
 }
 
 export interface CalculatedIngredientInfo {
+	id : string; // [核心新增] 为原料信息增加ID，用于DOM-key
 	name : string;
 	ratio : number;
 	weightInGrams : number;
 	pricePerKg : number;
 	cost : number;
+	// [核心新增] 增加一个可选的 extraInfo 字段
+	extraInfo ?: string;
 }
 export interface CalculatedDoughGroup {
 	name : string;

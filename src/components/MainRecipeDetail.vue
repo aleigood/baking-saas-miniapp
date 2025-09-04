@@ -28,12 +28,12 @@
 								<text class="col-price">单价</text>
 								<text class="col-total">成本</text>
 							</view>
-							<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="table-row">
+							<view v-for="(ing, ingIndex) in dough.ingredients" :key="ingIndex" class="table-row"
+								@click.stop="handleIconClick(ing.extraInfo, 'main-ing-icon-' + ing.id + ingIndex)">
 								<view class="col-ingredient ingredient-name-cell">
 									<text>{{ ing.name }}</text>
 									<view v-if="ing.extraInfo" class="info-icon-button"
-										:id="'main-ing-icon-' + ing.id + ingIndex"
-										@click.stop="handleIconClick(ing.extraInfo, 'main-ing-icon-' + ing.id + ingIndex)">
+										:id="'main-ing-icon-' + ing.id + ingIndex">
 										<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 									</view>
 								</view>
@@ -226,12 +226,16 @@
 	});
 
 	// [核心新增] 在组件内部处理点击和查询逻辑
-	const handleIconClick = (info : string, elementId : string) => {
+	const handleIconClick = (info : string | null | undefined, elementId : string) => {
+		if (!info) return; // 如果没有 extraInfo，则不显示 popover
 		const query = uni.createSelectorQuery().in(instance);
 		query.select('#' + elementId).boundingClientRect((rect : UniApp.NodeInfo) => {
 			if (rect) {
 				// 通过 emit 将信息和位置数据发送给父组件
-				emit('show-popover', { info, rect });
+				emit('show-popover', {
+					info,
+					rect
+				});
 			}
 		}).exec();
 	};
@@ -295,17 +299,22 @@
 		gap: 5px;
 	}
 
+	/* [核心修改] 缩小图标按钮的尺寸和内边距，使其更紧凑 */
 	.info-icon-button {
 		display: inline-flex;
 		justify-content: center;
 		align-items: center;
 		vertical-align: middle;
 		margin-left: 4px;
-		width: 28px;
-		height: 28px;
-		border-radius: 50%;
+		width: 16px;
+		/* 修改宽度 */
+		height: 16px;
+		/* 修改高度 */
+		padding: 0;
+		/* 移除内边距 */
 	}
 
+	/* [核心修改] 调整图标本身的尺寸 */
 	.info-icon {
 		width: 16px;
 		height: 16px;

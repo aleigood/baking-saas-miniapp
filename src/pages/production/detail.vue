@@ -51,12 +51,12 @@
 									<view v-for="ing in selectedDoughDetails.mainDoughIngredients" :key="ing.id"
 										class="table-row"
 										:class="{ 'is-added': addedIngredientsMap[selectedDoughDetails.familyId]?.has(ing.id) }"
+										@click.stop="showExtraInfo(ing.extraInfo, ing.id)"
 										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedDoughDetails.familyId, ing.id)">
 										<view class="col-ingredient ingredient-name-cell">
 											<text>{{ ing.name }}</text>
 											<view v-if="ing.extraInfo" class="info-icon-button"
-												:id="'info-icon-' + ing.id"
-												@click.stop="showExtraInfo(ing.extraInfo, ing.id)">
+												:id="'info-icon-' + ing.id">
 												<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit">
 												</image>
 											</view>
@@ -603,6 +603,8 @@
 
 	const toggleIngredientAdded = (doughFamilyId : string, ingredientId : string) => {
 		if (isReadOnly.value) return;
+		// [核心新增] 增加振动反馈
+		uni.vibrateShort({});
 		if (!addedIngredientsMap[doughFamilyId]) {
 			addedIngredientsMap[doughFamilyId] = new Set<string>();
 		}
@@ -642,12 +644,14 @@
 		}
 	};
 
+	// [核心修改] 修改 showExtraInfo 函数，使其通过点击行来触发
 	const showExtraInfo = (info : string | null | undefined, ingredientId : string) => {
-		if (!info) return;
+		if (!info) return; // 如果没有额外信息，则不显示 popover
 		if (popover.visible && popover.content === info) {
 			popover.visible = false;
 			return;
 		}
+		// 查询图标元素的位置，让 popover 的箭头指向图标
 		const query = uni.createSelectorQuery().in(instance);
 		query.select('#info-icon-' + ingredientId).boundingClientRect((rect : UniApp.NodeInfo) => {
 			if (rect) {
@@ -957,30 +961,25 @@
 		gap: 5px;
 	}
 
-	/* [核心新增] 父级容器作为点击区域 */
+	/* [核心修改] 缩小图标按钮的尺寸和内边距，使其更紧凑 */
 	.info-icon-button {
 		display: inline-flex;
-		/* 使用 flex 布局来居中内部的图标 */
 		justify-content: center;
 		align-items: center;
 		vertical-align: middle;
-		/* 让整个按钮与旁边的文字垂直对齐 */
 		margin-left: 4px;
-		/* 调整与左边文字的间距 */
-		width: 28px;
-		/* 扩大的点击区域宽度 */
-		height: 28px;
-		/* 扩大的点击区域高度 */
-		border-radius: 50%;
-		/* 保持圆形 */
+		width: 16px;
+		/* 修改宽度 */
+		height: 16px;
+		/* 修改高度 */
+		padding: 0;
+		/* 移除内边距 */
 	}
 
-	/* [核心改造] 内部图标样式，尺寸改小 */
+	/* [核心修改] 调整图标本身的尺寸 */
 	.info-icon {
 		width: 16px;
-		/* 图标本身宽度 */
 		height: 16px;
-		/* 图标本身高度 */
 	}
 
 	.total-weight-summary {
