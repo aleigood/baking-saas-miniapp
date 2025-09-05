@@ -58,7 +58,6 @@
 				</view>
 			</view>
 		</DetailPageLayout>
-		<Toast />
 	</view>
 </template>
 
@@ -72,7 +71,6 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import CssAnimatedTabs from '@/components/CssAnimatedTabs.vue';
-	import Toast from '@/components/Toast.vue';
 	import type { ProductListItem } from '@/types/api';
 
 	defineOptions({

@@ -65,8 +65,6 @@
 
 		<AppPopover :visible="popover.visible" :content="popover.content" :target-rect="popover.targetRect"
 			placement="right" :offsetY="0" />
-
-		<Toast />
 	</view>
 </template>
 
@@ -106,7 +104,6 @@
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import ListItem from '@/components/ListItem.vue';
-	import Toast from '@/components/Toast.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import AppPopover from '@/components/AppPopover.vue';

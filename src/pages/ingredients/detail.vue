@@ -200,9 +200,6 @@
 				</AppButton>
 			</view>
 		</AppModal>
-
-
-		<Toast />
 	</view>
 </template>
 
@@ -225,7 +222,6 @@
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import AnimatedTabs from '@/components/AnimatedTabs.vue';
-	import Toast from '@/components/Toast.vue';
 	import IngredientSkuList from '@/components/IngredientSkuList.vue';
 	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';

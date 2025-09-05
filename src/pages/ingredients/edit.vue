@@ -42,7 +42,6 @@
 				</AppButton>
 			</view>
 		</DetailPageLayout>
-		<Toast />
 	</view>
 </template>
 
@@ -53,7 +52,6 @@
 	import { useToastStore } from '@/store/toast';
 	import FormItem from '@/components/FormItem.vue';
 	import AppButton from '@/components/AppButton.vue';
-	import Toast from '@/components/Toast.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 
