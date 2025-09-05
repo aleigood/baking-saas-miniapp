@@ -19,7 +19,7 @@
 						<span>{{ dough.name }}</span>
 						<span class="arrow" :class="{ collapsed: collapsedSections.has(dough.name) }">&#10095;</span>
 					</view>
-					<view v-show="!collapsedSections.has(dough.name)">
+					<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(dough.name) }">
 						<view class="recipe-table">
 							<view class="table-header">
 								<text class="col-ingredient">原料</text>
@@ -61,7 +61,8 @@
 					<span class="arrow"
 						:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
 				</view>
-				<view v-show="!collapsedSections.has('otherIngredients')">
+				<view class="collapsible-content"
+					:class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
 					<template
 						v-if="recipeDetails.groupedExtraIngredients['搅拌原料'] && recipeDetails.groupedExtraIngredients['搅拌原料'].length > 0">
 						<view class="summary-table-wrapper">
@@ -292,6 +293,19 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	/* [新增] 定义折叠内容容器的动画 */
+	.collapsible-content {
+		max-height: 1000px;
+		overflow: hidden;
+		transition: max-height 0.35s ease-in-out;
+		box-sizing: border-box;
+	}
+
+	/* [新增] 定义折叠状态下的样式 */
+	.collapsible-content.is-collapsed {
+		max-height: 0;
+	}
 
 	.ingredient-name-cell {
 		display: flex;

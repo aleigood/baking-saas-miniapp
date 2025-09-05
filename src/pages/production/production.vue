@@ -370,7 +370,7 @@
 
 		.card-title {
 			color: var(--primary-color); // 使用主题色
-			font-weight: 400; // [修改] 标题文字不要加粗
+			font-weight: 500; // [修改] 标题文字不要加粗
 		}
 	}
 
@@ -397,7 +397,7 @@
 	.title {
 		color: var(--text-primary);
 		font-size: 16px;
-		font-weight: 400;
+		font-weight: 500;
 		margin-bottom: 8px;
 		word-break: break-all;
 		overflow: hidden;

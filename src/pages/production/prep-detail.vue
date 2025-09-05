@@ -17,7 +17,8 @@
 									:class="{ collapsed: collapsedSections.has(item.id) }">&#10095;</span>
 							</view>
 
-							<view v-show="!collapsedSections.has(item.id)">
+							<view class="collapsible-content"
+								:class="{ 'is-collapsed': collapsedSections.has(item.id) }">
 								<view class="recipe-table">
 									<view class="table-header">
 										<text class="col-ingredient">原料</text>
@@ -141,6 +142,19 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	/* [新增] 定义折叠内容容器的动画 */
+	.collapsible-content {
+		max-height: 1000px;
+		overflow: hidden;
+		transition: max-height 0.35s ease-in-out;
+		box-sizing: border-box;
+	}
+
+	/* [新增] 定义折叠状态下的样式 */
+	.collapsible-content.is-collapsed {
+		max-height: 0;
+	}
+
 	.page-wrapper {
 		display: flex;
 		flex-direction: column;
@@ -200,7 +214,7 @@
 		}
 
 		.table-row.is-added {
-			background-color: #dcccc0;
+			background-color: #f0ebe5;
 		}
 
 		[class^="col-"] {

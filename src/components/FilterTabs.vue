@@ -191,6 +191,8 @@
 	.tab-text {
 		z-index: 1;
 		position: relative;
+		font-size: 16px;
+    	font-weight: 500;
 	}
 
 	.add-tab {

@@ -99,6 +99,13 @@
 		/* 新增flex布局以确保内容撑满 */
 		justify-content: space-between;
 		align-items: center;
+		transition: transform 0.15s ease-out;
+		/* [优化] 为点击反馈增加过渡动画 */
+
+		/* [优化] 新增触摸状态下的微交互，轻微缩小，提升物理反馈感 */
+		&:active {
+			transform: scale(0.98);
+		}
 	}
 
 	.list-item-content {

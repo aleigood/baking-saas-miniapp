@@ -136,10 +136,14 @@
 		display: flex;
 		justify-content: center;
 		align-items: center;
-		box-shadow: 0 6px 20px rgba(140, 90, 59, 0.3);
+		/* [核心修改] 替换为符合 Material Design 规范的多层阴影 */
+		box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.2), 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 0 rgba(0, 0, 0, 0.12);
 		z-index: 2;
 		transform: translateZ(0);
 		overflow: hidden;
+		/* [新增] 为阴影和形变增加过渡动画，使交互更平滑 */
+		transition: box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease-out;
+
 		/* [核心修改] 移除主按钮的 transform 动画 */
 		/* transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); */
 
@@ -154,6 +158,14 @@
 		.fab-icon.is-open {
 			transform: rotate(135deg);
 		}
+	}
+
+	/* [新增] 按下状态的样式，模拟按钮抬起效果 */
+	.fab-main:active {
+		transform: scale(0.95) translateZ(0);
+		/* 按下时轻微缩小 */
+		/* [新增] 按下时应用更强的阴影 (模拟 Material Design 的 12dp elevation) */
+		box-shadow: 0 7px 8px -4px rgba(0, 0, 0, 0.2), 0 12px 17px 2px rgba(0, 0, 0, 0.14), 0 5px 22px 4px rgba(0, 0, 0, 0.12);
 	}
 
 	.fab-options {

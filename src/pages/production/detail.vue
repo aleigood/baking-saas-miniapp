@@ -41,7 +41,8 @@
 								<span class="arrow"
 									:class="{ collapsed: collapsedSections.has(selectedDoughDetails.familyId) }">&#10095;</span>
 							</view>
-							<view v-show="!collapsedSections.has(selectedDoughDetails.familyId)">
+							<view class="collapsible-content"
+								:class="{ 'is-collapsed': collapsedSections.has(selectedDoughDetails.familyId) }">
 								<view class="recipe-table">
 									<view class="table-header">
 										<text class="col-ingredient">原料</text>
@@ -79,7 +80,8 @@
 								<span class="arrow"
 									:class="{ collapsed: collapsedSections.has('doughSummary') }">&#10095;</span>
 							</view>
-							<view v-show="!collapsedSections.has('doughSummary')">
+							<view class="collapsible-content"
+								:class="{ 'is-collapsed': collapsedSections.has('doughSummary') }">
 								<view class="info-table summary-table">
 									<view class="table-header">
 										<text class="col-product-name">面包名称</text>
@@ -103,7 +105,8 @@
 								<span class="arrow"
 									:class="{ collapsed: collapsedSections.has('productSummary') }">&#10095;</span>
 							</view>
-							<view v-show="!collapsedSections.has('productSummary')">
+							<view class="collapsible-content"
+								:class="{ 'is-collapsed': collapsedSections.has('productSummary') }">
 								<view class="product-tabs-container" v-if="productTabs.length > 0">
 									<AnimatedTabs v-model="selectedProductId" :tabs="productTabs" />
 								</view>
@@ -694,6 +697,23 @@
 	@import '@/styles/common.scss';
 	@include list-item-content-style;
 
+	/* [新增] 定义折叠内容容器的动画 */
+	.collapsible-content {
+		max-height: 1000px;
+		/* 定义一个足够大的最大高度，用于展开状态 */
+		overflow: hidden;
+		/* 关键：隐藏超出 max-height 的内容 */
+		transition: max-height 0.35s ease-in-out;
+		/* 为 max-height 属性添加平滑过渡动画 */
+		box-sizing: border-box;
+	}
+
+	/* [新增] 定义折叠状态下的样式 */
+	.collapsible-content.is-collapsed {
+		max-height: 0;
+		/* 折叠时，最大高度为0，内容被隐藏 */
+	}
+
 	.font-size-14 {
 		font-size: 14px;
 	}
@@ -843,7 +863,7 @@
 		justify-content: space-between;
 		align-items: center;
 		font-size: 16px;
-		font-weight: 600;
+		font-weight: bold;
 		color: var(--text-primary);
 		border: none;
 		margin-top: 30px;
@@ -916,7 +936,7 @@
 		}
 
 		.table-row.is-added {
-			background-color: #dcccc0;
+			background-color: #f0ebe5;
 		}
 
 		[class^="col-"] {
@@ -961,7 +981,6 @@
 		gap: 5px;
 	}
 
-	/* [核心修改] 缩小图标按钮的尺寸和内边距，使其更紧凑 */
 	.info-icon-button {
 		display: inline-flex;
 		justify-content: center;
@@ -969,14 +988,10 @@
 		vertical-align: middle;
 		margin-left: 4px;
 		width: 16px;
-		/* 修改宽度 */
 		height: 16px;
-		/* 修改高度 */
 		padding: 0;
-		/* 移除内边距 */
 	}
 
-	/* [核心修改] 调整图标本身的尺寸 */
 	.info-icon {
 		width: 16px;
 		height: 16px;
