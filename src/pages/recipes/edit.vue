@@ -795,8 +795,7 @@
 	}
 
 	.product-tabs-wrapper {
-		margin-top: 30px;
-		margin-bottom: 30px;
+		margin: 25px 0px;
 	}
 
 	/* [样式修复] 使用 wrapper 容器来解决小程序中的样式问题 */

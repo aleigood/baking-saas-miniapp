@@ -66,7 +66,6 @@
 		background: var(--card-bg);
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 		border-radius: 20px;
-		margin-bottom: 25px;
 		padding-top: 20px;
 		padding-bottom: 20px;
 		padding-left: 0;

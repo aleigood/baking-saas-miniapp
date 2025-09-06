@@ -96,10 +96,9 @@
 
 	onMounted(async () => {
 		isLoading.value = true;
-		// [核心修改] 调用新的 action 来获取产品列表
-		if (!dataStore.dataLoaded.productsForTaskCreation) {
-			await dataStore.fetchProductsForTaskCreation();
-		}
+		// [核心修改] 移除 if 条件，强制每次进入页面都重新获取最新产品列表
+		await dataStore.fetchProductsForTaskCreation();
+
 		if (productTabs.value.length > 0) {
 			activeTab.value = productTabs.value[0].key;
 		}

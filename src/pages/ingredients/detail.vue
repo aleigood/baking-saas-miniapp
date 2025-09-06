@@ -752,11 +752,7 @@
 	}
 
 	.reason-tags {
-		margin-bottom: 15px;
-
-		:deep(.filter-tabs) {
-			flex-wrap: wrap;
-			margin-bottom: 0;
-		}
+		padding: 10px 0px;
+		margin-bottom: 5px;
 	}
 </style>

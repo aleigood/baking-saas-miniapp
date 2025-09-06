@@ -16,8 +16,9 @@
 						<text>暂无排行信息</text>
 					</view>
 				</view>
-
-				<FilterTabs class="recipe-filter-tabs" v-model="recipeFilter" :tabs="recipeFilterTabs" />
+				<view class="filter-wrapper">
+					<FilterTabs v-model="recipeFilter" :tabs="recipeFilterTabs" />
+				</view>
 			</view>
 
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
@@ -28,13 +29,13 @@
 							:vibrate-on-long-press="canEditRecipe" :bleed="true"
 							:divider="index < dataStore.recipes.mainRecipes.length - 1">
 							<view class="main-info">
-								<view class="name">
-									{{ family.name }}
-									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+								<view>
+									<view class="name">{{ family.name }}</view>
+									<view class="desc">
+										{{ family.productCount }} 种面包
+									</view>
 								</view>
-								<view class="desc">
-									{{ family.productCount }} 种面包
-								</view>
+								<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 							</view>
 							<view class="side-info">
 								<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
@@ -54,13 +55,13 @@
 							:vibrate-on-long-press="canEditRecipe" :bleed="true"
 							:divider="index < dataStore.recipes.otherRecipes.length - 1">
 							<view class="main-info">
-								<view class="name">
-									{{ family.name }}
-									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+								<view>
+									<view class="name">{{ family.name }}</view>
+									<view class="desc">
+										类型: {{ getRecipeTypeDisplay(family.type) }}
+									</view>
 								</view>
-								<view class="desc">
-									类型: {{ getRecipeTypeDisplay(family.type) }}
-								</view>
+								<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 							</view>
 							<view class="side-info">
 								<view class="desc">{{ family.ingredientCount }} 种原料</view>
@@ -356,6 +357,14 @@
 	@include list-item-content-style;
 	@include list-item-option-style;
 
+	// [核心修改] 修改 flex 布局以实现您的要求
+	:deep(.main-info) {
+		display: flex;
+		align-items: center;
+		gap: 10px; // [核心修改] 增加元素之间的间距
+		flex: 1;
+	}
+
 	.content-padding {
 		padding: 0 15px;
 	}
@@ -411,9 +420,9 @@
 		font-weight: 500;
 		padding: 3px 8px;
 		border-radius: 6px;
-		margin-left: 8px;
 		display: inline-block;
 		vertical-align: middle;
+		flex-shrink: 0; // 防止标签被压缩
 	}
 
 	.status-tag.discontinued {
@@ -421,7 +430,7 @@
 		color: #991b1b;
 	}
 
-	.recipe-filter-tabs {
-		padding: 15px 0px;
+	.filter-wrapper {
+		padding: 10px 0px;
 	}
 </style>
