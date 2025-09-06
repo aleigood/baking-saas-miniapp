@@ -19,9 +19,12 @@
 					<FormItem label="角色">
 						<picker mode="selector" :range="availableRolesDisplay" @change="onRoleChange"
 							:disabled="!canEditRole">
+							<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
 							<view class="picker" :class="{ disabled: !canEditRole }">{{
                     editableMemberRoleDisplay
-                  }}</view>
+                  }}
+								<view class="arrow-down"></view>
+							</view>
 						</picker>
 					</FormItem>
 					<AppButton type="primary" full-width @click="handleUpdateMemberRole"
@@ -55,7 +58,6 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import { formatChineseDate } from '@/utils/format';
 
-	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
 		inheritAttrs: false
 	});
@@ -72,9 +74,7 @@
 	onLoad(async (options) => {
 		const memberId = options?.memberId;
 		if (memberId) {
-			// [核心修复] 检查要查看的ID是否是当前登录用户的ID
 			if (memberId === userStore.userInfo?.id) {
-				// 如果是，直接从 userStore 构建成员信息，确保个人信息页能正确显示
 				const currentUserTenantInfo = userStore.userInfo.tenants.find(t => t.tenant.id === dataStore.currentTenantId);
 				if (currentUserTenantInfo) {
 					selectedMember.value = {
@@ -82,13 +82,12 @@
 						name: userStore.userInfo.name || '',
 						phone: userStore.userInfo.phone,
 						role: currentUserTenantInfo.role,
-						status: 'ACTIVE', // 假设当前用户总是激活状态
-						joinDate: userStore.userInfo.createdAt, // 使用账户创建日期作为加入日期
+						status: 'ACTIVE',
+						joinDate: userStore.userInfo.createdAt,
 					};
 					editableMemberRole.value = selectedMember.value.role;
 				}
 			} else {
-				// 如果不是，执行原有逻辑，从成员列表中查找
 				const memberFromStore = dataStore.members.find(m => m.id === memberId);
 				if (memberFromStore) {
 					selectedMember.value = JSON.parse(JSON.stringify(memberFromStore));
@@ -167,7 +166,6 @@
 			await dataStore.fetchMembersData();
 			uni.navigateBack();
 		} catch (error : any) {
-			// [修改] 增加异常捕获
 			console.error('Failed to update role:', error);
 		} finally {
 			isSubmitting.value = false;
@@ -189,7 +187,6 @@
 						await dataStore.fetchMembersData();
 						uni.navigateBack();
 					} catch (error : any) {
-						// [修改] 增加异常捕获
 						console.error('Failed to remove member:', error);
 					} finally {
 						isSubmitting.value = false;
@@ -202,6 +199,8 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+	// [核心新增] 引入 Mixin
+	@include form-control-styles;
 
 	.page-wrapper {
 		display: flex;
@@ -209,19 +208,7 @@
 		height: 100vh;
 	}
 
-	.input-field,
-	.picker {
-		width: 100%;
-		height: 44px;
-		line-height: 44px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-	}
-
+	// [核心修改] 删除本地重复的样式，只保留禁用状态的特殊样式
 	.picker.disabled {
 		background-color: #e9ecef;
 		color: #6c757d;

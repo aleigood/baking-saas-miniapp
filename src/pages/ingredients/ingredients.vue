@@ -96,7 +96,10 @@
 			</FormItem>
 			<FormItem label="原料类型">
 				<picker mode="selector" :range="availableTypes.map(t => t.label)" @change="onTypeChange">
-					<view class="picker-display">{{ currentTypeLabel }}</view>
+					<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
+					<view class="picker">{{ currentTypeLabel }}
+						<view class="arrow-down"></view>
+					</view>
 				</picker>
 			</FormItem>
 			<view class="form-row">
@@ -125,7 +128,6 @@
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
-	// [核心新增] 引入创建原料的 API
 	import { createIngredient, deleteIngredient } from '@/api/ingredients';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import type { Ingredient } from '@/types/api';
@@ -135,7 +137,7 @@
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import IconButton from '@/components/IconButton.vue';
-	import FormItem from '@/components/FormItem.vue'; // [核心新增]
+	import FormItem from '@/components/FormItem.vue';
 	import { formatWeight } from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -152,7 +154,6 @@
 		{ key: 'low', label: '库存紧张' }
 	]);
 
-	// [核心新增] 新建原料表单
 	const newIngredientForm = reactive({
 		name: '',
 		type: 'STANDARD' as 'STANDARD' | 'UNTRACKED',
@@ -194,9 +195,6 @@
 			}
 		}
 	};
-
-	// [核心修改] 删除 allIngredients 计算属性
-	// [核心修改] 删除 lowStockIngredients 计算属性
 
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
@@ -258,9 +256,7 @@
 		}
 	};
 
-	// [核心新增] 创建原料的逻辑
 	const openCreateIngredientModal = () => {
-		// 重置表单
 		newIngredientForm.name = '';
 		newIngredientForm.type = 'STANDARD';
 		newIngredientForm.isFlour = false;
@@ -304,6 +300,8 @@
 	@import '@/styles/common.scss';
 	@include list-item-content-style;
 	@include list-item-option-style;
+	// [核心新增] 引入 Mixin
+	@include form-control-styles;
 
 	.filter-bar {
 		display: flex;
@@ -341,20 +339,7 @@
 		color: #991b1b;
 	}
 
-	/* [核心新增] 新建原料对话框的样式 */
-	.picker-display,
-	.input-field {
-		width: 100%;
-		height: 44px;
-		line-height: 44px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-		text-align: left;
-	}
+	// [核心修改] 删除本地重复的样式
 
 	.form-row {
 		display: flex;

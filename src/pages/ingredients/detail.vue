@@ -40,7 +40,10 @@
 			</FormItem>
 			<FormItem label="原料类型">
 				<picker mode="selector" :range="availableTypes.map(t => t.label)" @change="onTypeChange">
-					<view class="picker">{{ currentTypeLabel }}</view>
+					<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
+					<view class="picker">{{ currentTypeLabel }}
+						<view class="arrow-down"></view>
+					</view>
 				</picker>
 			</FormItem>
 			<view class="form-row">
@@ -95,7 +98,10 @@
 			</view>
 			<FormItem v-if="isBackEntry" label="采购日期">
 				<picker mode="date" :value="procurementForm.purchaseDate" @change="onNewProcurementDateChange">
-					<view class="picker">{{ procurementForm.purchaseDate }}</view>
+					<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
+					<view class="picker">{{ procurementForm.purchaseDate }}
+						<view class="arrow-down"></view>
+					</view>
 				</picker>
 			</FormItem>
 			<view class="modal-actions">
@@ -247,7 +253,6 @@
 		{ key: 'usage', label: '用量走势' },
 	]);
 	const showAddSkuModal = ref(false);
-	// [核心修改] 将类型改为 number | null
 	const newSkuForm = ref<{
 		brand : string;
 		specName : string;
@@ -258,7 +263,6 @@
 		specWeightInGrams: null,
 	});
 	const showProcurementModal = ref(false);
-	// [核心修改] 将类型改为 number | null
 	const procurementForm = ref<{
 		skuId : string;
 		packagesPurchased : number | null;
@@ -300,7 +304,6 @@
 		totalPrice: 0,
 	});
 
-	// [核心修改] 将类型改为 number | null
 	const stockAdjustment = reactive<{
 		changeInKg : number | null;
 		reason : string;
@@ -309,7 +312,6 @@
 		reason: ''
 	});
 
-	// [核心改造] 将 presetReasons 转换为符合 FilterTabs 组件要求的格式
 	const presetReasonTabs = computed(() => {
 		const reasons = ['盘点损耗', '盘点盈余', '过期损耗', '包装破损'];
 		return reasons.map(reason => ({
@@ -406,7 +408,6 @@
 	});
 
 	const openAddSkuModal = () => {
-		// [核心修改] 重置为空值
 		newSkuForm.value = { brand: '', specName: '', specWeightInGrams: null };
 		showAddSkuModal.value = true;
 	};
@@ -419,7 +420,6 @@
 		}
 		isSubmitting.value = true;
 		try {
-			// [核心修改] 确保提交的是 number
 			const skuRes = await createSku(ingredient.value.id, {
 				...newSkuForm.value,
 				specWeightInGrams: Number(newSkuForm.value.specWeightInGrams)
@@ -455,7 +455,6 @@
 			toastStore.show({ message: '请先激活一个SKU才能进行采购', type: 'error' });
 			return;
 		}
-		// [核心修改] 重置为空值
 		procurementForm.value = {
 			skuId: ingredient.value.activeSku.id,
 			packagesPurchased: null,
@@ -651,7 +650,6 @@
 
 	const openUpdateStockModal = () => {
 		if (ingredient.value) {
-			// [核心修改] 重置为空值
 			stockAdjustment.changeInKg = null;
 			stockAdjustment.reason = '';
 			uiStore.openModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
@@ -682,15 +680,14 @@
 			isSubmitting.value = false;
 		}
 	};
-
-	// [核心修改] 移除此函数，因为它已不再需要
-	// const navigateToLedger = () => { ... };
 </script>
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
 	@include list-item-option-style;
+	// [核心新增] 引入 Mixin
+	@include form-control-styles;
 
 	.page-wrapper {
 		display: flex;
@@ -720,19 +717,7 @@
 		gap: 5px;
 	}
 
-	.picker,
-	.input-field {
-		width: 100%;
-		height: 44px;
-		line-height: 44px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-		text-align: left;
-	}
+	// [核心修改] 删除本地重复的样式
 
 	.form-row {
 		display: flex;

@@ -15,7 +15,10 @@
 					<FormItem label="配方类型">
 						<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange"
 							:disabled="isEditing">
-							<view class="picker">{{ currentTypeLabel }}</view>
+							<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
+							<view class="picker">{{ currentTypeLabel }}
+								<view class="arrow-down"></view>
+							</view>
 						</picker>
 					</FormItem>
 				</view>
@@ -30,10 +33,12 @@
 						<text class="col-action"></text>
 					</view>
 					<view v-for="(ing, ingIndex) in form.ingredients" :key="ingIndex" class="ingredient-row">
-						<picker class="ingredient-picker" mode="selector" :range="availableIngredients" range-key="name"
+						<picker mode="selector" :range="availableIngredients" range-key="name"
 							@change="onIngredientChange($event, ingIndex)">
+							<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
 							<view class="picker" :class="{ placeholder: !ing.id }">
 								{{ getIngredientName(ing.id) }}
+								<view class="arrow-down"></view>
 							</view>
 						</picker>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
@@ -95,7 +100,6 @@
 		name: '',
 		type: 'PRE_DOUGH' as 'PRE_DOUGH' | 'EXTRA',
 		notes: '',
-		// [核心修改] 移除 targetTemp 属性
 		ingredients: [{ id: null as string | null, name: '', ratio: null as number | null }],
 		procedure: [''],
 	});
@@ -178,7 +182,6 @@
 				name: form.name,
 				type: form.type,
 				notes: form.notes,
-				// [核心修改] 移除 targetTemp 属性
 				ingredients: form.ingredients
 					.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0))
 					.map(ing => {
@@ -214,6 +217,8 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+	// [核心新增] 引入 Mixin
+	@include form-control-styles;
 
 	.page-wrapper {
 		display: flex;
@@ -221,38 +226,10 @@
 		height: 100vh;
 	}
 
-	.input-field,
-	.picker {
-		width: 100%;
-		height: 40px;
-		line-height: 40px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-	}
-
+	// [核心修改] 删除本地重复样式，只保留页面特有的
 	.input-field[disabled] {
 		background-color: #e9ecef;
 		color: #6c757d;
-	}
-
-	.ingredient-picker {
-		width: 100%;
-		height: 100%;
-	}
-
-	.picker {
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		color: var(--text-primary);
-	}
-
-	.picker.placeholder {
-		color: #999;
 	}
 
 	.ingredient-header {
@@ -284,6 +261,11 @@
 		align-items: center;
 		gap: 10px;
 		margin-bottom: 10px;
+
+		picker {
+			flex: 1;
+			min-width: 0;
+		}
 	}
 
 	.ratio-input {
