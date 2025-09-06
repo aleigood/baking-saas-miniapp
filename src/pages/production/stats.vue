@@ -10,11 +10,17 @@
 
 				<view v-if="activeDateRange === 'custom'" class="custom-date-picker card">
 					<picker mode="date" :value="customDate.start" @change="handleCustomDateChange($event, 'start')">
-						<view class="picker-item">{{ customDate.start }}</view>
+						<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
+						<view class="picker">{{ customDate.start }}
+							<view class="arrow-down"></view>
+						</view>
 					</picker>
 					<view class="date-separator">至</view>
 					<picker mode="date" :value="customDate.end" @change="handleCustomDateChange($event, 'end')">
-						<view class="picker-item">{{ customDate.end }}</view>
+						<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
+						<view class="picker">{{ customDate.end }}
+							<view class="arrow-down"></view>
+						</view>
 					</picker>
 				</view>
 
@@ -78,7 +84,6 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import type { RecipeStatDto } from '@/types/api';
 
-	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
 		inheritAttrs: false
 	});
@@ -89,7 +94,6 @@
 	const totalTasks = ref(0);
 	const toastStore = useToastStore();
 
-	// [核心新增] 定义用于驱动 FilterTabs 的数据
 	const dateRangeTabs = ref([
 		{ key: 'week', label: '本周' },
 		{ key: 'month', label: '本月' },
@@ -153,7 +157,6 @@
 		}
 	};
 
-	// [核心改造] 监听 activeDateRange 的变化来触发数据加载
 	watch(activeDateRange, (newRange) => {
 		if (newRange !== 'custom') {
 			fetchStatsData();
@@ -197,6 +200,8 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+	// [核心新增] 引入 Mixin
+	@include form-control-styles;
 
 	.page-wrapper {
 		display: flex;
@@ -216,12 +221,7 @@
 		margin-bottom: 20px;
 	}
 
-	.picker-item {
-		background-color: #f8f9fa;
-		padding: 8px 18px;
-		border-radius: 8px;
-		border: 1px solid var(--border-color);
-	}
+	// [核心修改] 删除本地 .picker-item 样式
 
 	.date-separator {
 		color: var(--text-secondary);

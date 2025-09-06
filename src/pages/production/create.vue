@@ -10,14 +10,20 @@
 						<view class="date-picker-item">
 							<label class="date-label">开始日期</label>
 							<picker mode="date" :value="taskForm.startDate" @change="onDateChange($event, 'start')">
-								<view class="picker">{{ taskForm.startDate }}</view>
+								<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
+								<view class="picker">{{ taskForm.startDate }}
+									<view class="arrow-down"></view>
+								</view>
 							</picker>
 						</view>
 						<view class="date-picker-item">
 							<label class="date-label">结束日期</label>
 							<picker mode="date" :value="taskForm.endDate" :start="taskForm.startDate"
 								@change="onDateChange($event, 'end')">
-								<view class="picker">{{ taskForm.endDate }}</view>
+								<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
+								<view class="picker">{{ taskForm.endDate }}
+									<view class="arrow-down"></view>
+								</view>
 							</picker>
 						</view>
 					</view>
@@ -102,7 +108,6 @@
 		if (productTabs.value.length > 0) {
 			activeTab.value = productTabs.value[0].key;
 		}
-		// [核心修改] 初始化 taskQuantities
 		Object.values(dataStore.productsForTaskCreation).flat().forEach(p => {
 			taskQuantities[p.id] = null;
 		});
@@ -115,15 +120,11 @@
 		updateSummary();
 	};
 
-	// [核心修改] 删除 groupedProducts 计算属性
-
 	const productTabs = computed(() => {
-		// [核心修改] 直接使用 store 中的数据生成 tabs
 		return Object.keys(dataStore.productsForTaskCreation).map(name => ({ key: name, label: name }));
 	});
 
 	const productsInCurrentTab = computed(() => {
-		// [核心修改] 直接从 store 中获取当前 tab 的产品
 		return dataStore.productsForTaskCreation[activeTab.value] || [];
 	});
 
@@ -145,7 +146,6 @@
 
 	const updateSummary = () => {
 		const groups : { name : string; items : string[] }[] = [];
-		// [核心修改] 遍历 store 中的数据
 		for (const groupName in dataStore.productsForTaskCreation) {
 			const productsInGroup = dataStore.productsForTaskCreation[groupName];
 			const quantifiedProducts = productsInGroup
@@ -201,6 +201,8 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+	// [核心新增] 引入 Mixin
+	@include form-control-styles;
 
 	.page-wrapper {
 		display: flex;
@@ -227,20 +229,7 @@
 		display: block;
 	}
 
-	.picker {
-		background-color: #f8f9fa;
-		padding: 10px;
-		border-radius: 10px;
-		text-align: center;
-		font-size: 14px;
-		border: 1px solid var(--border-color);
-		height: 44px;
-		box-sizing: border-box;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		line-height: 44px;
-	}
+	// [核心修改] 删除本地 .picker 样式
 
 	.summary-card {
 		background-color: #faf8f5;
@@ -300,7 +289,6 @@
 		align-items: center;
 		gap: 12px;
 		padding: 0 5%;
-		; // 保持向中间靠拢
 	}
 
 	.product-tabs-container {
@@ -308,7 +296,7 @@
 	}
 
 	.product-name {
-		width: calc(50% - 6px); // 占据50%宽度并减去一半的gap
+		width: calc(50% - 6px);
 		font-size: 15px;
 		min-width: 0;
 		white-space: nowrap;
@@ -317,19 +305,10 @@
 		text-align: right;
 	}
 
-	// [核心修改] 统一输入框样式
-	.input-field.quantity-input {
-		width: calc(50% - 6px); // 占据50%宽度并减去一半的gap
+	.quantity-input {
+		width: calc(50% - 6px);
 		max-width: 120px;
 		flex-shrink: 0;
 		text-align: center;
-		height: 44px;
-		line-height: 44px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
 	}
 </style>
