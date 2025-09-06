@@ -10,14 +10,14 @@
 						<view class="date-picker-item">
 							<label class="date-label">开始日期</label>
 							<picker mode="date" :value="taskForm.startDate" @change="onDateChange($event, 'start')">
-								<view class="picker-display">{{ taskForm.startDate }}</view>
+								<view class="picker">{{ taskForm.startDate }}</view>
 							</picker>
 						</view>
 						<view class="date-picker-item">
 							<label class="date-label">结束日期</label>
 							<picker mode="date" :value="taskForm.endDate" :start="taskForm.startDate"
 								@change="onDateChange($event, 'end')">
-								<view class="picker-display">{{ taskForm.endDate }}</view>
+								<view class="picker">{{ taskForm.endDate }}</view>
 							</picker>
 						</view>
 					</view>
@@ -45,7 +45,7 @@
 					<view class="product-grid">
 						<view v-for="product in productsInCurrentTab" :key="product.id" class="product-item">
 							<text class="product-name">{{ product.name }}</text>
-							<input class="quantity-input" type="number" placeholder="数量"
+							<input class="input-field quantity-input" type="number" placeholder="数量"
 								:value="taskQuantities[product.id]" @input="onQuantityInput(product.id, $event)" />
 						</view>
 					</view>
@@ -227,12 +227,19 @@
 		display: block;
 	}
 
-	.picker-display {
-		background-color: var(--bg-color);
+	.picker {
+		background-color: #f8f9fa;
 		padding: 10px;
-		border-radius: 8px;
+		border-radius: 10px;
 		text-align: center;
-		font-size: 15px;
+		font-size: 14px;
+		border: 1px solid var(--border-color);
+		height: 44px;
+		box-sizing: border-box;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		line-height: 44px;
 	}
 
 	.summary-card {
@@ -310,16 +317,19 @@
 		text-align: right;
 	}
 
-	.quantity-input {
+	// [核心修改] 统一输入框样式
+	.input-field.quantity-input {
 		width: calc(50% - 6px); // 占据50%宽度并减去一半的gap
-		background-color: var(--bg-color);
-		border-radius: 8px;
-		padding: 0 10px;
-		text-align: center;
-		font-size: 15px;
-		box-sizing: border-box;
-		border: 1px solid var(--border-color);
-		height: 36px;
 		max-width: 120px;
+		flex-shrink: 0;
+		text-align: center;
+		height: 44px;
+		line-height: 44px;
+		padding: 0 12px;
+		border: 1px solid var(--border-color);
+		border-radius: 10px;
+		font-size: 14px;
+		background-color: #f8f9fa;
+		box-sizing: border-box;
 	}
 </style>

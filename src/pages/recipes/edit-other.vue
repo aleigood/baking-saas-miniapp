@@ -13,12 +13,10 @@
 						<input class="input-field" v-model="form.notes" placeholder="例如：更换了黄油品牌" />
 					</FormItem>
 					<FormItem label="配方类型">
-						<view class="picker-wrapper">
-							<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange"
-								:disabled="isEditing">
-								<view class="picker-display">{{ currentTypeLabel }}</view>
-							</picker>
-						</view>
+						<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange"
+							:disabled="isEditing">
+							<view class="picker">{{ currentTypeLabel }}</view>
+						</picker>
 					</FormItem>
 				</view>
 
@@ -32,14 +30,12 @@
 						<text class="col-action"></text>
 					</view>
 					<view v-for="(ing, ingIndex) in form.ingredients" :key="ingIndex" class="ingredient-row">
-						<view class="picker-wrapper">
-							<picker class="ingredient-picker" mode="selector" :range="availableIngredients"
-								range-key="name" @change="onIngredientChange($event, ingIndex)">
-								<view class="picker-display" :class="{ placeholder: !ing.id }">
-									{{ getIngredientName(ing.id) }}
-								</view>
-							</picker>
-						</view>
+						<picker class="ingredient-picker" mode="selector" :range="availableIngredients" range-key="name"
+							@change="onIngredientChange($event, ingIndex)">
+							<view class="picker" :class="{ placeholder: !ing.id }">
+								{{ getIngredientName(ing.id) }}
+							</view>
+						</picker>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
@@ -225,7 +221,8 @@
 		height: 100vh;
 	}
 
-	.input-field {
+	.input-field,
+	.picker {
 		width: 100%;
 		height: 40px;
 		line-height: 40px;
@@ -242,34 +239,19 @@
 		color: #6c757d;
 	}
 
-	.picker-wrapper {
-		flex: 1;
-		width: 100%;
-		height: 40px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		background-color: #f8f9fa;
-		position: relative;
-	}
-
 	.ingredient-picker {
 		width: 100%;
 		height: 100%;
 	}
 
-	.picker-display {
-		padding: 0 12px;
-		width: 100%;
-		height: 100%;
-		line-height: 40px;
+	.picker {
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		color: var(--text-primary);
-		font-size: 14px;
 	}
 
-	.picker-display.placeholder {
+	.picker.placeholder {
 		color: #999;
 	}
 

@@ -58,14 +58,12 @@
 						<text class="col-action"></text>
 					</view>
 					<view v-for="(ing, ingIndex) in mainDough.ingredients" :key="ingIndex" class="ingredient-row">
-						<view class="picker-wrapper">
-							<picker class="ingredient-picker" mode="selector" :range="filteredAvailableIngredients"
-								range-key="name" @change="onIngredientChange($event, ingIndex)">
-								<view class="picker-display" :class="{ placeholder: !ing.id }">
-									{{ getIngredientName(ing.id) }}
-								</view>
-							</picker>
-						</view>
+						<picker class="ingredient-picker" mode="selector" :range="filteredAvailableIngredients"
+							range-key="name" @change="onIngredientChange($event, ingIndex)">
+							<view class="picker" :class="{ placeholder: !ing.id }">
+								{{ getIngredientName(ing.id) }}
+							</view>
+						</picker>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
@@ -113,14 +111,12 @@
 						<view class="sub-group">
 							<view class="sub-group-title">辅料 (Mix-ins)</view>
 							<view v-for="(ing, ingIndex) in product.mixIns" :key="ingIndex" class="ingredient-row">
-								<view class="picker-wrapper">
-									<picker mode="selector" :range="availableSubIngredients" range-key="name"
-										@change="onSubIngredientChange($event, prodIndex, 'mixIns', ingIndex)">
-										<view class="picker-display" :class="{ placeholder: !ing.id }">
-											{{ getIngredientName(ing.id) }}
-										</view>
-									</picker>
-								</view>
+								<picker mode="selector" :range="availableSubIngredients" range-key="name"
+									@change="onSubIngredientChange($event, prodIndex, 'mixIns', ingIndex)">
+									<view class="picker" :class="{ placeholder: !ing.id }">
+										{{ getIngredientName(ing.id) }}
+									</view>
+								</picker>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 									placeholder="%" />
 								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
@@ -134,14 +130,12 @@
 						<view class="sub-group">
 							<view class="sub-group-title">馅料 (Fillings)</view>
 							<view v-for="(ing, ingIndex) in product.fillings" :key="ingIndex" class="ingredient-row">
-								<view class="picker-wrapper">
-									<picker mode="selector" :range="availableSubIngredients" range-key="name"
-										@change="onSubIngredientChange($event, prodIndex, 'fillings', ingIndex)">
-										<view class="picker-display" :class="{ placeholder: !ing.id }">
-											{{ getIngredientName(ing.id) }}
-										</view>
-									</picker>
-								</view>
+								<picker mode="selector" :range="availableSubIngredients" range-key="name"
+									@change="onSubIngredientChange($event, prodIndex, 'fillings', ingIndex)">
+									<view class="picker" :class="{ placeholder: !ing.id }">
+										{{ getIngredientName(ing.id) }}
+									</view>
+								</picker>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
 									placeholder="g/个" />
 								<IconButton variant="field"
@@ -156,14 +150,12 @@
 						<view class="sub-group">
 							<view class="sub-group-title">表面装饰 (Toppings)</view>
 							<view v-for="(ing, ingIndex) in product.toppings" :key="ingIndex" class="ingredient-row">
-								<view class="picker-wrapper">
-									<picker mode="selector" :range="availableSubIngredients" range-key="name"
-										@change="onSubIngredientChange($event, prodIndex, 'toppings', ingIndex)">
-										<view class="picker-display" :class="{ placeholder: !ing.id }">
-											{{ getIngredientName(ing.id) }}
-										</view>
-									</picker>
-								</view>
+								<picker mode="selector" :range="availableSubIngredients" range-key="name"
+									@change="onSubIngredientChange($event, prodIndex, 'toppings', ingIndex)">
+									<view class="picker" :class="{ placeholder: !ing.id }">
+										{{ getIngredientName(ing.id) }}
+									</view>
+								</picker>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
 									placeholder="g/个" />
 								<IconButton variant="field"
@@ -201,13 +193,11 @@
 
 		<AppModal :visible="showAddPreDoughModal" @update:visible="showAddPreDoughModal = false" title="添加面种">
 			<FormItem label="选择面种配方">
-				<view class="picker-wrapper">
-					<picker mode="selector" :range="availablePreDoughs" range-key="name" @change="onPreDoughSelect">
-						<view class="picker-display" :class="{ placeholder: !selectedPreDough }">
-							{{ selectedPreDough?.name || '请选择' }}
-						</view>
-					</picker>
-				</view>
+				<picker mode="selector" :range="availablePreDoughs" range-key="name" @change="onPreDoughSelect">
+					<view class="picker" :class="{ placeholder: !selectedPreDough }">
+						{{ selectedPreDough?.name || '请选择' }}
+					</view>
+				</picker>
 			</FormItem>
 			<FormItem label="面种中面粉占总面粉的百分比 (%)">
 				<input class="input-field" type="number" v-model.number="preDoughFlourRatio" placeholder="例如：20" />
@@ -603,7 +593,8 @@
 		height: 100vh;
 	}
 
-	.input-field {
+	.input-field,
+	.picker {
 		width: 100%;
 		height: 40px;
 		line-height: 40px;
@@ -615,38 +606,7 @@
 		box-sizing: border-box;
 	}
 
-	.picker-wrapper {
-		flex: 1;
-		width: 100%;
-		height: 40px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		background-color: #f8f9fa;
-		position: relative;
-	}
-
-	.ingredient-picker {
-		width: 100%;
-		height: 100%;
-	}
-
-	.picker-display {
-		padding: 0 12px;
-		width: 100%;
-		height: 100%;
-		line-height: 40px;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		color: var(--text-primary);
-		font-size: 14px;
-	}
-
-	.picker-display.placeholder {
-		color: #999;
-	}
-
-	.app-modal .picker-wrapper {
+	.app-modal .picker {
 		border: none;
 	}
 
@@ -684,6 +644,22 @@
 		align-items: center;
 		gap: 10px;
 		margin-bottom: 10px;
+	}
+
+	.picker {
+		flex: 1;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		color: var(--text-primary);
+	}
+
+	.picker.placeholder {
+		color: #999;
+	}
+
+	.ingredient-picker {
+		flex: 1;
 	}
 
 	.ratio-input {

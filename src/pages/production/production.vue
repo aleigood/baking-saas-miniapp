@@ -87,7 +87,7 @@
 					<view class="form-label">和面机类型</view>
 					<picker mode="selector" :range="temperatureStore.mixerTypes" range-key="text"
 						:value="currentMixerIndex" @change="handleMixerChange">
-						<view class="picker-display">
+						<view class="picker">
 							{{ temperatureStore.mixerTypes[currentMixerIndex]?.text || '请选择' }}
 							<view class="arrow-down"></view>
 						</view>
@@ -95,16 +95,16 @@
 				</view>
 				<view class="form-item">
 					<view class="form-label">环境温度 (°C)</view>
-					<input class="form-input" type="number" v-model.number="tempSettings.envTemp" placeholder="输入温度" />
+					<input class="input-field" type="number" v-model.number="tempSettings.envTemp" placeholder="输入温度" />
 				</view>
 				<view class="form-item">
 					<view class="form-label">面粉温度 (°C)</view>
-					<input class="form-input" type="number" v-model.number="tempSettings.flourTemp"
+					<input class="input-field" type="number" v-model.number="tempSettings.flourTemp"
 						placeholder="输入温度" />
 				</view>
 				<view class="form-item">
 					<view class="form-label">水温 (°C)</view>
-					<input class="form-input" type="number" v-model.number="tempSettings.waterTemp"
+					<input class="input-field" type="number" v-model.number="tempSettings.waterTemp"
 						placeholder="输入温度" />
 				</view>
 			</view>
@@ -454,52 +454,45 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 10px 0;
-		// border-bottom: 1px solid var(--border-color);
-
-		// &:last-of-type {
-		// 	border-bottom: none;
-		// }
 	}
 
 	.form-label {
 		font-size: 16px;
 		color: var(--text-primary);
+		white-space: nowrap; // 防止标签换行
+		margin-right: 15px; // 增加与右侧控件的间距
 	}
 
-	.form-input {
-		background-color: var(--bg-color);
-		border-radius: 8px;
-		padding: 0 10px;
+	.input-field {
+		width: 120px;
+		height: 44px;
+		line-height: 44px;
+		padding: 0 12px;
+		border: 1px solid var(--border-color);
+		border-radius: 10px;
+		font-size: 14px;
+		background-color: #f8f9fa;
+		box-sizing: border-box;
 		text-align: center;
-		font-size: 15px;
-		width: 90px;
-		box-sizing: border-box;
-		border: 1px solid var(--border-color);
-		height: 36px;
-		color: var(--text-primary);
 	}
 
-	/* [核心修改] 将选择器样式更新为与输入框一致 */
-	.picker-display {
-		height: 36px;
+	.picker {
+		height: 44px;
+		line-height: 44px;
+		padding: 0 30px 0 12px; // 为箭头留出空间
 		border: 1px solid var(--border-color);
-		border-radius: 8px;
-		background-color: var(--bg-color);
-		font-size: 15px;
-		color: var(--text-primary);
+		border-radius: 10px;
+		font-size: 14px;
+		background-color: #f8f9fa;
 		box-sizing: border-box;
-		position: relative;
-		/* 使用flex布局使文字垂直居中 */
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		/* 调整padding以适应箭头 */
-		padding: 0 30px 0 15px;
+		text-align: center;
+		position: relative; // 用于定位箭头
+		white-space: nowrap; // 防止文本换行
 	}
 
 	.arrow-down {
 		position: absolute;
-		right: 10px;
+		right: 12px;
 		top: 50%;
 		transform: translateY(-50%);
 		width: 0;
