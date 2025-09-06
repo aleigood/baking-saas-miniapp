@@ -172,12 +172,14 @@
 		overflow: hidden;
 		transform: translateZ(0);
 		flex-shrink: 0;
-		transition: background-color 0.3s, color 0.3s;
+		transition: background-color 0.3s, color 0.3s, box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1); // [核心新增] 增加阴影过渡
 	}
 
 	.tab-item.active {
 		background: var(--primary-color);
 		color: white;
+		/* [核心新增] 为激活的标签页增加一个细微的阴影，使其在视觉上“浮起” */
+		box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 3px 1px rgba(0, 0, 0, 0.05);
 	}
 
 	.ripple {
@@ -192,7 +194,7 @@
 		z-index: 1;
 		position: relative;
 		font-size: 16px;
-    	font-weight: 500;
+		font-weight: 500;
 	}
 
 	.add-tab {

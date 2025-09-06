@@ -107,9 +107,16 @@
 		position: relative;
 		overflow: hidden;
 		transform: translateZ(0);
+		/* [核心新增] 为阴影和形变增加过渡动画，使交互更平滑 */
+		transition: box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 
 		&::after {
 			border: none;
+		}
+
+		&:active {
+			/* [核心新增] 按下时轻微缩小，提升物理反馈感 */
+			transform: scale(0.98);
 		}
 
 		&.is-disabled {
@@ -128,6 +135,13 @@
 	.btn-primary {
 		background-color: var(--primary-color);
 		color: white;
+		/* [核心新增] 新增符合 Material Design 规范的阴影 */
+		box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+	}
+
+	/* [核心新增] 主按钮在点击时的阴影效果 */
+	.btn-primary:active {
+		box-shadow: 0 8px 10px 1px rgba(0, 0, 0, 0.14), 0 3px 14px 2px rgba(0, 0, 0, 0.12), 0 5px 5px -3px rgba(0, 0, 0, 0.2);
 	}
 
 	.btn-secondary {
@@ -138,6 +152,13 @@
 	.btn-danger {
 		background-color: var(--danger-color);
 		color: white;
+		/* [核心新增] 为危险按钮也增加阴影 */
+		box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+	}
+
+	/* [核心新增] 危险按钮在点击时的阴影效果 */
+	.btn-danger:active {
+		box-shadow: 0 8px 10px 1px rgba(0, 0, 0, 0.14), 0 3px 14px 2px rgba(0, 0, 0, 0.12), 0 5px 5px -3px rgba(0, 0, 0, 0.2);
 	}
 
 	.btn-dashed {
