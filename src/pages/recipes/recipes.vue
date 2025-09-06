@@ -426,6 +426,6 @@
 	}
 
 	.recipe-filter-tabs {
-		margin-top: 32px;
+		margin-top: 35px;
 	}
 </style>

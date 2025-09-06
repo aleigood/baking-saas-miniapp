@@ -310,7 +310,6 @@
 		justify-content: space-between;
 		align-items: start;
 		padding: 0 15px;
-		margin-bottom: 20px;
 	}
 
 	.header-icon {
