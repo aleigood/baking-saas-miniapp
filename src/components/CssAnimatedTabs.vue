@@ -124,7 +124,7 @@
 
 	.tab-item {
 		position: relative;
-		font-size: 14px;
+		font-size: 15px;
 		color: var(--text-secondary);
 		font-weight: 400;
 		padding: 8px 0;
