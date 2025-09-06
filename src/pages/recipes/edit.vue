@@ -386,18 +386,41 @@
 			const preDoughRecipe = activeVersion.doughs[0];
 			const ingredients = preDoughRecipe.ingredients;
 
-			// [核心重构] 此处不再进行任何比例换算，只传递用户意图
+			// [核心修复] 对面种中的原料比例进行换算，以在UI上正确显示
+			// 1. 计算面种配方本身的总面粉比例 (通常是1，即100%)
+			const preDoughInternalFlourRatio = ingredients
+				.filter(i => i.ingredient?.isFlour)
+				.reduce((sum, i) => sum + i.ratio, 0);
+
+			// 2. 健壮性检查：如果面种里没有面粉，则无法进行换算
+			if (preDoughInternalFlourRatio <= 0) {
+				toastStore.show({ message: '所选面种配方中不含面粉，无法添加', type: 'error' });
+				return;
+			}
+
+			// 3. 获取用户输入的目标面粉占比 (例如: 20% -> 0.2)
+			const targetFlourRatioInMainDoughDecimal = toDecimal(preDoughFlourRatio.value);
+
+			// 4. 计算换算比例因子。
+			// 意义：为了让面种里的面粉量达到用户期望的占比，面种里所有原料的原始比例都需要乘以这个因子。
+			const scalingFactor = targetFlourRatioInMainDoughDecimal / preDoughInternalFlourRatio;
+
+			// 5. 根据换算因子，计算出用于UI展示的新原料列表
+			const displayIngredients = ingredients.map(i => ({
+				id: i.ingredient!.id,
+				name: i.ingredient!.name,
+				// 将原始比例乘以换算因子，再乘以100，得到相对于主面团总面粉的百分比数值
+				ratio: i.ratio * scalingFactor * 100,
+			}));
+
 			form.value.doughs!.push({
 				id: activeVersion.familyId,
 				name: fullPreDoughData.name,
 				type: 'PRE_DOUGH',
+				// 这里依然存储用户输入的原始百分比，用于最终提交给后端
 				flourRatioInMainDough: preDoughFlourRatio.value,
-				// 仅为UI展示存储一个预估的原料列表
-				ingredients: ingredients.map(i => ({
-					id: i.ingredient!.id,
-					name: i.ingredient!.name,
-					ratio: i.ratio,
-				})),
+				// 使用换算后的原料列表，以在UI上正确显示
+				ingredients: displayIngredients,
 				procedure: preDoughRecipe.procedure,
 			});
 
