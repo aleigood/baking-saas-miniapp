@@ -356,10 +356,6 @@
 	@include list-item-content-style;
 	@include list-item-option-style;
 
-	.card {
-		margin-bottom: 30px;
-	}
-
 	.content-padding {
 		padding: 0 15px;
 	}
@@ -426,6 +422,6 @@
 	}
 
 	.recipe-filter-tabs {
-		margin-top: 35px;
+		padding: 15px 0px;
 	}
 </style>

@@ -437,7 +437,7 @@
 
 	.product-tabs-wrapper {
 		padding: 0;
-		margin-bottom: 30px;
+		margin-bottom: 25px;
 	}
 
 	.data-analysis-section {

@@ -308,8 +308,8 @@
 	.filter-bar {
 		display: flex;
 		justify-content: space-between;
-		align-items: start;
-		padding: 0 15px;
+		align-items: center;
+		padding: 10px 15px;
 	}
 
 	.header-icon {

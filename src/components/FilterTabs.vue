@@ -143,7 +143,6 @@
 	@import '@/styles/common.scss';
 
 	.filter-tabs {
-		margin-bottom: 20px;
 		overflow-x: auto;
 		white-space: nowrap;
 		box-sizing: border-box;
@@ -159,6 +158,8 @@
 		gap: 12px;
 		width: max-content;
 		min-width: 100%;
+		/* [核心修改] 增加垂直内边距，为阴影提供显示空间 */
+		padding: 5px 0;
 	}
 
 	.tab-item {
