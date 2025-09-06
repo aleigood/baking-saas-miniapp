@@ -97,68 +97,73 @@
 		align-items: center;
 		margin: 0;
 		padding: 10px 15px;
-		min-height: 60px;
+		min-height: 54px;
+		/* [样式修改] 调整默认高度 */
 		box-sizing: border-box;
 		border: none;
-		border-radius: 12px;
+		/* [样式修改] 采用更圆润的胶囊形状 */
+		border-radius: 15px;
 		font-size: 16px;
 		font-weight: 500;
 		text-align: center;
 		position: relative;
 		overflow: hidden;
 		transform: translateZ(0);
-		/* [核心新增] 为阴影和形变增加过渡动画，使交互更平滑 */
-		transition: box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+		/* [核心修改] 统一所有按钮的过渡效果 */
+		transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 
 		&::after {
 			border: none;
 		}
 
+		/* [核心修改] 统一触摸反馈 */
 		&:active {
-			/* [核心新增] 按下时轻微缩小，提升物理反馈感 */
-			transform: scale(0.98);
+			transform: scale(0.97);
 		}
 
+		/* [核心修改] 统一禁用样式 */
 		&.is-disabled {
 			background-color: #f3e9e3 !important;
+			background-image: none !important;
+			/* 移除渐变 */
 			color: #b0a8a2 !important;
 			box-shadow: none !important;
 			opacity: 1 !important;
 			cursor: not-allowed;
 		}
-
-		&.btn-primary.is-disabled {
-			background-color: #f3e9e3 !important;
-		}
 	}
 
 	.btn-primary {
-		background-color: var(--primary-color);
+		/* [样式修改] 使用从主色到点缀色的温暖渐变 */
+		background-image: linear-gradient(135deg, var(--accent-color) 0%, var(--primary-color) 100%);
 		color: white;
-		/* [核心新增] 新增符合 Material Design 规范的阴影 */
-		box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
-	}
+		/* [样式修改] 使用更柔和、更弥散的阴影，并用主色调染色 */
+		box-shadow: 0 4px 15px rgba(140, 90, 59, 0.2);
 
-	/* [核心新增] 主按钮在点击时的阴影效果 */
-	.btn-primary:active {
-		box-shadow: 0 8px 10px 1px rgba(0, 0, 0, 0.14), 0 3px 14px 2px rgba(0, 0, 0, 0.12), 0 5px 5px -3px rgba(0, 0, 0, 0.2);
+		&:active {
+			/* [样式修改] 按下时阴影变小，模拟按钮被按下的感觉 */
+			box-shadow: 0 2px 8px rgba(140, 90, 59, 0.25);
+		}
 	}
 
 	.btn-secondary {
 		background-color: #f3e9e3;
 		color: var(--text-secondary);
+
+		&:active {
+			background-color: #e9e0da;
+			/* 按下时加深背景色 */
+		}
 	}
 
 	.btn-danger {
 		background-color: var(--danger-color);
 		color: white;
-		/* [核心新增] 为危险按钮也增加阴影 */
-		box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
-	}
+		box-shadow: 0 4px 15px rgba(231, 76, 60, 0.2);
 
-	/* [核心新增] 危险按钮在点击时的阴影效果 */
-	.btn-danger:active {
-		box-shadow: 0 8px 10px 1px rgba(0, 0, 0, 0.14), 0 3px 14px 2px rgba(0, 0, 0, 0.12), 0 5px 5px -3px rgba(0, 0, 0, 0.2);
+		&:active {
+			box-shadow: 0 2px 8px rgba(231, 76, 60, 0.25);
+		}
 	}
 
 	.btn-dashed {
@@ -175,7 +180,6 @@
 	/* [核心新增] 为 md 尺寸添加新的样式规则 */
 	.btn-md {
 		padding: 0 15px;
-		/* 上下 padding 设为0，通过 min-height 控制高度 */
 		font-size: 14px;
 		min-height: 46px;
 	}
@@ -183,14 +187,15 @@
 	.btn-sm {
 		padding: 6px 12px;
 		font-size: 12px;
-		border-radius: 8px;
+		border-radius: 20px;
+		/* [样式修改] 尺寸越小，圆角也相应调整 */
 		min-height: 32px;
 	}
 
 	.btn-xs {
 		padding: 4px 8px;
 		font-size: 12px;
-		border-radius: 8px;
+		border-radius: 16px;
 		min-height: 30px;
 	}
 

@@ -84,7 +84,8 @@
 		width: 100%;
 		height: 50px;
 		background-color: #f7f8fa;
-		border-radius: 10px;
+		/* [样式修改] 统一圆角为 15px */
+		border-radius: 15px;
 		padding: 0 15px;
 		margin-bottom: 20px;
 		font-size: 16px;
