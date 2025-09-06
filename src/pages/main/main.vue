@@ -100,7 +100,7 @@
 	/* [核心修改] “我的”页面激活时，使用新的SVG作为通体背景 */
 	.main-page-container.personnel-active-bg {
 		background-color: #fdf8f2;
-		// background-image: url("");
+		background-image: url("@/static/backgrounds/personnel-bg.svg");
 		background-repeat: no-repeat;
 		background-size: 100% auto; // 宽度撑满，高度自适应
 		background-position: top center; // 从顶部中心开始

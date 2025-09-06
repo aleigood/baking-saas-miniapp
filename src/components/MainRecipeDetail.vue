@@ -298,7 +298,7 @@
 	.collapsible-content {
 		max-height: 1000px;
 		overflow: hidden;
-		transition: max-height 0.35s ease-in-out;
+		transition: max-height 0.3s ease-in-out;
 		box-sizing: border-box;
 	}
 

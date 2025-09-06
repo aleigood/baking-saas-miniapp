@@ -358,14 +358,25 @@
 
 	watch(showCompleteTaskModal, (visible) => {
 		if (visible) {
-			updateModalContentHeight();
+			// [修复] 确保每次打开时都重置到第一步
+			completionStep.value = 1;
+			// 延迟计算高度，确保DOM在小程序中已准备就绪
+			setTimeout(() => {
+				updateModalContentHeight();
+			}, 50);
 		} else {
-			modalContentHeight.value = 'auto';
+			// [修复] 延迟重置高度，以匹配动画时长，防止闪烁
+			setTimeout(() => {
+				modalContentHeight.value = 'auto';
+			}, 300); // 匹配 AppModal 的动画时长
 		}
 	});
 
 	watch(completionStep, () => {
-		updateModalContentHeight();
+		// [修复] 仅在模态框可见时才更新高度
+		if (showCompleteTaskModal.value) {
+			updateModalContentHeight();
+		}
 	});
 
 	const resetCompletionForm = () => {
@@ -703,7 +714,7 @@
 		/* 定义一个足够大的最大高度，用于展开状态 */
 		overflow: hidden;
 		/* 关键：隐藏超出 max-height 的内容 */
-		transition: max-height 0.35s ease-in-out;
+		transition: max-height 0.3s ease;
 		/* 为 max-height 属性添加平滑过渡动画 */
 		box-sizing: border-box;
 	}
