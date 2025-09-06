@@ -58,10 +58,11 @@
 						<text class="col-action"></text>
 					</view>
 					<view v-for="(ing, ingIndex) in mainDough.ingredients" :key="ingIndex" class="ingredient-row">
-						<picker class="ingredient-picker" mode="selector" :range="filteredAvailableIngredients"
-							range-key="name" @change="onIngredientChange($event, ingIndex)">
+						<picker mode="selector" :range="filteredAvailableIngredients" range-key="name"
+							@change="onIngredientChange($event, ingIndex)">
 							<view class="picker" :class="{ placeholder: !ing.id }">
 								{{ getIngredientName(ing.id) }}
+								<view class="arrow-down"></view>
 							</view>
 						</picker>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
@@ -115,6 +116,7 @@
 									@change="onSubIngredientChange($event, prodIndex, 'mixIns', ingIndex)">
 									<view class="picker" :class="{ placeholder: !ing.id }">
 										{{ getIngredientName(ing.id) }}
+										<view class="arrow-down"></view>
 									</view>
 								</picker>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
@@ -134,6 +136,7 @@
 									@change="onSubIngredientChange($event, prodIndex, 'fillings', ingIndex)">
 									<view class="picker" :class="{ placeholder: !ing.id }">
 										{{ getIngredientName(ing.id) }}
+										<view class="arrow-down"></view>
 									</view>
 								</picker>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
@@ -154,6 +157,7 @@
 									@change="onSubIngredientChange($event, prodIndex, 'toppings', ingIndex)">
 									<view class="picker" :class="{ placeholder: !ing.id }">
 										{{ getIngredientName(ing.id) }}
+										<view class="arrow-down"></view>
 									</view>
 								</picker>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
@@ -196,6 +200,7 @@
 				<picker mode="selector" :range="availablePreDoughs" range-key="name" @change="onPreDoughSelect">
 					<view class="picker" :class="{ placeholder: !selectedPreDough }">
 						{{ selectedPreDough?.name || '请选择' }}
+						<view class="arrow-down"></view>
 					</view>
 				</picker>
 			</FormItem>
@@ -572,7 +577,7 @@
 			}
 
 			toastStore.show({ message: '配方保存成功', type: 'success' });
-			await dataStore.fetchRecipesData(); // 刷新列表
+			await dataStore.fetchRecipesData();
 			uni.navigateBack();
 
 		} catch (error) {
@@ -586,6 +591,8 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+	// [核心新增] 引入 Mixin
+	@include form-control-styles;
 
 	.page-wrapper {
 		display: flex;
@@ -593,21 +600,12 @@
 		height: 100vh;
 	}
 
-	.input-field,
-	.picker {
-		width: 100%;
-		height: 40px;
-		line-height: 40px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-	}
-
-	.app-modal .picker {
-		border: none;
+	// [核心修改] 删除本地重复的 .input-field 和 .picker 相关样式
+	// 并调整 .ratio-input 的样式以继承 .input-field
+	.input-field.ratio-input {
+		width: 80px;
+		text-align: center;
+		flex-shrink: 0;
 	}
 
 	.input-field[disabled] {
@@ -644,28 +642,12 @@
 		align-items: center;
 		gap: 10px;
 		margin-bottom: 10px;
-	}
 
-	.picker {
-		flex: 1;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		color: var(--text-primary);
-	}
-
-	.picker.placeholder {
-		color: #999;
-	}
-
-	.ingredient-picker {
-		flex: 1;
-	}
-
-	.ratio-input {
-		width: 80px;
-		text-align: center;
-		flex-shrink: 0;
+		// [核心修改] 让 picker 在 flex 布局中正确伸展
+		picker {
+			flex: 1;
+			min-width: 0;
+		}
 	}
 
 	.remove-icon {

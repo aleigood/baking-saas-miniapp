@@ -78,6 +78,11 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	/* [核心修改] 为卡片增加一个上边距，以在视觉上与主配方详情页的布局对齐 */
+	.card {
+		margin-top: 20px;
+	}
+
 	/* [核心修改] 样式现在与 MainRecipeDetail.vue 中的样式保持一致 */
 	.recipe-table {
 		display: table;

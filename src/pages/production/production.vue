@@ -130,9 +130,9 @@
 	import ListItem from '@/components/ListItem.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
-	import CalendarModal from '@/components/CalendarModal.vue'; // [新增]
+	import CalendarModal from '@/components/CalendarModal.vue';
 	import type { ProductionTaskDto, PrepTask } from '@/types/api';
-	import { updateTaskStatus, getTaskDates } from '@/api/tasks'; // [修改]
+	import { updateTaskStatus, getTaskDates } from '@/api/tasks';
 	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -146,9 +146,7 @@
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 	const showCancelConfirmModal = ref(false);
 
-	// [新增] 日历相关状态
 	const isCalendarVisible = ref(false);
-	// [修改] 修正时区问题，使用本地日期
 	const todayForInit = new Date();
 	const selectedDate = ref(
 		`${todayForInit.getFullYear()}-${String(todayForInit.getMonth() + 1).padStart(2, '0')}-${String(
@@ -168,9 +166,7 @@
 		return temperatureStore.mixerTypes.findIndex(m => m.value === tempSettings.mixerType);
 	});
 
-	// [修改] 页面标题现在是动态的
 	const pageTitle = computed(() => {
-		// [修改] 修正时区问题，使用本地日期
 		const todayDate = new Date();
 		const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(
 			todayDate.getDate()
@@ -187,7 +183,6 @@
 	});
 
 	onShow(async () => {
-		// [核心新增] 在页面显示时，检查并消费“信箱”中的消息
 		const toastMessage = uiStore.consumeNextPageToast();
 		if (toastMessage) {
 			toastStore.show(toastMessage);
@@ -195,7 +190,6 @@
 
 		isLoading.value = true;
 		try {
-			// [修改] 传入选定日期获取任务，并获取所有任务日期用于日历标记
 			await Promise.all([
 				dataStore.fetchProductionData(selectedDate.value),
 				getTaskDates().then(dates => taskDates.value = dates)
@@ -207,16 +201,13 @@
 		}
 	});
 
-	// [新增] 处理日期选择
 	const handleDateSelect = async (date : string) => {
 		selectedDate.value = date;
-		isCalendarVisible.value = false; // [修复] 选择后关闭日历
+		isCalendarVisible.value = false;
 		isLoading.value = true;
 		await dataStore.fetchProductionData(date);
 		isLoading.value = false;
 	};
-
-	// [核心修改] 移除 allTasksForDisplay 计算属性
 
 	const getTaskTitle = (task : ProductionTaskDto | PrepTask) => {
 		if (task.status === 'PREP') {
@@ -274,7 +265,6 @@
 
 	const navigateToDetail = (task : any) => {
 		const isPrepTask = task.status === 'PREP';
-		// [核心修改] prepTask 的数据现在也包含在 task 对象中
 		if (isPrepTask) {
 			const prepTaskData = encodeURIComponent(JSON.stringify(task));
 			uni.navigateTo({ url: `/pages/production/prep-detail?taskData=${prepTaskData}` });
@@ -338,6 +328,8 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 	@include list-item-option-style;
+	// [核心新增] 引入 Mixin 来应用统一的表单控件样式
+	@include form-control-styles;
 
 	.summary-card {
 		display: flex;
@@ -362,15 +354,14 @@
 		margin-top: 5px;
 	}
 
-	/* [修改] 调整可点击标题样式 */
 	.clickable-title {
 		display: flex;
 		align-items: center;
 		gap: 8px;
 
 		.card-title {
-			color: var(--primary-color); // 使用主题色
-			font-weight: 500; // [修改] 标题文字不要加粗
+			color: var(--primary-color);
+			font-weight: 500;
 		}
 	}
 
@@ -380,7 +371,6 @@
 		opacity: 0.7;
 	}
 
-	/* [新增] 下拉箭头样式 */
 	.dropdown-arrow {
 		width: 0;
 		height: 0;
@@ -459,46 +449,20 @@
 	.form-label {
 		font-size: 16px;
 		color: var(--text-primary);
-		white-space: nowrap; // 防止标签换行
-		margin-right: 15px; // 增加与右侧控件的间距
+		white-space: nowrap;
+		margin-right: 15px;
 	}
 
+	// [核心修改] 删除本地的、重复的样式定义，因为它们已由 Mixin 提供
+
+	// [核心修改] 增加针对本页面内控件的特定样式（如宽度和自适应）
 	.input-field {
 		width: 120px;
-		height: 44px;
-		line-height: 44px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-		text-align: center;
 	}
 
 	.picker {
-		height: 44px;
-		line-height: 44px;
-		padding: 0 30px 0 12px; // 为箭头留出空间
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-		text-align: center;
-		position: relative; // 用于定位箭头
-		white-space: nowrap; // 防止文本换行
-	}
-
-	.arrow-down {
-		position: absolute;
-		right: 12px;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 0;
-		height: 0;
-		border-left: 5px solid transparent;
-		border-right: 5px solid transparent;
-		border-top: 6px solid #999;
+		min-width: 120px; // 允许选择器根据内容自适应宽度
+		width: auto;
+		text-align: right;
 	}
 </style>
