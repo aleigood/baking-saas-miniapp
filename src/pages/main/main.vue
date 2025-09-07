@@ -3,14 +3,12 @@
 	<view class="main-page-container" :class="{ 'personnel-active-bg': uiStore.activeTab === 'personnel' }">
 		<MainHeader :transparent="uiStore.activeTab === 'personnel'" />
 
-		<scroll-view :scroll-y="true" :show-scrollbar="false" class="scroll-area" enhanced>
-
+		<view class="content-area">
 			<ProductionPage v-show="uiStore.activeTab === 'production'" />
 			<IngredientsPage v-show="uiStore.activeTab === 'ingredients'" />
 			<RecipesPage v-show="uiStore.activeTab === 'recipes'" />
 			<PersonnelPage v-show="uiStore.activeTab === 'personnel'" />
-
-		</scroll-view>
+		</view>
 
 		<CustomTabBar />
 
@@ -106,7 +104,8 @@
 		background-position: top center; // 从顶部中心开始
 	}
 
-	.scroll-area {
+	/* [核心修改] 新增 content-area 样式 */
+	.content-area {
 		flex: 1;
 		min-height: 0;
 		width: 100%;

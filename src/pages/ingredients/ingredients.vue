@@ -1,5 +1,5 @@
 <template>
-	<view>
+	<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" class="full-height-wrapper">
 		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
 			<view class="filter-bar">
 				<FilterTabs v-model="ingredientFilter" :tabs="ingredientFilterTabs" />
@@ -59,6 +59,7 @@
 				</template>
 			</view>
 		</view>
+
 		<AppFab @click="openCreateIngredientModal" />
 
 		<AppModal :visible="uiStore.showIngredientActionsModal"
@@ -96,7 +97,6 @@
 			</FormItem>
 			<FormItem label="原料类型">
 				<picker mode="selector" :range="availableTypes.map(t => t.label)" @change="onTypeChange">
-					<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
 					<view class="picker">{{ currentTypeLabel }}
 						<view class="arrow-down"></view>
 					</view>
@@ -118,7 +118,7 @@
 				</AppButton>
 			</view>
 		</AppModal>
-	</view>
+	</RefreshableLayout>
 </template>
 
 <script setup lang="ts">
@@ -138,6 +138,8 @@
 	import AppButton from '@/components/AppButton.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import FormItem from '@/components/FormItem.vue';
+	// [核心新增] 引入新组件
+	import RefreshableLayout from '@/components/RefreshableLayout.vue';
 	import { formatWeight } from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -153,6 +155,8 @@
 		{ key: 'all', label: '全部' },
 		{ key: 'low', label: '库存紧张' }
 	]);
+	// [核心新增] 创建对组件实例的引用
+	const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 
 	const newIngredientForm = reactive({
 		name: '',
@@ -175,6 +179,16 @@
 			await dataStore.fetchIngredientsData();
 		}
 	});
+
+	// [核心新增] 下拉刷新处理函数
+	const handleRefresh = async () => {
+		try {
+			await dataStore.fetchIngredientsData();
+		} finally {
+			// [核心新增] 无论成功与否，都结束刷新动画
+			refreshableLayout.value?.finishRefresh();
+		}
+	};
 
 	const handleTouchStart = (e : TouchEvent) => {
 		touchStartX.value = e.touches[0].clientX;
@@ -302,6 +316,13 @@
 	@include list-item-option-style;
 	// [核心新增] 引入 Mixin
 	@include form-control-styles;
+
+	/* [核心新增] 新增的样式 */
+	.full-height-wrapper {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+	}
 
 	.filter-bar {
 		display: flex;

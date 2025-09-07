@@ -1,5 +1,5 @@
 <template>
-	<view>
+	<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" class="full-height-wrapper">
 		<view class="page-content page-content-with-tabbar-fab">
 			<view class="summary-card">
 				<div>
@@ -113,7 +113,7 @@
 				<AppButton type="primary" @click="handleSaveTemperatureSettings">保存</AppButton>
 			</view>
 		</AppModal>
-	</view>
+	</RefreshableLayout>
 </template>
 
 <script setup lang="ts">
@@ -131,6 +131,8 @@
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import CalendarModal from '@/components/CalendarModal.vue';
+	// [核心新增] 引入新组件
+	import RefreshableLayout from '@/components/RefreshableLayout.vue';
 	import type { ProductionTaskDto, PrepTask } from '@/types/api';
 	import { updateTaskStatus, getTaskDates } from '@/api/tasks';
 	import { formatChineseDate } from '@/utils/format';
@@ -140,6 +142,9 @@
 	const uiStore = useUiStore();
 	const toastStore = useToastStore();
 	const temperatureStore = useTemperatureStore();
+
+	// [核心新增] 创建对组件实例的引用
+	const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
@@ -200,6 +205,20 @@
 			isLoading.value = false;
 		}
 	});
+
+	// [核心新增] 下拉刷新处理函数
+	const handleRefresh = async () => {
+		try {
+			await Promise.all([
+				dataStore.fetchProductionData(selectedDate.value),
+				getTaskDates().then(dates => taskDates.value = dates)
+			]);
+		} finally {
+			// [核心新增] 无论成功与否，都结束刷新动画
+			refreshableLayout.value?.finishRefresh();
+		}
+	};
+
 
 	const handleDateSelect = async (date : string) => {
 		selectedDate.value = date;
@@ -330,6 +349,13 @@
 	@include list-item-option-style;
 	// [核心新增] 引入 Mixin 来应用统一的表单控件样式
 	@include form-control-styles;
+
+	/* [核心新增] 新增的样式 */
+	.full-height-wrapper {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+	}
 
 	.summary-card {
 		display: flex;

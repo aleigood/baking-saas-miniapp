@@ -1,5 +1,5 @@
 <template>
-	<view>
+	<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" class="full-height-wrapper">
 		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
 			<view class="content-padding">
 				<view class="card">
@@ -74,6 +74,7 @@
 				</template>
 			</view>
 		</view>
+
 		<ExpandingFab v-if="canEditRecipe" :actions="fabActions" />
 
 		<AppModal :visible="uiStore.showRecipeActionsModal"
@@ -151,7 +152,7 @@
 			</view>
 		</AppModal>
 
-	</view>
+	</RefreshableLayout>
 </template>
 
 <script setup lang="ts">
@@ -164,12 +165,13 @@
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { discontinueRecipe, restoreRecipe, deleteRecipe } from '@/api/recipes';
 	import type { RecipeFamily } from '@/types/api';
-	// [核心改造] 引入 ExpandingFab
 	import ExpandingFab from '@/components/ExpandingFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
+	// [核心新增] 引入新组件
+	import RefreshableLayout from '@/components/RefreshableLayout.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -190,13 +192,14 @@
 		{ key: 'MAIN', label: '面团' },
 		{ key: 'OTHER', label: '其他' }
 	]);
+	// [核心新增] 创建对组件实例的引用
+	const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 
-	// [核心新增] 定义 FAB 菜单的动作
 	const fabActions = computed(() => {
 		return [{
 			icon: '/static/icons/add.svg',
 			text: '面团配方',
-			action: () => navigateToEditPage(null) // 沿用旧的逻辑
+			action: () => navigateToEditPage(null)
 		}, {
 			icon: '/static/icons/add.svg',
 			text: '其他配方',
@@ -209,6 +212,16 @@
 			await dataStore.fetchRecipesData();
 		}
 	});
+
+	// [核心新增] 下拉刷新处理函数
+	const handleRefresh = async () => {
+		try {
+			await dataStore.fetchRecipesData();
+		} finally {
+			// [核心新增] 无论成功与否，都结束刷新动画
+			refreshableLayout.value?.finishRefresh();
+		}
+	};
 
 	const handleTouchStart = (e : TouchEvent) => {
 		touchStartX.value = e.touches[0].clientX;
@@ -239,15 +252,9 @@
 			.sort((a, b) => b.value - a.value);
 	});
 
-	// [核心修改] 删除 mainRecipes 计算属性
-	// [核心修改] 删除 otherRecipes 计算属性
-
 	const getRecipeTypeDisplay = (type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA') => {
 		return recipeTypeMap[type] || type;
 	};
-
-	// [核心修改] 删除 getProductCount 方法，因为现在直接使用后端数据
-	// [核心修改] 删除 getIngredientCount 方法，因为现在直接使用后端数据
 
 	const getRating = (count : number) => {
 		if (count > 20) return '4.9';
@@ -271,7 +278,6 @@
 		uni.navigateTo({ url });
 	};
 
-	// [核心新增] 跳转到新建其他配方页面的方法
 	const navigateToOtherEditPage = () => {
 		uni.navigateTo({ url: '/pages/recipes/edit-other' });
 	};
@@ -356,6 +362,13 @@
 	@import '@/styles/common.scss';
 	@include list-item-content-style;
 	@include list-item-option-style;
+
+	/* [核心新增] 新增的样式 */
+	.full-height-wrapper {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+	}
 
 	// [核心修改] 修改 flex 布局以实现您的要求
 	:deep(.main-info) {
