@@ -108,6 +108,8 @@
 		/* [新增] 初始状态为透明且轻微向下偏移 */
 		opacity: 0;
 		transform: translateY(20px);
+		// [核心修复] 增加 box-sizing 属性，确保 width 属性包含 padding
+		box-sizing: border-box;
 	}
 
 	/* 恢复为移除水平内边距的策略，以确保通栏列表项的事件可以被完整触发 */
