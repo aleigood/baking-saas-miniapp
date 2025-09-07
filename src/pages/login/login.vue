@@ -116,8 +116,8 @@
 	}
 
 	.logo {
-		width: 80px;
-		height: 80px;
+		width: 130px;
+		height: 130px;
 		// [核心修改] 调整与下方文字的间距
 		margin-bottom: 30px;
 		align-self: center;

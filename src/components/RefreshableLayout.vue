@@ -125,10 +125,17 @@
 	};
 
 	const finishRefresh = () => {
-		status.value = 'finishing';
+		status.value = 'finishing'; // 1. 将状态设置为“完成中”，此时文本显示“刷新完成”
+
+		// 2. 设置一个短暂延时，让用户能看到“刷新完成”的提示
 		setTimeout(() => {
-			resetRefresher();
-		}, 500);
+			refresherHeight.value = 0; // 3. 开始执行收起动画（动画时长为0.3秒）
+
+			// 4. [核心修改] 在收起动画结束后，再将状态重置为“下拉刷新”
+			setTimeout(() => {
+				status.value = 'pulling';
+			}, 300); // 这个延时必须与CSS中的transition时长保持一致
+		}, 500); // “刷新完成”文本的显示时长
 	};
 
 	defineExpose({ finishRefresh });
@@ -163,7 +170,6 @@
 
 	.croissant-wrapper {
 		position: relative;
-		// [核心修改] 44px * 0.7 ≈ 31px
 		width: 31px;
 		height: 31px;
 		display: flex;
@@ -181,7 +187,6 @@
 		top: 50%;
 		left: 50%;
 		transform: translate(-50%, -50%);
-		// [核心修改] 88px * 0.7 ≈ 62px
 		width: 62px;
 		height: 62px;
 		-webkit-tap-highlight-color: transparent;
@@ -190,7 +195,6 @@
 	}
 
 	.status-text {
-		// [核心修改] 8px * 0.7 ≈ 6px
 		margin-top: 6px;
 		font-size: 13px;
 		color: var(--text-secondary);
@@ -205,13 +209,10 @@
 
 	.steam-container {
 		position: absolute;
-		// [核心修改] -8px * 0.7 ≈ -6px
 		top: -6px;
 		left: 50%;
 		transform: translateX(-50%);
-		// [核心修改] 40px * 0.7 = 28px
 		width: 28px;
-		// [核心修改] 25px * 0.7 ≈ 18px
 		height: 18px;
 		display: flex;
 		justify-content: space-around;
@@ -226,7 +227,6 @@
 	}
 
 	.steam-dot {
-		// [核心修改] 5px * 0.7 ≈ 4px
 		width: 4px;
 		height: 4px;
 		background-color: #d4a373;
@@ -261,7 +261,6 @@
 		}
 
 		100% {
-			// [核心修改] -25px * 0.7 ≈ -18px
 			transform: translateY(-18px) scale(0.5);
 			opacity: 0;
 		}
