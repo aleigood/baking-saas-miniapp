@@ -98,6 +98,8 @@
 		"app-plus": {
 			"animationType": "slide-in-right",
 			"animationDuration": 300
-		}
+		},
+		"backgroundColorTop": "#fdf8f2",
+		"backgroundColorBottom": "#fdf8f2"
 	}
 }

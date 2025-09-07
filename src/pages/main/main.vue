@@ -1,5 +1,5 @@
 <template>
-	<page-meta page-style="overflow: hidden;"></page-meta>
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="main-page-container" :class="{ 'personnel-active-bg': uiStore.activeTab === 'personnel' }">
 		<MainHeader :transparent="uiStore.activeTab === 'personnel'" />
 
@@ -33,6 +33,7 @@
 
 <script setup lang="ts">
 	import { ref } from 'vue';
+	import { onShow } from '@dcloudio/uni-app';
 	import { useUiStore } from '@/store/ui';
 	import { useDataStore } from '@/store/data';
 	import { useUserStore } from '@/store/user';
@@ -59,6 +60,11 @@
 	const userStore = useUserStore();
 	const toastStore = useToastStore();
 
+	// [核心恢复] onShow只负责加载租户信息
+	onShow(() => {
+		dataStore.fetchTenants();
+	});
+
 	const handleSelectTenant = async (tenantId : string) => {
 		if (dataStore.currentTenantId === tenantId) {
 			uiStore.closeModal(MODAL_KEYS.STORE);
@@ -80,9 +86,7 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [兼容性修复] 引入 Mixin，确保模态框中的列表项样式正确 */
 	@include list-item-content-style;
-	/* [兼容性修复] 引入新增的 Mixin */
 	@include list-item-option-style;
 
 	.main-page-container {
@@ -95,16 +99,14 @@
 		transition: background-color 0.3s ease;
 	}
 
-	/* [核心修改] “我的”页面激活时，使用新的SVG作为通体背景 */
 	.main-page-container.personnel-active-bg {
 		background-color: #fdf8f2;
 		background-image: url("@/static/backgrounds/personnel-bg.svg");
 		background-repeat: no-repeat;
-		background-size: 100% auto; // 宽度撑满，高度自适应
-		background-position: top center; // 从顶部中心开始
+		background-size: 100% auto;
+		background-position: top center;
 	}
 
-	/* [核心修改] 新增 content-area 样式 */
 	.content-area {
 		flex: 1;
 		min-height: 0;

@@ -2,8 +2,9 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { UserInfo, LoginRes } from '@/types/api';
 import { useDataStore } from './data';
-import { request } from '@/utils/request';
-import { login as loginApi, getProfile } from '@/api/auth'; // 引入新的API
+import { login as loginApi, getProfile } from '@/api/auth';
+
+let logoutTimer : ReturnType<typeof setTimeout> | null = null;
 
 export const useUserStore = defineStore('user', () => {
 	const token = ref<string | null>(uni.getStorageSync('token') || null);
@@ -14,40 +15,64 @@ export const useUserStore = defineStore('user', () => {
 		uni.setStorageSync('token', newToken);
 	}
 
-	// [重构] 登录逻辑更新，使用 phone
-	async function login(credentials : { phone : string; password : string }) {
-		try {
-			const res = await loginApi(credentials);
-			setToken(res.accessToken);
-			return true;
-		} catch (error) {
-			console.error('Login failed:', error);
-			// 错误提示已在 request 工具函数中统一处理
-			return false;
-		}
-	}
-
-	// [重构] fetchUserInfo 使用新的 getProfile 接口
-	async function fetchUserInfo() {
-		if (!token.value) return;
-		try {
-			const data = await getProfile();
-			userInfo.value = data;
-		} catch (error) {
-			console.error('Fetch user info failed:', error);
-			logout(); // Token 可能无效，强制登出
-		}
-	}
-
-	function logout() {
+	function clearSession() {
 		const dataStore = useDataStore();
 		token.value = null;
 		userInfo.value = null;
 		uni.removeStorageSync('token');
 		uni.removeStorageSync('tenant_id');
 		dataStore.reset();
+	}
+
+	function clearAuthAndRedirect() {
+		clearSession();
 		uni.reLaunch({ url: '/pages/login/login' });
 	}
 
-	return { token, userInfo, login, setToken, logout, fetchUserInfo };
+	// [核心修复] 恢复 logout 函数，解决 personnel 页面报错问题
+	function logout() {
+		clearAuthAndRedirect();
+	}
+
+	async function login(credentials : { phone : string; password : string }) {
+		if (logoutTimer) {
+			clearTimeout(logoutTimer);
+			logoutTimer = null;
+		}
+		clearSession();
+
+		try {
+			const res = await loginApi(credentials);
+			setToken(res.accessToken);
+			return true;
+		} catch (error) {
+			console.error('Login failed:', error);
+			return false;
+		}
+	}
+
+	async function fetchUserInfo() {
+		if (!token.value) {
+			throw new Error("No token found");
+		};
+		try {
+			const data = await getProfile();
+			userInfo.value = data;
+		} catch (error) {
+			console.error('Fetch user info failed:', error);
+			throw error;
+		}
+	}
+
+	function scheduleLogout() {
+		if (logoutTimer) {
+			clearTimeout(logoutTimer);
+		}
+		logoutTimer = setTimeout(() => {
+			clearAuthAndRedirect();
+			logoutTimer = null;
+		}, 1500);
+	}
+
+	return { token, userInfo, login, logout, setToken, fetchUserInfo, clearAuthAndRedirect, scheduleLogout };
 });

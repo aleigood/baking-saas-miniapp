@@ -1,47 +1,67 @@
 <template>
 	<view class="login-container">
-		<image class="logo" src="/static/logo.png" mode="aspectFit"></image>
-		<h2 class="title">烘焙SaaS管理端</h2>
-		<view class="form-card">
-			<input class="input-field" v-model="form.phone" placeholder="请输入手机号" type="tel" />
-			<input class="input-field" v-model="form.password" type="password" placeholder="请输入密码" />
-			<AppButton type="primary" full-width :loading="loading" @click="handleLogin">
-				{{ loading ? '登录中...' : '登 录' }}
-			</AppButton>
+		<view class="header-bg"></view>
+
+		<view class="content-wrapper" :class="{ 'enter-active': pageLoaded }">
+			<!-- [核心修改] 将图标移到最上方 -->
+			<image class="logo" src="/static/icons/croissant.svg" mode="aspectFit"></image>
+
+			<view class="welcome-text-group">
+				<h1 class="title">欢迎回来,</h1>
+				<p class="subtitle">登录您的账户</p>
+			</view>
+
+			<view class="form-container">
+				<input class="input-field" v-model="form.phone" placeholder="请输入手机号" type="tel" />
+				<input class="input-field" v-model="form.password" type="password" placeholder="请输入密码" />
+				<AppButton type="primary" full-width :loading="loading" @click="handleLogin" class="login-button">
+					{{ loading ? '' : '登 录' }}
+				</AppButton>
+			</view>
 		</view>
+
+		<image class="footer-croissant" src="/static/icons/croissant-outline.svg"></image>
+
 		<Toast />
 	</view>
 </template>
 <script lang="ts" setup>
-	import { reactive, ref } from 'vue';
+	import { reactive, ref, onMounted } from 'vue';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useToastStore } from '@/store/toast';
 	import AppButton from '@/components/AppButton.vue';
-	// [新增] 引入 Toast 组件
 	import Toast from '@/components/Toast.vue';
 
 	const loading = ref(false);
+	const pageLoaded = ref(false);
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const toastStore = useToastStore();
 
 	const form = reactive({
 		phone: '13966666666',
 		password: '123',
 	});
 
+	onMounted(() => {
+		setTimeout(() => {
+			pageLoaded.value = true;
+		}, 100);
+	});
+
 	const handleLogin = async () => {
 		loading.value = true;
 		const loginSuccess = await userStore.login(form);
 		if (loginSuccess) {
-			await userStore.fetchUserInfo();
-			await dataStore.fetchTenants();
-			// [移除] 不再显示 "登录成功" 的 toast
-			// toastStore.show({ message: '登录成功', type: 'success' }); 
-			uni.reLaunch({ url: '/pages/main/main' });
+			try {
+				await userStore.fetchUserInfo();
+				await dataStore.fetchTenants();
+				uni.reLaunch({ url: '/pages/main/main' });
+			} catch (error) {
+				loading.value = false;
+			}
+		} else {
+			loading.value = false;
 		}
-		loading.value = false;
 	};
 </script>
 <style scoped lang="scss">
@@ -55,41 +75,100 @@
 		height: 100vh;
 		background-color: var(--bg-color);
 		padding: 40px;
-		padding-top: 15vh;
 		box-sizing: border-box;
+		overflow: hidden;
+		position: relative;
+	}
+
+	.header-bg {
+		position: absolute;
+		top: -15vh;
+		left: -20vw;
+		width: 140vw;
+		height: 40vh;
+		background-image: url("@/static/backgrounds/personnel-bg.svg");
+		background-size: cover;
+		opacity: 0.3;
+		transform: rotate(-10deg);
+		z-index: 0;
+	}
+
+	.content-wrapper {
+		width: 100%;
+		z-index: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		// [核心修改] 调整上边距，让整体内容更高
+		padding-top: 5vh;
+		opacity: 0;
+		transform: translateY(30px);
+		transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+	}
+
+	.content-wrapper.enter-active {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	.welcome-text-group {
+		width: 100%;
 	}
 
 	.logo {
 		width: 80px;
 		height: 80px;
-		margin-bottom: 20px;
+		// [核心修改] 调整与下方文字的间距
+		margin-bottom: 30px;
+		align-self: center;
 	}
 
 	.title {
-		color: var(--primary-color);
-		font-size: 24px;
+		color: var(--text-primary);
+		font-size: 32px;
 		font-weight: 600;
-		margin-bottom: 30px;
+		margin-bottom: 5px;
 	}
 
-	.form-card {
+	.subtitle {
+		color: var(--text-secondary);
+		font-size: 16px;
+		margin-bottom: 40px;
+	}
+
+	.form-container {
 		width: 100%;
-		background-color: var(--card-bg);
-		padding: 30px;
-		border-radius: 20px;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 	}
 
 	.input-field {
 		width: 100%;
-		height: 50px;
-		background-color: #f7f8fa;
-		/* [样式修改] 统一圆角为 15px */
+		height: 54px;
+		background-color: #ffffff;
 		border-radius: 15px;
-		padding: 0 15px;
+		padding: 0 20px;
 		margin-bottom: 20px;
 		font-size: 16px;
 		box-sizing: border-box;
 		border: 1px solid var(--border-color);
+		transition: border-color 0.3s, box-shadow 0.3s;
+	}
+
+	.input-field:focus {
+		border-color: var(--primary-color);
+		box-shadow: 0 0 0 3px rgba(140, 90, 59, 0.1);
+	}
+
+	.login-button {
+		margin-top: 10px;
+	}
+
+	.footer-croissant {
+		position: absolute;
+		bottom: -15vh;
+		right: -10vw;
+		width: 60vw;
+		height: 60vw;
+		opacity: 0.05;
+		z-index: 0;
 	}
 </style>
