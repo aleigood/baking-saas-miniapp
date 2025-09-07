@@ -136,14 +136,15 @@
 												<view class="table-header summary-header">
 													<text class="col-ingredient">馅料</text>
 													<text class="col-brand">品牌</text>
-													<text class="col-usage">用量/个</text>
+													<text class="col-usage">用量</text>
 												</view>
 												<view v-for="ing in selectedProductDetails.fillings" :key="ing.id"
 													class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
 													<text
 														class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
-													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+													<text
+														class="col-usage">{{ getFormattedFillingWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
 										</template>
@@ -154,14 +155,15 @@
 												<view class="table-header summary-header">
 													<text class="col-ingredient">表面装饰</text>
 													<text class="col-brand">品牌</text>
-													<text class="col-usage">用量/个</text>
+													<text class="col-usage">用量</text>
 												</view>
 												<view v-for="ing in selectedProductDetails.toppings" :key="ing.id"
 													class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
 													<text
 														class="col-brand">{{ ing.isRecipe ? '自制' : (ing.brand || '-') }}</text>
-													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+													<text
+														class="col-usage">{{ getFormattedFillingWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
 										</template>
@@ -683,6 +685,24 @@
 
 	const hidePopover = () => {
 		popover.visible = false;
+	};
+
+	// [核心新增] 新增一个用于格式化馅料/装饰用量显示的方法
+	const getFormattedFillingWeight = (totalWeight : number) => {
+		if (!selectedDoughDetails.value || !selectedProductId.value) {
+			return formatWeight(totalWeight);
+		}
+		const productSummary = selectedDoughDetails.value.products.find(p => p.id === selectedProductId.value);
+		const quantity = productSummary ? productSummary.quantity : 1;
+
+		// 避免除以零或对零值进行计算
+		if (quantity > 0 && totalWeight > 0) {
+			const perItemWeight = totalWeight / quantity;
+			// 返回 "总量 (单个用量/个)" 的格式
+			return `${formatWeight(totalWeight)} (${formatWeight(perItemWeight)}/个)`;
+		}
+
+		return formatWeight(totalWeight);
 	};
 
 	const selectedDoughDetails = computed(() => {
