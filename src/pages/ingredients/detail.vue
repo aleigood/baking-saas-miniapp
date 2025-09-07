@@ -485,14 +485,15 @@
 		}
 		isSubmitting.value = true;
 		try {
-			const pricePerPackage = procurementForm.value.totalPrice / procurementForm.value.packagesPurchased;
+			// [核心修复] 在计算和发送前，将可能为字符串的输入值强制转换为数字
+			const packagesPurchased = Number(procurementForm.value.packagesPurchased);
+			const totalPrice = Number(procurementForm.value.totalPrice);
+			const pricePerPackage = totalPrice / packagesPurchased;
 
-			// [核心修改] 确保 purchaseDate 总是被传递
 			const payload = {
 				skuId: procurementForm.value.skuId,
-				packagesPurchased: procurementForm.value.packagesPurchased,
+				packagesPurchased: packagesPurchased, // 使用转换后的数字
 				pricePerPackage: pricePerPackage,
-				// [核心修改] 如果是补录，使用选择的日期；否则，使用当前客户端时间
 				purchaseDate: (isBackEntry.value && procurementForm.value.purchaseDate)
 					? new Date(procurementForm.value.purchaseDate).toISOString()
 					: new Date().toISOString(),
