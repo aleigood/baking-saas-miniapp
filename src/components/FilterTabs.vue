@@ -3,12 +3,12 @@
 		scroll-with-animation>
 		<view class="tabs-wrapper">
 			<view v-for="(tab, index) in tabs" :key="tab.key" :id="'filter-tab-' + tab.key"
-				class="tab-item ripple-container" :class="{ active: modelValue === tab.key }"
+				class="tab-item ripple-container" :class="[{ active: modelValue === tab.key }, sizeClass]"
 				@click="handleClick(tab.key)" @touchstart.passive="handleTouchStart($event, tab.key)">
 				<span v-for="ripple in ripples[tab.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 				<span class="tab-text">{{ tab.label }}</span>
 			</view>
-			<view v-if="editable" class="tab-item add-tab ripple-container" @click="$emit('add')"
+			<view v-if="editable" class="tab-item add-tab ripple-container" :class="sizeClass" @click="$emit('add')"
 				@touchstart.passive="handleTouchStart($event, 'add')">
 				<span v-for="ripple in ripples['add']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 				<span class="tab-text">+ 添加产品</span>
@@ -23,7 +23,8 @@
 		watch,
 		nextTick,
 		getCurrentInstance,
-		reactive
+		reactive,
+		computed // [核心新增] 导入 computed
 	} from 'vue';
 
 	const props = defineProps<{
@@ -32,9 +33,19 @@
 		}[];
 		modelValue : string | number;
 		editable ?: boolean;
+		// [核心新增] 新增 size 属性，用于控制标签大小
+		size ?: 'default' | 'sm';
 	}>();
 
 	const emit = defineEmits(['update:modelValue', 'add']);
+
+	// [核心新增] 新增计算属性，根据 size prop 返回对应的 CSS 类
+	const sizeClass = computed(() => {
+		if (props.size === 'sm') {
+			return 'is-small';
+		}
+		return '';
+	});
 
 	const instance = getCurrentInstance();
 	const scrollLeft = ref(0);
@@ -60,6 +71,7 @@
 		emit('update:modelValue', key);
 	};
 
+	// [核心改造] 移除 @touchstart 事件的 .passive 修饰符以解决H5控制台报错
 	const handleTouchStart = (event : TouchEvent, key : string | number) => {
 		const touch = event.touches[0];
 		const selector = key === 'add' ? '.add-tab' : `#filter-tab-${key}`;
@@ -182,6 +194,23 @@
 		/* [核心新增] 为激活的标签页增加一个细微的阴影，使其在视觉上“浮起” */
 		box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 3px 1px rgba(0, 0, 0, 0.05);
 	}
+
+	/* [核心新增] 小尺寸标签的样式 */
+	.tab-item.is-small {
+		padding: 6px 10px;
+		/* 减小内边距 */
+		border-radius: 16px;
+		/* 调整圆角以匹配更小的尺寸 */
+	}
+
+	/* [核心新增] 小尺寸标签内部文字的样式 */
+	.tab-item.is-small .tab-text {
+		font-size: 14px;
+		/* 设置字体大小为14px */
+		font-weight: 400;
+		/* 调整字重 */
+	}
+
 
 	.ripple {
 		background-color: rgba(0, 0, 0, 0.1);

@@ -186,7 +186,7 @@
 			</FormItem>
 			<FormItem label="调整原因 (可选)">
 				<view class="reason-tags">
-					<FilterTabs v-model="stockAdjustment.reason" :tabs="presetReasonTabs" />
+					<FilterTabs v-model="stockAdjustment.reason" :tabs="presetReasonTabs" size="sm" />
 				</view>
 				<input class="input-field" v-model="stockAdjustment.reason" placeholder="或手动输入原因" />
 			</FormItem>
@@ -254,7 +254,6 @@
 		specWeightInGrams: null,
 	});
 	const showProcurementModal = ref(false);
-	// [核心改造] 移除 procurementForm 中的 purchaseDate
 	const procurementForm = ref<{
 		skuId : string;
 		packagesPurchased : number | null;
@@ -264,8 +263,6 @@
 		packagesPurchased: null,
 		totalPrice: null,
 	});
-
-	// [核心改造] 移除 isBackEntry
 
 	const costHistory = ref<{ cost : number }[]>([]);
 	const usageHistory = ref<{ cost : number }[]>([]);
@@ -294,17 +291,15 @@
 		totalPrice: 0,
 	});
 
-	// [核心改造] 为库存调整对象增加 initialCostPerKg 字段
 	const stockAdjustment = reactive<{
 		changeInKg : number | null;
 		reason : string;
-		initialCostPerKg ?: number | null; // 期初单价 (元/kg)
+		initialCostPerKg ?: number | null;
 	}>({
 		changeInKg: null,
 		reason: '',
 		initialCostPerKg: null,
 	});
-
 
 	const presetReasonTabs = computed(() => {
 		const reasons = ['盘点损耗', '盘点盈余', '过期损耗', '包装破损'];
@@ -314,11 +309,9 @@
 		}));
 	});
 
-	// [核心改造] 新增计算属性，判断当前是否为期初库存录入场景
 	const isInitialStockEntry = computed(() => {
 		return ingredient.value?.currentStockInGrams === 0 && (stockAdjustment.changeInKg || 0) > 0;
 	});
-
 
 	const fabActions = computed(() => {
 		const currentUserRole = userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role;
@@ -463,8 +456,6 @@
 		showProcurementModal.value = true;
 	};
 
-	// [核心改造] 移除 onBackEntryChange 和 onNewProcurementDateChange
-
 	const handleCreateProcurement = async () => {
 		if (!procurementForm.value.skuId || !procurementForm.value.packagesPurchased || procurementForm.value.packagesPurchased <= 0 || !procurementForm.value.totalPrice || procurementForm.value.totalPrice <= 0) {
 			toastStore.show({ message: '请填写所有有效的采购信息', type: 'error' });
@@ -480,7 +471,6 @@
 				skuId: procurementForm.value.skuId,
 				packagesPurchased: packagesPurchased,
 				pricePerPackage: pricePerPackage,
-				// [核心改造] 采购日期始终为当前时间
 				purchaseDate: new Date().toISOString(),
 			};
 
@@ -634,7 +624,6 @@
 		if (ingredient.value) {
 			stockAdjustment.changeInKg = null;
 			stockAdjustment.reason = '';
-			// [核心改造] 重置期初单价字段
 			stockAdjustment.initialCostPerKg = null;
 			uiStore.openModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
 		}
@@ -646,7 +635,6 @@
 			toastStore.show({ message: '请输入有效的库存变化量', type: 'error' });
 			return;
 		}
-		// [核心改造] 增加对期初单价的校验
 		if (isInitialStockEntry.value && (!stockAdjustment.initialCostPerKg || stockAdjustment.initialCostPerKg <= 0)) {
 			toastStore.show({ message: '期初库存录入必须填写有效的单价', type: 'error' });
 			return;
@@ -655,7 +643,6 @@
 		isSubmitting.value = true;
 		try {
 			const changeInGrams = stockAdjustment.changeInKg * 1000;
-			// [核心改造] 构建包含期初单价的 payload
 			const payload : {
 				changeInGrams : number;
 				reason ?: string;
@@ -740,9 +727,5 @@
 	.reason-tags {
 		padding: 10px 0px;
 		margin-bottom: 5px;
-	}
-
-	.tab-text {
-		font-size: 14px;
 	}
 </style>
