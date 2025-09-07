@@ -487,20 +487,16 @@
 		try {
 			const pricePerPackage = procurementForm.value.totalPrice / procurementForm.value.packagesPurchased;
 
-			const payload : {
-				skuId : string;
-				packagesPurchased : number;
-				pricePerPackage : number;
-				purchaseDate ?: string;
-			} = {
-					skuId: procurementForm.value.skuId,
-					packagesPurchased: procurementForm.value.packagesPurchased,
-					pricePerPackage: pricePerPackage,
-				};
-
-			if (isBackEntry.value && procurementForm.value.purchaseDate) {
-				payload.purchaseDate = new Date(procurementForm.value.purchaseDate).toISOString();
-			}
+			// [核心修改] 确保 purchaseDate 总是被传递
+			const payload = {
+				skuId: procurementForm.value.skuId,
+				packagesPurchased: procurementForm.value.packagesPurchased,
+				pricePerPackage: pricePerPackage,
+				// [核心修改] 如果是补录，使用选择的日期；否则，使用当前客户端时间
+				purchaseDate: (isBackEntry.value && procurementForm.value.purchaseDate)
+					? new Date(procurementForm.value.purchaseDate).toISOString()
+					: new Date().toISOString(),
+			};
 
 			await createProcurement(payload);
 			toastStore.show({ message: '入库成功', type: 'success' });

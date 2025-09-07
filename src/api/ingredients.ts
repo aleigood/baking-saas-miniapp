@@ -122,13 +122,12 @@ export function deleteSku(skuId : string) : Promise<any> {
  * [新增] 创建一条采购记录
  * @param data 包含SKU ID、采购数量和价格
  */
-// [核心修复] 修正 createProcurement 函数，确保 skuId 包含在请求体中
-export function createProcurement(data : { skuId : string; packagesPurchased : number; pricePerPackage : number, purchaseDate ?: string }) : Promise<any> {
-	// 直接将接收到的 data 对象作为请求体发送，因为它已经包含了所有必需的字段
+// [核心修改] 修正 createProcurement 函数，确保 skuId 在 URL 中，并使 purchaseDate 成为必需字段
+export function createProcurement(data : { skuId : string; packagesPurchased : number; pricePerPackage : number, purchaseDate : string }) : Promise<any> {
 	return request({
 		url: `/ingredients/skus/${data.skuId}/procurements`,
 		method: 'POST',
-		data: data, // 直接使用传入的完整 data 对象
+		data: data,
 	});
 }
 
