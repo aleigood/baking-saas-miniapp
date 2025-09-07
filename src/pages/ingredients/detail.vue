@@ -40,7 +40,6 @@
 			</FormItem>
 			<FormItem label="原料类型">
 				<picker mode="selector" :range="availableTypes.map(t => t.label)" @change="onTypeChange">
-					<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
 					<view class="picker">{{ currentTypeLabel }}
 						<view class="arrow-down"></view>
 					</view>
@@ -91,18 +90,6 @@
 			</FormItem>
 			<FormItem label="采购总价 (元)">
 				<input class="input-field" type="number" v-model="procurementForm.totalPrice" placeholder="例如：255" />
-			</FormItem>
-			<view class="form-row" style="margin-bottom: 20px;">
-				<label class="form-row-label">采购补录</label>
-				<switch :checked="isBackEntry" @change="onBackEntryChange" color="#8c5a3b" />
-			</view>
-			<FormItem v-if="isBackEntry" label="采购日期">
-				<picker mode="date" :value="procurementForm.purchaseDate" @change="onNewProcurementDateChange">
-					<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
-					<view class="picker">{{ procurementForm.purchaseDate }}
-						<view class="arrow-down"></view>
-					</view>
-				</picker>
 			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showProcurementModal = false">取消</AppButton>
@@ -193,6 +180,10 @@
 				<input class="input-field" type="digit" v-model.number="stockAdjustment.changeInKg"
 					placeholder="正数代表盘盈，负数代表损耗" />
 			</FormItem>
+			<FormItem v-if="isInitialStockEntry" label="期初单价 (元/kg)">
+				<input class="input-field" type="digit" v-model.number="stockAdjustment.initialCostPerKg"
+					placeholder="输入估算单价" />
+			</FormItem>
 			<FormItem label="调整原因 (可选)">
 				<view class="reason-tags">
 					<FilterTabs v-model="stockAdjustment.reason" :tabs="presetReasonTabs" />
@@ -263,19 +254,18 @@
 		specWeightInGrams: null,
 	});
 	const showProcurementModal = ref(false);
+	// [核心改造] 移除 procurementForm 中的 purchaseDate
 	const procurementForm = ref<{
 		skuId : string;
 		packagesPurchased : number | null;
 		totalPrice : number | null;
-		purchaseDate : string;
 	}>({
 		skuId: '',
 		packagesPurchased: null,
 		totalPrice: null,
-		purchaseDate: '',
 	});
 
-	const isBackEntry = ref(false);
+	// [核心改造] 移除 isBackEntry
 
 	const costHistory = ref<{ cost : number }[]>([]);
 	const usageHistory = ref<{ cost : number }[]>([]);
@@ -304,13 +294,17 @@
 		totalPrice: 0,
 	});
 
+	// [核心改造] 为库存调整对象增加 initialCostPerKg 字段
 	const stockAdjustment = reactive<{
 		changeInKg : number | null;
 		reason : string;
+		initialCostPerKg ?: number | null; // 期初单价 (元/kg)
 	}>({
 		changeInKg: null,
-		reason: ''
+		reason: '',
+		initialCostPerKg: null,
 	});
+
 
 	const presetReasonTabs = computed(() => {
 		const reasons = ['盘点损耗', '盘点盈余', '过期损耗', '包装破损'];
@@ -319,6 +313,12 @@
 			label: reason
 		}));
 	});
+
+	// [核心改造] 新增计算属性，判断当前是否为期初库存录入场景
+	const isInitialStockEntry = computed(() => {
+		return ingredient.value?.currentStockInGrams === 0 && (stockAdjustment.changeInKg || 0) > 0;
+	});
+
 
 	const fabActions = computed(() => {
 		const currentUserRole = userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role;
@@ -459,24 +459,11 @@
 			skuId: ingredient.value.activeSku.id,
 			packagesPurchased: null,
 			totalPrice: null,
-			purchaseDate: '',
 		};
-		isBackEntry.value = false;
 		showProcurementModal.value = true;
 	};
 
-	const onBackEntryChange = (e : any) => {
-		isBackEntry.value = e.detail.value;
-		if (isBackEntry.value) {
-			procurementForm.value.purchaseDate = new Date().toISOString().split('T')[0];
-		} else {
-			procurementForm.value.purchaseDate = '';
-		}
-	};
-
-	const onNewProcurementDateChange = (e : any) => {
-		procurementForm.value.purchaseDate = e.detail.value;
-	};
+	// [核心改造] 移除 onBackEntryChange 和 onNewProcurementDateChange
 
 	const handleCreateProcurement = async () => {
 		if (!procurementForm.value.skuId || !procurementForm.value.packagesPurchased || procurementForm.value.packagesPurchased <= 0 || !procurementForm.value.totalPrice || procurementForm.value.totalPrice <= 0) {
@@ -485,18 +472,16 @@
 		}
 		isSubmitting.value = true;
 		try {
-			// [核心修复] 在计算和发送前，将可能为字符串的输入值强制转换为数字
 			const packagesPurchased = Number(procurementForm.value.packagesPurchased);
 			const totalPrice = Number(procurementForm.value.totalPrice);
 			const pricePerPackage = totalPrice / packagesPurchased;
 
 			const payload = {
 				skuId: procurementForm.value.skuId,
-				packagesPurchased: packagesPurchased, // 使用转换后的数字
+				packagesPurchased: packagesPurchased,
 				pricePerPackage: pricePerPackage,
-				purchaseDate: (isBackEntry.value && procurementForm.value.purchaseDate)
-					? new Date(procurementForm.value.purchaseDate).toISOString()
-					: new Date().toISOString(),
+				// [核心改造] 采购日期始终为当前时间
+				purchaseDate: new Date().toISOString(),
 			};
 
 			await createProcurement(payload);
@@ -649,6 +634,8 @@
 		if (ingredient.value) {
 			stockAdjustment.changeInKg = null;
 			stockAdjustment.reason = '';
+			// [核心改造] 重置期初单价字段
+			stockAdjustment.initialCostPerKg = null;
 			uiStore.openModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
 		}
 	};
@@ -659,14 +646,31 @@
 			toastStore.show({ message: '请输入有效的库存变化量', type: 'error' });
 			return;
 		}
+		// [核心改造] 增加对期初单价的校验
+		if (isInitialStockEntry.value && (!stockAdjustment.initialCostPerKg || stockAdjustment.initialCostPerKg <= 0)) {
+			toastStore.show({ message: '期初库存录入必须填写有效的单价', type: 'error' });
+			return;
+		}
 
 		isSubmitting.value = true;
 		try {
 			const changeInGrams = stockAdjustment.changeInKg * 1000;
-			await adjustStock(ingredient.value.id, {
-				changeInGrams: changeInGrams,
-				reason: stockAdjustment.reason || undefined,
-			});
+			// [核心改造] 构建包含期初单价的 payload
+			const payload : {
+				changeInGrams : number;
+				reason ?: string;
+				initialCostPerKg ?: number;
+			} = {
+					changeInGrams: changeInGrams,
+					reason: stockAdjustment.reason || undefined,
+				};
+
+			if (isInitialStockEntry.value) {
+				payload.initialCostPerKg = stockAdjustment.initialCostPerKg!;
+			}
+
+
+			await adjustStock(ingredient.value.id, payload);
 			toastStore.show({ message: '库存调整成功', type: 'success' });
 			uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
 			await loadIngredientData(ingredient.value.id);
@@ -736,5 +740,9 @@
 	.reason-tags {
 		padding: 10px 0px;
 		margin-bottom: 5px;
+	}
+
+	.tab-text {
+		font-size: 14px;
 	}
 </style>
