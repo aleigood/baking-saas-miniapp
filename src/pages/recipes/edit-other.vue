@@ -15,7 +15,6 @@
 					<FormItem label="配方类型">
 						<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange"
 							:disabled="isEditing">
-							<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
 							<view class="picker">{{ currentTypeLabel }}
 								<view class="arrow-down"></view>
 							</view>
@@ -33,14 +32,8 @@
 						<text class="col-action"></text>
 					</view>
 					<view v-for="(ing, ingIndex) in form.ingredients" :key="ingIndex" class="ingredient-row">
-						<picker mode="selector" :range="availableIngredients" range-key="name"
-							@change="onIngredientChange($event, ingIndex)">
-							<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
-							<view class="picker" :class="{ placeholder: !ing.id }">
-								{{ getIngredientName(ing.id) }}
-								<view class="arrow-down"></view>
-							</view>
-						</picker>
+						<AutocompleteInput v-model="ing.name" :items="availableIngredients" placeholder="输入或选择原料"
+							@select="onIngredientSelect($event, ingIndex)" />
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
@@ -83,6 +76,8 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import IconButton from '@/components/IconButton.vue';
+	// [核心改造] 引入新的 AutocompleteInput 组件
+	import AutocompleteInput from '@/components/AutocompleteInput.vue';
 	import { toDecimal } from '@/utils/format';
 
 	defineOptions({
@@ -113,11 +108,25 @@
 		return recipeTypes.value.find(t => t.value === form.type)?.label || '请选择';
 	});
 
-	const availableIngredients = computed(() => dataStore.allIngredients);
+	// [核心改造] 定义新的原料数据源，包含基础原料和"EXTRA"类型配方
+	const availableIngredients = computed(() => {
+		const extras = dataStore.recipes.otherRecipes.filter(r => r.type === 'EXTRA' && !r.deletedAt);
+		const combined = [
+			...dataStore.allIngredients.map(i => ({ id: i.id, name: i.name })),
+			...extras.map(e => ({ id: e.id, name: e.name })),
+		];
+		// 按名称排序
+		return combined.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+	});
+
 
 	onLoad(async (options) => {
 		if (!dataStore.dataLoaded.ingredients) {
 			await dataStore.fetchIngredientsData();
+		}
+		// [新增] 确保配方数据也已加载
+		if (!dataStore.dataLoaded.recipes) {
+			await dataStore.fetchRecipesData();
 		}
 
 		if (options && options.familyId) {
@@ -141,21 +150,18 @@
 	});
 
 
-	const getIngredientName = (id : string | null) => {
-		if (!id) return '请选择原料';
-		const ingredient = availableIngredients.value.find(i => i.id === id);
-		return ingredient?.name || '未知原料';
-	};
+	// [核心改造] 移除 getIngredientName 函数，因为 AutocompleteInput 直接显示 name
 
 	const onTypeChange = (e : any) => {
 		form.type = recipeTypes.value[e.detail.value].value as 'PRE_DOUGH' | 'EXTRA';
 	};
 
-	const onIngredientChange = (e : any, ingIndex : number) => {
-		const selected = availableIngredients.value[e.detail.value];
-		form.ingredients[ingIndex].id = selected.id;
-		form.ingredients[ingIndex].name = selected.name;
+	// [核心改造] 新增 AutocompleteInput 的 select 事件处理函数
+	const onIngredientSelect = (item : { id : string | null; name : string }, ingIndex : number) => {
+		form.ingredients[ingIndex].id = item.id;
+		form.ingredients[ingIndex].name = item.name;
 	};
+
 
 	const addIngredient = () => {
 		form.ingredients.push({ id: null, name: '', ratio: null });
@@ -176,6 +182,8 @@
 	const handleSubmit = async () => {
 		isSubmitting.value = true;
 		try {
+			// [核心改造] 查找原料信息的逻辑需要同时在基础原料和配方中查找
+			const allAvailableItemsMap = new Map(availableIngredients.value.map(i => [i.id, i]));
 			const allIngredientsMap = new Map(dataStore.allIngredients.map(i => [i.id, i]));
 
 			const payload = {
@@ -183,11 +191,13 @@
 				type: form.type,
 				notes: form.notes,
 				ingredients: form.ingredients
-					.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0))
+					// [核心改造] 过滤条件改为检查 name 是否存在
+					.filter(ing => ing.name && (ing.ratio !== null && ing.ratio > 0))
 					.map(ing => {
 						const ingredientDetails = allIngredientsMap.get(ing.id!);
 						return {
-							ingredientId: ing.id,
+							// [核心改造] 如果 id 存在，使用 id，否则后端会根据 name 创建
+							ingredientId: ing.id || undefined,
 							name: ing.name,
 							ratio: toDecimal(ing.ratio),
 							isFlour: ingredientDetails ? ingredientDetails.isFlour : false,
@@ -262,7 +272,8 @@
 		gap: 10px;
 		margin-bottom: 10px;
 
-		picker {
+		/* [核心改造] 让 AutocompleteInput 占据主要空间 */
+		.autocomplete-wrapper {
 			flex: 1;
 			min-width: 0;
 		}

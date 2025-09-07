@@ -57,7 +57,7 @@
 		font-weight: 500;
 
 		&.active {
-			background-color: #5ac725;
+			background-color: #8c5a3b;
 		}
 	}
 

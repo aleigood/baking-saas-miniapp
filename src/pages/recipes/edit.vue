@@ -58,13 +58,8 @@
 						<text class="col-action"></text>
 					</view>
 					<view v-for="(ing, ingIndex) in mainDough.ingredients" :key="ingIndex" class="ingredient-row">
-						<picker mode="selector" :range="filteredAvailableIngredients" range-key="name"
-							@change="onIngredientChange($event, ingIndex)">
-							<view class="picker" :class="{ placeholder: !ing.id }">
-								{{ getIngredientName(ing.id) }}
-								<view class="arrow-down"></view>
-							</view>
-						</picker>
+						<AutocompleteInput v-model="ing.name" :items="availableMainDoughIngredients"
+							placeholder="输入或选择原料" @select="onIngredientSelect($event, ingIndex)" />
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
@@ -112,13 +107,9 @@
 						<view class="sub-group">
 							<view class="sub-group-title">辅料 (Mix-ins)</view>
 							<view v-for="(ing, ingIndex) in product.mixIns" :key="ingIndex" class="ingredient-row">
-								<picker mode="selector" :range="availableSubIngredients" range-key="name"
-									@change="onSubIngredientChange($event, prodIndex, 'mixIns', ingIndex)">
-									<view class="picker" :class="{ placeholder: !ing.id }">
-										{{ getIngredientName(ing.id) }}
-										<view class="arrow-down"></view>
-									</view>
-								</picker>
+								<AutocompleteInput v-model="ing.name" :items="availableSubIngredients"
+									placeholder="输入或选择原料/馅料"
+									@select="onSubIngredientSelect($event, prodIndex, 'mixIns', ingIndex)" />
 								<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 									placeholder="%" />
 								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
@@ -132,13 +123,9 @@
 						<view class="sub-group">
 							<view class="sub-group-title">馅料 (Fillings)</view>
 							<view v-for="(ing, ingIndex) in product.fillings" :key="ingIndex" class="ingredient-row">
-								<picker mode="selector" :range="availableSubIngredients" range-key="name"
-									@change="onSubIngredientChange($event, prodIndex, 'fillings', ingIndex)">
-									<view class="picker" :class="{ placeholder: !ing.id }">
-										{{ getIngredientName(ing.id) }}
-										<view class="arrow-down"></view>
-									</view>
-								</picker>
+								<AutocompleteInput v-model="ing.name" :items="availableSubIngredients"
+									placeholder="输入或选择原料/馅料"
+									@select="onSubIngredientSelect($event, prodIndex, 'fillings', ingIndex)" />
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
 									placeholder="g/个" />
 								<IconButton variant="field"
@@ -153,13 +140,9 @@
 						<view class="sub-group">
 							<view class="sub-group-title">表面装饰 (Toppings)</view>
 							<view v-for="(ing, ingIndex) in product.toppings" :key="ingIndex" class="ingredient-row">
-								<picker mode="selector" :range="availableSubIngredients" range-key="name"
-									@change="onSubIngredientChange($event, prodIndex, 'toppings', ingIndex)">
-									<view class="picker" :class="{ placeholder: !ing.id }">
-										{{ getIngredientName(ing.id) }}
-										<view class="arrow-down"></view>
-									</view>
-								</picker>
+								<AutocompleteInput v-model="ing.name" :items="availableSubIngredients"
+									placeholder="输入或选择原料/馅料"
+									@select="onSubIngredientSelect($event, prodIndex, 'toppings', ingIndex)" />
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
 									placeholder="g/个" />
 								<IconButton variant="field"
@@ -230,6 +213,8 @@
 	import AppModal from '@/components/AppModal.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
+	// [核心改造] 引入新的 AutocompleteInput 组件
+	import AutocompleteInput from '@/components/AutocompleteInput.vue';
 	import type { RecipeFamily, RecipeFormTemplate } from '@/types/api';
 	import { formatNumber, toDecimal } from '@/utils/format';
 
@@ -238,8 +223,9 @@
 		inheritAttrs: false
 	});
 
-	type SubIngredientRatio = { id : string | null; ratio : number | null; weightInGrams ?: number | null };
-	type SubIngredientWeight = { id : string | null; ratio ?: number | null; weightInGrams : number | null };
+	type SubIngredientRatio = { id : string | null; name : string; ratio : number | null; weightInGrams ?: number | null };
+	type SubIngredientWeight = { id : string | null; name : string; ratio ?: number | null; weightInGrams : number | null };
+
 
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
@@ -247,8 +233,6 @@
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
 
-	// [核心修改] 将新建配方的默认结构作为 ref 的初始值。
-	// 这样可以确保 mainDough 计算属性在组件首次渲染时不会因 doughs 为空而返回 undefined，从而修复小程序端的报错。
 	const form = ref<RecipeFormTemplate & { targetTemp ?: number }>({
 		name: '',
 		type: 'MAIN',
@@ -283,10 +267,19 @@
 
 	const availablePreDoughs = computed(() => dataStore.recipes.otherRecipes.filter(r => r.type === 'PRE_DOUGH' && !r.deletedAt));
 
-	const filteredAvailableIngredients = computed(() => {
-		const preDoughNames = availablePreDoughs.value.map(r => r.name);
-		return dataStore.allIngredients.filter(ing => !preDoughNames.includes(ing.name));
+	// [核心改造] 主面团原料列表 = 基础原料 + EXTRA配方
+	const availableMainDoughIngredients = computed(() => {
+		const extras = dataStore.recipes.otherRecipes.filter(r => r.type === 'EXTRA' && !r.deletedAt);
+		const combined = [
+			...dataStore.allIngredients.map(i => ({ id: i.id, name: i.name })),
+			...extras.map(e => ({ id: e.id, name: e.name })),
+		];
+		// 排除掉所有面种配方的名称
+		const preDoughNames = new Set(availablePreDoughs.value.map(r => r.name));
+		return combined.filter(item => !preDoughNames.has(item.name))
+			.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 	});
+
 
 	const availableSubIngredients = computed(() => {
 		const extras = dataStore.recipes.otherRecipes.filter(r => r.type === 'EXTRA' && !r.deletedAt);
@@ -301,7 +294,6 @@
 		if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
 		if (!dataStore.dataLoaded.recipes) await dataStore.fetchRecipesData();
 
-		// [核心修改] 新建配方的逻辑已移至 ref 初始化，此处仅处理编辑情况
 		if (options && options.familyId) {
 			isEditing.value = true;
 			familyId.value = options.familyId;
@@ -319,27 +311,20 @@
 				}
 			}
 		}
-		// [核心修改] 移除 else 块，因为初始状态已经是新建状态
 	});
 
 	onUnload(() => {
 		uni.removeStorageSync('source_recipe_version_form');
 	});
 
-	const getIngredientName = (id : string | null) => {
-		if (!id) return '请选择原料';
-		const ingredient = dataStore.allIngredients.find(i => i.id === id);
-		if (ingredient) return ingredient.name;
-		const recipe = dataStore.allRecipes.find(r => r.id === id);
-		if (recipe) return recipe.name;
-		return '未知原料';
+	// [核心改造] 移除 getIngredientName 函数
+
+	// [核心改造] 新增 select 事件处理函数
+	const onIngredientSelect = (item : { id : string | null; name : string }, ingIndex : number) => {
+		mainDough.value.ingredients[ingIndex].id = item.id;
+		mainDough.value.ingredients[ingIndex].name = item.name;
 	};
 
-	const onIngredientChange = (e : any, ingIndex : number) => {
-		const selected = filteredAvailableIngredients.value[e.detail.value];
-		mainDough.value.ingredients[ingIndex].id = selected.id;
-		mainDough.value.ingredients[ingIndex].name = selected.name;
-	};
 
 	const addIngredient = () => {
 		mainDough.value.ingredients.push({ id: null, name: '', ratio: null });
@@ -381,30 +366,21 @@
 			const preDoughRecipe = activeVersion.doughs[0];
 			const ingredients = preDoughRecipe.ingredients;
 
-			// [核心修复] 对面种中的原料比例进行换算，以在UI上正确显示
-			// 1. 计算面种配方本身的总面粉比例 (通常是1，即100%)
 			const preDoughInternalFlourRatio = ingredients
 				.filter(i => i.ingredient?.isFlour)
 				.reduce((sum, i) => sum + i.ratio, 0);
 
-			// 2. 健壮性检查：如果面种里没有面粉，则无法进行换算
 			if (preDoughInternalFlourRatio <= 0) {
 				toastStore.show({ message: '所选面种配方中不含面粉，无法添加', type: 'error' });
 				return;
 			}
 
-			// 3. 获取用户输入的目标面粉占比 (例如: 20% -> 0.2)
 			const targetFlourRatioInMainDoughDecimal = toDecimal(preDoughFlourRatio.value);
-
-			// 4. 计算换算比例因子。
-			// 意义：为了让面种里的面粉量达到用户期望的占比，面种里所有原料的原始比例都需要乘以这个因子。
 			const scalingFactor = targetFlourRatioInMainDoughDecimal / preDoughInternalFlourRatio;
 
-			// 5. 根据换算因子，计算出用于UI展示的新原料列表
 			const displayIngredients = ingredients.map(i => ({
 				id: i.ingredient!.id,
 				name: i.ingredient!.name,
-				// 将原始比例乘以换算因子，再乘以100，得到相对于主面团总面粉的百分比数值
 				ratio: i.ratio * scalingFactor * 100,
 			}));
 
@@ -412,9 +388,7 @@
 				id: activeVersion.familyId,
 				name: fullPreDoughData.name,
 				type: 'PRE_DOUGH',
-				// 这里依然存储用户输入的原始百分比，用于最终提交给后端
 				flourRatioInMainDough: preDoughFlourRatio.value,
-				// 使用换算后的原料列表，以在UI上正确显示
 				ingredients: displayIngredients,
 				procedure: preDoughRecipe.procedure,
 			});
@@ -455,10 +429,10 @@
 		const product = form.value.products![productIndex];
 		if (type === 'mixIns') {
 			if (!product.mixIns) product.mixIns = [];
-			product.mixIns.push({ id: null, ratio: null, weightInGrams: null });
+			product.mixIns.push({ id: null, name: '', ratio: null, weightInGrams: null });
 		} else {
 			if (!product[type]) product[type] = [];
-			product[type]!.push({ id: null, ratio: null, weightInGrams: null });
+			product[type]!.push({ id: null, name: '', ratio: null, weightInGrams: null });
 		}
 	};
 
@@ -466,10 +440,13 @@
 		form.value.products![productIndex][type]!.splice(ingIndex, 1);
 	};
 
-	const onSubIngredientChange = (e : any, productIndex : number, type : 'mixIns' | 'fillings' | 'toppings', ingIndex : number) => {
-		const selected = availableSubIngredients.value[e.detail.value];
-		form.value.products![productIndex][type]![ingIndex].id = selected.id;
+	// [核心改造] 新增 onSubIngredientSelect 事件处理函数
+	const onSubIngredientSelect = (item : { id : string | null; name : string }, productIndex : number, type : 'mixIns' | 'fillings' | 'toppings', ingIndex : number) => {
+		const ingredient = form.value.products![productIndex][type]![ingIndex];
+		ingredient.id = item.id;
+		ingredient.name = item.name;
 	};
+
 
 	const addProcedureStep = (itemWithProcedure : { procedure ?: string[] }) => {
 		if (!itemWithProcedure.procedure) {
@@ -503,20 +480,18 @@
 			const allIngredientsMap = new Map(dataStore.allIngredients.map(i => [i.id, i]));
 
 			const ingredientsPayload = [
-				// 主面团中的普通原料
 				...mainDoughFromForm.ingredients
-					.filter(ing => ing.id && (ing.ratio !== null && ing.ratio > 0))
+					.filter(ing => ing.name && (ing.ratio !== null && ing.ratio > 0))
 					.map(ing => {
 						const details = allIngredientsMap.get(ing.id!);
 						return {
-							ingredientId: ing.id,
-							name: details?.name || ing.name,
+							ingredientId: ing.id || undefined,
+							name: ing.name,
 							ratio: toDecimal(ing.ratio),
 							isFlour: details?.isFlour || false,
 							waterContent: details?.waterContent || 0,
 						};
 					}),
-				// 添加的预制面团
 				...form.value.doughs!
 					.filter(d => d.type === 'PRE_DOUGH')
 					.map(d => ({
@@ -528,16 +503,15 @@
 			const processSubIngredients = (subIngredients : (SubIngredientWeight | SubIngredientRatio)[], type :
 				'MIX_IN' | 'FILLING' | 'TOPPING') => {
 				return subIngredients
-					.filter(i => i.id && (('ratio' in i && i.ratio !== null && i.ratio > 0) || ('weightInGrams' in i && i
+					.filter(i => i.name && (('ratio' in i && i.ratio !== null && i.ratio > 0) || ('weightInGrams' in i && i
 						.weightInGrams !== null && i.weightInGrams > 0)))
 					.map(i => {
-						const item = availableSubIngredients.value.find(s => s.id === i.id);
-						if (!item) return null;
-
-						const base : { name : string, type : string, ingredientId ?: string, ratio ?: number, weightInGrams ?: number } = { name: item.name, type };
-						const ingredient = dataStore.allIngredients.find(ing => ing.id === i.id);
-						if (ingredient) {
-							base.ingredientId = ingredient.id;
+						const base : { name : string; type : string; ingredientId ?: string; ratio ?: number; weightInGrams ?: number } = { name: i.name, type };
+						if (i.id) {
+							const ingredient = dataStore.allIngredients.find(ing => ing.id === i.id);
+							if (ingredient) {
+								base.ingredientId = ingredient.id;
+							}
 						}
 
 						if ('ratio' in i && i.ratio !== null) {
@@ -550,12 +524,11 @@
 					}).filter(Boolean);
 			};
 
-			// [核心修改] 在提交的数据中包含 notes 和 targetTemp
 			const payload = {
 				name: form.value.name,
 				type: form.value.type,
 				notes: form.value.notes,
-				targetTemp: form.value.targetTemp, // 新增
+				targetTemp: form.value.targetTemp,
 				lossRatio: toDecimal(mainDoughFromForm.lossRatio),
 				procedure: mainDoughFromForm.procedure.filter(p => p && p.trim()),
 				ingredients: ingredientsPayload,
@@ -569,7 +542,7 @@
 				})),
 			};
 
-			let createdOrUpdatedRecipe : RecipeVersion | null = null;
+			let createdOrUpdatedRecipe : any = null;
 			if (isEditing.value && familyId.value) {
 				createdOrUpdatedRecipe = await createRecipeVersion(familyId.value, payload);
 			} else {
@@ -591,7 +564,6 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-	// [核心新增] 引入 Mixin
 	@include form-control-styles;
 
 	.page-wrapper {
@@ -600,8 +572,6 @@
 		height: 100vh;
 	}
 
-	// [核心修改] 删除本地重复的 .input-field 和 .picker 相关样式
-	// 并调整 .ratio-input 的样式以继承 .input-field
 	.input-field.ratio-input {
 		width: 80px;
 		text-align: center;
@@ -643,8 +613,7 @@
 		gap: 10px;
 		margin-bottom: 10px;
 
-		// [核心修改] 让 picker 在 flex 布局中正确伸展
-		picker {
+		.autocomplete-wrapper {
 			flex: 1;
 			min-width: 0;
 		}
@@ -679,14 +648,12 @@
 		color: var(--text-primary);
 	}
 
-	/* [样式修复] 增加外层容器来控制按钮的上下外边距 */
 	.add-button-container {
 		padding: 0 15px;
 		margin: 30px 0px;
 	}
 
 	.add-button {
-		/* [样式修复] 移除按钮自身的 margin-bottom */
 		margin-bottom: 0;
 		min-height: 46px;
 	}
@@ -756,14 +723,11 @@
 		margin: 25px 0px;
 	}
 
-	/* [样式修复] 使用 wrapper 容器来解决小程序中的样式问题 */
 	.card-delete-btn-wrapper {
 		width: 32px;
 		height: 32px;
 		border-radius: 50%;
-		/* 设置一个背景色以确保在小程序中渲染正确 */
 		background-color: #fcf7f1;
-		/* 让内部的 IconButton 组件可以完美对齐 */
 		display: flex;
 		justify-content: center;
 		align-items: center;
