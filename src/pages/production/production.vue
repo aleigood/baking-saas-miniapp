@@ -54,8 +54,7 @@
 		<CalendarModal :visible="isCalendarVisible" :task-dates="taskDates" @close="isCalendarVisible = false"
 			@select="handleDateSelect" />
 
-		<AppModal :visible="uiStore.showTaskActionsModal" @update:visible="uiStore.closeModal(MODAL_KEYS.TASK_ACTIONS)"
-			title="制作任务" :no-header-line="true">
+		<AppModal v-model:visible="showTaskActionsModal" title="制作任务" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleOpenCancelConfirm" :bleed="true">
 					<view class="main-info">
@@ -80,8 +79,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal :visible="uiStore.showTemperatureSettingsModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.TEMPERATURE_SETTINGS)" title="设置温度参数">
+		<AppModal v-model:visible="showTemperatureSettingsModal" title="设置温度参数">
 			<view class="form-container">
 				<view class="form-item">
 					<view class="form-label">和面机类型</view>
@@ -109,7 +107,7 @@
 				</view>
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.TEMPERATURE_SETTINGS)">取消</AppButton>
+				<AppButton type="secondary" @click="showTemperatureSettingsModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleSaveTemperatureSettings">保存</AppButton>
 			</view>
 		</AppModal>
@@ -124,7 +122,7 @@
 	import { useUiStore } from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
 	import { useTemperatureStore } from '@/store/temperature';
-	import { MODAL_KEYS } from '@/constants/modalKeys';
+	// [核心改造] 移除 MODAL_KEYS 的导入
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -148,6 +146,9 @@
 	const isSubmitting = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 	const showCancelConfirmModal = ref(false);
+	// [核心改造] 新增本地 ref 用于控制弹窗
+	const showTaskActionsModal = ref(false);
+	const showTemperatureSettingsModal = ref(false);
 
 	const isCalendarVisible = ref(false);
 	const todayForInit = new Date();
@@ -158,7 +159,6 @@
 	);
 	const taskDates = ref<string[]>([]);
 
-	// [核心改造] 新增导航锁
 	const isNavigating = ref(false);
 
 	const tempSettings = reactive({
@@ -189,7 +189,6 @@
 	});
 
 	onShow(async () => {
-		// [核心改造] 每次页面显示时，重置导航锁
 		isNavigating.value = false;
 
 		const toastMessage = uiStore.consumeNextPageToast();
@@ -197,7 +196,6 @@
 			toastStore.show(toastMessage);
 		}
 
-		// [核心改造] 实现按需刷新逻辑
 		if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
 			isLoading.value = true;
 			try {
@@ -215,7 +213,6 @@
 
 	const handleRefresh = async () => {
 		try {
-			// [核心改造] 下拉刷新时，强制将数据标记为脏，以确保重新获取
 			dataStore.markProductionAsStale();
 			await Promise.all([
 				dataStore.fetchProductionData(selectedDate.value),
@@ -290,7 +287,6 @@
 	};
 
 	const navigateToDetail = (task : any) => {
-		// [核心改造] 增加导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
 
@@ -304,7 +300,6 @@
 	};
 
 	const navigateToHistory = () => {
-		// [核心改造] 增加导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
 		uni.navigateTo({ url: '/pages/production/history' });
@@ -313,11 +308,13 @@
 	const openTaskActions = (task : any) => {
 		if (task.status === 'PREP') return;
 		selectedTaskForAction.value = task as ProductionTaskDto;
-		uiStore.openModal(MODAL_KEYS.TASK_ACTIONS);
+		// [核心改造] 直接修改本地 ref
+		showTaskActionsModal.value = true;
 	};
 
 	const handleOpenCancelConfirm = () => {
-		uiStore.closeModal(MODAL_KEYS.TASK_ACTIONS);
+		// [核心改造] 直接修改本地 ref
+		showTaskActionsModal.value = false;
 		showCancelConfirmModal.value = true;
 	};
 
@@ -327,7 +324,6 @@
 		try {
 			await updateTaskStatus(selectedTaskForAction.value.id, 'CANCELLED');
 			toastStore.show({ message: '任务已取消', type: 'success' });
-			// [核心改造] 任务取消后，标记生产和历史数据为脏
 			dataStore.markProductionAsStale();
 			dataStore.markHistoricalTasksAsStale();
 			await dataStore.fetchProductionData(selectedDate.value);
@@ -341,7 +337,6 @@
 	};
 
 	const navigateToCreatePage = () => {
-		// [核心改造] 增加导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
 		uni.navigateTo({ url: '/pages/production/create' });
@@ -349,7 +344,8 @@
 
 	const openTemperatureSettingsModal = () => {
 		Object.assign(tempSettings, temperatureStore.settings);
-		uiStore.openModal(MODAL_KEYS.TEMPERATURE_SETTINGS);
+		// [核心改造] 直接修改本地 ref
+		showTemperatureSettingsModal.value = true;
 	};
 
 	const handleMixerChange = (e : any) => {
@@ -359,7 +355,8 @@
 
 	const handleSaveTemperatureSettings = () => {
 		temperatureStore.saveTemperatureSettings(tempSettings);
-		uiStore.closeModal(MODAL_KEYS.TEMPERATURE_SETTINGS);
+		// [核心改造] 直接修改本地 ref
+		showTemperatureSettingsModal.value = false;
 		toastStore.show({ message: '设置已保存', type: 'success' });
 	};
 </script>

@@ -144,8 +144,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal :visible="uiStore.showProcurementActionsModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS)" title="采购记录" :no-header-line="true">
+		<AppModal v-model:visible="showProcurementActionsModal" title="采购记录" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleEditProcurementOption" :bleed="true">
 					<view class="main-info">
@@ -174,8 +173,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal :visible="uiStore.showUpdateStockConfirmModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM)" title="库存调整">
+		<AppModal v-model:visible="showUpdateStockConfirmModal" title="库存调整">
 			<FormItem label="库存变化量 (kg)">
 				<input class="input-field" type="digit" v-model.number="stockAdjustment.changeInKg"
 					placeholder="正数代表盘盈，负数代表损耗" />
@@ -191,7 +189,7 @@
 				<input class="input-field" v-model="stockAdjustment.reason" placeholder="或手动输入原因" />
 			</FormItem>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM)">取消</AppButton>
+				<AppButton type="secondary" @click="showUpdateStockConfirmModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleConfirmUpdateStock" :loading="isSubmitting">
 					{{ isSubmitting ? '保存中...' : '确认调整' }}
 				</AppButton>
@@ -202,9 +200,8 @@
 
 <script setup lang="ts">
 	import { ref, computed, reactive, watch } from 'vue';
-	import { onLoad } from '@dcloudio/uni-app';
+	import { onLoad, onShow } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
-	import { useUiStore } from '@/store/ui';
 	import { useUserStore } from '@/store/user';
 	import { useToastStore } from '@/store/toast';
 	import type { Ingredient, IngredientSKU, ProcurementRecord, IngredientLedgerEntry } from '@/types/api';
@@ -224,7 +221,6 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
-	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { formatChineseDate, formatDateTime, formatNumber, formatWeight } from '@/utils/format';
 
 	defineOptions({
@@ -232,12 +228,13 @@
 	});
 
 	const dataStore = useDataStore();
-	const uiStore = useUiStore();
 	const userStore = useUserStore();
 	const toastStore = useToastStore();
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const ingredient = ref<Ingredient | null>(null);
+	// [核心改造] 新增 ingredientId ref 用于在 onShow 中刷新
+	const ingredientId = ref<string | null>(null);
 	const detailChartTab = ref<'price' | 'usage'>('price');
 	const chartTabs = ref([
 		{ key: 'price', label: '价格走势' },
@@ -274,6 +271,8 @@
 	const selectedProcurementForAction = ref<ProcurementRecord | null>(null);
 
 	const showEditModal = ref(false);
+	const showProcurementActionsModal = ref(false);
+	const showUpdateStockConfirmModal = ref(false);
 
 	const ingredientForm = reactive({
 		name: '',
@@ -328,14 +327,22 @@
 	});
 
 	onLoad(async (options) => {
-		const ingredientId = options?.ingredientId;
-		if (ingredientId) {
-			await loadIngredientData(ingredientId);
+		ingredientId.value = options?.ingredientId || null;
+		if (ingredientId.value) {
+			await loadIngredientData(ingredientId.value);
 		} else {
 			toastStore.show({ message: '无效的原料ID', type: 'error' });
 			isLoading.value = false;
 		}
 	});
+
+	// [核心改造] 修改 onShow 逻辑，确保每次都刷新
+	onShow(async () => {
+		if (ingredientId.value && !isLoading.value) { // 确保不是在首次加载时重复执行
+			await loadIngredientData(ingredientId.value);
+		}
+	});
+
 
 	const loadIngredientData = async (id : string) => {
 		isLoading.value = true;
@@ -356,10 +363,19 @@
 
 
 			if (ingredientData.activeSku?.id) {
-				selectedSkuId.value = ingredientData.activeSku.id;
+				// [核心改造] 检查 selectedSkuId 是否还存在于新的 skus 列表中
+				const currentSelectionIsValid = ingredientData.skus.some(sku => sku.id === selectedSkuId.value);
+				if (!currentSelectionIsValid) {
+					selectedSkuId.value = ingredientData.activeSku.id;
+				}
 			} else if (ingredientData.skus.length > 0) {
 				selectedSkuId.value = ingredientData.skus[0].id;
+			} else {
+				selectedSkuId.value = null; // 如果没有 SKU，则清空选择
 			}
+
+			// [核心改造] 清除脏标记
+			dataStore.markIngredientsAsStale();
 		} catch (error) {
 			console.error("Failed to load ingredient data:", error);
 		} finally {
@@ -425,7 +441,6 @@
 
 			toastStore.show({ message: '创建成功', type: 'success' });
 			showAddSkuModal.value = false;
-			// [核心改造] 标记原料数据为脏
 			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
 		} finally {
@@ -478,7 +493,6 @@
 			await createProcurement(payload);
 			toastStore.show({ message: '入库成功', type: 'success' });
 			showProcurementModal.value = false;
-			// [核心改造] 标记原料数据为脏
 			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value!.id);
 		} finally {
@@ -520,7 +534,6 @@
 			toastStore.show({ message: '删除成功', type: 'success' });
 			showDeleteSkuConfirmModal.value = false;
 			selectedSkuForAction.value = null;
-			// [核心改造] 标记原料数据为脏
 			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
 		} catch (error) {
@@ -537,7 +550,6 @@
 		try {
 			await setActiveSku(ingredient.value.id, sku.id);
 			toastStore.show({ message: '设置成功', type: 'success' });
-			// [核心改造] 标记原料数据为脏
 			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
 		} catch (error) {
@@ -573,7 +585,6 @@
 			});
 			toastStore.show({ message: '保存成功', type: 'success' });
 			showEditModal.value = false;
-			// [核心改造] 标记原料数据为脏
 			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
 		} catch (error) {
@@ -585,11 +596,11 @@
 
 	const handleProcurementLongPress = (record : ProcurementRecord) => {
 		selectedProcurementForAction.value = record;
-		uiStore.openModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
+		showProcurementActionsModal.value = true;
 	};
 
 	const handleEditProcurementOption = () => {
-		uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
+		showProcurementActionsModal.value = false;
 		if (selectedProcurementForAction.value) {
 			const record = selectedProcurementForAction.value;
 			editProcurementForm.id = record.id;
@@ -616,7 +627,6 @@
 			await updateProcurement(editProcurementForm.id, payload);
 			toastStore.show({ message: '更新成功', type: 'success' });
 			showEditProcurementModal.value = false;
-			// [核心改造] 标记原料数据为脏
 			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
 		} catch (error) {
@@ -631,7 +641,7 @@
 			stockAdjustment.changeInKg = null;
 			stockAdjustment.reason = '';
 			stockAdjustment.initialCostPerKg = null;
-			uiStore.openModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
+			showUpdateStockConfirmModal.value = true;
 		}
 	};
 
@@ -665,8 +675,7 @@
 
 			await adjustStock(ingredient.value.id, payload);
 			toastStore.show({ message: '库存调整成功', type: 'success' });
-			uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
-			// [核心改造] 标记原料数据为脏
+			showUpdateStockConfirmModal.value = false;
 			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
 		} catch (error) {

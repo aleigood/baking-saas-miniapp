@@ -30,13 +30,12 @@
 
 		<AppFab v-if="canManagePersonnel" @click="openInviteModal" :no-tab-bar="true" />
 
-		<AppModal :visible="uiStore.showInviteModal" @update:visible="uiStore.closeModal(MODAL_KEYS.INVITE)"
-			title="邀请新成员">
+		<AppModal v-model:visible="showInviteModal" title="邀请新成员">
 			<FormItem label="被邀请人手机号">
 				<input class="input-field" type="tel" v-model="inviteePhone" placeholder="请输入手机号" />
 			</FormItem>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.INVITE)">
+				<AppButton type="secondary" @click="showInviteModal = false">
 					取消
 				</AppButton>
 				<AppButton type="primary" @click="handleInvite" :disabled="isCreatingInvite"
@@ -52,10 +51,8 @@
 	import { ref, computed } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
-	import { useUiStore } from '@/store/ui';
 	import { useUserStore } from '@/store/user';
 	import { useToastStore } from '@/store/toast';
-	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { createInvitation } from '@/api/invitations';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
@@ -72,19 +69,17 @@
 	});
 
 	const dataStore = useDataStore();
-	const uiStore = useUiStore();
 	const userStore = useUserStore();
 	const toastStore = useToastStore();
 
 	const isCreatingInvite = ref(false);
 	const inviteePhone = ref('');
-	// [核心改造] 新增导航锁
 	const isNavigating = ref(false);
+	// [核心改造] 新增本地 ref 用于控制弹窗
+	const showInviteModal = ref(false);
 
 	onShow(async () => {
-		// [核心改造] 重置导航锁
 		isNavigating.value = false;
-		// [核心改造] 实现按需刷新
 		if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
 			await dataStore.fetchMembersData();
 		}
@@ -109,7 +104,6 @@
 	};
 
 	const navigateToDetail = (memberId : string) => {
-		// [核心改造] 增加导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
 
@@ -119,7 +113,8 @@
 	};
 
 	const openInviteModal = () => {
-		uiStore.openModal(MODAL_KEYS.INVITE);
+		// [核心改造] 直接修改本地 ref
+		showInviteModal.value = true;
 	};
 
 	const handleInvite = async () => {
@@ -131,9 +126,8 @@
 		try {
 			await createInvitation(inviteePhone.value);
 			toastStore.show({ message: '邀请已发送', type: 'success' });
-			uiStore.closeModal(MODAL_KEYS.INVITE);
+			showInviteModal.value = false;
 			inviteePhone.value = '';
-			// [核心改造] 邀请发送后，人员列表可能发生变化（虽然是间接的），标记为脏
 			dataStore.markMembersAsStale();
 		} catch (error) {
 			console.error('Failed to create invitation:', error);

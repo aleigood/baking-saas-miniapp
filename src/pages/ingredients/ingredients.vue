@@ -62,8 +62,7 @@
 
 		<AppFab @click="openCreateIngredientModal" />
 
-		<AppModal :visible="uiStore.showIngredientActionsModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.INGREDIENT_ACTIONS)" title="原料操作" :no-header-line="true">
+		<AppModal v-model:visible="showIngredientActionsModal" title="原料操作" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleDeleteIngredient" :bleed="true">
 					<view class="main-info">
@@ -73,8 +72,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal :visible="uiStore.showDeleteIngredientConfirmModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.DELETE_INGREDIENT_CONFIRM)" title="确认删除">
+		<AppModal v-model:visible="showDeleteIngredientConfirmModal" title="确认删除">
 			<view class="modal-prompt-text">
 				确定要删除 “{{ selectedIngredient?.name }}” 吗？
 			</view>
@@ -82,7 +80,7 @@
 				已被配方使用的原料将无法被删除。
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.DELETE_INGREDIENT_CONFIRM)">取消
+				<AppButton type="secondary" @click="showDeleteIngredientConfirmModal = false">取消
 				</AppButton>
 				<AppButton type="danger" @click="confirmDeleteIngredient" :loading="isSubmitting">
 					{{ isSubmitting ? '' : '确认删除' }}
@@ -90,8 +88,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal :visible="uiStore.showCreateIngredientModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.CREATE_INGREDIENT)" title="新增原料">
+		<AppModal v-model:visible="showCreateIngredientModal" title="新增原料">
 			<FormItem label="原料名称">
 				<input class="input-field" v-model="newIngredientForm.name" placeholder="输入原料名称" />
 			</FormItem>
@@ -112,7 +109,7 @@
 					placeholder="例如: 75" />
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.CREATE_INGREDIENT)">取消</AppButton>
+				<AppButton type="secondary" @click="showCreateIngredientModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleCreateIngredient" :loading="isSubmitting">
 					{{ isSubmitting ? '保存中...' : '确认保存' }}
 				</AppButton>
@@ -126,10 +123,8 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useUiStore } from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
 	import { createIngredient, deleteIngredient } from '@/api/ingredients';
-	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import type { Ingredient } from '@/types/api';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -143,7 +138,6 @@
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const uiStore = useUiStore();
 	const toastStore = useToastStore();
 	const ingredientFilter = ref('all');
 	const isSubmitting = ref(false);
@@ -155,7 +149,10 @@
 		{ key: 'low', label: '库存紧张' }
 	]);
 	const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
-	// [核心改造] 新增导航锁
+	const showIngredientActionsModal = ref(false);
+	const showDeleteIngredientConfirmModal = ref(false);
+	const showCreateIngredientModal = ref(false);
+	// [核心改造] 恢复导航锁
 	const isNavigating = ref(false);
 
 	const newIngredientForm = reactive({
@@ -175,9 +172,8 @@
 	});
 
 	onShow(async () => {
-		// [核心改造] 重置导航锁
+		// [核心改造] 恢复导航锁重置
 		isNavigating.value = false;
-		// [核心改造] 实现按需刷新
 		if (dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients) {
 			await dataStore.fetchIngredientsData();
 		}
@@ -185,7 +181,6 @@
 
 	const handleRefresh = async () => {
 		try {
-			// [核心改造] 下拉刷新时强制标记为脏
 			dataStore.markIngredientsAsStale();
 			await dataStore.fetchIngredientsData();
 		} finally {
@@ -235,17 +230,16 @@
 	};
 
 	const navigateToDetail = (ingredientId : string) => {
-		// [核心改造] 增加导航锁
+		// [核心改造] 恢复导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
-
 		uni.navigateTo({
 			url: `/pages/ingredients/detail?ingredientId=${ingredientId}`,
 		});
 	};
 
 	const navigateToLedger = () => {
-		// [核心改造] 增加导航锁
+		// [核心改造] 恢复导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
 		uni.navigateTo({
@@ -256,12 +250,12 @@
 	const openIngredientActions = (ingredient : Ingredient) => {
 		if (!canEdit.value) return;
 		selectedIngredient.value = ingredient;
-		uiStore.openModal(MODAL_KEYS.INGREDIENT_ACTIONS);
+		showIngredientActionsModal.value = true;
 	};
 
 	const handleDeleteIngredient = () => {
-		uiStore.closeModal(MODAL_KEYS.INGREDIENT_ACTIONS);
-		uiStore.openModal(MODAL_KEYS.DELETE_INGREDIENT_CONFIRM);
+		showIngredientActionsModal.value = false;
+		showDeleteIngredientConfirmModal.value = true;
 	};
 
 	const confirmDeleteIngredient = async () => {
@@ -270,14 +264,13 @@
 		try {
 			await deleteIngredient(selectedIngredient.value.id);
 			toastStore.show({ message: '删除成功', type: 'success' });
-			// [核心改造] 删除成功后，标记原料数据为脏
 			dataStore.markIngredientsAsStale();
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			console.error("Failed to delete ingredient:", error);
 		} finally {
 			isSubmitting.value = false;
-			uiStore.closeModal(MODAL_KEYS.DELETE_INGREDIENT_CONFIRM);
+			showDeleteIngredientConfirmModal.value = false;
 			selectedIngredient.value = null;
 		}
 	};
@@ -287,7 +280,7 @@
 		newIngredientForm.type = 'STANDARD';
 		newIngredientForm.isFlour = false;
 		newIngredientForm.waterContent = 0;
-		uiStore.openModal(MODAL_KEYS.CREATE_INGREDIENT);
+		showCreateIngredientModal.value = true;
 	};
 
 	const onTypeChange = (e : any) => {
@@ -312,8 +305,7 @@
 				waterContent: (Number(newIngredientForm.waterContent) || 0) / 100,
 			});
 			toastStore.show({ message: '创建成功，请继续添加SKU和采购', type: 'success', duration: 3000 });
-			uiStore.closeModal(MODAL_KEYS.CREATE_INGREDIENT);
-			// [核心改造] 创建成功后，标记原料数据为脏
+			showCreateIngredientModal.value = false;
 			dataStore.markIngredientsAsStale();
 			await dataStore.fetchIngredientsData();
 		} catch (error) {

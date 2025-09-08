@@ -77,8 +77,7 @@
 
 		<ExpandingFab v-if="canEditRecipe" :actions="fabActions" />
 
-		<AppModal :visible="uiStore.showRecipeActionsModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.RECIPE_ACTIONS)" title="配方操作" :no-header-line="true">
+		<AppModal v-model:visible="showRecipeActionsModal" title="配方操作" :no-header-line="true">
 			<view class="options-list">
 				<template v-if="selectedRecipe?.deletedAt === null">
 					<ListItem class="option-item" @click="handleDiscontinueRecipe" :bleed="true">
@@ -102,8 +101,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal :visible="uiStore.showDeleteRecipeConfirmModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.DELETE_RECIPE_CONFIRM)" title="确认删除">
+		<AppModal v-model:visible="showDeleteRecipeConfirmModal" title="确认删除">
 			<view class="modal-prompt-text">
 				确定要删除 “{{ selectedRecipe?.name }}” 吗？
 			</view>
@@ -111,15 +109,14 @@
 				已被生产任务使用的配方将无法被删除。此操作不可撤销。
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.DELETE_RECIPE_CONFIRM)">取消</AppButton>
+				<AppButton type="secondary" @click="showDeleteRecipeConfirmModal = false">取消</AppButton>
 				<AppButton type="danger" @click="confirmDeleteRecipe" :loading="isSubmitting">
 					{{ isSubmitting ? '' : '确认删除' }}
 				</AppButton>
 			</view>
 		</AppModal>
 
-		<AppModal :visible="uiStore.showDiscontinueRecipeConfirmModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM)" title="确认停用">
+		<AppModal v-model:visible="showDiscontinueRecipeConfirmModal" title="确认停用">
 			<view class="modal-prompt-text">
 				确定要停用 “{{ selectedRecipe?.name }}” 吗？
 			</view>
@@ -127,7 +124,7 @@
 				停用后，此配方将无法用于新的生产任务。
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM)">取消
+				<AppButton type="secondary" @click="showDiscontinueRecipeConfirmModal = false">取消
 				</AppButton>
 				<AppButton type="danger" @click="confirmDiscontinueRecipe" :loading="isSubmitting">
 					{{ isSubmitting ? '' : '确认停用' }}
@@ -135,8 +132,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal :visible="uiStore.showRestoreRecipeConfirmModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.RESTORE_RECIPE_CONFIRM)" title="确认恢复">
+		<AppModal v-model:visible="showRestoreRecipeConfirmModal" title="确认恢复">
 			<view class="modal-prompt-text">
 				确定要恢复 “{{ selectedRecipe?.name }}” 吗？
 			</view>
@@ -144,7 +140,7 @@
 				恢复后，此配方将可以重新用于生产任务。
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.RESTORE_RECIPE_CONFIRM)">取消
+				<AppButton type="secondary" @click="showRestoreRecipeConfirmModal = false">取消
 				</AppButton>
 				<AppButton type="primary" @click="confirmRestoreRecipe" :loading="isSubmitting">
 					{{ isSubmitting ? '' : '确认恢复' }}
@@ -160,9 +156,7 @@
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useUiStore } from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
-	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { discontinueRecipe, restoreRecipe, deleteRecipe } from '@/api/recipes';
 	import type { RecipeFamily } from '@/types/api';
 	import ExpandingFab from '@/components/ExpandingFab.vue';
@@ -174,7 +168,6 @@
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const uiStore = useUiStore();
 	const toastStore = useToastStore();
 
 	const recipeFilter = ref<'MAIN' | 'OTHER'>('MAIN');
@@ -192,8 +185,12 @@
 		{ key: 'OTHER', label: '其他' }
 	]);
 	const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
-	// [核心改造] 新增导航锁
 	const isNavigating = ref(false);
+	// [核心改造] 新增本地 ref 用于控制弹窗
+	const showRecipeActionsModal = ref(false);
+	const showDeleteRecipeConfirmModal = ref(false);
+	const showDiscontinueRecipeConfirmModal = ref(false);
+	const showRestoreRecipeConfirmModal = ref(false);
 
 	const fabActions = computed(() => {
 		return [{
@@ -208,9 +205,7 @@
 	});
 
 	onShow(async () => {
-		// [核心改造] 重置导航锁
 		isNavigating.value = false;
-		// [核心改造] 实现按需刷新
 		if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
 			await dataStore.fetchRecipesData();
 		}
@@ -218,7 +213,6 @@
 
 	const handleRefresh = async () => {
 		try {
-			// [核心改造] 下拉刷新时强制标记为脏
 			dataStore.markRecipesAsStale();
 			await dataStore.fetchRecipesData();
 		} finally {
@@ -277,7 +271,6 @@
 	});
 
 	const navigateToEditPage = (familyId : string | null) => {
-		// [核心改造] 增加导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
 		const url = familyId ? `/pages/recipes/edit?familyId=${familyId}` : '/pages/recipes/edit';
@@ -285,14 +278,12 @@
 	};
 
 	const navigateToOtherEditPage = () => {
-		// [核心改造] 增加导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
 		uni.navigateTo({ url: '/pages/recipes/edit-other' });
 	};
 
 	const navigateToDetail = (familyId : string) => {
-		// [核心改造] 增加导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
 		uni.navigateTo({
@@ -303,22 +294,22 @@
 	const openRecipeActions = (recipe : RecipeFamily) => {
 		if (!canEditRecipe.value) return;
 		selectedRecipe.value = recipe;
-		uiStore.openModal(MODAL_KEYS.RECIPE_ACTIONS);
+		showRecipeActionsModal.value = true;
 	};
 
 	const handleDiscontinueRecipe = () => {
-		uiStore.closeModal(MODAL_KEYS.RECIPE_ACTIONS);
-		uiStore.openModal(MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM);
+		showRecipeActionsModal.value = false;
+		showDiscontinueRecipeConfirmModal.value = true;
 	};
 
 	const handleRestoreRecipe = () => {
-		uiStore.closeModal(MODAL_KEYS.RECIPE_ACTIONS);
-		uiStore.openModal(MODAL_KEYS.RESTORE_RECIPE_CONFIRM);
+		showRecipeActionsModal.value = false;
+		showRestoreRecipeConfirmModal.value = true;
 	};
 
 	const handleDeleteRecipe = () => {
-		uiStore.closeModal(MODAL_KEYS.RECIPE_ACTIONS);
-		uiStore.openModal(MODAL_KEYS.DELETE_RECIPE_CONFIRM);
+		showRecipeActionsModal.value = false;
+		showDeleteRecipeConfirmModal.value = true;
 	};
 
 	const confirmDiscontinueRecipe = async () => {
@@ -327,14 +318,13 @@
 		try {
 			await discontinueRecipe(selectedRecipe.value.id);
 			toastStore.show({ message: '配方已停用', type: 'success' });
-			// [核心改造] 操作成功后，标记数据为脏
 			dataStore.markRecipesAsStale();
 			await dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to discontinue recipe:', error);
 		} finally {
 			isSubmitting.value = false;
-			uiStore.closeModal(MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM);
+			showDiscontinueRecipeConfirmModal.value = false;
 			selectedRecipe.value = null;
 		}
 	};
@@ -345,14 +335,13 @@
 		try {
 			await restoreRecipe(selectedRecipe.value.id);
 			toastStore.show({ message: '配方已恢复', type: 'success' });
-			// [核心改造] 操作成功后，标记数据为脏
 			dataStore.markRecipesAsStale();
 			await dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to restore recipe:', error);
 		} finally {
 			isSubmitting.value = false;
-			uiStore.closeModal(MODAL_KEYS.RESTORE_RECIPE_CONFIRM);
+			showRestoreRecipeConfirmModal.value = false;
 			selectedRecipe.value = null;
 		}
 	};
@@ -363,14 +352,13 @@
 		try {
 			await deleteRecipe(selectedRecipe.value.id);
 			toastStore.show({ message: '删除成功', type: 'success' });
-			// [核心改造] 操作成功后，标记数据为脏
 			dataStore.markRecipesAsStale();
 			await dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to delete recipe:', error);
 		} finally {
 			isSubmitting.value = false;
-			uiStore.closeModal(MODAL_KEYS.DELETE_RECIPE_CONFIRM);
+			showDeleteRecipeConfirmModal.value = false;
 			selectedRecipe.value = null;
 		}
 	};

@@ -45,7 +45,7 @@
 
 <script setup lang="ts">
 	import { ref, computed } from 'vue';
-	import { onLoad } from '@dcloudio/uni-app';
+	import { onLoad, onShow } from '@dcloudio/uni-app'; // [核心改造] 导入 onShow
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
@@ -69,11 +69,14 @@
 	const isSubmitting = ref(false);
 	const selectedMember = ref<Member | null>(null);
 	const editableMemberRole = ref<Role>('MEMBER');
+	// [核心改造] 新增 memberId ref
+	const memberId = ref<string | null>(null);
 
-	onLoad(async (options) => {
-		const memberId = options?.memberId;
-		if (memberId) {
-			if (memberId === userStore.userInfo?.id) {
+	// [核心改造] 将 onLoad 的逻辑提取到一个函数中
+	const loadMemberData = () => {
+		isLoading.value = true;
+		if (memberId.value) {
+			if (memberId.value === userStore.userInfo?.id) {
 				const currentUserTenantInfo = userStore.userInfo.tenants.find(t => t.tenant.id === dataStore.currentTenantId);
 				if (currentUserTenantInfo) {
 					selectedMember.value = {
@@ -87,7 +90,7 @@
 					editableMemberRole.value = selectedMember.value.role;
 				}
 			} else {
-				const memberFromStore = dataStore.members.find(m => m.id === memberId);
+				const memberFromStore = dataStore.members.find(m => m.id === memberId.value);
 				if (memberFromStore) {
 					selectedMember.value = JSON.parse(JSON.stringify(memberFromStore));
 					editableMemberRole.value = selectedMember.value.role;
@@ -95,6 +98,24 @@
 			}
 		}
 		isLoading.value = false;
+	};
+
+
+	onLoad(async (options) => {
+		memberId.value = options?.memberId || null;
+		// [核心改造] 确保数据已加载
+		if (!dataStore.dataLoaded.members) {
+			await dataStore.fetchMembersData();
+		}
+		loadMemberData();
+	});
+
+	// [核心改造] 新增 onShow，用于在数据变脏时刷新
+	onShow(() => {
+		// 只有在非首次加载时才检查，避免重复加载
+		if (!isLoading.value) {
+			loadMemberData();
+		}
 	});
 
 	const roleMap : Record<Role, string> = {
@@ -162,7 +183,6 @@
 		try {
 			await updateMember(selectedMember.value.id, { role: editableMemberRole.value });
 			toastStore.show({ message: '角色更新成功', type: 'success' });
-			// [核心改造] 操作成功后，标记人员数据为脏
 			dataStore.markMembersAsStale();
 			uni.navigateBack();
 		} catch (error : any) {
@@ -184,7 +204,6 @@
 					try {
 						await removeMember(selectedMember.value!.id);
 						toastStore.show({ message: '移除成功', type: 'success' });
-						// [核心改造] 操作成功后，标记人员数据为脏
 						dataStore.markMembersAsStale();
 						uni.navigateBack();
 					} catch (error : any) {

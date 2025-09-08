@@ -153,9 +153,9 @@
 		}
 	});
 
+	// [核心改造] onShow 中增加数据刷新逻辑
 	onShow(async () => {
 		if (familyId.value && !isLoading.value) {
-			await dataStore.fetchIngredientsData();
 			await loadRecipeData(familyId.value);
 		}
 	});
@@ -307,8 +307,8 @@
 				message: '设置成功',
 				type: 'success'
 			});
+			dataStore.markRecipesAsStale(); // 标记为脏数据
 			await loadRecipeData(recipeFamily.value.id);
-			dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to activate version:', error);
 		} finally {
@@ -328,8 +328,8 @@
 			});
 			showDeleteVersionConfirmModal.value = false;
 			selectedVersionForAction.value = null;
+			dataStore.markRecipesAsStale(); // 标记为脏数据
 			await loadRecipeData(familyId.value);
-			await dataStore.fetchRecipesData();
 		} catch (error) {
 			showDeleteVersionConfirmModal.value = false;
 		} finally {
