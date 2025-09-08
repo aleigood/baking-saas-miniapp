@@ -55,7 +55,6 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 
-	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
 		inheritAttrs: false
 	});
@@ -107,7 +106,8 @@
 
 			toastStore.show({ message: '原料创建并入库成功', type: 'success' });
 
-			await dataStore.fetchIngredientsData();
+			// [核心改造] 创建成功后，标记原料数据为脏
+			dataStore.markIngredientsAsStale();
 			uni.navigateBack();
 		} catch (error) {
 			console.error("Failed to create ingredient:", error);

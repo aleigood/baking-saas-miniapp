@@ -170,7 +170,6 @@
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
-	// [核心新增] 引入新组件
 	import RefreshableLayout from '@/components/RefreshableLayout.vue';
 
 	const userStore = useUserStore();
@@ -192,8 +191,9 @@
 		{ key: 'MAIN', label: '面团' },
 		{ key: 'OTHER', label: '其他' }
 	]);
-	// [核心新增] 创建对组件实例的引用
 	const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
+	// [核心改造] 新增导航锁
+	const isNavigating = ref(false);
 
 	const fabActions = computed(() => {
 		return [{
@@ -208,17 +208,20 @@
 	});
 
 	onShow(async () => {
-		if (!dataStore.dataLoaded.recipes) {
+		// [核心改造] 重置导航锁
+		isNavigating.value = false;
+		// [核心改造] 实现按需刷新
+		if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
 			await dataStore.fetchRecipesData();
 		}
 	});
 
-	// [核心新增] 下拉刷新处理函数
 	const handleRefresh = async () => {
 		try {
+			// [核心改造] 下拉刷新时强制标记为脏
+			dataStore.markRecipesAsStale();
 			await dataStore.fetchRecipesData();
 		} finally {
-			// [核心新增] 无论成功与否，都结束刷新动画
 			refreshableLayout.value?.finishRefresh();
 		}
 	};
@@ -274,15 +277,24 @@
 	});
 
 	const navigateToEditPage = (familyId : string | null) => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
 		const url = familyId ? `/pages/recipes/edit?familyId=${familyId}` : '/pages/recipes/edit';
 		uni.navigateTo({ url });
 	};
 
 	const navigateToOtherEditPage = () => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
 		uni.navigateTo({ url: '/pages/recipes/edit-other' });
 	};
 
 	const navigateToDetail = (familyId : string) => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
 		uni.navigateTo({
 			url: `/pages/recipes/detail?familyId=${familyId}`,
 		});
@@ -315,6 +327,8 @@
 		try {
 			await discontinueRecipe(selectedRecipe.value.id);
 			toastStore.show({ message: '配方已停用', type: 'success' });
+			// [核心改造] 操作成功后，标记数据为脏
+			dataStore.markRecipesAsStale();
 			await dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to discontinue recipe:', error);
@@ -331,6 +345,8 @@
 		try {
 			await restoreRecipe(selectedRecipe.value.id);
 			toastStore.show({ message: '配方已恢复', type: 'success' });
+			// [核心改造] 操作成功后，标记数据为脏
+			dataStore.markRecipesAsStale();
 			await dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to restore recipe:', error);
@@ -347,6 +363,8 @@
 		try {
 			await deleteRecipe(selectedRecipe.value.id);
 			toastStore.show({ message: '删除成功', type: 'success' });
+			// [核心改造] 操作成功后，标记数据为脏
+			dataStore.markRecipesAsStale();
 			await dataStore.fetchRecipesData();
 		} catch (error) {
 			console.error('Failed to delete recipe:', error);
@@ -363,18 +381,16 @@
 	@include list-item-content-style;
 	@include list-item-option-style;
 
-	/* [核心新增] 新增的样式 */
 	.full-height-wrapper {
 		height: 100%;
 		display: flex;
 		flex-direction: column;
 	}
 
-	// [核心修改] 修改 flex 布局以实现您的要求
 	:deep(.main-info) {
 		display: flex;
 		align-items: center;
-		gap: 10px; // [核心修改] 增加元素之间的间距
+		gap: 10px;
 		flex: 1;
 	}
 
@@ -419,7 +435,7 @@
 	.count {
 		color: var(--text-secondary);
 		font-size: 13px;
-		flex-shrink: 0; // 新增样式，防止元素被压缩换行
+		flex-shrink: 0;
 	}
 
 	.empty-state {
@@ -435,7 +451,7 @@
 		border-radius: 6px;
 		display: inline-block;
 		vertical-align: middle;
-		flex-shrink: 0; // 防止标签被压缩
+		flex-shrink: 0;
 	}
 
 	.status-tag.discontinued {

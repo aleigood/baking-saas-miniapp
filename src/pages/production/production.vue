@@ -131,7 +131,6 @@
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import CalendarModal from '@/components/CalendarModal.vue';
-	// [核心新增] 引入新组件
 	import RefreshableLayout from '@/components/RefreshableLayout.vue';
 	import type { ProductionTaskDto, PrepTask } from '@/types/api';
 	import { updateTaskStatus, getTaskDates } from '@/api/tasks';
@@ -143,7 +142,6 @@
 	const toastStore = useToastStore();
 	const temperatureStore = useTemperatureStore();
 
-	// [核心新增] 创建对组件实例的引用
 	const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 
 	const isLoading = ref(true);
@@ -159,6 +157,9 @@
 		).padStart(2, '0')}`
 	);
 	const taskDates = ref<string[]>([]);
+
+	// [核心改造] 新增导航锁
+	const isNavigating = ref(false);
 
 	const tempSettings = reactive({
 		mixerType: 9,
@@ -188,33 +189,39 @@
 	});
 
 	onShow(async () => {
+		// [核心改造] 每次页面显示时，重置导航锁
+		isNavigating.value = false;
+
 		const toastMessage = uiStore.consumeNextPageToast();
 		if (toastMessage) {
 			toastStore.show(toastMessage);
 		}
 
-		isLoading.value = true;
-		try {
-			await Promise.all([
-				dataStore.fetchProductionData(selectedDate.value),
-				getTaskDates().then(dates => taskDates.value = dates)
-			]);
-		} catch (error) {
-			console.error("Failed to load data on show:", error);
-		} finally {
-			isLoading.value = false;
+		// [核心改造] 实现按需刷新逻辑
+		if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
+			isLoading.value = true;
+			try {
+				await Promise.all([
+					dataStore.fetchProductionData(selectedDate.value),
+					getTaskDates().then(dates => taskDates.value = dates)
+				]);
+			} catch (error) {
+				console.error("Failed to load data on show:", error);
+			} finally {
+				isLoading.value = false;
+			}
 		}
 	});
 
-	// [核心新增] 下拉刷新处理函数
 	const handleRefresh = async () => {
 		try {
+			// [核心改造] 下拉刷新时，强制将数据标记为脏，以确保重新获取
+			dataStore.markProductionAsStale();
 			await Promise.all([
 				dataStore.fetchProductionData(selectedDate.value),
 				getTaskDates().then(dates => taskDates.value = dates)
 			]);
 		} finally {
-			// [核心新增] 无论成功与否，都结束刷新动画
 			refreshableLayout.value?.finishRefresh();
 		}
 	};
@@ -283,6 +290,10 @@
 	};
 
 	const navigateToDetail = (task : any) => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
+
 		const isPrepTask = task.status === 'PREP';
 		if (isPrepTask) {
 			const prepTaskData = encodeURIComponent(JSON.stringify(task));
@@ -293,6 +304,9 @@
 	};
 
 	const navigateToHistory = () => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
 		uni.navigateTo({ url: '/pages/production/history' });
 	};
 
@@ -313,6 +327,9 @@
 		try {
 			await updateTaskStatus(selectedTaskForAction.value.id, 'CANCELLED');
 			toastStore.show({ message: '任务已取消', type: 'success' });
+			// [核心改造] 任务取消后，标记生产和历史数据为脏
+			dataStore.markProductionAsStale();
+			dataStore.markHistoricalTasksAsStale();
 			await dataStore.fetchProductionData(selectedDate.value);
 		} catch (error) {
 			console.error('Failed to cancel task:', error);
@@ -324,6 +341,9 @@
 	};
 
 	const navigateToCreatePage = () => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
 		uni.navigateTo({ url: '/pages/production/create' });
 	};
 
@@ -347,10 +367,8 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 	@include list-item-option-style;
-	// [核心新增] 引入 Mixin 来应用统一的表单控件样式
 	@include form-control-styles;
 
-	/* [核心新增] 新增的样式 */
 	.full-height-wrapper {
 		height: 100%;
 		display: flex;
@@ -484,7 +502,7 @@
 	}
 
 	.picker {
-		min-width: 120px; // 允许选择器根据内容自适应宽度
+		min-width: 120px;
 		width: auto;
 		text-align: right;
 	}

@@ -102,7 +102,6 @@
 
 	onMounted(async () => {
 		isLoading.value = true;
-		// [核心修改] 移除 if 条件，强制每次进入页面都重新获取最新产品列表
 		await dataStore.fetchProductsForTaskCreation();
 
 		if (productTabs.value.length > 0) {
@@ -190,6 +189,14 @@
 				uiStore.setNextPageToast({ message: '任务已创建', type: 'success' });
 			}
 
+			// [核心改造] 任务创建成功后，将生产数据和历史数据标记为脏
+			dataStore.markProductionAsStale();
+			dataStore.markHistoricalTasksAsStale();
+			// [核心改造] 如果有库存警告，说明原料库存可能发生了变化，也标记为脏
+			if (res.warning) {
+				dataStore.markIngredientsAsStale();
+			}
+
 			uni.navigateBack();
 		} catch (error) {
 			console.error('Failed to create tasks:', error);
@@ -201,7 +208,6 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-	// [核心新增] 引入 Mixin
 	@include form-control-styles;
 
 	.page-wrapper {
@@ -228,8 +234,6 @@
 		margin-bottom: 8px;
 		display: block;
 	}
-
-	// [核心修改] 删除本地 .picker 样式
 
 	.summary-card {
 		background-color: #faf8f5;

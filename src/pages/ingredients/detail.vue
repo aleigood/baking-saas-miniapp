@@ -425,8 +425,9 @@
 
 			toastStore.show({ message: '创建成功', type: 'success' });
 			showAddSkuModal.value = false;
+			// [核心改造] 标记原料数据为脏
+			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
-			await dataStore.fetchIngredientsData();
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -477,8 +478,9 @@
 			await createProcurement(payload);
 			toastStore.show({ message: '入库成功', type: 'success' });
 			showProcurementModal.value = false;
+			// [核心改造] 标记原料数据为脏
+			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value!.id);
-			await dataStore.fetchIngredientsData();
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -518,8 +520,9 @@
 			toastStore.show({ message: '删除成功', type: 'success' });
 			showDeleteSkuConfirmModal.value = false;
 			selectedSkuForAction.value = null;
+			// [核心改造] 标记原料数据为脏
+			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
-			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			showDeleteSkuConfirmModal.value = false;
 		} finally {
@@ -534,8 +537,9 @@
 		try {
 			await setActiveSku(ingredient.value.id, sku.id);
 			toastStore.show({ message: '设置成功', type: 'success' });
+			// [核心改造] 标记原料数据为脏
+			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
-			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			console.error('Failed to activate SKU:', error);
 		} finally {
@@ -569,8 +573,9 @@
 			});
 			toastStore.show({ message: '保存成功', type: 'success' });
 			showEditModal.value = false;
+			// [核心改造] 标记原料数据为脏
+			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
-			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			console.error("Failed to update ingredient properties:", error);
 		} finally {
@@ -611,8 +616,9 @@
 			await updateProcurement(editProcurementForm.id, payload);
 			toastStore.show({ message: '更新成功', type: 'success' });
 			showEditProcurementModal.value = false;
+			// [核心改造] 标记原料数据为脏
+			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
-			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			console.error("Failed to update procurement:", error);
 		} finally {
@@ -660,8 +666,9 @@
 			await adjustStock(ingredient.value.id, payload);
 			toastStore.show({ message: '库存调整成功', type: 'success' });
 			uiStore.closeModal(MODAL_KEYS.UPDATE_STOCK_CONFIRM);
+			// [核心改造] 标记原料数据为脏
+			dataStore.markIngredientsAsStale();
 			await loadIngredientData(ingredient.value.id);
-			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			console.error("Failed to adjust stock:", error);
 		} finally {
@@ -674,7 +681,6 @@
 	@import '@/styles/common.scss';
 
 	@include list-item-option-style;
-	// [核心新增] 引入 Mixin
 	@include form-control-styles;
 
 	.page-wrapper {
@@ -704,8 +710,6 @@
 		flex-wrap: wrap;
 		gap: 5px;
 	}
-
-	// [核心修改] 删除本地重复的样式
 
 	.form-row {
 		display: flex;

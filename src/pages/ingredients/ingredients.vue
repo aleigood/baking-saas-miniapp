@@ -138,7 +138,6 @@
 	import AppButton from '@/components/AppButton.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import FormItem from '@/components/FormItem.vue';
-	// [核心新增] 引入新组件
 	import RefreshableLayout from '@/components/RefreshableLayout.vue';
 	import { formatWeight } from '@/utils/format';
 
@@ -155,8 +154,9 @@
 		{ key: 'all', label: '全部' },
 		{ key: 'low', label: '库存紧张' }
 	]);
-	// [核心新增] 创建对组件实例的引用
 	const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
+	// [核心改造] 新增导航锁
+	const isNavigating = ref(false);
 
 	const newIngredientForm = reactive({
 		name: '',
@@ -175,17 +175,20 @@
 	});
 
 	onShow(async () => {
-		if (!dataStore.dataLoaded.ingredients) {
+		// [核心改造] 重置导航锁
+		isNavigating.value = false;
+		// [核心改造] 实现按需刷新
+		if (dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients) {
 			await dataStore.fetchIngredientsData();
 		}
 	});
 
-	// [核心新增] 下拉刷新处理函数
 	const handleRefresh = async () => {
 		try {
+			// [核心改造] 下拉刷新时强制标记为脏
+			dataStore.markIngredientsAsStale();
 			await dataStore.fetchIngredientsData();
 		} finally {
-			// [核心新增] 无论成功与否，都结束刷新动画
 			refreshableLayout.value?.finishRefresh();
 		}
 	};
@@ -232,12 +235,19 @@
 	};
 
 	const navigateToDetail = (ingredientId : string) => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
+
 		uni.navigateTo({
 			url: `/pages/ingredients/detail?ingredientId=${ingredientId}`,
 		});
 	};
 
 	const navigateToLedger = () => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
 		uni.navigateTo({
 			url: '/pages/ingredients/ledger'
 		});
@@ -260,6 +270,8 @@
 		try {
 			await deleteIngredient(selectedIngredient.value.id);
 			toastStore.show({ message: '删除成功', type: 'success' });
+			// [核心改造] 删除成功后，标记原料数据为脏
+			dataStore.markIngredientsAsStale();
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			console.error("Failed to delete ingredient:", error);
@@ -301,6 +313,8 @@
 			});
 			toastStore.show({ message: '创建成功，请继续添加SKU和采购', type: 'success', duration: 3000 });
 			uiStore.closeModal(MODAL_KEYS.CREATE_INGREDIENT);
+			// [核心改造] 创建成功后，标记原料数据为脏
+			dataStore.markIngredientsAsStale();
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
 			console.error("Failed to create ingredient:", error);
@@ -314,10 +328,8 @@
 	@import '@/styles/common.scss';
 	@include list-item-content-style;
 	@include list-item-option-style;
-	// [核心新增] 引入 Mixin
 	@include form-control-styles;
 
-	/* [核心新增] 新增的样式 */
 	.full-height-wrapper {
 		height: 100%;
 		display: flex;
@@ -359,8 +371,6 @@
 		background-color: #fee2e2;
 		color: #991b1b;
 	}
-
-	// [核心修改] 删除本地重复的样式
 
 	.form-row {
 		display: flex;

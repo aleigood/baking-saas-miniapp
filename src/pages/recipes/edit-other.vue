@@ -70,7 +70,6 @@
 <script setup lang="ts">
 	import { ref, computed, onMounted, reactive } from 'vue';
 	import { onLoad, onUnload } from '@dcloudio/uni-app';
-	// [核心改造] 导入 updateRecipeVersion
 	import { createRecipe, createRecipeVersion, updateRecipeVersion } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
@@ -92,7 +91,6 @@
 
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
-	// [核心新增] 存储从路由传入的版本ID
 	const versionId = ref<string | null>(null);
 	const pageMode = ref<'create' | 'edit' | 'newVersion'>('create');
 
@@ -144,7 +142,6 @@
 		if (options && options.familyId) {
 			isEditing.value = true;
 			familyId.value = options.familyId;
-			// [核心改造] 存储 versionId
 			versionId.value = options.versionId || null;
 			pageMode.value = options.mode as 'edit' | 'newVersion' | 'create';
 
@@ -215,7 +212,6 @@
 				products: [],
 			};
 
-			// [核心改造] 根据 pageMode 调用不同的接口
 			if (pageMode.value === 'edit' && familyId.value && versionId.value) {
 				await updateRecipeVersion(familyId.value, versionId.value, payload);
 			} else if (pageMode.value === 'newVersion' && familyId.value) {
@@ -224,9 +220,10 @@
 				await createRecipe(payload);
 			}
 
-
 			toastStore.show({ message: '配方保存成功', type: 'success' });
-			await dataStore.fetchRecipesData();
+			// [核心改造] 保存成功后，标记配方和原料数据为脏
+			dataStore.markRecipesAsStale();
+			dataStore.markIngredientsAsStale(); // 因为可能创建了新原料
 			uni.navigateBack();
 
 		} catch (error) {

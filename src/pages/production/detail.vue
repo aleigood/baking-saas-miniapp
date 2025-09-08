@@ -360,22 +360,18 @@
 
 	watch(showCompleteTaskModal, (visible) => {
 		if (visible) {
-			// [修复] 确保每次打开时都重置到第一步
 			completionStep.value = 1;
-			// 延迟计算高度，确保DOM在小程序中已准备就绪
 			setTimeout(() => {
 				updateModalContentHeight();
 			}, 50);
 		} else {
-			// [修复] 延迟重置高度，以匹配动画时长，防止闪烁
 			setTimeout(() => {
 				modalContentHeight.value = 'auto';
-			}, 300); // 匹配 AppModal 的动画时长
+			}, 300);
 		}
 	});
 
 	watch(completionStep, () => {
-		// [修复] 仅在模态框可见时才更新高度
 		if (showCompleteTaskModal.value) {
 			updateModalContentHeight();
 		}
@@ -598,6 +594,11 @@
 				message: '任务已完成',
 				type: 'success'
 			});
+			// [核心改造] 任务完成后，标记相关数据为脏
+			dataStore.markProductionAsStale();
+			dataStore.markHistoricalTasksAsStale();
+			dataStore.markIngredientsAsStale(); // 因为消耗了原料
+
 			setTimeout(() => uni.navigateBack(), 500);
 		} catch (error) {
 			console.error('Failed to complete task:', error);
@@ -619,7 +620,6 @@
 
 	const toggleIngredientAdded = (doughFamilyId : string, ingredientId : string) => {
 		if (isReadOnly.value) return;
-		// [核心新增] 增加振动反馈
 		uni.vibrateShort({});
 		if (!addedIngredientsMap[doughFamilyId]) {
 			addedIngredientsMap[doughFamilyId] = new Set<string>();
@@ -643,7 +643,8 @@
 				message: '任务已开始',
 				type: 'success'
 			});
-			await dataStore.fetchProductionData();
+			// [核心改造] 任务状态变更后，标记相关数据为脏
+			dataStore.markProductionAsStale();
 		} catch (error) {
 			console.error('Failed to start task:', error);
 		}
@@ -660,14 +661,12 @@
 		}
 	};
 
-	// [核心修改] 修改 showExtraInfo 函数，使其通过点击行来触发
 	const showExtraInfo = (info : string | null | undefined, ingredientId : string) => {
-		if (!info) return; // 如果没有额外信息，则不显示 popover
+		if (!info) return;
 		if (popover.visible && popover.content === info) {
 			popover.visible = false;
 			return;
 		}
-		// 查询图标元素的位置，让 popover 的箭头指向图标
 		const query = uni.createSelectorQuery().in(instance);
 		query.select('#info-icon-' + ingredientId).boundingClientRect((rect : UniApp.NodeInfo) => {
 			if (rect) {
@@ -687,7 +686,6 @@
 		popover.visible = false;
 	};
 
-	// [核心新增] 新增一个用于格式化馅料/装饰用量显示的方法
 	const getFormattedFillingWeight = (totalWeight : number) => {
 		if (!selectedDoughDetails.value || !selectedProductId.value) {
 			return formatWeight(totalWeight);
@@ -695,10 +693,8 @@
 		const productSummary = selectedDoughDetails.value.products.find(p => p.id === selectedProductId.value);
 		const quantity = productSummary ? productSummary.quantity : 1;
 
-		// 避免除以零或对零值进行计算
 		if (quantity > 0 && totalWeight > 0) {
 			const perItemWeight = totalWeight / quantity;
-			// 返回 "总量 (单个用量/个)" 的格式
 			return `${formatWeight(totalWeight)} (${formatWeight(perItemWeight)}/个)`;
 		}
 
@@ -728,21 +724,15 @@
 	@import '@/styles/common.scss';
 	@include list-item-content-style;
 
-	/* [新增] 定义折叠内容容器的动画 */
 	.collapsible-content {
 		max-height: 1000px;
-		/* 定义一个足够大的最大高度，用于展开状态 */
 		overflow: hidden;
-		/* 关键：隐藏超出 max-height 的内容 */
 		transition: max-height 0.3s ease;
-		/* 为 max-height 属性添加平滑过渡动画 */
 		box-sizing: border-box;
 	}
 
-	/* [新增] 定义折叠状态下的样式 */
 	.collapsible-content.is-collapsed {
 		max-height: 0;
-		/* 折叠时，最大高度为0，内容被隐藏 */
 	}
 
 	.font-size-14 {

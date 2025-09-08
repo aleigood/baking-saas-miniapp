@@ -19,7 +19,6 @@
 					<FormItem label="角色">
 						<picker mode="selector" :range="availableRolesDisplay" @change="onRoleChange"
 							:disabled="!canEditRole">
-							<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
 							<view class="picker" :class="{ disabled: !canEditRole }">{{
                     editableMemberRoleDisplay
                   }}
@@ -163,7 +162,8 @@
 		try {
 			await updateMember(selectedMember.value.id, { role: editableMemberRole.value });
 			toastStore.show({ message: '角色更新成功', type: 'success' });
-			await dataStore.fetchMembersData();
+			// [核心改造] 操作成功后，标记人员数据为脏
+			dataStore.markMembersAsStale();
 			uni.navigateBack();
 		} catch (error : any) {
 			console.error('Failed to update role:', error);
@@ -184,7 +184,8 @@
 					try {
 						await removeMember(selectedMember.value!.id);
 						toastStore.show({ message: '移除成功', type: 'success' });
-						await dataStore.fetchMembersData();
+						// [核心改造] 操作成功后，标记人员数据为脏
+						dataStore.markMembersAsStale();
 						uni.navigateBack();
 					} catch (error : any) {
 						console.error('Failed to remove member:', error);
@@ -199,7 +200,6 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-	// [核心新增] 引入 Mixin
 	@include form-control-styles;
 
 	.page-wrapper {
@@ -208,7 +208,6 @@
 		height: 100vh;
 	}
 
-	// [核心修改] 删除本地重复的样式，只保留禁用状态的特殊样式
 	.picker.disabled {
 		background-color: #e9ecef;
 		color: #6c757d;

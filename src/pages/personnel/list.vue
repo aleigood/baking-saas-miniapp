@@ -67,7 +67,6 @@
 	import type { Role } from '@/types/api';
 	import { formatChineseDate } from '@/utils/format';
 
-	// [新增] 禁用属性继承，以解决多根节点组件的警告
 	defineOptions({
 		inheritAttrs: false
 	});
@@ -79,9 +78,14 @@
 
 	const isCreatingInvite = ref(false);
 	const inviteePhone = ref('');
+	// [核心改造] 新增导航锁
+	const isNavigating = ref(false);
 
 	onShow(async () => {
-		if (!dataStore.dataLoaded.members) {
+		// [核心改造] 重置导航锁
+		isNavigating.value = false;
+		// [核心改造] 实现按需刷新
+		if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
 			await dataStore.fetchMembersData();
 		}
 	});
@@ -105,6 +109,10 @@
 	};
 
 	const navigateToDetail = (memberId : string) => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
+
 		uni.navigateTo({
 			url: `/pages/personnel/detail?memberId=${memberId}`,
 		});
@@ -125,6 +133,8 @@
 			toastStore.show({ message: '邀请已发送', type: 'success' });
 			uiStore.closeModal(MODAL_KEYS.INVITE);
 			inviteePhone.value = '';
+			// [核心改造] 邀请发送后，人员列表可能发生变化（虽然是间接的），标记为脏
+			dataStore.markMembersAsStale();
 		} catch (error) {
 			console.error('Failed to create invitation:', error);
 		} finally {
@@ -143,12 +153,10 @@
 		height: 100vh;
 	}
 
-	/* [布局修复] 新增 .member-details 容器样式，使其内部元素紧凑排列 */
 	.member-details {
 		display: flex;
 		align-items: center;
 		flex: 1;
-		/* 占据左侧所有可用空间 */
 	}
 
 	.member-avatar {

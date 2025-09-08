@@ -50,7 +50,8 @@
 </template>
 
 <script setup lang="ts">
-	import { computed } from 'vue';
+	import { ref, computed } from 'vue'; // [核心改造] 导入 ref
+	import { onShow } from '@dcloudio/uni-app'; // [核心改造] 导入 onShow
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
@@ -65,6 +66,16 @@
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 	const systemStore = useSystemStore();
+	// [核心改造] 新增导航锁
+	const isNavigating = ref(false);
+
+	// [核心改造] 实现按需刷新
+	onShow(() => {
+		isNavigating.value = false;
+		if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
+			dataStore.fetchMembersData();
+		}
+	});
 
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
@@ -89,6 +100,10 @@
 	});
 
 	const navigateToCurrentUserDetail = () => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
+
 		if (userStore.userInfo?.id) {
 			uni.navigateTo({
 				url: `/pages/personnel/detail?memberId=${userStore.userInfo.id}`,
@@ -97,6 +112,10 @@
 	};
 
 	const navigateToPersonnelList = () => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
+
 		uni.navigateTo({
 			url: '/pages/personnel/list',
 		});
@@ -117,7 +136,7 @@
 	@include list-item-content-style;
 
 	.page-content {
-		padding: 20px 15px 0 15px; // [核心修改] 增加一个顶部内边距
+		padding: 20px 15px 0 15px;
 		position: relative;
 		z-index: 1;
 	}

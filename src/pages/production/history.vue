@@ -54,7 +54,6 @@
 	import ListItem from '@/components/ListItem.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
-	// [新增] 引入 ExpandingFab 组件
 	import ExpandingFab from '@/components/ExpandingFab.vue';
 	import { formatChineseDate, formatEventTime } from '@/utils/format';
 
@@ -66,8 +65,9 @@
 	const dataStore = useDataStore();
 	const isLoading = ref(false);
 	const isLoadingMore = ref(false);
+	// [核心改造] 新增导航锁
+	const isNavigating = ref(false);
 
-	// [新增] 定义 FAB 菜单的动作
 	const fabActions = computed(() => {
 		return [{
 			icon: '/static/icons/stats.svg',
@@ -78,12 +78,14 @@
 
 
 	onShow(async () => {
-		if (Object.keys(dataStore.historicalTasks).length === 0) {
+		// [核心改造] 每次页面显示时，重置导航锁
+		isNavigating.value = false;
+
+		// [核心改造] 实现按需刷新逻辑
+		if (dataStore.dataStale.historicalTasks || !dataStore.dataLoaded.historicalTasks) {
 			isLoading.value = true;
 			await dataStore.fetchHistoricalTasks(false);
 			isLoading.value = false;
-		} else {
-			dataStore.fetchHistoricalTasks(false);
 		}
 	});
 
@@ -94,8 +96,6 @@
 			isLoadingMore.value = false;
 		}
 	};
-
-	// [核心修改] 删除 sortedGroupedTasks 计算属性，因为后端已经处理好分组
 
 	const getTaskTitle = (task : ProductionTaskDto) => {
 		if (!task.items || task.items.length === 0) {
@@ -110,7 +110,6 @@
 	};
 
 	const getTaskDetails = (task : ProductionTaskDto) => {
-		// [核心修复] 使用 startDate
 		const formattedDate = formatChineseDate(task.startDate);
 		const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
 		const totalQuantity = getTotalQuantity(task);
@@ -150,13 +149,19 @@
 	};
 
 	const navigateToDetail = (task : ProductionTaskDto) => {
-		// [核心修改] 增加 from=history 参数，用于详情页判断只读状态
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
+
 		uni.navigateTo({
 			url: `/pages/production/detail?taskId=${task.id}&from=history`
 		});
 	};
 
 	const navigateToStats = () => {
+		// [核心改造] 增加导航锁
+		if (isNavigating.value) return;
+		isNavigating.value = true;
 		uni.navigateTo({
 			url: '/pages/production/stats'
 		});

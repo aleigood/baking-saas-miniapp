@@ -211,7 +211,6 @@
 <script setup lang="ts">
 	import { ref, computed, onMounted, nextTick, watch } from 'vue';
 	import { onLoad, onUnload } from '@dcloudio/uni-app';
-	// [核心改造] 导入 updateRecipeVersion
 	import { createRecipe, createRecipeVersion, getRecipeFamily, updateRecipeVersion } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
@@ -559,7 +558,6 @@
 				})),
 			};
 
-			// [核心改造] 根据 pageMode 调用不同的接口
 			if (pageMode.value === 'edit' && familyId.value && versionId.value) {
 				await updateRecipeVersion(familyId.value, versionId.value, payload);
 			} else if (pageMode.value === 'newVersion' && familyId.value) {
@@ -568,8 +566,11 @@
 				await createRecipe(payload);
 			}
 
+
 			toastStore.show({ message: '配方保存成功', type: 'success' });
-			await dataStore.fetchRecipesData();
+			// [核心改造] 保存成功后，标记配方和原料数据为脏
+			dataStore.markRecipesAsStale();
+			dataStore.markIngredientsAsStale();
 			uni.navigateBack();
 
 		} catch (error) {
@@ -633,7 +634,6 @@
 		margin-bottom: 10px;
 	}
 
-	/* [核心改造] 新增包裹容器的样式，使其撑满可用空间 */
 	.autocomplete-input-wrapper {
 		flex: 1;
 		min-width: 0;
