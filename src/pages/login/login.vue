@@ -2,8 +2,8 @@
 	<view class="login-container">
 		<view class="header-bg"></view>
 
-		<view class="content-wrapper" :class="{ 'enter-active': pageLoaded }">
-			<!-- [核心修改] 将图标移到最上方 -->
+		<view class="content-wrapper" :class="{ 'enter-active': pageLoaded }"
+			:style="{ paddingTop: safeAreaTop + 'px' }">
 			<image class="logo" src="/static/icons/croissant.svg" mode="aspectFit"></image>
 
 			<view class="welcome-text-group">
@@ -26,9 +26,10 @@
 	</view>
 </template>
 <script lang="ts" setup>
-	import { reactive, ref, onMounted } from 'vue';
+	import { reactive, ref, onMounted, computed } from 'vue'; // 新增导入 computed
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
+	import { useSystemStore } from '@/store/system'; // 新增导入 systemStore
 	import AppButton from '@/components/AppButton.vue';
 	import Toast from '@/components/Toast.vue';
 
@@ -36,6 +37,13 @@
 	const pageLoaded = ref(false);
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
+	const systemStore = useSystemStore(); // 新增获取 systemStore 实例
+
+	// 新增计算属性，用于获取顶部安全区域高度
+	const safeAreaTop = computed(() => {
+		// [核心修改] 增加了额外的垂直间距（从 40px 增加到 80px）来使内容整体下移
+		return systemStore.statusBarHeight + 80;
+	});
 
 	const form = reactive({
 		phone: '13966666666',
@@ -74,7 +82,7 @@
 		align-items: center;
 		height: 100vh;
 		background-color: var(--bg-color);
-		padding: 40px;
+		padding: 0 40px; // 修改: 移除顶部的 padding
 		box-sizing: border-box;
 		overflow: hidden;
 		position: relative;
@@ -99,8 +107,7 @@
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
-		// [核心修改] 调整上边距，让整体内容更高
-		padding-top: 5vh;
+		// [核心修改] 移除固定的 padding-top，改为通过 style 绑定动态计算的高度
 		opacity: 0;
 		transform: translateY(30px);
 		transition: opacity 0.6s ease-out, transform 0.6s ease-out;

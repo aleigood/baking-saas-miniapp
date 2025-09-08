@@ -1,34 +1,14 @@
 <script setup lang="ts">
 	import { onLaunch } from '@dcloudio/uni-app';
-	import { useUserStore } from '@/store/user';
-	import { useDataStore } from '@/store/data';
 	import { useSystemStore } from '@/store/system';
 
 	onLaunch(async () => {
 		console.log('App Launch');
-		const userStore = useUserStore();
-		const dataStore = useDataStore();
 		const systemStore = useSystemStore();
 
+		// [核心逻辑] App.vue 的 onLaunch 只负责初始化系统级别的信息
+		// 页面导航和登录校验逻辑已移至 main.vue
 		systemStore.initSystemInfo();
-
-		// [核心逻辑] 恢复原有的启动流程
-		if (userStore.token) {
-			try {
-				// 尝试用现有的token获取用户信息，验证其有效性
-				await userStore.fetchUserInfo();
-				// 如果成功，说明token有效，则继续获取店铺信息并跳转
-				if (userStore.userInfo) {
-					await dataStore.fetchTenants();
-					uni.reLaunch({
-						url: '/pages/main/main',
-					});
-				}
-			} catch (error) {
-				// 如果获取用户信息失败（例如token过期或无效），则静默停留在登录页
-				console.error("App Launch: Token validation failed.", error);
-			}
-		}
 	});
 </script>
 

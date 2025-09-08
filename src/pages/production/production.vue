@@ -28,10 +28,7 @@
 				</view>
 			</view>
 
-			<view v-if="isLoading" class="loading-spinner">
-				<text>加载中...</text>
-			</view>
-			<view v-else-if="dataStore.production.length > 0">
+			<view v-if="dataStore.production.length > 0">
 				<ListItem v-for="task in dataStore.production" :key="task.id" @click="navigateToDetail(task)"
 					@longpress="openTaskActions(task)" :vibrate-on-long-press="true" card-mode
 					:style="getTaskCardStyle(task)">
@@ -122,7 +119,6 @@
 	import { useUiStore } from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
 	import { useTemperatureStore } from '@/store/temperature';
-	// [核心改造] 移除 MODAL_KEYS 的导入
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -142,11 +138,9 @@
 
 	const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 
-	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
 	const showCancelConfirmModal = ref(false);
-	// [核心改造] 新增本地 ref 用于控制弹窗
 	const showTaskActionsModal = ref(false);
 	const showTemperatureSettingsModal = ref(false);
 
@@ -197,7 +191,6 @@
 		}
 
 		if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
-			isLoading.value = true;
 			try {
 				await Promise.all([
 					dataStore.fetchProductionData(selectedDate.value),
@@ -205,8 +198,6 @@
 				]);
 			} catch (error) {
 				console.error("Failed to load data on show:", error);
-			} finally {
-				isLoading.value = false;
 			}
 		}
 	});
@@ -227,9 +218,7 @@
 	const handleDateSelect = async (date : string) => {
 		selectedDate.value = date;
 		isCalendarVisible.value = false;
-		isLoading.value = true;
 		await dataStore.fetchProductionData(date);
-		isLoading.value = false;
 	};
 
 	const getTaskTitle = (task : ProductionTaskDto | PrepTask) => {
@@ -308,12 +297,10 @@
 	const openTaskActions = (task : any) => {
 		if (task.status === 'PREP') return;
 		selectedTaskForAction.value = task as ProductionTaskDto;
-		// [核心改造] 直接修改本地 ref
 		showTaskActionsModal.value = true;
 	};
 
 	const handleOpenCancelConfirm = () => {
-		// [核心改造] 直接修改本地 ref
 		showTaskActionsModal.value = false;
 		showCancelConfirmModal.value = true;
 	};
@@ -344,7 +331,6 @@
 
 	const openTemperatureSettingsModal = () => {
 		Object.assign(tempSettings, temperatureStore.settings);
-		// [核心改造] 直接修改本地 ref
 		showTemperatureSettingsModal.value = true;
 	};
 
@@ -355,7 +341,6 @@
 
 	const handleSaveTemperatureSettings = () => {
 		temperatureStore.saveTemperatureSettings(tempSettings);
-		// [核心改造] 直接修改本地 ref
 		showTemperatureSettingsModal.value = false;
 		toastStore.show({ message: '设置已保存', type: 'success' });
 	};

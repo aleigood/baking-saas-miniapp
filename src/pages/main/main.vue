@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-	import { ref } from 'vue';
+	import { ref, watch } from 'vue'; // 引入 watch
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUiStore } from '@/store/ui';
 	import { useDataStore } from '@/store/data';
@@ -60,10 +60,62 @@
 	const userStore = useUserStore();
 	const toastStore = useToastStore();
 
-	// [核心恢复] onShow只负责加载租户信息
-	onShow(() => {
-		dataStore.fetchTenants();
+	// [核心重构] onShow 负责校验登录状态和加载基础数据
+	onShow(async () => {
+		if (userStore.token) {
+			try {
+				// 验证token并获取用户信息
+				await userStore.fetchUserInfo();
+				if (userStore.userInfo) {
+					// token有效，获取店铺信息
+					await dataStore.fetchTenants();
+					// 主动加载默认标签页的数据
+					loadDataForActiveTab(uiStore.activeTab);
+				} else {
+					throw new Error("User info not found after fetch");
+				}
+			} catch (error) {
+				console.error("Token validation failed in main page, redirecting to login", error);
+				// [核心修复] 调用正确的函数名 handleUnauthorized
+				userStore.handleUnauthorized();
+			}
+		} else {
+			// [核心修复] 调用正确的函数名 handleUnauthorized
+			userStore.handleUnauthorized();
+		}
 	});
+
+	// [核心新增] 创建一个函数，用于根据当前激活的 Tab 按需加载数据
+	const loadDataForActiveTab = (tabKey : string) => {
+		switch (tabKey) {
+			case 'production':
+				if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
+					dataStore.fetchProductionData();
+				}
+				break;
+			case 'ingredients':
+				if (dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients) {
+					dataStore.fetchIngredientsData();
+				}
+				break;
+			case 'recipes':
+				if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
+					dataStore.fetchRecipesData();
+				}
+				break;
+			case 'personnel':
+				if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
+					dataStore.fetchMembersData();
+				}
+				break;
+		}
+	};
+
+	// [核心新增] 监听 Tab 切换，主动加载数据
+	watch(() => uiStore.activeTab, (newTab) => {
+		loadDataForActiveTab(newTab);
+	});
+
 
 	const handleSelectTenant = async (tenantId : string) => {
 		if (dataStore.currentTenantId === tenantId) {
@@ -73,10 +125,8 @@
 		try {
 			await dataStore.selectTenant(tenantId);
 			uiStore.closeModal(MODAL_KEYS.STORE);
-			if (uiStore.activeTab === 'production') await dataStore.fetchProductionData();
-			if (uiStore.activeTab === 'ingredients') await dataStore.fetchIngredientsData();
-			if (uiStore.activeTab === 'recipes') await dataStore.fetchRecipesData();
-			if (uiStore.activeTab === 'personnel') await dataStore.fetchMembersData();
+			// 切换店铺后，重新加载当前 Tab 的数据
+			loadDataForActiveTab(uiStore.activeTab);
 		} catch (error) {
 			console.error("Failed to select tenant:", error);
 		}

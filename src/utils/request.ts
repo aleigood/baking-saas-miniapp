@@ -59,8 +59,8 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 						message: '登录已过期，请重新登录',
 						type: 'error',
 					});
-					// 调用 userStore 中统一的延时登出方法，防止重复触发
-					userStore.scheduleLogout();
+					// [核心修改] 调用 userStore 中统一的防抖登出方法
+					userStore.handleUnauthorized();
 					return reject(res);
 				}
 
