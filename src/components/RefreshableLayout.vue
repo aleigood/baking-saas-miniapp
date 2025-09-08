@@ -1,7 +1,6 @@
 <template>
 	<view class="refreshable-layout">
-		<view class="refresher-container"
-			:style="{ height: refresherHeight + 'px', transition: isTouching ? 'none' : 'height 0.3s' }">
+		<view class="refresher-container" :style="{ height: refresherHeight + 'px' }">
 			<view class="refresher-content">
 				<view class="croissant-wrapper" :style="{ transform: croissantTransform }"
 					:class="{ 'is-loading': status === 'loading' }">
@@ -14,12 +13,13 @@
 					<view class="steam-dot"></view>
 					<view class="steam-dot"></view>
 				</view>
-				<view class="status-text">{{ statusText }}</view>
 			</view>
 		</view>
 
-		<scroll-view :scroll-y="true" class="scroll-area" @scroll="handleScroll" @touchstart="handleTouchStart"
-			@touchmove="handleTouchMove" @touchend="handleTouchEnd">
+		<scroll-view :scroll-y="true" class="scroll-area" :refresher-enabled="true" :refresher-triggered="isRefreshing"
+			refresher-default-style="none" refresher-background="transparent" @refresherpulling="handleRefresherPulling"
+			@refresherrefresh="handleRefresherRefresh" @refresherrestore="handleRefresherRestore"
+			@refresherabort="handleRefresherAbort">
 			<slot></slot>
 		</scroll-view>
 	</view>
@@ -30,28 +30,11 @@
 
 	const emit = defineEmits(['refresh']);
 
-	const REFRESHER_HEIGHT = 80; // 触发刷新的阈值
-	const MAX_PULL_HEIGHT = 120; // 最大下拉高度
+	const REFRESHER_HEIGHT = 80;
 
 	const refresherHeight = ref(0);
 	const status = ref<'pulling' | 'releasing' | 'loading' | 'finishing'>('pulling');
-	const isTouching = ref(false);
-	const startY = ref(0);
-
-	const statusText = computed(() => {
-		switch (status.value) {
-			case 'pulling':
-				return '下拉刷新';
-			case 'releasing':
-				return '松开刷新';
-			case 'loading':
-				return '正在刷新...';
-			case 'finishing':
-				return '刷新完成';
-			default:
-				return '';
-		}
-	});
+	const isRefreshing = ref(false);
 
 	const croissantTransform = computed(() => {
 		const baseScale = 0.5;
@@ -65,77 +48,38 @@
 		return `scale(${baseScale})`;
 	});
 
-	const handleTouchStart = (e : TouchEvent) => {
-		if (scrollTop.value > 0) return;
-		startY.value = e.touches[0].clientY;
-		isTouching.value = true;
-	};
-
-	const handleTouchMove = (e : TouchEvent) => {
-		if (scrollTop.value > 0 && startY.value === 0) return;
-
-		// #ifdef H5
-		e.preventDefault();
-		// #endif
-
-		const deltaY = e.touches[0].clientY - startY.value;
-
-		if (deltaY > 0) {
-			const newHeight = Math.min(deltaY, MAX_PULL_HEIGHT);
-			refresherHeight.value = newHeight;
-
-			if (status.value !== 'loading') {
-				status.value = newHeight >= REFRESHER_HEIGHT ? 'releasing' : 'pulling';
-			}
+	const handleRefresherPulling = (e : any) => {
+		const dy = e.detail.dy;
+		refresherHeight.value = Math.min(dy, REFRESHER_HEIGHT);;
+		if (status.value !== 'loading') {
+			// 即使不显示文字，状态判断依然保留，用于驱动动画
+			status.value = dy >= REFRESHER_HEIGHT ? 'releasing' : 'pulling';
 		}
 	};
 
-	const handleTouchEnd = () => {
-		if (scrollTop.value > 0 || startY.value === 0) {
-			startY.value = 0;
-			isTouching.value = false;
-			return;
-		};
-		startY.value = 0;
-		isTouching.value = false;
-
-		if (status.value === 'releasing') {
-			startLoading();
-		} else if (status.value === 'pulling') {
-			resetRefresher();
-		}
-	};
-
-	const scrollTop = ref(0);
-	const handleScroll = (e : any) => {
-		if (!isTouching.value) {
-			scrollTop.value = e.detail.scrollTop;
-		}
-	};
-
-	const startLoading = () => {
+	const handleRefresherRefresh = () => {
 		status.value = 'loading';
-		refresherHeight.value = REFRESHER_HEIGHT;
+		isRefreshing.value = true;
 		emit('refresh');
 	};
 
-	const resetRefresher = () => {
+	const handleRefresherRestore = () => {
 		refresherHeight.value = 0;
 		status.value = 'pulling';
+		isRefreshing.value = false;
+	};
+
+	const handleRefresherAbort = () => {
+		refresherHeight.value = 0;
+		status.value = 'pulling';
+		isRefreshing.value = false;
 	};
 
 	const finishRefresh = () => {
-		status.value = 'finishing'; // 1. 将状态设置为“完成中”，此时文本显示“刷新完成”
-
-		// 2. 设置一个短暂延时，让用户能看到“刷新完成”的提示
+		status.value = 'finishing';
 		setTimeout(() => {
-			refresherHeight.value = 0; // 3. 开始执行收起动画（动画时长为0.3秒）
-
-			// 4. [核心修改] 在收起动画结束后，再将状态重置为“下拉刷新”
-			setTimeout(() => {
-				status.value = 'pulling';
-			}, 300); // 这个延时必须与CSS中的transition时长保持一致
-		}, 500); // “刷新完成”文本的显示时长
+			isRefreshing.value = false;
+		}, 500);
 	};
 
 	defineExpose({ finishRefresh });
@@ -148,6 +92,7 @@
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
+		position: relative;
 	}
 
 	.refresher-container {
@@ -156,6 +101,10 @@
 		justify-content: center;
 		align-items: center;
 		overflow: hidden;
+		position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 1;
 	}
 
 	.refresher-content {
@@ -164,8 +113,8 @@
 		align-items: center;
 		justify-content: center;
 		position: relative;
-		padding-top: 10px;
-		padding-bottom: 10px;
+		// 图标网上偏移，防止遮挡下面页面
+		padding-bottom: 20px;
 	}
 
 	.croissant-wrapper {
@@ -194,22 +143,17 @@
 		-webkit-user-select: none;
 	}
 
-	.status-text {
-		margin-top: 6px;
-		font-size: 13px;
-		color: var(--text-secondary);
-	}
-
 	.scroll-area {
 		width: 100%;
-		flex: 1;
-		min-height: 0;
+		height: 100%;
 		box-sizing: border-box;
+		position: relative;
+		z-index: 0;
 	}
 
 	.steam-container {
 		position: absolute;
-		top: -6px;
+		top: -10px; // 数值越小与图标间距越大
 		left: 50%;
 		transform: translateX(-50%);
 		width: 28px;
