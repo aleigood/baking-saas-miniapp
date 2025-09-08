@@ -3,7 +3,7 @@
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader :title="recipeFamily?.name || '加载中...'" />
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content" v-if="!isLoading && recipeFamily">
+			<view class="page-content page-content-with-fab" v-if="!isLoading && recipeFamily">
 				<RecipeVersionList :versions="recipeVersions" :selected-version-id="displayedVersionId"
 					:can-edit="canEditRecipe" :is-discontinued="recipeFamily.deletedAt !== null"
 					@select-version="handleVersionClick" @create-version="handleCreateVersion"
@@ -65,6 +65,9 @@
 
 		<AppPopover :visible="popover.visible" :content="popover.content" :target-rect="popover.targetRect"
 			placement="right" :offsetY="0" />
+
+		<AppFab v-if="canEditRecipe" :no-tab-bar="true" icon="/static/icons/edit.svg"
+			@click="handleEditSelectedVersion" />
 	</view>
 </template>
 
@@ -107,6 +110,7 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import AppPopover from '@/components/AppPopover.vue';
+	import AppFab from '@/components/AppFab.vue';
 
 	defineOptions({
 		inheritAttrs: false
@@ -156,7 +160,6 @@
 		}
 	});
 
-	// [核心新增] 处理页面滚动的函数，当滚动发生时，隐藏 popover
 	const handleScroll = () => {
 		if (popover.visible) {
 			popover.visible = false;
@@ -204,22 +207,21 @@
 		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
 
-	const navigateToEditPage = async (familyId : string | null) => {
+	const navigateToEditPage = async (familyId : string | null, mode : 'edit' | 'newVersion', versionId ?: string) => {
 		if (!familyId || !displayedVersion.value || !recipeFamily.value) return;
 
 		try {
-			const formTemplate = await getRecipeVersionFormTemplate(familyId, displayedVersion.value.id);
+			const sourceVersionId = versionId || displayedVersion.value.id;
+			const formTemplate = await getRecipeVersionFormTemplate(familyId, sourceVersionId);
 			uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
 
-			if (recipeFamily.value.type === 'MAIN') {
-				uni.navigateTo({
-					url: `/pages/recipes/edit?familyId=${familyId}`
-				});
-			} else {
-				uni.navigateTo({
-					url: `/pages/recipes/edit-other?familyId=${familyId}`
-				});
+			const baseUrl = recipeFamily.value.type === 'MAIN' ? '/pages/recipes/edit' : '/pages/recipes/edit-other';
+			let url = `${baseUrl}?familyId=${familyId}&mode=${mode}`;
+			if (versionId) {
+				url += `&versionId=${versionId}`;
 			}
+
+			uni.navigateTo({ url });
 		} catch (error) {
 			console.error("准备新版本数据失败:", error);
 			toastStore.show({
@@ -230,6 +232,7 @@
 			uni.hideLoading();
 		}
 	};
+
 
 	const handleShowPopover = (payload : {
 		info : string,
@@ -261,8 +264,13 @@
 	};
 
 	const handleCreateVersion = () => {
-		if (recipeFamily.value) navigateToEditPage(recipeFamily.value.id);
+		if (recipeFamily.value) navigateToEditPage(recipeFamily.value.id, 'newVersion', displayedVersion.value?.id);
 	};
+
+	const handleEditSelectedVersion = () => {
+		if (recipeFamily.value) navigateToEditPage(recipeFamily.value.id, 'edit', displayedVersion.value?.id);
+	};
+
 
 	const handleVersionClick = (versionToDisplay : RecipeVersion) => {
 		displayedVersionId.value = versionToDisplay.id;

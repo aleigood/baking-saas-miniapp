@@ -1,7 +1,7 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<DetailHeader :title="isEditing ? '创建新版本' : '新建配方'" />
+		<DetailHeader :title="pageTitle" />
 		<DetailPageLayout>
 			<view class="page-content">
 				<view class="card">
@@ -58,8 +58,10 @@
 						<text class="col-action"></text>
 					</view>
 					<view v-for="(ing, ingIndex) in mainDough.ingredients" :key="ingIndex" class="ingredient-row">
-						<AutocompleteInput v-model="ing.name" :items="availableMainDoughIngredients"
-							placeholder="输入或选择原料" @select="onIngredientSelect($event, ingIndex)" />
+						<view class="autocomplete-input-wrapper">
+							<AutocompleteInput v-model="ing.name" :items="availableMainDoughIngredients"
+								placeholder="输入或选择原料" @select="onIngredientSelect($event, ingIndex)" />
+						</view>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
@@ -107,9 +109,11 @@
 						<view class="sub-group">
 							<view class="sub-group-title">辅料 (Mix-ins)</view>
 							<view v-for="(ing, ingIndex) in product.mixIns" :key="ingIndex" class="ingredient-row">
-								<AutocompleteInput v-model="ing.name" :items="availableSubIngredients"
-									placeholder="输入或选择原料/馅料"
-									@select="onSubIngredientSelect($event, prodIndex, 'mixIns', ingIndex)" />
+								<view class="autocomplete-input-wrapper">
+									<AutocompleteInput v-model="ing.name" :items="availableSubIngredients"
+										placeholder="输入或选择原料/馅料"
+										@select="onSubIngredientSelect($event, prodIndex, 'mixIns', ingIndex)" />
+								</view>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 									placeholder="%" />
 								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
@@ -123,9 +127,11 @@
 						<view class="sub-group">
 							<view class="sub-group-title">馅料 (Fillings)</view>
 							<view v-for="(ing, ingIndex) in product.fillings" :key="ingIndex" class="ingredient-row">
-								<AutocompleteInput v-model="ing.name" :items="availableSubIngredients"
-									placeholder="输入或选择原料/馅料"
-									@select="onSubIngredientSelect($event, prodIndex, 'fillings', ingIndex)" />
+								<view class="autocomplete-input-wrapper">
+									<AutocompleteInput v-model="ing.name" :items="availableSubIngredients"
+										placeholder="输入或选择原料/馅料"
+										@select="onSubIngredientSelect($event, prodIndex, 'fillings', ingIndex)" />
+								</view>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
 									placeholder="g/个" />
 								<IconButton variant="field"
@@ -140,9 +146,11 @@
 						<view class="sub-group">
 							<view class="sub-group-title">表面装饰 (Toppings)</view>
 							<view v-for="(ing, ingIndex) in product.toppings" :key="ingIndex" class="ingredient-row">
-								<AutocompleteInput v-model="ing.name" :items="availableSubIngredients"
-									placeholder="输入或选择原料/馅料"
-									@select="onSubIngredientSelect($event, prodIndex, 'toppings', ingIndex)" />
+								<view class="autocomplete-input-wrapper">
+									<AutocompleteInput v-model="ing.name" :items="availableSubIngredients"
+										placeholder="输入或选择原料/馅料"
+										@select="onSubIngredientSelect($event, prodIndex, 'toppings', ingIndex)" />
+								</view>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams"
 									placeholder="g/个" />
 								<IconButton variant="field"
@@ -203,7 +211,8 @@
 <script setup lang="ts">
 	import { ref, computed, onMounted, nextTick, watch } from 'vue';
 	import { onLoad, onUnload } from '@dcloudio/uni-app';
-	import { createRecipe, createRecipeVersion, getRecipeFamily } from '@/api/recipes';
+	// [核心改造] 导入 updateRecipeVersion
+	import { createRecipe, createRecipeVersion, getRecipeFamily, updateRecipeVersion } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
 	import FormItem from '@/components/FormItem.vue';
@@ -213,7 +222,6 @@
 	import AppModal from '@/components/AppModal.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
-	// [核心改造] 引入新的 AutocompleteInput 组件
 	import AutocompleteInput from '@/components/AutocompleteInput.vue';
 	import type { RecipeFamily, RecipeFormTemplate } from '@/types/api';
 	import { formatNumber, toDecimal } from '@/utils/format';
@@ -232,6 +240,9 @@
 	const isSubmitting = ref(false);
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
+	const versionId = ref<string | null>(null);
+	const pageMode = ref<'create' | 'edit' | 'newVersion'>('create');
+
 
 	const form = ref<RecipeFormTemplate & { targetTemp ?: number }>({
 		name: '',
@@ -247,6 +258,16 @@
 			procedure: [''],
 		}],
 		products: [],
+	});
+
+	const pageTitle = computed(() => {
+		if (pageMode.value === 'edit') {
+			return '修改配方';
+		}
+		if (pageMode.value === 'newVersion') {
+			return '创建新版本';
+		}
+		return '新建配方';
 	});
 
 	const showAddPreDoughModal = ref(false);
@@ -267,14 +288,12 @@
 
 	const availablePreDoughs = computed(() => dataStore.recipes.otherRecipes.filter(r => r.type === 'PRE_DOUGH' && !r.deletedAt));
 
-	// [核心改造] 主面团原料列表 = 基础原料 + EXTRA配方
 	const availableMainDoughIngredients = computed(() => {
 		const extras = dataStore.recipes.otherRecipes.filter(r => r.type === 'EXTRA' && !r.deletedAt);
 		const combined = [
 			...dataStore.allIngredients.map(i => ({ id: i.id, name: i.name })),
 			...extras.map(e => ({ id: e.id, name: e.name })),
 		];
-		// 排除掉所有面种配方的名称
 		const preDoughNames = new Set(availablePreDoughs.value.map(r => r.name));
 		return combined.filter(item => !preDoughNames.has(item.name))
 			.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
@@ -297,6 +316,8 @@
 		if (options && options.familyId) {
 			isEditing.value = true;
 			familyId.value = options.familyId;
+			versionId.value = options.versionId || null;
+			pageMode.value = options.mode as 'edit' | 'newVersion' | 'create';
 
 			const sourceFormJson = uni.getStorageSync('source_recipe_version_form');
 			if (sourceFormJson) {
@@ -317,9 +338,6 @@
 		uni.removeStorageSync('source_recipe_version_form');
 	});
 
-	// [核心改造] 移除 getIngredientName 函数
-
-	// [核心改造] 新增 select 事件处理函数
 	const onIngredientSelect = (item : { id : string | null; name : string }, ingIndex : number) => {
 		mainDough.value.ingredients[ingIndex].id = item.id;
 		mainDough.value.ingredients[ingIndex].name = item.name;
@@ -440,7 +458,6 @@
 		form.value.products![productIndex][type]!.splice(ingIndex, 1);
 	};
 
-	// [核心改造] 新增 onSubIngredientSelect 事件处理函数
 	const onSubIngredientSelect = (item : { id : string | null; name : string }, productIndex : number, type : 'mixIns' | 'fillings' | 'toppings', ingIndex : number) => {
 		const ingredient = form.value.products![productIndex][type]![ingIndex];
 		ingredient.id = item.id;
@@ -542,11 +559,13 @@
 				})),
 			};
 
-			let createdOrUpdatedRecipe : any = null;
-			if (isEditing.value && familyId.value) {
-				createdOrUpdatedRecipe = await createRecipeVersion(familyId.value, payload);
+			// [核心改造] 根据 pageMode 调用不同的接口
+			if (pageMode.value === 'edit' && familyId.value && versionId.value) {
+				await updateRecipeVersion(familyId.value, versionId.value, payload);
+			} else if (pageMode.value === 'newVersion' && familyId.value) {
+				await createRecipeVersion(familyId.value, payload);
 			} else {
-				createdOrUpdatedRecipe = await createRecipe(payload);
+				await createRecipe(payload);
 			}
 
 			toastStore.show({ message: '配方保存成功', type: 'success' });
@@ -612,11 +631,12 @@
 		align-items: center;
 		gap: 10px;
 		margin-bottom: 10px;
+	}
 
-		.autocomplete-wrapper {
-			flex: 1;
-			min-width: 0;
-		}
+	/* [核心改造] 新增包裹容器的样式，使其撑满可用空间 */
+	.autocomplete-input-wrapper {
+		flex: 1;
+		min-width: 0;
 	}
 
 	.remove-icon {

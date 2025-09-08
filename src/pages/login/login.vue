@@ -20,7 +20,7 @@
 			</view>
 		</view>
 
-		<image class="footer-croissant" src="/static/icons/croissant-outline.svg"></image>
+		<image class="footer-croissant" src="/static/icons/croissant.svg"></image>
 
 		<Toast />
 	</view>

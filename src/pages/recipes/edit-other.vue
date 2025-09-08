@@ -1,7 +1,7 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<DetailHeader :title="isEditing ? '创建新版本' : '新建其他配方'" />
+		<DetailHeader :title="pageTitle" />
 		<DetailPageLayout>
 			<view class="page-content">
 				<view class="card">
@@ -32,8 +32,10 @@
 						<text class="col-action"></text>
 					</view>
 					<view v-for="(ing, ingIndex) in form.ingredients" :key="ingIndex" class="ingredient-row">
-						<AutocompleteInput v-model="ing.name" :items="availableIngredients" placeholder="输入或选择原料"
-							@select="onIngredientSelect($event, ingIndex)" />
+						<view class="autocomplete-input-wrapper">
+							<AutocompleteInput v-model="ing.name" :items="availableIngredients" placeholder="输入或选择原料"
+								@select="onIngredientSelect($event, ingIndex)" />
+						</view>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio"
 							placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
@@ -68,7 +70,8 @@
 <script setup lang="ts">
 	import { ref, computed, onMounted, reactive } from 'vue';
 	import { onLoad, onUnload } from '@dcloudio/uni-app';
-	import { createRecipe, createRecipeVersion } from '@/api/recipes';
+	// [核心改造] 导入 updateRecipeVersion
+	import { createRecipe, createRecipeVersion, updateRecipeVersion } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
 	import FormItem from '@/components/FormItem.vue';
@@ -76,7 +79,6 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import IconButton from '@/components/IconButton.vue';
-	// [核心改造] 引入新的 AutocompleteInput 组件
 	import AutocompleteInput from '@/components/AutocompleteInput.vue';
 	import { toDecimal } from '@/utils/format';
 
@@ -90,6 +92,9 @@
 
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
+	// [核心新增] 存储从路由传入的版本ID
+	const versionId = ref<string | null>(null);
+	const pageMode = ref<'create' | 'edit' | 'newVersion'>('create');
 
 	const form = reactive({
 		name: '',
@@ -97,6 +102,16 @@
 		notes: '',
 		ingredients: [{ id: null as string | null, name: '', ratio: null as number | null }],
 		procedure: [''],
+	});
+
+	const pageTitle = computed(() => {
+		if (pageMode.value === 'edit') {
+			return '修改配方';
+		}
+		if (pageMode.value === 'newVersion') {
+			return '创建新版本';
+		}
+		return '新建其他配方';
 	});
 
 	const recipeTypes = ref([
@@ -108,14 +123,12 @@
 		return recipeTypes.value.find(t => t.value === form.type)?.label || '请选择';
 	});
 
-	// [核心改造] 定义新的原料数据源，包含基础原料和"EXTRA"类型配方
 	const availableIngredients = computed(() => {
 		const extras = dataStore.recipes.otherRecipes.filter(r => r.type === 'EXTRA' && !r.deletedAt);
 		const combined = [
 			...dataStore.allIngredients.map(i => ({ id: i.id, name: i.name })),
 			...extras.map(e => ({ id: e.id, name: e.name })),
 		];
-		// 按名称排序
 		return combined.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 	});
 
@@ -124,7 +137,6 @@
 		if (!dataStore.dataLoaded.ingredients) {
 			await dataStore.fetchIngredientsData();
 		}
-		// [新增] 确保配方数据也已加载
 		if (!dataStore.dataLoaded.recipes) {
 			await dataStore.fetchRecipesData();
 		}
@@ -132,6 +144,9 @@
 		if (options && options.familyId) {
 			isEditing.value = true;
 			familyId.value = options.familyId;
+			// [核心改造] 存储 versionId
+			versionId.value = options.versionId || null;
+			pageMode.value = options.mode as 'edit' | 'newVersion' | 'create';
 
 			const sourceFormJson = uni.getStorageSync('source_recipe_version_form');
 			if (sourceFormJson) {
@@ -149,14 +164,10 @@
 		uni.removeStorageSync('source_recipe_version_form');
 	});
 
-
-	// [核心改造] 移除 getIngredientName 函数，因为 AutocompleteInput 直接显示 name
-
 	const onTypeChange = (e : any) => {
 		form.type = recipeTypes.value[e.detail.value].value as 'PRE_DOUGH' | 'EXTRA';
 	};
 
-	// [核心改造] 新增 AutocompleteInput 的 select 事件处理函数
 	const onIngredientSelect = (item : { id : string | null; name : string }, ingIndex : number) => {
 		form.ingredients[ingIndex].id = item.id;
 		form.ingredients[ingIndex].name = item.name;
@@ -182,7 +193,6 @@
 	const handleSubmit = async () => {
 		isSubmitting.value = true;
 		try {
-			// [核心改造] 查找原料信息的逻辑需要同时在基础原料和配方中查找
 			const allAvailableItemsMap = new Map(availableIngredients.value.map(i => [i.id, i]));
 			const allIngredientsMap = new Map(dataStore.allIngredients.map(i => [i.id, i]));
 
@@ -191,12 +201,10 @@
 				type: form.type,
 				notes: form.notes,
 				ingredients: form.ingredients
-					// [核心改造] 过滤条件改为检查 name 是否存在
 					.filter(ing => ing.name && (ing.ratio !== null && ing.ratio > 0))
 					.map(ing => {
 						const ingredientDetails = allIngredientsMap.get(ing.id!);
 						return {
-							// [核心改造] 如果 id 存在，使用 id，否则后端会根据 name 创建
 							ingredientId: ing.id || undefined,
 							name: ing.name,
 							ratio: toDecimal(ing.ratio),
@@ -207,11 +215,15 @@
 				products: [],
 			};
 
-			if (isEditing.value && familyId.value) {
+			// [核心改造] 根据 pageMode 调用不同的接口
+			if (pageMode.value === 'edit' && familyId.value && versionId.value) {
+				await updateRecipeVersion(familyId.value, versionId.value, payload);
+			} else if (pageMode.value === 'newVersion' && familyId.value) {
 				await createRecipeVersion(familyId.value, payload);
 			} else {
 				await createRecipe(payload);
 			}
+
 
 			toastStore.show({ message: '配方保存成功', type: 'success' });
 			await dataStore.fetchRecipesData();
@@ -227,7 +239,6 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
-	// [核心新增] 引入 Mixin
 	@include form-control-styles;
 
 	.page-wrapper {
@@ -236,7 +247,6 @@
 		height: 100vh;
 	}
 
-	// [核心修改] 删除本地重复样式，只保留页面特有的
 	.input-field[disabled] {
 		background-color: #e9ecef;
 		color: #6c757d;
@@ -271,12 +281,11 @@
 		align-items: center;
 		gap: 10px;
 		margin-bottom: 10px;
+	}
 
-		/* [核心改造] 让 AutocompleteInput 占据主要空间 */
-		.autocomplete-wrapper {
-			flex: 1;
-			min-width: 0;
-		}
+	.autocomplete-input-wrapper {
+		flex: 1;
+		min-width: 0;
 	}
 
 	.ratio-input {

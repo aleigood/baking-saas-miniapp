@@ -1,24 +1,27 @@
 <template>
 	<view class="ripple-container" :class="fabClasses" @touchstart="handleTouchStart" @click="handleClick">
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
-		<image class="fab-icon" src="/static/icons/fab-add.svg" />
+		<image class="fab-icon" :src="icon" />
 	</view>
 </template>
 
 <script setup lang="ts">
 	import { ref, getCurrentInstance, computed } from 'vue';
 
-	// [兼容性修复] 新增 noTabBar prop，用于从组件内部控制样式
+	// [核心改造] 增加 icon prop，并设置默认值为原来的添加图标
 	const props = defineProps({
 		noTabBar: {
 			type: Boolean,
 			default: false
+		},
+		icon: {
+			type: String,
+			default: '/static/icons/fab-add.svg'
 		}
 	});
 
 	const emit = defineEmits(['click']);
 
-	// [兼容性修复] 使用计算属性动态生成class列表
 	const fabClasses = computed(() => ({
 		'fab': true,
 		'fab-no-tab-bar': props.noTabBar
@@ -52,9 +55,7 @@
 		}).exec();
 	};
 
-	// [体验优化] 新增 handleClick 方法以延迟事件触发
 	const handleClick = (event : Event) => {
-		// [体验优化] 增加 300ms 延迟，确保水波纹动画可见后再执行点击操作
 		setTimeout(() => {
 			emit('click', event);
 		}, 300);

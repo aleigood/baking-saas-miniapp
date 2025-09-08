@@ -75,6 +75,21 @@ export function createRecipeVersion(familyId : string, createDto : any) : Promis
 }
 
 /**
+ * [核心新增] 修改一个尚未被使用的配方版本
+ * @param familyId 配方家族的ID
+ * @param versionId 要修改的版本ID
+ * @param updateDto 新的配方数据
+ */
+export function updateRecipeVersion(familyId : string, versionId : string, updateDto : any) : Promise<RecipeVersion> {
+	return request<RecipeVersion>({
+		url: `/recipes/${familyId}/versions/${versionId}`,
+		method: 'PATCH',
+		data: updateDto,
+	});
+}
+
+
+/**
  * [修改] 此函数现在只用于创建全新的配方家族
  * @param data 完整的配方数据，符合后端的 CreateRecipeDto 结构
  */
