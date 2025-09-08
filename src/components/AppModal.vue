@@ -30,7 +30,7 @@
 		},
 		width: {
 			type: String,
-			default: '85%',
+			default: '90%',
 		},
 		noHeaderLine: {
 			type: Boolean,
