@@ -167,7 +167,6 @@
 	justify-content: center;
 	align-items: center;
 	padding-top: 100px;
-	/* [核心修改] 新增颜色定义，使其应用主题色 */
 	color: var(--text-secondary);
 }
 
@@ -199,16 +198,21 @@
 		color: var(--text-primary);
 	}
 
+	// [核心修复] 移除属性选择器，只保留类选择器
+	.input-field.is-disabled,
+	.picker.is-disabled {
+		background-color: #e9ecef;
+		color: #6c757d;
+	}
+
 	.picker {
 		position: relative;
-		padding-right: 30px; // 为箭头留出空间
+		padding-right: 30px;
 
-		// 用于 picker 的占位符颜色
 		&.placeholder {
 			color: #999;
 		}
 
-		// 下拉箭头
 		.arrow-down {
 			position: absolute;
 			right: 12px;

@@ -6,7 +6,8 @@
 			<view class="page-content">
 				<view class="card">
 					<FormItem label="配方名称">
-						<input class="input-field" v-model="form.name" placeholder="例如：法式长棍" :disabled="isEditing" />
+						<input class="input-field" v-model="form.name" placeholder="例如：法式长棍" :disabled="isEditing"
+							:class="{'is-disabled': isEditing}" />
 					</FormItem>
 					<FormItem v-if="isEditing" label="版本说明">
 						<input class="input-field" v-model="form.notes" placeholder="例如：夏季版本，减少水量" />
@@ -568,7 +569,6 @@
 
 
 			toastStore.show({ message: '配方保存成功', type: 'success' });
-			// [核心改造] 保存成功后，标记配方和原料数据为脏
 			dataStore.markRecipesAsStale();
 			dataStore.markIngredientsAsStale();
 			uni.navigateBack();
@@ -596,11 +596,6 @@
 		width: 80px;
 		text-align: center;
 		flex-shrink: 0;
-	}
-
-	.input-field[disabled] {
-		background-color: #e9ecef;
-		color: #6c757d;
 	}
 
 	.ingredient-header {

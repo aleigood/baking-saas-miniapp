@@ -20,14 +20,13 @@
 <script setup lang="ts">
 	import { ref, computed, watch, getCurrentInstance, onMounted, nextTick } from 'vue';
 
-	// [核心修复] 使用 withDefaults 宏来正确地为 props 定义类型和默认值
 	const props = withDefaults(defineProps<{
 		modelValue : string;
 		items : { id : string | null; name : string }[];
 		placeholder ?: string;
 	}>(), {
-		modelValue: '', // 为 modelValue 提供默认值
-		items: () => [], // 数组和对象的默认值必须使用工厂函数
+		modelValue: '',
+		items: () => [],
 		placeholder: ''
 	});
 
@@ -57,7 +56,8 @@
 		if (!inputRect.value) {
 			return { display: 'none' };
 		}
-		const bottom = uni.getSystemInfoSync().windowHeight - (inputRect.value.top || 0);
+		// [核心修复] 使用 uni.getWindowInfo() 替代 uni.getSystemInfoSync()
+		const bottom = uni.getWindowInfo().windowHeight - (inputRect.value.top || 0);
 		return {
 			bottom: `${bottom}px`,
 			left: `${inputRect.value.left || 0}px`,
@@ -107,7 +107,6 @@
 	@import '@/styles/common.scss';
 	@include form-control-styles;
 
-	/* [核心改造] 移除 flex:1 和 min-width，将布局控制权交还给父组件 */
 	.autocomplete-container {
 		position: relative;
 	}

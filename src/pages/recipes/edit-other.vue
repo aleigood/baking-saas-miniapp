@@ -6,19 +6,19 @@
 			<view class="page-content">
 				<view class="card">
 					<FormItem label="配方名称">
-						<input class="input-field" v-model="form.name" placeholder="例如：波兰种 或 奶酥馅"
-							:disabled="isEditing" />
-					</FormItem>
-					<FormItem v-if="isEditing" label="版本说明">
-						<input class="input-field" v-model="form.notes" placeholder="例如：更换了黄油品牌" />
+						<input class="input-field" v-model="form.name" placeholder="例如：波兰种 或 奶酥馅" :disabled="isEditing"
+							:class="{'is-disabled': isEditing}" />
 					</FormItem>
 					<FormItem label="配方类型">
 						<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange"
 							:disabled="isEditing">
-							<view class="picker">{{ currentTypeLabel }}
+							<view class="picker" :class="{ 'is-disabled': isEditing }">{{ currentTypeLabel }}
 								<view class="arrow-down"></view>
 							</view>
 						</picker>
+					</FormItem>
+					<FormItem v-if="isEditing" label="版本说明">
+						<input class="input-field" v-model="form.notes" placeholder="例如：更换了黄油品牌" />
 					</FormItem>
 				</view>
 
@@ -221,9 +221,8 @@
 			}
 
 			toastStore.show({ message: '配方保存成功', type: 'success' });
-			// [核心改造] 保存成功后，标记配方和原料数据为脏
 			dataStore.markRecipesAsStale();
-			dataStore.markIngredientsAsStale(); // 因为可能创建了新原料
+			dataStore.markIngredientsAsStale();
 			uni.navigateBack();
 
 		} catch (error) {
@@ -242,11 +241,6 @@
 		display: flex;
 		flex-direction: column;
 		height: 100vh;
-	}
-
-	.input-field[disabled] {
-		background-color: #e9ecef;
-		color: #6c757d;
 	}
 
 	.ingredient-header {
