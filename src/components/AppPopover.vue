@@ -3,7 +3,10 @@
 		:style="{ top: finalTop + 'px', left: finalLeft + 'px', zIndex: zIndex }" @click.stop>
 		<view class="popover-wrapper">
 			<view class="popover-content" :style="{ maxWidth: maxWidth, minWidth: minWidth, padding: padding }">
-				{{ content }}
+				<view v-for="(line, index) in lines" :key="index" class="popover-line">
+					<view v-if="lines.length > 1" class="bullet"></view>
+					<text class="line-text">{{ line }}</text>
+				</view>
 			</view>
 			<view class="popover-arrow"></view>
 		</view>
@@ -27,13 +30,13 @@
 				width : number;
 				height : number;
 			} | null;
-			offsetY ?: number; // Y轴额外偏移量
-			offsetX ?: number; // X轴额外偏移量
-			placement ?: 'top' | 'bottom' | 'left' | 'right'; // 浮框相对于目标的放置位置
-			maxWidth ?: string; // 浮框最大宽度
-			minWidth ?: string; // 浮框最小宽度
-			padding ?: string; // 浮框内边距
-			zIndex ?: number; // z-index值
+			offsetY ?: number;
+			offsetX ?: number;
+			placement ?: 'top' | 'bottom' | 'left' | 'right';
+			maxWidth ?: string;
+			minWidth ?: string;
+			padding ?: string;
+			zIndex ?: number;
 		}>(), {
 		offsetY: 10,
 		offsetX: 10,
@@ -45,27 +48,25 @@
 	}
 	);
 
-	// [核心新增] 内部状态，用于控制动画效果
-	const isPopoverVisible = ref(false); // 控制 v-if，决定组件是否在DOM中
-	const isFadingOut = ref(false); // 控制退场动画的class
+	const lines = computed(() => props.content.split('\n').filter(line => line.trim() !== ''));
 
-	// [核心新增] 监听父组件传递的 visible 属性
+	const isPopoverVisible = ref(false);
+	const isFadingOut = ref(false);
+
 	watch(() => props.visible, (newValue) => {
 		if (newValue) {
-			// 当需要显示时
-			isFadingOut.value = false; // 清除退场动画状态
-			isPopoverVisible.value = true; // 添加到DOM中，触发入场动画
+			isFadingOut.value = false;
+			isPopoverVisible.value = true;
 		} else {
-			// 当需要隐藏时
-			if (isPopoverVisible.value) { // 仅当当前是可见状态时才执行退场动画
-				isFadingOut.value = true; // 添加退场动画class
+			if (isPopoverVisible.value) {
+				isFadingOut.value = true;
 				setTimeout(() => {
-					isPopoverVisible.value = false; // 动画结束后从DOM中移除
-				}, 100); // 这个时间必须与 pop-out 动画的持续时间一致
+					isPopoverVisible.value = false;
+				}, 100);
 			}
 		}
 	}, {
-		immediate: true // 立即执行一次，确保初始化时状态正确
+		immediate: true
 	});
 
 	const finalTop = computed(() => {
@@ -74,19 +75,16 @@
 
 		switch (props.placement) {
 			case 'top': {
-				// [核心说明] top/bottom 布局依赖估算高度，可能存在不精确的问题。当前仅根据您的需求精确优化左右布局。
 				const estimatedLineHeight = 18;
 				const estimatedPadding = 12;
-				const lines = props.content.split('\n').length; // 基于换行符估算行数
-				const popoverHeight = (lines * estimatedLineHeight) + estimatedPadding;
+				const linesCount = lines.value.length > 0 ? lines.value.length : 1;
+				const popoverHeight = (linesCount * estimatedLineHeight) + estimatedPadding;
 				return props.targetRect.top - popoverHeight - arrowHeight - props.offsetY;
 			}
 			case 'bottom':
 				return props.targetRect.top + props.targetRect.height + arrowHeight + props.offsetY;
 			case 'left':
 			case 'right':
-				// [核心修改] JS 只负责将 popover 的顶部定位到目标元素的垂直中心
-				// 实际的居中效果由 CSS 的 transform: translateY(-50%) 完成，不再需要估算高度
 				return props.targetRect.top + (props.targetRect.height / 2);
 			default:
 				return 0;
@@ -116,21 +114,17 @@
 	.app-popover {
 		position: fixed;
 		z-index: var(--popover-z-index, 1000);
-		/* [核心修改] 修改动画效果，增加加速和回弹效果 */
 		animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 		transform-origin: center center;
-		/* 根据需要调整原点 */
 	}
 
 	.app-popover.fade-out {
 		animation: pop-out 0.2s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
 	}
 
-	/* [核心新增] 新增 wrapper 容器，用于应用垂直居中 transform */
 	.popover-wrapper {
 		position: relative;
 
-		// 对于左右布局，通过 transform 实现真正的垂直居中，不再依赖 JS 估算高度
 		.app-popover.placement-left &,
 		.app-popover.placement-right & {
 			transform: translateY(-50%);
@@ -146,8 +140,30 @@
 		word-break: break-word;
 		text-align: left;
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-		/* [核心新增] 新增 white-space 属性，让 \n 能够被正确渲染为换行 */
-		white-space: pre-line;
+	}
+
+	.popover-line {
+		display: flex;
+		align-items: flex-start;
+		margin-bottom: 4px;
+	}
+
+	.popover-line:last-child {
+		margin-bottom: 0;
+	}
+
+	.bullet {
+		width: 4px;
+		height: 4px;
+		background-color: var(--primary-color);
+		border-radius: 50%;
+		margin-right: 6px;
+		flex-shrink: 0;
+		margin-top: 6px;
+	}
+
+	.line-text {
+		white-space: pre-wrap;
 	}
 
 	.popover-arrow {
@@ -189,7 +205,6 @@
 		right: -12px;
 	}
 
-	/* 冒泡动画 */
 	@keyframes pop-in {
 		from {
 			opacity: 0;
