@@ -1,7 +1,7 @@
 <template>
 	<view class="refreshable-layout">
 		<view class="refresher-container"
-			:style="{ height: refresherHeight + 'px', transition: isTouching ? 'none' : 'height 0.3s' }">
+			:style="{ height: refresherHeight + 'px', transition: transitionDisabled ? 'none' : 'height 0.3s' }">
 			<view class="refresher-content">
 				<view class="croissant-wrapper" :style="{ transform: croissantTransform }"
 					:class="{ 'is-loading': status === 'loading' }">
@@ -18,8 +18,8 @@
 			</view>
 		</view>
 
-		<scroll-view :scroll-y="true" class="scroll-area" @scroll="handleScroll" @touchstart="handleTouchStart"
-			@touchmove="handleTouchMove" @touchend="handleTouchEnd">
+		<scroll-view :scroll-y="true" class="scroll-area" @scroll="handleScroll" @scrolltoupper="handleScrollToUpper"
+			@touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
 			<slot></slot>
 		</scroll-view>
 	</view>
@@ -30,115 +30,131 @@
 
 	const emit = defineEmits(['refresh']);
 
-	const REFRESHER_HEIGHT = 80; // 触发刷新的阈值
-	const MAX_PULL_HEIGHT = 120; // 最大下拉高度
+	// --- 常量 ---
+	const REFRESHER_HEIGHT = 80;
+	const MAX_PULL_HEIGHT = 120;
+	const DAMPING_FACTOR = 0.5;
 
-	const refresherHeight = ref(0);
+	// --- 核心状态变量 ---
 	const status = ref<'pulling' | 'releasing' | 'loading' | 'finishing'>('pulling');
-	const isTouching = ref(false);
 	const startY = ref(0);
+	const isTouching = ref(false);
+	const isPulling = ref(false);
+	const pullDistance = ref(0);
+	const transitionDisabled = ref(false);
+	// [核心修复] 新增 isAtTop 状态标志，默认为 true
+	const isAtTop = ref(true);
+
+	// --- 计算属性 (UI状态) ---
+	const refresherHeight = computed(() => {
+		if (status.value === 'loading' || status.value === 'finishing') {
+			return REFRESHER_HEIGHT;
+		}
+		return pullDistance.value;
+	});
 
 	const statusText = computed(() => {
 		switch (status.value) {
-			case 'pulling':
-				return '下拉刷新';
-			case 'releasing':
-				return '松开刷新';
-			case 'loading':
-				return '正在刷新...';
-			case 'finishing':
-				return '刷新完成';
-			default:
-				return '';
+			case 'pulling': return '下拉刷新';
+			case 'releasing': return '松开刷新';
+			case 'loading': return '正在刷新...';
+			case 'finishing': return '刷新完成';
+			default: return '';
 		}
 	});
 
 	const croissantTransform = computed(() => {
 		const baseScale = 0.5;
-		if (status.value === 'loading') {
+		if (status.value === 'loading' || status.value === 'finishing') {
 			return `scale(${baseScale})`;
 		}
-		if (status.value === 'pulling' || status.value === 'releasing') {
-			const pullScale = baseScale + (refresherHeight.value / REFRESHER_HEIGHT) * 0.1;
-			return `scale(${Math.min(pullScale, baseScale + 0.1)})`;
-		}
-		return `scale(${baseScale})`;
+		const pullScale = baseScale + (pullDistance.value / REFRESHER_HEIGHT) * 0.1;
+		return `scale(${Math.min(pullScale, baseScale + 0.1)})`;
 	});
 
-	const handleTouchStart = (e : TouchEvent) => {
-		if (scrollTop.value > 0) return;
-		startY.value = e.touches[0].clientY;
+	// --- 事件处理方法 ---
+
+	const handleTouchStart = (event : TouchEvent) => {
+		if (status.value === 'loading' || status.value === 'finishing') return;
+
+		const touch = event.touches[0] || event.changedTouches[0];
 		isTouching.value = true;
+		startY.value = touch.pageY;
+		transitionDisabled.value = true;
 	};
 
-	const handleTouchMove = (e : TouchEvent) => {
-		if (scrollTop.value > 0 && startY.value === 0) return;
+	const handleTouchMove = (event : TouchEvent) => {
+		if (!isTouching.value) return;
 
-		// #ifdef H5
-		e.preventDefault();
-		// #endif
+		const touch = event.touches[0] || event.changedTouches[0];
+		const deltaY = touch.pageY - startY.value;
 
-		const deltaY = e.touches[0].clientY - startY.value;
+		// [核心修复] 使用 isAtTop 标志位进行判断，不再依赖 scrollTop
+		if (isAtTop.value && deltaY > 0 && !isPulling.value) {
+			isPulling.value = true;
+		}
 
-		if (deltaY > 0) {
-			const newHeight = Math.min(deltaY, MAX_PULL_HEIGHT);
-			refresherHeight.value = newHeight;
+		if (isPulling.value) {
+			// 在小程序中，当下拉时，scroll-view的默认行为（橡皮筋效果）已经提供了视觉反馈
+			// 我们只需要处理自己的下拉逻辑，无需阻止默认事件
 
-			if (status.value !== 'loading') {
-				status.value = newHeight >= REFRESHER_HEIGHT ? 'releasing' : 'pulling';
+			pullDistance.value = Math.min(deltaY * DAMPING_FACTOR, MAX_PULL_HEIGHT);
+			if (status.value !== 'loading' && status.value !== 'finishing') {
+				status.value = pullDistance.value >= REFRESHER_HEIGHT ? 'releasing' : 'pulling';
 			}
 		}
 	};
 
 	const handleTouchEnd = () => {
-		if (scrollTop.value > 0 || startY.value === 0) {
-			startY.value = 0;
-			isTouching.value = false;
-			return;
-		};
-		startY.value = 0;
+		if (!isTouching.value) return;
+
 		isTouching.value = false;
+		transitionDisabled.value = false;
 
-		if (status.value === 'releasing') {
-			startLoading();
-		} else if (status.value === 'pulling') {
-			resetRefresher();
+		if (isPulling.value) {
+			if (status.value === 'releasing') {
+				status.value = 'loading';
+				emit('refresh');
+			} else {
+				pullDistance.value = 0;
+				status.value = 'pulling';
+			}
 		}
+		isPulling.value = false;
 	};
 
-	const scrollTop = ref(0);
-	const handleScroll = (e : any) => {
-		if (!isTouching.value) {
-			scrollTop.value = e.detail.scrollTop;
+	/**
+	 * [核心修复] 新增方法，当滚动到顶部时触发
+	 */
+	const handleScrollToUpper = () => {
+		isAtTop.value = true;
+	};
+
+	/**
+	 * [核心修复] 修改方法，当开始滚动时，清除 isAtTop 标志
+	 */
+	const handleScroll = (event : any) => {
+		// 只要滚动了（scrollTop > 0），就说明不在顶部
+		if (event.detail.scrollTop > 0) {
+			isAtTop.value = false;
 		}
-	};
-
-	const startLoading = () => {
-		status.value = 'loading';
-		refresherHeight.value = REFRESHER_HEIGHT;
-		emit('refresh');
-	};
-
-	const resetRefresher = () => {
-		refresherHeight.value = 0;
-		status.value = 'pulling';
 	};
 
 	const finishRefresh = () => {
-		status.value = 'finishing'; // 1. 将状态设置为“完成中”，此时文本显示“刷新完成”
-
-		// 2. 设置一个短暂延时，让用户能看到“刷新完成”的提示
-		setTimeout(() => {
-			refresherHeight.value = 0; // 3. 开始执行收起动画（动画时长为0.3秒）
-
-			// 4. [核心修改] 在收起动画结束后，再将状态重置为“下拉刷新”
+		if (status.value === 'loading') {
+			status.value = 'finishing';
 			setTimeout(() => {
-				status.value = 'pulling';
-			}, 300); // 这个延时必须与CSS中的transition时长保持一致
-		}, 500); // “刷新完成”文本的显示时长
+				pullDistance.value = 0;
+				setTimeout(() => {
+					status.value = 'pulling';
+				}, 300);
+			}, 500);
+		}
 	};
 
-	defineExpose({ finishRefresh });
+	defineExpose({
+		finishRefresh
+	});
 </script>
 
 <style scoped lang="scss">
