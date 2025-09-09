@@ -28,10 +28,11 @@ export interface PrepTask {
 	items : CalculatedRecipeDetails[];
 	status ?: 'PREP';
 }
-// [核心重构] 更新 ProductionDataPayload 类型，以反映后端返回的统一任务列表
+// [核心改造] 更新 ProductionDataPayload 类型，以反映后端返回的统一任务列表
 export interface ProductionDataPayload {
 	stats ?: {
-		todayPendingCount : number;
+		// [核心改造] 将 todayPendingCount 重命名为 pendingCount
+		pendingCount : number;
 	};
 	// tasks 现在是一个包含常规任务和备料任务的联合类型数组
 	tasks : (ProductionTaskDto | (PrepTask & {
@@ -97,7 +98,7 @@ export interface RecipeFormTemplate {
 	name : string;
 	type : 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	notes : string;
-	targetTemp ?: number; // [核心新增] 新增出缸温度字段
+	targetTemp ?: number;
 	doughs ?: { // 主配方使用
 		id : string;
 		name : string;
@@ -115,13 +116,13 @@ export interface RecipeFormTemplate {
 		name : string;
 		baseDoughWeight : number;
 		mixIns : {
-			id : string | null; ratio : number | null; weightInGrams ?: number | null
+			id : string | null; name : string; ratio : number | null; weightInGrams ?: number | null
 		}[];
 		fillings : {
-			id : string | null; ratio : number | null; weightInGrams ?: number | null
+			id : string | null; name : string; ratio : number | null; weightInGrams ?: number | null
 		}[];
 		toppings : {
-			id : string | null; ratio : number | null; weightInGrams ?: number | null
+			id : string | null; name : string; ratio : number | null; weightInGrams ?: number | null
 		}[];
 		procedure : string[];
 	}[];
@@ -419,5 +420,3 @@ export interface ProductionTaskDetailDto {
 	doughGroups : DoughGroup[];
 	items : TaskCompletionItem[];
 }
-
-// [核心修改] 移除了不再使用的 ProductionDashboardPayload 类型

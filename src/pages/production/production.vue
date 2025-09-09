@@ -4,7 +4,7 @@
 			<view class="summary-card">
 				<div>
 					<view class="value">{{ dataStore.homeStats.pendingCount }}</view>
-					<view class="label">今日待完成</view>
+					<view class="label">{{ pendingCountLabel }}</view>
 				</div>
 				<div>
 					<view class="value">{{ temperatureStore.settings.envTemp }}°C</view>
@@ -164,6 +164,19 @@
 
 	const currentMixerIndex = computed(() => {
 		return temperatureStore.mixerTypes.findIndex(m => m.value === tempSettings.mixerType);
+	});
+
+	// [核心改造] 新增计算属性，用于动态生成待完成数量的标签
+	const pendingCountLabel = computed(() => {
+		const todayDate = new Date();
+		const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(
+			todayDate.getDate()
+		).padStart(2, '0')}`;
+		if (selectedDate.value === today) {
+			return '今日待完成';
+		}
+		const date = new Date(selectedDate.value);
+		return `${date.getMonth() + 1}月${date.getDate()}日待完成`;
 	});
 
 	const pageTitle = computed(() => {

@@ -3,7 +3,7 @@
  * 文件描述: (性能优化) 将全量数据加载拆分为按需加载，提升切换店铺的响应速度。
  */
 import { defineStore } from 'pinia';
-import { ref, computed, reactive } from 'vue'; // [核心改造] 导入 reactive
+import { ref, computed, reactive } from 'vue';
 import type {
 	Tenant,
 	ProductListItem,
@@ -20,11 +20,9 @@ import { useToastStore } from './toast';
 import { getTenants as getTenantsApi } from '@/api/tenants';
 import { switchTenant as switchTenantApi } from '@/api/auth';
 import { getTasks, getHistoryTasks } from '@/api/tasks';
-// [核心修改] 导入新的 API 函数
 import { getRecipes, getProductsForTasks } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
 import { getMembers } from '@/api/members';
-// [核心修复] 移除了对 getProductionDashboard 的导入
 import { getRecipeStats, getIngredientStats } from '@/api/stats';
 
 function getMonthDateRange() {
@@ -37,9 +35,8 @@ function getMonthDateRange() {
 export const useDataStore = defineStore('data', () => {
 	const tenants = ref<Tenant[]>([]);
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
-	// [核心修改] production 的类型现在是一个联合类型数组
 	const production = ref<(ProductionTaskDto | (PrepTask & { status : 'PREP' }))[]>([]);
-	// [核心修改] prepTask 不再需要单独存储
+	// [核心改造] 将 todayPendingCount 重命名为 pendingCount
 	const homeStats = ref({ pendingCount: 0 });
 	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
 	const historicalTasksMeta = ref({
@@ -60,7 +57,6 @@ export const useDataStore = defineStore('data', () => {
 	const recipeStats = ref<RecipeStatDto[]>([]);
 	const ingredientStats = ref<IngredientStatDto[]>([]);
 
-	// [核心改造] dataLoaded 用于标记模块数据是否已“加载过至少一次”
 	const dataLoaded = ref({
 		production: false,
 		recipes: false,
@@ -70,9 +66,8 @@ export const useDataStore = defineStore('data', () => {
 		historicalTasks: false,
 	});
 
-	// [核心改造] 新增 dataStale，用于标记数据是否“变脏”，需要刷新
 	const dataStale = reactive({
-		production: true, // 初始为 true，强制首次加载
+		production: true,
 		recipes: true,
 		ingredients: true,
 		members: true,
@@ -85,7 +80,6 @@ export const useDataStore = defineStore('data', () => {
 
 	const allIngredients = computed(() => ingredients.value.allIngredients);
 
-	// [核心改造] 新增一系列“标记为脏”的方法，供其他页面在修改数据后调用
 	const markProductionAsStale = () => { dataStale.production = true; };
 	const markHistoricalTasksAsStale = () => { dataStale.historicalTasks = true; };
 	const markRecipesAsStale = () => { dataStale.recipes = true; };
@@ -124,10 +118,11 @@ export const useDataStore = defineStore('data', () => {
 			const payload = await getTasks(date);
 			production.value = payload.tasks;
 			if (payload.stats) {
-				homeStats.value.pendingCount = payload.stats.todayPendingCount;
+				// [核心改造] 使用新的字段名 pendingCount
+				homeStats.value.pendingCount = payload.stats.pendingCount;
 			}
 			dataLoaded.value.production = true;
-			dataStale.production = false; // [核心改造] 数据加载成功后，清除“脏”标记
+			dataStale.production = false;
 		} catch (error) {
 			console.error('Failed to fetch production data', error);
 		}
@@ -166,7 +161,7 @@ export const useDataStore = defineStore('data', () => {
 			historicalTasksMeta.value.page = newMeta.page;
 			historicalTasksMeta.value.hasMore = newMeta.hasMore;
 			dataLoaded.value.historicalTasks = true;
-			dataStale.historicalTasks = false; // [核心改造] 数据加载成功后，清除“脏”标记
+			dataStale.historicalTasks = false;
 		} catch (error) {
 			console.error('Failed to fetch historical tasks', error);
 			historicalTasksMeta.value.hasMore = false;
@@ -181,7 +176,7 @@ export const useDataStore = defineStore('data', () => {
 			recipes.value = recipeData;
 			recipeStats.value = recipeStatData;
 			dataLoaded.value.recipes = true;
-			dataStale.recipes = false; // [核心改造] 数据加载成功后，清除“脏”标记
+			dataStale.recipes = false;
 		} catch (error) {
 			console.error('Failed to fetch recipes data', error);
 		}
@@ -192,7 +187,7 @@ export const useDataStore = defineStore('data', () => {
 		try {
 			productsForTaskCreation.value = await getProductsForTasks();
 			dataLoaded.value.productsForTaskCreation = true;
-			dataStale.productsForTaskCreation = false; // [核心改造] 数据加载成功后，清除“脏”标记
+			dataStale.productsForTaskCreation = false;
 		} catch (error) {
 			console.error('Failed to fetch products for task creation', error);
 		}
@@ -203,7 +198,7 @@ export const useDataStore = defineStore('data', () => {
 		try {
 			ingredients.value = await getIngredients();
 			dataLoaded.value.ingredients = true;
-			dataStale.ingredients = false; // [核心改造] 数据加载成功后，清除“脏”标记
+			dataStale.ingredients = false;
 		} catch (error) {
 			console.error('Failed to fetch ingredients data', error);
 		}
@@ -214,7 +209,7 @@ export const useDataStore = defineStore('data', () => {
 		try {
 			members.value = await getMembers();
 			dataLoaded.value.members = true;
-			dataStale.members = false; // [核心改造] 数据加载成功后，清除“脏”标记
+			dataStale.members = false;
 		} catch (error) {
 			console.error('Failed to fetch members data', error);
 		}
@@ -259,7 +254,6 @@ export const useDataStore = defineStore('data', () => {
 			members: false,
 			historicalTasks: false,
 		};
-		// [核心改造] 切换店铺时，将所有数据标记为脏，强制重新加载
 		Object.keys(dataStale).forEach(key => dataStale[key as keyof typeof dataStale] = true);
 		resetHistoricalTasks();
 	}
@@ -287,7 +281,7 @@ export const useDataStore = defineStore('data', () => {
 		recipeStats,
 		ingredientStats,
 		dataLoaded,
-		dataStale, // [核心改造] 导出 dataStale 状态
+		dataStale,
 		fetchTenants,
 		selectTenant,
 		reset,
@@ -297,7 +291,6 @@ export const useDataStore = defineStore('data', () => {
 		fetchProductsForTaskCreation,
 		fetchIngredientsData,
 		fetchMembersData,
-		// [核心改造] 导出所有标记方法
 		markProductionAsStale,
 		markHistoricalTasksAsStale,
 		markRecipesAsStale,
