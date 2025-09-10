@@ -1,65 +1,67 @@
 <template>
-	<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll"
-		class="full-height-wrapper">
-		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
-			<view class="filter-bar">
-				<FilterTabs v-model="ingredientFilter" :tabs="ingredientFilterTabs" />
-				<IconButton @click="navigateToLedger">
-					<image class="header-icon" src="/static/icons/log.svg" />
-				</IconButton>
-			</view>
+	<view class="full-height-container">
+		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll"
+			class="full-height-wrapper">
+			<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
+				<view class="filter-bar">
+					<FilterTabs v-model="ingredientFilter" :tabs="ingredientFilterTabs" />
+					<IconButton @click="navigateToLedger">
+						<image class="header-icon" src="/static/icons/log.svg" />
+					</IconButton>
+				</view>
 
-			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
-				<template v-if="ingredientFilter === 'all'">
-					<template v-if="dataStore.ingredients.allIngredients.length > 0">
-						<ListItem v-for="(ing, index) in dataStore.ingredients.allIngredients" :key="ing.id"
-							@click="navigateToDetail(ing.id)" @longpress="openIngredientActions(ing)"
-							:vibrate-on-long-press="canEdit" :bleed="true"
-							:divider="index < dataStore.ingredients.allIngredients.length - 1">
-							<view class="main-info">
-								<view class="name">{{ ing.name }}</view>
-								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
-							</view>
-							<view class="side-info">
-								<view class="value">
-									<template v-if="ing.type === 'UNTRACKED'">∞</template>
-									<template v-else>{{ formatWeight(ing.currentStockInGrams) }}</template>
+				<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
+					<template v-if="ingredientFilter === 'all'">
+						<template v-if="dataStore.ingredients.allIngredients.length > 0">
+							<ListItem v-for="(ing, index) in dataStore.ingredients.allIngredients" :key="ing.id"
+								@click="navigateToDetail(ing.id)" @longpress="openIngredientActions(ing)"
+								:vibrate-on-long-press="canEdit" :bleed="true"
+								:divider="index < dataStore.ingredients.allIngredients.length - 1">
+								<view class="main-info">
+									<view class="name">{{ ing.name }}</view>
+									<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
 								</view>
-								<view v-if="ing.totalConsumptionInGrams > 0" class="desc consumption">
-									已消耗: {{ formatWeight(ing.totalConsumptionInGrams) }}
+								<view class="side-info">
+									<view class="value">
+										<template v-if="ing.type === 'UNTRACKED'">∞</template>
+										<template v-else>{{ formatWeight(ing.currentStockInGrams) }}</template>
+									</view>
+									<view v-if="ing.totalConsumptionInGrams > 0" class="desc consumption">
+										已消耗: {{ formatWeight(ing.totalConsumptionInGrams) }}
+									</view>
 								</view>
-							</view>
-						</ListItem>
+							</ListItem>
+						</template>
+						<view v-else class="empty-state">
+							<text>暂无原料信息</text>
+						</view>
 					</template>
-					<view v-else class="empty-state">
-						<text>暂无原料信息</text>
-					</view>
-				</template>
 
-				<template v-if="ingredientFilter === 'low'">
-					<template v-if="dataStore.ingredients.lowStockIngredients.length > 0">
-						<ListItem v-for="(ing, index) in dataStore.ingredients.lowStockIngredients" :key="ing.id"
-							@click="navigateToDetail(ing.id)" @longpress="openIngredientActions(ing)"
-							:vibrate-on-long-press="canEdit" :bleed="true"
-							:divider="index < dataStore.ingredients.lowStockIngredients.length - 1">
-							<view class="main-info">
-								<view class="name">{{ ing.name }}</view>
-								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
-							</view>
-							<view class="side-info">
-								<view class="value-tag" :class="getStockStatusClass(ing.daysOfSupply)">
-									{{ getDaysOfSupplyText(ing.daysOfSupply) }}
+					<template v-if="ingredientFilter === 'low'">
+						<template v-if="dataStore.ingredients.lowStockIngredients.length > 0">
+							<ListItem v-for="(ing, index) in dataStore.ingredients.lowStockIngredients" :key="ing.id"
+								@click="navigateToDetail(ing.id)" @longpress="openIngredientActions(ing)"
+								:vibrate-on-long-press="canEdit" :bleed="true"
+								:divider="index < dataStore.ingredients.lowStockIngredients.length - 1">
+								<view class="main-info">
+									<view class="name">{{ ing.name }}</view>
+									<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
 								</view>
-								<view class="desc">库存: {{ formatWeight(ing.currentStockInGrams) }}</view>
-							</view>
-						</ListItem>
+								<view class="side-info">
+									<view class="value-tag" :class="getStockStatusClass(ing.daysOfSupply)">
+										{{ getDaysOfSupplyText(ing.daysOfSupply) }}
+									</view>
+									<view class="desc">库存: {{ formatWeight(ing.currentStockInGrams) }}</view>
+								</view>
+							</ListItem>
+						</template>
+						<view v-else class="empty-state">
+							<text>暂无库存紧张的原料</text>
+						</view>
 					</template>
-					<view v-else class="empty-state">
-						<text>暂无库存紧张的原料</text>
-					</view>
-				</template>
+				</view>
 			</view>
-		</view>
+		</RefreshableLayout>
 
 		<ExpandingFab @click="openCreateIngredientModal" :visible="isFabVisible" />
 
@@ -116,7 +118,7 @@
 				</AppButton>
 			</view>
 		</AppModal>
-	</RefreshableLayout>
+	</view>
 </template>
 
 <script setup lang="ts">
@@ -340,6 +342,12 @@
 	@include list-item-content-style;
 	@include list-item-option-style;
 	@include form-control-styles;
+
+	.full-height-container {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+	}
 
 	.full-height-wrapper {
 		height: 100%;

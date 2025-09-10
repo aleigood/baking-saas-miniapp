@@ -89,6 +89,7 @@
 	import AutocompleteInput from '@/components/AutocompleteInput.vue';
 	import FermentationCalculator from '@/components/FermentationCalculator.vue';
 	import ExpandingFab from '@/components/ExpandingFab.vue';
+	import AppModal from '@/components/AppModal.vue'; // [核心修复] 重新导入 AppModal 组件
 	import { toDecimal } from '@/utils/format';
 
 	defineOptions({

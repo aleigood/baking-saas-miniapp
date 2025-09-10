@@ -1,51 +1,53 @@
 <template>
-	<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll"
-		class="full-height-wrapper">
-		<view class="page-content page-content-with-tabbar-fab">
-			<view class="summary-card">
-				<div>
-					<view class="value">{{ dataStore.homeStats.pendingCount }}</view>
-					<view class="label">{{ pendingCountLabel }}</view>
-				</div>
-				<div>
-					<view class="value">{{ temperatureStore.settings.envTemp }}°C</view>
-					<view class="label">环境温度</view>
-				</div>
-			</view>
-
-			<view class="card-title-wrapper">
-				<view class="clickable-title" @click="isCalendarVisible = true">
-					<image class="calendar-icon" src="/static/icons/calendar.svg" />
-					<span class="card-title">{{ pageTitle }}</span>
-					<view class="dropdown-arrow"></view>
+	<view class="full-height-container">
+		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll"
+			class="full-height-wrapper">
+			<view class="page-content page-content-with-tabbar-fab">
+				<view class="summary-card">
+					<div>
+						<view class="value">{{ dataStore.homeStats.pendingCount }}</view>
+						<view class="label">{{ pendingCountLabel }}</view>
+					</div>
+					<div>
+						<view class="value">{{ temperatureStore.settings.envTemp }}°C</view>
+						<view class="label">环境温度</view>
+					</div>
 				</view>
-				<view class="header-actions">
-					<IconButton @click.stop="openTemperatureSettingsModal">
-						<image class="header-icon" src="/static/icons/temp.svg" />
-					</IconButton>
-					<IconButton @click.stop="navigateToHistory">
-						<image class="header-icon" src="/static/icons/history.svg" />
-					</IconButton>
+
+				<view class="card-title-wrapper">
+					<view class="clickable-title" @click="isCalendarVisible = true">
+						<image class="calendar-icon" src="/static/icons/calendar.svg" />
+						<span class="card-title">{{ pageTitle }}</span>
+						<view class="dropdown-arrow"></view>
+					</view>
+					<view class="header-actions">
+						<IconButton @click.stop="openTemperatureSettingsModal">
+							<image class="header-icon" src="/static/icons/temp.svg" />
+						</IconButton>
+						<IconButton @click.stop="navigateToHistory">
+							<image class="header-icon" src="/static/icons/history.svg" />
+						</IconButton>
+					</view>
+				</view>
+
+				<view v-if="dataStore.production.length > 0">
+					<ListItem v-for="task in dataStore.production" :key="task.id" @click="navigateToDetail(task)"
+						@longpress="openTaskActions(task)" :vibrate-on-long-press="true" card-mode
+						:style="getTaskCardStyle(task)">
+						<view class="task-info">
+							<view class="title">{{ getTaskTitle(task) }}</view>
+							<view class="details">{{ getTaskDetails(task) }}</view>
+						</view>
+						<view class="status-tag" :class="getStatusClass(task.status)">
+							{{ getStatusText(task.status) }}
+						</view>
+					</ListItem>
+				</view>
+				<view v-else class="empty-state">
+					<text>所选日期暂无任务</text>
 				</view>
 			</view>
-
-			<view v-if="dataStore.production.length > 0">
-				<ListItem v-for="task in dataStore.production" :key="task.id" @click="navigateToDetail(task)"
-					@longpress="openTaskActions(task)" :vibrate-on-long-press="true" card-mode
-					:style="getTaskCardStyle(task)">
-					<view class="task-info">
-						<view class="title">{{ getTaskTitle(task) }}</view>
-						<view class="details">{{ getTaskDetails(task) }}</view>
-					</view>
-					<view class="status-tag" :class="getStatusClass(task.status)">
-						{{ getStatusText(task.status) }}
-					</view>
-				</ListItem>
-			</view>
-			<view v-else class="empty-state">
-				<text>所选日期暂无任务</text>
-			</view>
-		</view>
+		</RefreshableLayout>
 
 		<ExpandingFab @click="navigateToCreatePage" :visible="isFabVisible" />
 
@@ -109,7 +111,7 @@
 				<AppButton type="primary" @click="handleSaveTemperatureSettings">保存</AppButton>
 			</view>
 		</AppModal>
-	</RefreshableLayout>
+	</view>
 </template>
 
 <script setup lang="ts">
@@ -389,6 +391,12 @@
 	@import '@/styles/common.scss';
 	@include list-item-option-style;
 	@include form-control-styles;
+
+	.full-height-container {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+	}
 
 	.full-height-wrapper {
 		height: 100%;

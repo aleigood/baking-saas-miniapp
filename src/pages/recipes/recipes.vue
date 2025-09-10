@@ -1,80 +1,82 @@
 <template>
-	<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll"
-		class="full-height-wrapper">
-		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
-			<view class="content-padding">
-				<view class="card">
-					<view class="card-title"><span>本周制作排行</span></view>
-					<view v-if="recipeStatsForChart.length > 0" class="ranking-list">
-						<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
-							class="ranking-item">
-							<text class="rank">{{ index + 1 }}</text>
-							<text class="name">{{ item.name }}</text>
-							<text class="count">{{ item.value }} 个</text>
+	<view class="full-height-container">
+		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll"
+			class="full-height-wrapper">
+			<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
+				<view class="content-padding">
+					<view class="card">
+						<view class="card-title"><span>本周制作排行</span></view>
+						<view v-if="recipeStatsForChart.length > 0" class="ranking-list">
+							<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
+								class="ranking-item">
+								<text class="rank">{{ index + 1 }}</text>
+								<text class="name">{{ item.name }}</text>
+								<text class="count">{{ item.value }} 个</text>
+							</view>
+						</view>
+						<view v-else class="empty-state">
+							<text>暂无排行信息</text>
 						</view>
 					</view>
-					<view v-else class="empty-state">
-						<text>暂无排行信息</text>
+					<view class="filter-wrapper">
+						<FilterTabs v-model="recipeFilter" :tabs="recipeFilterTabs" />
 					</view>
 				</view>
-				<view class="filter-wrapper">
-					<FilterTabs v-model="recipeFilter" :tabs="recipeFilterTabs" />
+
+				<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
+					<template v-if="recipeFilter === 'MAIN'">
+						<template v-if="dataStore.recipes.mainRecipes.length > 0">
+							<ListItem v-for="(family, index) in dataStore.recipes.mainRecipes" :key="family.id"
+								@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
+								:vibrate-on-long-press="canEditRecipe" :bleed="true"
+								:divider="index < dataStore.recipes.mainRecipes.length - 1">
+								<view class="main-info">
+									<view>
+										<view class="name">{{ family.name }}</view>
+										<view class="desc">
+											{{ family.productCount }} 种面包
+										</view>
+									</view>
+									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+								</view>
+								<view class="side-info">
+									<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
+									<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
+								</view>
+							</ListItem>
+						</template>
+						<view v-else class="empty-state">
+							<text>暂无面团配方信息</text>
+						</view>
+					</template>
+
+					<template v-if="recipeFilter === 'OTHER'">
+						<template v-if="dataStore.recipes.otherRecipes.length > 0">
+							<ListItem v-for="(family, index) in dataStore.recipes.otherRecipes" :key="family.id"
+								@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
+								:vibrate-on-long-press="canEditRecipe" :bleed="true"
+								:divider="index < dataStore.recipes.otherRecipes.length - 1">
+								<view class="main-info">
+									<view>
+										<view class="name">{{ family.name }}</view>
+										<view class="desc">
+											类型: {{ getRecipeTypeDisplay(family.type) }}
+										</view>
+									</view>
+									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+								</view>
+								<view class="side-info">
+									<view class="desc">{{ family.ingredientCount }} 种原料</view>
+								</view>
+							</ListItem>
+						</template>
+						<view v-else class="empty-state">
+							<text>暂无其他配方信息</text>
+						</view>
+					</template>
 				</view>
 			</view>
-
-			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
-				<template v-if="recipeFilter === 'MAIN'">
-					<template v-if="dataStore.recipes.mainRecipes.length > 0">
-						<ListItem v-for="(family, index) in dataStore.recipes.mainRecipes" :key="family.id"
-							@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
-							:vibrate-on-long-press="canEditRecipe" :bleed="true"
-							:divider="index < dataStore.recipes.mainRecipes.length - 1">
-							<view class="main-info">
-								<view>
-									<view class="name">{{ family.name }}</view>
-									<view class="desc">
-										{{ family.productCount }} 种面包
-									</view>
-								</view>
-								<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
-							</view>
-							<view class="side-info">
-								<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
-								<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
-							</view>
-						</ListItem>
-					</template>
-					<view v-else class="empty-state">
-						<text>暂无面团配方信息</text>
-					</view>
-				</template>
-
-				<template v-if="recipeFilter === 'OTHER'">
-					<template v-if="dataStore.recipes.otherRecipes.length > 0">
-						<ListItem v-for="(family, index) in dataStore.recipes.otherRecipes" :key="family.id"
-							@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
-							:vibrate-on-long-press="canEditRecipe" :bleed="true"
-							:divider="index < dataStore.recipes.otherRecipes.length - 1">
-							<view class="main-info">
-								<view>
-									<view class="name">{{ family.name }}</view>
-									<view class="desc">
-										类型: {{ getRecipeTypeDisplay(family.type) }}
-									</view>
-								</view>
-								<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
-							</view>
-							<view class="side-info">
-								<view class="desc">{{ family.ingredientCount }} 种原料</view>
-							</view>
-						</ListItem>
-					</template>
-					<view v-else class="empty-state">
-						<text>暂无其他配方信息</text>
-					</view>
-				</template>
-			</view>
-		</view>
+		</RefreshableLayout>
 
 		<ExpandingFab v-if="canEditRecipe" :actions="fabActions" :visible="isFabVisible" />
 
@@ -148,8 +150,7 @@
 				</AppButton>
 			</view>
 		</AppModal>
-
-	</RefreshableLayout>
+	</view>
 </template>
 
 <script setup lang="ts">
@@ -391,6 +392,12 @@
 	@import '@/styles/common.scss';
 	@include list-item-content-style;
 	@include list-item-option-style;
+
+	.full-height-container {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+	}
 
 	.full-height-wrapper {
 		height: 100%;
