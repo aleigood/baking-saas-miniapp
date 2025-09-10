@@ -70,7 +70,7 @@
 			<FermentationCalculator />
 		</AppModal>
 
-		<AppFab :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true" />
+		<ExpandingFab :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true" />
 	</view>
 </template>
 
@@ -87,7 +87,7 @@
 	import IconButton from '@/components/IconButton.vue';
 	import AutocompleteInput from '@/components/AutocompleteInput.vue';
 	import FermentationCalculator from '@/components/FermentationCalculator.vue';
-	import AppFab from '@/components/AppFab.vue'; // [核心修改] 导入 AppFab
+	import ExpandingFab from '@/components/ExpandingFab.vue'; 
 	import { toDecimal } from '@/utils/format';
 
 	defineOptions({

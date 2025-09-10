@@ -46,7 +46,7 @@
 			</view>
 		</view>
 
-		<AppFab @click="navigateToCreatePage" />
+		<ExpandingFab @click="navigateToCreatePage" />
 
 		<CalendarModal :visible="isCalendarVisible" :task-dates="taskDates" @close="isCalendarVisible = false"
 			@select="handleDateSelect" />
@@ -120,7 +120,7 @@
 	import { useToastStore } from '@/store/toast';
 	import { useTemperatureStore } from '@/store/temperature';
 	import AppModal from '@/components/AppModal.vue';
-	import AppFab from '@/components/AppFab.vue';
+	import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
 	import ListItem from '@/components/ListItem.vue';
 	import IconButton from '@/components/IconButton.vue';
 	import AppButton from '@/components/AppButton.vue';

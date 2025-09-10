@@ -28,7 +28,7 @@
 			</view>
 		</DetailPageLayout>
 
-		<AppFab v-if="canManagePersonnel" @click="openInviteModal" :no-tab-bar="true" />
+		<ExpandingFab v-if="canManagePersonnel" @click="openInviteModal" :no-tab-bar="true" />
 
 		<AppModal v-model:visible="showInviteModal" title="邀请新成员">
 			<FormItem label="被邀请人手机号">
@@ -57,7 +57,7 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import ListItem from '@/components/ListItem.vue';
-	import AppFab from '@/components/AppFab.vue';
+	import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
 	import AppButton from '@/components/AppButton.vue';
@@ -75,7 +75,6 @@
 	const isCreatingInvite = ref(false);
 	const inviteePhone = ref('');
 	const isNavigating = ref(false);
-	// [核心改造] 新增本地 ref 用于控制弹窗
 	const showInviteModal = ref(false);
 
 	onShow(async () => {
@@ -113,7 +112,6 @@
 	};
 
 	const openInviteModal = () => {
-		// [核心改造] 直接修改本地 ref
 		showInviteModal.value = true;
 	};
 

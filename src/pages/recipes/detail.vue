@@ -66,7 +66,7 @@
 		<AppPopover :visible="popover.visible" :content="popover.content" :target-rect="popover.targetRect"
 			placement="right" :offsetY="0" />
 
-		<AppFab v-if="canEditRecipe" :no-tab-bar="true" icon="/static/icons/edit.svg"
+		<ExpandingFab v-if="canEditRecipe" :no-tab-bar="true" :icon="'/static/icons/edit.svg'"
 			@click="handleEditSelectedVersion" />
 	</view>
 </template>
@@ -110,7 +110,7 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import AppPopover from '@/components/AppPopover.vue';
-	import AppFab from '@/components/AppFab.vue';
+	import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
 
 	defineOptions({
 		inheritAttrs: false
@@ -153,7 +153,6 @@
 		}
 	});
 
-	// [核心改造] onShow 中增加数据刷新逻辑
 	onShow(async () => {
 		if (familyId.value && !isLoading.value) {
 			await loadRecipeData(familyId.value);

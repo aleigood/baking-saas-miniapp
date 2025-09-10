@@ -60,7 +60,7 @@
 			</view>
 		</view>
 
-		<AppFab @click="openCreateIngredientModal" />
+		<ExpandingFab @click="openCreateIngredientModal" />
 
 		<AppModal v-model:visible="showIngredientActionsModal" title="原料操作" :no-header-line="true">
 			<view class="options-list">
@@ -126,7 +126,7 @@
 	import { useToastStore } from '@/store/toast';
 	import { createIngredient, deleteIngredient } from '@/api/ingredients';
 	import type { Ingredient } from '@/types/api';
-	import AppFab from '@/components/AppFab.vue';
+	import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import AppModal from '@/components/AppModal.vue';
@@ -152,7 +152,6 @@
 	const showIngredientActionsModal = ref(false);
 	const showDeleteIngredientConfirmModal = ref(false);
 	const showCreateIngredientModal = ref(false);
-	// [核心改造] 恢复导航锁
 	const isNavigating = ref(false);
 
 	const newIngredientForm = reactive({
@@ -172,7 +171,6 @@
 	});
 
 	onShow(async () => {
-		// [核心改造] 恢复导航锁重置
 		isNavigating.value = false;
 		if (dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients) {
 			await dataStore.fetchIngredientsData();
@@ -230,7 +228,6 @@
 	};
 
 	const navigateToDetail = (ingredientId : string) => {
-		// [核心改造] 恢复导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
 		uni.navigateTo({
@@ -239,7 +236,6 @@
 	};
 
 	const navigateToLedger = () => {
-		// [核心改造] 恢复导航锁
 		if (isNavigating.value) return;
 		isNavigating.value = true;
 		uni.navigateTo({
