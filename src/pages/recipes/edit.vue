@@ -3,7 +3,7 @@
 	<view class="page-wrapper">
 		<DetailHeader :title="pageTitle" />
 		<DetailPageLayout>
-			<view class="page-content">
+			<view class="page-content page-content-with-fab">
 				<view class="card">
 					<FormItem label="配方名称">
 						<input class="input-field" v-model="form.name" placeholder="例如：法式长棍" :disabled="isEditing"
@@ -178,6 +178,7 @@
 						</view>
 					</view>
 				</view>
+
 				<view class="bottom-actions-container">
 					<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting"
 						class="save-button">
@@ -206,6 +207,12 @@
 				</AppButton>
 			</view>
 		</AppModal>
+
+		<AppModal v-model:visible="showCalculatorModal" title="发酵计算器">
+			<FermentationCalculator />
+		</AppModal>
+
+		<AppFab :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true" />
 	</view>
 </template>
 
@@ -223,6 +230,8 @@
 	import IconButton from '@/components/IconButton.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import AutocompleteInput from '@/components/AutocompleteInput.vue';
+	import FermentationCalculator from '@/components/FermentationCalculator.vue';
+	import AppFab from '@/components/AppFab.vue'; // [核心修改] 导入 AppFab
 	import type { RecipeFamily, RecipeFormTemplate } from '@/types/api';
 	import { formatNumber, toDecimal } from '@/utils/format';
 
@@ -243,6 +252,7 @@
 	const versionId = ref<string | null>(null);
 	const pageMode = ref<'create' | 'edit' | 'newVersion'>('create');
 
+	const showCalculatorModal = ref(false);
 
 	const form = ref<RecipeFormTemplate & { targetTemp ?: number }>({
 		name: '',

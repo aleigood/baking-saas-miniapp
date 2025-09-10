@@ -171,7 +171,7 @@
 
 	.footer-croissant {
 		position: absolute;
-		bottom: -15vh;
+		bottom: -10vh;
 		right: -10vw;
 		width: 60vw;
 		height: 60vw;
