@@ -3,7 +3,7 @@
 		<view class="refresher-container"
 			:style="{ height: refresherHeight + 'px', transition: isTouching ? 'none' : 'height 0.3s' }">
 			<view class="refresher-content">
-				<view class="croissant-wrapper" :style="{ transform: croissantTransform }"
+				<view class="croissant-wrapper" :style="{ croissantTransform }"
 					:class="{ 'is-loading': status === 'loading' }">
 					<image class="croissant-outline" src="/static/icons/croissant.svg" />
 				</view>
@@ -18,7 +18,7 @@
 			</view>
 		</view>
 
-		<scroll-view :scroll-y="true" class="scroll-area" @scroll="handleScroll" @touchstart="handleTouchStart"
+		<scroll-view :scroll-y="true" class="scroll-area" @scroll="onScrollViewScroll" @touchstart="handleTouchStart"
 			@touchmove="handleTouchMove" @touchend="handleTouchEnd">
 			<slot></slot>
 		</scroll-view>
@@ -28,7 +28,7 @@
 <script setup lang="ts">
 	import { ref, computed } from 'vue';
 
-	const emit = defineEmits(['refresh']);
+	const emit = defineEmits(['refresh', 'scroll']); // [核心修改] 增加 scroll 事件
 
 	const REFRESHER_HEIGHT = 80; // 触发刷新的阈值
 	const MAX_PULL_HEIGHT = 120; // 最大下拉高度
@@ -112,6 +112,12 @@
 		if (!isTouching.value) {
 			scrollTop.value = e.detail.scrollTop;
 		}
+	};
+
+	// [核心新增] 新的滚动处理函数，用于同时处理内部逻辑和对外触发事件
+	const onScrollViewScroll = (e : any) => {
+		handleScroll(e); // 保留原有的内部逻辑
+		emit('scroll', e); // 向父组件发出 scroll 事件
 	};
 
 	const startLoading = () => {

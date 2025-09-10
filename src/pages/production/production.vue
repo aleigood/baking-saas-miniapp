@@ -1,5 +1,6 @@
 <template>
-	<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" class="full-height-wrapper">
+	<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll"
+		class="full-height-wrapper">
 		<view class="page-content page-content-with-tabbar-fab">
 			<view class="summary-card">
 				<div>
@@ -46,7 +47,7 @@
 			</view>
 		</view>
 
-		<ExpandingFab @click="navigateToCreatePage" />
+		<ExpandingFab @click="navigateToCreatePage" :visible="isFabVisible" />
 
 		<CalendarModal :visible="isCalendarVisible" :task-dates="taskDates" @close="isCalendarVisible = false"
 			@select="handleDateSelect" />
@@ -155,6 +156,11 @@
 
 	const isNavigating = ref(false);
 
+	// [核心新增] FAB 按钮可见性控制
+	const isFabVisible = ref(true);
+	const lastScrollTop = ref(0);
+	const scrollThreshold = 5;
+
 	const tempSettings = reactive({
 		mixerType: 9,
 		envTemp: 25,
@@ -214,6 +220,26 @@
 			}
 		}
 	});
+
+	// [核心新增] 滚动事件处理函数
+	const handleScroll = (event : any) => {
+		const scrollTop = event.detail.scrollTop;
+
+		// 防止因微小滚动导致的按钮闪烁
+		if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
+			return;
+		}
+
+		if (scrollTop > lastScrollTop.value && scrollTop > 50) {
+			// 向下滚动，隐藏按钮
+			isFabVisible.value = false;
+		} else {
+			// 向上滚动，显示按钮
+			isFabVisible.value = true;
+		}
+
+		lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
+	};
 
 	const handleRefresh = async () => {
 		try {

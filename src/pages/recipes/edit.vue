@@ -2,7 +2,7 @@
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
 		<DetailHeader :title="pageTitle" />
-		<DetailPageLayout>
+		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab">
 				<view class="card">
 					<FormItem label="配方名称">
@@ -212,7 +212,8 @@
 			<FermentationCalculator />
 		</AppModal>
 
-		<ExpandingFab :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true" />
+		<ExpandingFab :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true"
+			:visible="isFabVisible" />
 	</view>
 </template>
 
@@ -253,6 +254,11 @@
 	const pageMode = ref<'create' | 'edit' | 'newVersion'>('create');
 
 	const showCalculatorModal = ref(false);
+
+	// [核心新增] FAB 按钮可见性控制
+	const isFabVisible = ref(true);
+	const lastScrollTop = ref(0);
+	const scrollThreshold = 5;
 
 	const form = ref<RecipeFormTemplate & { targetTemp ?: number }>({
 		name: '',
@@ -347,6 +353,26 @@
 	onUnload(() => {
 		uni.removeStorageSync('source_recipe_version_form');
 	});
+
+	// [核心新增] 滚动事件处理函数
+	const handleScroll = (event ?: any) => {
+		if (!event || !event.detail) {
+			return;
+		}
+		const scrollTop = event.detail.scrollTop;
+
+		if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
+			return;
+		}
+
+		if (scrollTop > lastScrollTop.value && scrollTop > 50) {
+			isFabVisible.value = false;
+		} else {
+			isFabVisible.value = true;
+		}
+
+		lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
+	};
 
 	const onIngredientSelect = (item : { id : string | null; name : string }, ingIndex : number) => {
 		mainDough.value.ingredients[ingIndex].id = item.id;

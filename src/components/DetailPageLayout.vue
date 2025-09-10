@@ -1,7 +1,7 @@
 <template>
 	<view class="detail-page-layout-wrapper">
 		<scroll-view :scroll-y="true" :show-scrollbar="false" class="scroll-area" :style="{ height: scrollAreaHeight }"
-			enhanced @scrolltolower="$emit('scrolltolower')" @scroll="$emit('scroll')">
+			enhanced @scrolltolower="$emit('scrolltolower')" @scroll="(e) => $emit('scroll', e)">
 			<slot></slot>
 		</scroll-view>
 		<Toast />

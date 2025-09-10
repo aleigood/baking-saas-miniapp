@@ -67,7 +67,7 @@
 			placement="right" :offsetY="0" />
 
 		<ExpandingFab v-if="canEditRecipe" :no-tab-bar="true" :icon="'/static/icons/edit.svg'"
-			@click="handleEditSelectedVersion" />
+			@click="handleEditSelectedVersion" :visible="isFabVisible" />
 	</view>
 </template>
 
@@ -131,6 +131,11 @@
 	const showDeleteVersionConfirmModal = ref(false);
 	const selectedVersionForAction = ref<RecipeVersion | null>(null);
 
+	// [核心新增] FAB 按钮可见性控制
+	const isFabVisible = ref(true);
+	const lastScrollTop = ref(0);
+	const scrollThreshold = 5;
+
 	const popover = reactive<{
 		visible : boolean;
 		content : string;
@@ -159,10 +164,30 @@
 		}
 	});
 
-	const handleScroll = () => {
+	const handleScroll = (event ?: any) => {
+		// 隐藏 popover 的逻辑保持不变
 		if (popover.visible) {
 			popover.visible = false;
 		}
+
+		// [核心修复] 增加一个保护判断，确保 event 和 event.detail 存在
+		if (!event || !event.detail) {
+			return;
+		}
+
+		const scrollTop = event.detail.scrollTop;
+
+		if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
+			return;
+		}
+
+		if (scrollTop > lastScrollTop.value && scrollTop > 50) {
+			isFabVisible.value = false;
+		} else {
+			isFabVisible.value = true;
+		}
+
+		lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 	};
 
 	const loadRecipeData = async (id : string) => {

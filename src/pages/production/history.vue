@@ -2,7 +2,7 @@
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
 		<DetailHeader title="制作历史" />
-		<DetailPageLayout @scrolltolower="handleLoadMore">
+		<DetailPageLayout @scrolltolower="handleLoadMore" @scroll="handleScroll">
 			<view class="page-content">
 				<view class="loading-spinner" v-if="isLoading && Object.keys(dataStore.historicalTasks).length === 0">
 					<text>加载中...</text>
@@ -41,7 +41,7 @@
 				</template>
 			</view>
 		</DetailPageLayout>
-		<ExpandingFab :actions="fabActions" :no-tab-bar="true" />
+		<ExpandingFab :actions="fabActions" :no-tab-bar="true" :visible="isFabVisible" />
 	</view>
 </template>
 
@@ -67,6 +67,10 @@
 	const isLoadingMore = ref(false);
 	// [核心改造] 新增导航锁
 	const isNavigating = ref(false);
+	// [核心新增] FAB 按钮可见性控制
+	const isFabVisible = ref(true);
+	const lastScrollTop = ref(0);
+	const scrollThreshold = 5;
 
 	const fabActions = computed(() => {
 		return [{
@@ -88,6 +92,28 @@
 			isLoading.value = false;
 		}
 	});
+
+	// [核心修复] 为滚动事件处理函数增加健壮性检查
+	const handleScroll = (event ?: any) => {
+		if (!event || !event.detail) {
+			return;
+		}
+		const scrollTop = event.detail.scrollTop;
+
+		if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
+			return;
+		}
+
+		if (scrollTop > lastScrollTop.value && scrollTop > 50) {
+			// 向下滚动，隐藏按钮
+			isFabVisible.value = false;
+		} else {
+			// 向上滚动，显示按钮
+			isFabVisible.value = true;
+		}
+
+		lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
+	};
 
 	const handleLoadMore = async () => {
 		if (dataStore.historicalTasksMeta.hasMore && !isLoadingMore.value) {

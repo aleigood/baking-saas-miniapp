@@ -2,7 +2,7 @@
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
 		<DetailHeader title="人员管理" />
-		<DetailPageLayout>
+		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content no-horizontal-padding page-content-with-fab">
 				<template v-if="dataStore.members.length > 0">
 					<ListItem v-for="(member, index) in dataStore.members" :key="member.id"
@@ -28,7 +28,7 @@
 			</view>
 		</DetailPageLayout>
 
-		<ExpandingFab v-if="canManagePersonnel" @click="openInviteModal" :no-tab-bar="true" />
+		<ExpandingFab v-if="canManagePersonnel" @click="openInviteModal" :no-tab-bar="true" :visible="isFabVisible" />
 
 		<AppModal v-model:visible="showInviteModal" title="邀请新成员">
 			<FormItem label="被邀请人手机号">
@@ -77,12 +77,37 @@
 	const isNavigating = ref(false);
 	const showInviteModal = ref(false);
 
+	// [核心新增] FAB 按钮可见性控制
+	const isFabVisible = ref(true);
+	const lastScrollTop = ref(0);
+	const scrollThreshold = 5;
+
 	onShow(async () => {
 		isNavigating.value = false;
 		if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
 			await dataStore.fetchMembersData();
 		}
 	});
+
+	// [核心修复] 为滚动事件处理函数增加健壮性检查
+	const handleScroll = (event ?: any) => {
+		if (!event || !event.detail) {
+			return;
+		}
+		const scrollTop = event.detail.scrollTop;
+
+		if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
+			return;
+		}
+
+		if (scrollTop > lastScrollTop.value && scrollTop > 50) {
+			isFabVisible.value = false;
+		} else {
+			isFabVisible.value = true;
+		}
+
+		lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
+	};
 
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role

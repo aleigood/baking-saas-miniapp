@@ -1,5 +1,6 @@
 <template>
-	<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" class="full-height-wrapper">
+	<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll"
+		class="full-height-wrapper">
 		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
 			<view class="filter-bar">
 				<FilterTabs v-model="ingredientFilter" :tabs="ingredientFilterTabs" />
@@ -60,7 +61,7 @@
 			</view>
 		</view>
 
-		<ExpandingFab @click="openCreateIngredientModal" />
+		<ExpandingFab @click="openCreateIngredientModal" :visible="isFabVisible" />
 
 		<AppModal v-model:visible="showIngredientActionsModal" title="原料操作" :no-header-line="true">
 			<view class="options-list">
@@ -154,6 +155,11 @@
 	const showCreateIngredientModal = ref(false);
 	const isNavigating = ref(false);
 
+	// [核心新增] FAB 按钮可见性控制
+	const isFabVisible = ref(true);
+	const lastScrollTop = ref(0);
+	const scrollThreshold = 5;
+
 	const newIngredientForm = reactive({
 		name: '',
 		type: 'STANDARD' as 'STANDARD' | 'UNTRACKED',
@@ -184,6 +190,23 @@
 		} finally {
 			refreshableLayout.value?.finishRefresh();
 		}
+	};
+
+	// [核心新增] 滚动事件处理函数
+	const handleScroll = (event : any) => {
+		const scrollTop = event.detail.scrollTop;
+
+		if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
+			return;
+		}
+
+		if (scrollTop > lastScrollTop.value && scrollTop > 50) {
+			isFabVisible.value = false;
+		} else {
+			isFabVisible.value = true;
+		}
+
+		lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 	};
 
 	const handleTouchStart = (e : TouchEvent) => {
