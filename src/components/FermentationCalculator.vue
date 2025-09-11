@@ -2,6 +2,17 @@
 	<view class="calculator-container">
 		<view class="form-container">
 			<view class="form-item">
+				<view class="form-label">计算对象</view>
+				<picker mode="selector" :range="calculationTargets" range-key="name" @change="onPreDoughChange"
+					:value="currentPreDoughIndex">
+					<view class="picker" :class="{ placeholder: !selectedPreDough }">
+						{{ selectedPreDough?.name || '通用比例计算' }}
+						<view class="arrow-down"></view>
+					</view>
+				</picker>
+			</view>
+
+			<view class="form-item">
 				<view class="form-label">发酵剂类型</view>
 				<picker mode="selector" :range="fermentationTypes" range-key="label" @change="onTypeChange">
 					<view class="picker">{{ currentTypeLabel }}
@@ -46,7 +57,7 @@
 		</view>
 		<view v-if="result !== null || isLoading" class="result-card"
 			:class="{ 'visible': result !== null || isLoading }">
-			<view class="result-title">建议用量 (占总粉量)</view>
+			<view class="result-title">{{ flourWeightInGrams > 0 ? '建议用量 (克)' : '建议用量 (占总粉量)' }}</view>
 
 			<view v-if="isLoading" class="result-value is-loading">
 				计算中...
@@ -56,7 +67,7 @@
 			</view>
 		</view>
 		<view class="modal-actions">
-			<AppButton type="secondary" @click="handleBack">返回</AppButton>
+			<AppButton type="secondary" @click="$emit('close')">返回</AppButton>
 			<AppButton type="primary" @click="handleCalculate" :disabled="!isFormValid" :loading="isLoading">
 				{{ isLoading ? '' : '计算' }}
 			</AppButton>
@@ -71,7 +82,15 @@
 	import AppButton from '@/components/AppButton.vue';
 	import { getAvailableTemperatures, getAvailableTimes, findAmount } from '@/api/fermentation';
 	import type { FermentationType, YeastBrand } from '@/types/fermentation';
+	import type { CalculatedRecipeDetails } from '@/types/api';
+	import { formatWeight, multiply } from '@/utils/format';
 	import { useToastStore } from '@/store/toast';
+
+	const props = defineProps<{
+		preDoughs ?: CalculatedRecipeDetails[];
+	}>();
+
+	const emit = defineEmits(['close']);
 
 	const toastStore = useToastStore();
 	const isLoading = ref(false);
@@ -84,6 +103,24 @@
 	});
 
 	const result = ref<string | null>(null);
+	const selectedPreDough = ref<CalculatedRecipeDetails | null>(null);
+	const flourWeightInGrams = ref(0); // 新增 ref 用于存储面粉重量
+
+	// [核心重构] 创建一个新的计算属性用于 picker
+	const calculationTargets = computed(() => {
+		const generalOption = { id: 'general', name: '通用比例计算' };
+		if (props.preDoughs && props.preDoughs.length > 0) {
+			return [...props.preDoughs, generalOption];
+		}
+		return [generalOption];
+	});
+
+	const currentPreDoughIndex = computed(() => {
+		const targetId = selectedPreDough.value?.id || 'general';
+		const index = calculationTargets.value.findIndex(p => p.id === targetId);
+		return index === -1 ? 0 : index;
+	});
+
 
 	const availableTemperatures = ref<number[]>([]);
 	const availableTimes = ref<number[]>([]);
@@ -135,13 +172,11 @@
 		return form.brand !== null && form.temperatureC !== null && form.time !== null;
 	});
 
-	const resetSelection = (level : 'type' | 'brand' | 'temp') => {
+	const resetSelection = (level : 'type' | 'temp') => {
 		if (level === 'type') {
 			form.brand = null;
-			availableTemperatures.value = [];
-		}
-		if (level === 'type' || level === 'brand') {
 			form.temperatureC = null;
+			availableTemperatures.value = [];
 		}
 		form.time = null;
 		availableTimes.value = [];
@@ -165,7 +200,7 @@
 		}
 	};
 
-	const calculateAmount = async () => {
+	const handleCalculate = async () => {
 		if (!isFormValid.value) {
 			toastStore.show({ message: '请将所有选项填写完整', type: 'info' });
 			return;
@@ -178,8 +213,14 @@
 				temperatureC: form.temperatureC!,
 				time: form.time!,
 			});
+
 			if (amounts && amounts.length > 0) {
-				result.value = amounts.map(a => `${(a * 100).toFixed(2)}%`).join(' - ');
+				if (flourWeightInGrams.value > 0) {
+					const resultsInGrams = amounts.map(a => multiply(flourWeightInGrams.value, a));
+					result.value = resultsInGrams.map(g => formatWeight(g)).join(' - ');
+				} else {
+					result.value = amounts.map(a => `${(a * 100).toFixed(2)}%`).join(' - ');
+				}
 			} else {
 				result.value = '无适用数据';
 			}
@@ -191,12 +232,20 @@
 		}
 	};
 
-	const handleCalculate = () => {
-		calculateAmount();
-	};
-
-	const handleBack = () => {
-		uni.navigateBack();
+	// [核心重构] 当选择计算对象时，更新内部状态
+	const onPreDoughChange = (e : any) => {
+		const selected = calculationTargets.value[e.detail.value];
+		if (selected.id === 'general') {
+			selectedPreDough.value = null;
+			flourWeightInGrams.value = 0;
+		} else {
+			// @ts-ignore
+			selectedPreDough.value = selected as CalculatedRecipeDetails;
+			flourWeightInGrams.value = selectedPreDough.value.ingredients
+				.filter(ing => ing.name.includes('粉'))
+				.reduce((sum, ing) => sum + ing.weightInGrams, 0);
+		}
+		result.value = null; // 切换对象时清空结果
 	};
 
 	const onTypeChange = (e : any) => {
@@ -227,16 +276,6 @@
 	const onTimeChange = (e : any) => {
 		form.time = availableTimes.value[e.detail.value];
 	};
-
-	watch(() => form.type, (newType, oldType) => {
-		if (newType !== oldType) {
-			resetSelection('type');
-			if (newType === 'LEVAIN') {
-				form.brand = 'LEVAIN';
-			}
-			fetchTemperatures();
-		}
-	});
 
 	fetchTemperatures();
 </script>
@@ -286,7 +325,7 @@
 		transform: translateY(10px);
 		transition: opacity 0.3s ease, transform 0.3s ease;
 		min-height: 68px;
-		display: flex; // 使用flex布局以更好地控制内部对齐
+		display: flex;
 		flex-direction: column;
 		justify-content: center;
 
@@ -307,11 +346,10 @@
 		font-weight: bold;
 		color: var(--primary-color);
 
-		// [新增] 加载状态的特定样式
 		&.is-loading {
-			font-size: 18px; // 字体稍小
-			font-weight: 400; // 正常粗细
-			color: var(--text-secondary); // 颜色变灰
+			font-size: 18px;
+			font-weight: 400;
+			color: var(--text-secondary);
 		}
 	}
 </style>

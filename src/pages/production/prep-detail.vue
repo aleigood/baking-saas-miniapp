@@ -2,8 +2,8 @@
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
 		<DetailHeader title="备料详情" />
-		<DetailPageLayout>
-			<view class="page-content">
+		<DetailPageLayout @scroll="handleScroll">
+			<view class="page-content page-content-with-fab">
 				<template v-if="task">
 					<view class="filter-wrapper">
 						<FilterTabs v-model="activeTab" :tabs="filterTabs" />
@@ -56,18 +56,27 @@
 				</view>
 			</view>
 		</DetailPageLayout>
+
+		<AppModal v-model:visible="showCalculatorModal" title="发酵计算器">
+			<FermentationCalculator :pre-doughs="preDoughItems" @close="showCalculatorModal = false" />
+		</AppModal>
+
+		<ExpandingFab :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true"
+			:visible="isFabVisible" />
 	</view>
 </template>
 
 <script setup lang="ts">
 	import { ref, reactive, computed } from 'vue';
 	import { onLoad } from '@dcloudio/uni-app';
-	// [核心修改] 从 api 类型中导入 CalculatedRecipeDetails
 	import type { PrepTask, CalculatedRecipeDetails } from '@/types/api';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import { formatWeight } from '@/utils/format';
+	import AppModal from '@/components/AppModal.vue';
+	import FermentationCalculator from '@/components/FermentationCalculator.vue';
+	import ExpandingFab from '@/components/ExpandingFab.vue';
 
 	defineOptions({
 		inheritAttrs: false
@@ -75,16 +84,17 @@
 
 	const isLoading = ref(true);
 	const task = ref<PrepTask | null>(null);
-
 	const addedIngredientsMap = reactive<Record<string, Set<string>>>({});
-
 	const activeTab = ref<'PRE_DOUGH' | 'OTHER'>('PRE_DOUGH');
 	const filterTabs = ref([
 		{ key: 'PRE_DOUGH', label: '面种' },
 		{ key: 'OTHER', label: '其他' },
 	]);
-
 	const collapsedSections = ref(new Set<string>());
+	const showCalculatorModal = ref(false);
+	const isFabVisible = ref(true);
+	const lastScrollTop = ref(0);
+	const scrollThreshold = 5;
 
 	const toggleCollapse = (itemId : string) => {
 		const newSet = new Set(collapsedSections.value);
@@ -96,14 +106,27 @@
 		collapsedSections.value = newSet;
 	};
 
+	const handleScroll = (event ?: any) => {
+		if (!event || !event.detail) {
+			return;
+		}
+		const scrollTop = event.detail.scrollTop;
+		if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
+			return;
+		}
+		if (scrollTop > lastScrollTop.value && scrollTop > 50) {
+			isFabVisible.value = false;
+		} else {
+			isFabVisible.value = true;
+		}
+		lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
+	};
 
-	// [核心修改] 使用新的 type 字段进行分类
 	const preDoughItems = computed(() => {
 		if (!task.value) return [];
 		return task.value.items.filter(item => item.type === 'PRE_DOUGH');
 	});
 
-	// [核心修改] 使用新的 type 字段进行分类
 	const otherItems = computed(() => {
 		if (!task.value) return [];
 		return task.value.items.filter(item => item.type !== 'PRE_DOUGH');
@@ -112,7 +135,6 @@
 	const filteredItems = computed(() => {
 		return activeTab.value === 'PRE_DOUGH' ? preDoughItems.value : otherItems.value;
 	});
-
 
 	const toggleIngredientAdded = (itemId : string, ingredientName : string) => {
 		if (!addedIngredientsMap[itemId]) {
@@ -142,7 +164,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [新增] 定义折叠内容容器的动画 */
 	.collapsible-content {
 		max-height: 1000px;
 		overflow: hidden;
@@ -150,7 +171,6 @@
 		box-sizing: border-box;
 	}
 
-	/* [新增] 定义折叠状态下的样式 */
 	.collapsible-content.is-collapsed {
 		max-height: 0;
 	}
@@ -260,13 +280,6 @@
 		font-size: 13px;
 		color: var(--text-secondary);
 		border-top: 1px solid var(--border-color);
-	}
-
-	.section-title {
-		font-size: 12px;
-		font-weight: 600;
-		color: var(--text-secondary);
-		margin-bottom: 5px;
 	}
 
 	.procedure-notes {
