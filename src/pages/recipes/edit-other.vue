@@ -67,11 +67,11 @@
 		</DetailPageLayout>
 
 		<AppModal v-model:visible="showCalculatorModal" title="发酵计算器">
-			<FermentationCalculator />
+			<FermentationCalculator @close="showCalculatorModal = false" />
 		</AppModal>
 
-		<ExpandingFab :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true"
-			:visible="isFabVisible" />
+		<ExpandingFab v-if="form.type === 'PRE_DOUGH'" :icon="'/static/icons/calculator.svg'"
+			@click="showCalculatorModal = true" :no-tab-bar="true" :visible="isFabVisible" />
 	</view>
 </template>
 
@@ -89,7 +89,7 @@
 	import AutocompleteInput from '@/components/AutocompleteInput.vue';
 	import FermentationCalculator from '@/components/FermentationCalculator.vue';
 	import ExpandingFab from '@/components/ExpandingFab.vue';
-	import AppModal from '@/components/AppModal.vue'; // [核心修复] 重新导入 AppModal 组件
+	import AppModal from '@/components/AppModal.vue';
 	import { toDecimal } from '@/utils/format';
 
 	defineOptions({
@@ -107,7 +107,6 @@
 
 	const showCalculatorModal = ref(false);
 
-	// [核心新增] FAB 按钮可见性控制
 	const isFabVisible = ref(true);
 	const lastScrollTop = ref(0);
 	const scrollThreshold = 5;
@@ -179,7 +178,6 @@
 		uni.removeStorageSync('source_recipe_version_form');
 	});
 
-	// [核心新增] 滚动事件处理函数
 	const handleScroll = (event ?: any) => {
 		if (!event || !event.detail) {
 			return;

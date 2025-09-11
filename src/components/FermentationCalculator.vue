@@ -1,7 +1,7 @@
 <template>
 	<view class="calculator-container">
 		<view class="form-container">
-			<view class="form-item">
+			<view v-if="calculationTargets.length > 1" class="form-item">
 				<view class="form-label">计算对象</view>
 				<picker mode="selector" :range="calculationTargets" range-key="name" @change="onPreDoughChange"
 					:value="currentPreDoughIndex">
@@ -72,8 +72,6 @@
 				{{ isLoading ? '' : '计算' }}
 			</AppButton>
 		</view>
-
-
 	</view>
 </template>
 
@@ -277,6 +275,7 @@
 		form.time = availableTimes.value[e.detail.value];
 	};
 
+	// 初始加载温度数据
 	fetchTemperatures();
 </script>
 

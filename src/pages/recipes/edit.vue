@@ -209,7 +209,7 @@
 		</AppModal>
 
 		<AppModal v-model:visible="showCalculatorModal" title="发酵计算器">
-			<FermentationCalculator />
+			<FermentationCalculator @close="showCalculatorModal = false" />
 		</AppModal>
 
 		<ExpandingFab :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true"
@@ -255,7 +255,6 @@
 
 	const showCalculatorModal = ref(false);
 
-	// [核心新增] FAB 按钮可见性控制
 	const isFabVisible = ref(true);
 	const lastScrollTop = ref(0);
 	const scrollThreshold = 5;
@@ -354,7 +353,6 @@
 		uni.removeStorageSync('source_recipe_version_form');
 	});
 
-	// [核心新增] 滚动事件处理函数
 	const handleScroll = (event ?: any) => {
 		if (!event || !event.detail) {
 			return;
@@ -422,7 +420,7 @@
 
 			const preDoughInternalFlourRatio = ingredients
 				.filter(i => i.ingredient?.isFlour)
-				.reduce((sum, i) => sum + i.ratio, 0);
+				.reduce((sum, i) => sum + (i.ratio ?? 0), 0);
 
 			if (preDoughInternalFlourRatio <= 0) {
 				toastStore.show({ message: '所选面种配方中不含面粉，无法添加', type: 'error' });
@@ -435,7 +433,7 @@
 			const displayIngredients = ingredients.map(i => ({
 				id: i.ingredient!.id,
 				name: i.ingredient!.name,
-				ratio: i.ratio * scalingFactor * 100,
+				ratio: (i.ratio ?? 0) * scalingFactor * 100,
 			}));
 
 			form.value.doughs!.push({
