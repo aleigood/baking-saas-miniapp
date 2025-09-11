@@ -285,7 +285,7 @@
 		grid-template-columns: 1fr;
 		gap: 12px;
 		margin-top: 20px;
-		margin-bottom: 20px;
+		margin-bottom: 15px;
 	}
 
 	.product-item {
