@@ -509,7 +509,6 @@
 
 	.form-container {
 		padding: 0 5px;
-		margin-top: 10px;
 	}
 
 	.form-item {
@@ -517,6 +516,11 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 10px 0;
+		border-bottom: 1px solid var(--border-color-light, #f0f0f0);
+	}
+
+	.form-container .form-item:last-of-type {
+		border-bottom: none;
 	}
 
 	.form-label {
