@@ -1,5 +1,5 @@
 <template>
-	<AppModal :visible="visible" @update:visible="handleClose" title="选择日期" width="80%">
+	<AppModal :visible="visible" @update:visible="handleClose" title="选择日期" width="90%">
 		<view class="calendar-container">
 			<view class="calendar-header">
 				<view class="header-arrow" @click="changeMonth(-1)">‹</view>
