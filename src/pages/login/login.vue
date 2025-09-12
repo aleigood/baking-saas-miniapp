@@ -26,10 +26,15 @@
 	</view>
 </template>
 <script lang="ts" setup>
-	import { reactive, ref, onMounted, computed } from 'vue'; // 新增导入 computed
+	import { reactive, ref, onMounted, computed } from 'vue';
+	// [核心修改] 新增导入 onShow
+	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useSystemStore } from '@/store/system'; // 新增导入 systemStore
+	import { useSystemStore } from '@/store/system';
+	// [核心修改] 新增导入 uiStore 和 toastStore
+	import { useUiStore } from '@/store/ui';
+	import { useToastStore } from '@/store/toast';
 	import AppButton from '@/components/AppButton.vue';
 	import Toast from '@/components/Toast.vue';
 
@@ -37,7 +42,10 @@
 	const pageLoaded = ref(false);
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const systemStore = useSystemStore(); // 新增获取 systemStore 实例
+	const systemStore = useSystemStore();
+	// [核心修改] 新增 uiStore 和 toastStore 实例
+	const uiStore = useUiStore();
+	const toastStore = useToastStore();
 
 	// 新增计算属性，用于获取顶部安全区域高度
 	const safeAreaTop = computed(() => {
@@ -48,6 +56,16 @@
 	const form = reactive({
 		phone: '13966666666',
 		password: '123',
+	});
+
+	// [核心新增] onShow生命周期钩子
+	onShow(() => {
+		// 每次进入登录页时，都检查是否有“寄存”的 Toast 消息
+		const toastMessage = uiStore.consumeNextPageToast();
+		if (toastMessage) {
+			// 如果有，就在当前页（登录页）显示它
+			toastStore.show(toastMessage);
+		}
 	});
 
 	onMounted(() => {
