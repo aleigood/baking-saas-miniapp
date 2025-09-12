@@ -264,6 +264,10 @@
 	import {
 		useToastStore
 	} from '@/store/toast';
+	// [核心新增] 导入 uiStore
+	import {
+		useUiStore
+	} from '@/store/ui';
 	import {
 		useTemperatureStore
 	} from '@/store/temperature';
@@ -293,6 +297,8 @@
 
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
+	// [核心新增] 获取 uiStore 实例
+	const uiStore = useUiStore();
 	const temperatureStore = useTemperatureStore();
 	const instance = getCurrentInstance();
 
@@ -590,7 +596,8 @@
 				notes: completionNotes.value,
 				completedItems
 			});
-			toastStore.show({
+			// [核心修改] 将 toastStore.show 替换为 uiStore.setNextPageToast
+			uiStore.setNextPageToast({
 				message: '任务已完成',
 				type: 'success'
 			});
@@ -599,7 +606,8 @@
 			dataStore.markHistoricalTasksAsStale();
 			dataStore.markIngredientsAsStale(); // 因为消耗了原料
 
-			setTimeout(() => uni.navigateBack(), 500);
+			// [核心修改] 移除 setTimeout，让 onShow 负责刷新
+			uni.navigateBack();
 		} catch (error) {
 			console.error('Failed to complete task:', error);
 		} finally {

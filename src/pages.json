@@ -49,12 +49,6 @@
 			}
 		},
 		{
-			"path": "pages/ingredients/edit",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
 			"path": "pages/ingredients/detail",
 			"style": {
 				"navigationStyle": "custom"

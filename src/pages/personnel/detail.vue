@@ -50,6 +50,8 @@
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
+	// [核心新增] 导入 uiStore
+	import { useUiStore } from '@/store/ui';
 	import type { Member, Role } from '@/types/api';
 	import { updateMember, removeMember } from '@/api/members';
 	import FormItem from '@/components/FormItem.vue';
@@ -65,6 +67,8 @@
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
+	// [核心新增] 获取 uiStore 实例
+	const uiStore = useUiStore();
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
@@ -183,7 +187,8 @@
 		isSubmitting.value = true;
 		try {
 			await updateMember(selectedMember.value.id, { role: editableMemberRole.value });
-			toastStore.show({ message: '角色更新成功', type: 'success' });
+			// [核心修改] 使用 uiStore.setNextPageToast
+			uiStore.setNextPageToast({ message: '角色更新成功', type: 'success' });
 			dataStore.markMembersAsStale();
 			uni.navigateBack();
 		} catch (error : any) {
@@ -204,7 +209,8 @@
 					isSubmitting.value = true;
 					try {
 						await removeMember(selectedMember.value!.id);
-						toastStore.show({ message: '移除成功', type: 'success' });
+						// [核心修改] 使用 uiStore.setNextPageToast
+						uiStore.setNextPageToast({ message: '移除成功', type: 'success' });
 						dataStore.markMembersAsStale();
 						uni.navigateBack();
 					} catch (error : any) {

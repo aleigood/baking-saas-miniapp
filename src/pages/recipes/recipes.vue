@@ -159,6 +159,8 @@
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
+	// [核心新增] 导入 uiStore
+	import { useUiStore } from '@/store/ui';
 	import { discontinueRecipe, restoreRecipe, deleteRecipe } from '@/api/recipes';
 	import type { RecipeFamily } from '@/types/api';
 	import ExpandingFab from '@/components/ExpandingFab.vue';
@@ -171,6 +173,8 @@
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
+	// [核心新增] 获取 uiStore 实例
+	const uiStore = useUiStore();
 
 	const recipeFilter = ref<'MAIN' | 'OTHER'>('MAIN');
 	const isSubmitting = ref(false);
@@ -213,6 +217,12 @@
 
 	onShow(async () => {
 		isNavigating.value = false;
+		// [核心新增] 消费跨页 Toast
+		const toastMessage = uiStore.consumeNextPageToast();
+		if (toastMessage) {
+			toastStore.show(toastMessage);
+		}
+
 		if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
 			await dataStore.fetchRecipesData();
 		}

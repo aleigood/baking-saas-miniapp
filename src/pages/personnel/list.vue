@@ -53,6 +53,8 @@
 	import { useDataStore } from '@/store/data';
 	import { useUserStore } from '@/store/user';
 	import { useToastStore } from '@/store/toast';
+	// [核心新增] 导入 uiStore
+	import { useUiStore } from '@/store/ui';
 	import { createInvitation } from '@/api/invitations';
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
@@ -71,6 +73,8 @@
 	const dataStore = useDataStore();
 	const userStore = useUserStore();
 	const toastStore = useToastStore();
+	// [核心新增] 获取 uiStore 实例
+	const uiStore = useUiStore();
 
 	const isCreatingInvite = ref(false);
 	const inviteePhone = ref('');
@@ -84,6 +88,12 @@
 
 	onShow(async () => {
 		isNavigating.value = false;
+		// [核心新增] 消费跨页 Toast
+		const toastMessage = uiStore.consumeNextPageToast();
+		if (toastMessage) {
+			toastStore.show(toastMessage);
+		}
+
 		if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
 			await dataStore.fetchMembersData();
 		}
@@ -118,7 +128,7 @@
 	});
 
 	const getRoleName = (role : Role) => {
-		const roleMap = {
+		const roleMap : Record<Role, string> = {
 			OWNER: '店主',
 			ADMIN: '管理员',
 			MEMBER: '员工',

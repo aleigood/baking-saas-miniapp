@@ -223,6 +223,8 @@
 	import { createRecipe, createRecipeVersion, getRecipeFamily, updateRecipeVersion } from '@/api/recipes';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
+	// [核心新增] 导入 uiStore
+	import { useUiStore } from '@/store/ui';
 	import FormItem from '@/components/FormItem.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
@@ -247,6 +249,8 @@
 
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
+	// [核心新增] 获取 uiStore 实例
+	const uiStore = useUiStore();
 	const isSubmitting = ref(false);
 	const isEditing = ref(false);
 	const familyId = ref<string | null>(null);
@@ -255,6 +259,7 @@
 
 	const showCalculatorModal = ref(false);
 
+	// [核心新增] FAB 按钮可见性控制
 	const isFabVisible = ref(true);
 	const lastScrollTop = ref(0);
 	const scrollThreshold = 5;
@@ -353,6 +358,7 @@
 		uni.removeStorageSync('source_recipe_version_form');
 	});
 
+	// [核心新增] 滚动事件处理函数
 	const handleScroll = (event ?: any) => {
 		if (!event || !event.detail) {
 			return;
@@ -601,8 +607,8 @@
 				await createRecipe(payload);
 			}
 
-
-			toastStore.show({ message: '配方保存成功', type: 'success' });
+			// [核心修改] 使用 uiStore.setNextPageToast 替代 toastStore.show
+			uiStore.setNextPageToast({ message: '配方保存成功', type: 'success' });
 			dataStore.markRecipesAsStale();
 			dataStore.markIngredientsAsStale();
 			uni.navigateBack();

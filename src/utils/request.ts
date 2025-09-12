@@ -4,6 +4,8 @@
  */
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
+// [核心修改] 新增导入 useUiStore，用于跨页面传递 Toast 消息
+import { useUiStore } from '@/store/ui';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -18,6 +20,8 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 	return new Promise((resolve, reject) => {
 		const userStore = useUserStore();
 		const toastStore = useToastStore();
+		// [核心修改] 在请求处理作用域内获取 uiStore 实例
+		const uiStore = useUiStore();
 
 		let url = BASE_URL + options.url;
 		let data = options.data || {};
@@ -55,11 +59,12 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 			success: (res : UniApp.RequestSuccessCallbackResult) => {
 				// 核心：处理401 Unauthorized错误
 				if (res.statusCode === 401 && options.url !== '/auth/login') {
-					toastStore.show({
+					// [核心修改] 不再直接显示 Toast，而是调用 setNextPageToast 将消息“寄存”起来
+					uiStore.setNextPageToast({
 						message: '登录已过期，请重新登录',
 						type: 'error',
 					});
-					// [核心修改] 调用 userStore 中统一的防抖登出方法
+
 					userStore.handleUnauthorized();
 					return reject(res);
 				}
