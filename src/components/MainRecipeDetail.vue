@@ -55,9 +55,9 @@
 				暂无面团原料信息
 			</view>
 
-			<view class="other-ingredients-section">
+			<view v-if="hasOtherIngredients" class="other-ingredients-section">
 				<view class="group-title" @click="toggleCollapse('otherIngredients')">
-					<span>成本汇总</span>
+					<span>其他原料</span>
 					<span class="arrow"
 						:class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
 				</view>
@@ -75,7 +75,8 @@
 								<view v-for="ing in recipeDetails.groupedExtraIngredients['搅拌原料']" :key="ing.id"
 									class="table-row">
 									<text class="col-ingredient">{{ ing.name }}</text>
-									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}
+										({{ toPercentage(ing.ratio) }}%)</text>
 									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
 								</view>
 							</view>
@@ -119,11 +120,46 @@
 							</view>
 						</view>
 					</template>
-					<view v-if="doughSummary" class="recipe-table detail-table">
-						<view class="table-row">
-							<text class="col-ingredient">{{ doughSummary.name }}</text>
-							<text class="col-usage">{{ formatWeight(doughSummary.weightInGrams) }}</text>
+					<view v-if="selectedProduct && selectedProduct.procedure && selectedProduct.procedure.length > 0"
+						class="procedure-notes">
+						<text class="notes-title">产品制作要点:</text>
+						<text v-for="(step, stepIndex) in selectedProduct.procedure" :key="stepIndex"
+							class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+					</view>
+				</view>
+			</view>
+
+			<view class="cost-summary-section">
+				<view class="group-title" @click="toggleCollapse('costSummary')">
+					<span>成本汇总</span>
+					<span class="arrow" :class="{ collapsed: collapsedSections.has('costSummary') }">&#10095;</span>
+				</view>
+				<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('costSummary') }">
+					<view class="recipe-table detail-table summary-breakdown">
+						<view v-if="doughSummary" class="table-row">
+							<text class="col-ingredient">面团成本</text>
 							<text class="col-total">¥{{ formatNumber(doughSummary.cost) }}</text>
+						</view>
+						<view
+							v-if="recipeDetails.groupedExtraIngredients['搅拌原料'] && recipeDetails.groupedExtraIngredients['搅拌原料'].length > 0"
+							class="table-row">
+							<text class="col-ingredient">辅料成本</text>
+							<text
+								class="col-total">¥{{ formatNumber(recipeDetails.groupedExtraIngredients['搅拌原料'].reduce((sum, item) => sum + item.cost, 0)) }}</text>
+						</view>
+						<view
+							v-if="recipeDetails.groupedExtraIngredients['馅料'] && recipeDetails.groupedExtraIngredients['馅料'].length > 0"
+							class="table-row">
+							<text class="col-ingredient">馅料成本</text>
+							<text
+								class="col-total">¥{{ formatNumber(recipeDetails.groupedExtraIngredients['馅料'].reduce((sum, item) => sum + item.cost, 0)) }}</text>
+						</view>
+						<view
+							v-if="recipeDetails.groupedExtraIngredients['表面装饰'] && recipeDetails.groupedExtraIngredients['表面装饰'].length > 0"
+							class="table-row">
+							<text class="col-ingredient">表面装饰成本</text>
+							<text
+								class="col-total">¥{{ formatNumber(recipeDetails.groupedExtraIngredients['表面装饰'].reduce((sum, item) => sum + item.cost, 0)) }}</text>
 						</view>
 					</view>
 					<view class="total-cost-summary">
@@ -171,10 +207,8 @@
 		toPercentage
 	} from '@/utils/format';
 
-	// [核心新增] 获取当前组件实例，用于 popover 定位
 	const instance = getCurrentInstance();
 
-	// [核心新增] 定义组件可以向外触发的事件
 	const emit = defineEmits(['show-popover']);
 
 	const props = defineProps({
@@ -182,7 +216,6 @@
 			type: Object as PropType<RecipeVersion | null>,
 			default: null
 		}
-		// [核心修改] 移除 onShowExtraInfo prop
 	});
 
 	const dataStore = useDataStore();
@@ -226,13 +259,19 @@
 		return recipeDetails.value?.extraIngredients.find(item => item.id === 'dough-summary');
 	});
 
-	// [核心新增] 在组件内部处理点击和查询逻辑
+	const hasOtherIngredients = computed(() => {
+		if (!recipeDetails.value) return false;
+		const grouped = recipeDetails.value.groupedExtraIngredients;
+		return (grouped['搅拌原料'] && grouped['搅拌原料'].length > 0) ||
+			(grouped['馅料'] && grouped['馅料'].length > 0) ||
+			(grouped['表面装饰'] && grouped['表面装饰'].length > 0);
+	});
+
 	const handleIconClick = (info : string | null | undefined, elementId : string) => {
-		if (!info) return; // 如果没有 extraInfo，则不显示 popover
+		if (!info) return;
 		const query = uni.createSelectorQuery().in(instance);
 		query.select('#' + elementId).boundingClientRect((rect : UniApp.NodeInfo) => {
 			if (rect) {
-				// 通过 emit 将信息和位置数据发送给父组件
 				emit('show-popover', {
 					info,
 					rect
@@ -294,7 +333,6 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [新增] 定义折叠内容容器的动画 */
 	.collapsible-content {
 		max-height: 1000px;
 		overflow: hidden;
@@ -302,7 +340,6 @@
 		box-sizing: border-box;
 	}
 
-	/* [新增] 定义折叠状态下的样式 */
 	.collapsible-content.is-collapsed {
 		max-height: 0;
 	}
@@ -313,7 +350,6 @@
 		gap: 5px;
 	}
 
-	/* [核心修改] 缩小图标按钮的尺寸和内边距，使其更紧凑 */
 	.info-icon-button {
 		display: inline-flex;
 		justify-content: center;
@@ -321,14 +357,10 @@
 		vertical-align: middle;
 		margin-left: 4px;
 		width: 16px;
-		/* 修改宽度 */
 		height: 16px;
-		/* 修改高度 */
 		padding: 0;
-		/* 移除内边距 */
 	}
 
-	/* [核心修改] 调整图标本身的尺寸 */
 	.info-icon {
 		width: 16px;
 		height: 16px;
@@ -398,8 +430,6 @@
 			vertical-align: middle;
 		}
 
-
-
 		.col-ratio,
 		.col-usage,
 		.col-price,
@@ -443,54 +473,6 @@
 		margin-bottom: 20px;
 	}
 
-	.product-ingredient-table {
-		display: table;
-		width: 100%;
-		font-size: 14px;
-		border-collapse: collapse;
-		margin-top: 15px;
-
-		.table-row {
-			display: table-row;
-			color: var(--text-primary);
-			border-bottom: 1px solid var(--border-color);
-
-			&:last-child {
-				border-bottom: none;
-			}
-		}
-
-		.col-ingredient,
-		.col-usage,
-		.col-cost {
-			display: table-cell;
-			padding: 8px 4px;
-			vertical-align: middle;
-		}
-
-		.col-ingredient {
-			width: 60%;
-			word-break: break-word;
-
-			.ingredient-type {
-				color: var(--text-secondary);
-				font-size: 12px;
-				margin-left: 4px;
-			}
-		}
-
-		.col-usage,
-		.col-cost {
-			text-align: right;
-			white-space: nowrap;
-		}
-
-		.col-cost {
-			font-weight: 400;
-			color: var(--text-primary);
-		}
-	}
-
 	.detail-table {
 		margin-top: 15px;
 		table-layout: fixed;
@@ -501,6 +483,16 @@
 
 		.col-usage {
 			width: 25%;
+		}
+
+		.col-total {
+			width: 25%;
+		}
+	}
+
+	.summary-breakdown {
+		.col-ingredient {
+			width: 75%;
 		}
 
 		.col-total {
