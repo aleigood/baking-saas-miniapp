@@ -253,7 +253,7 @@
 				type: 'error'
 			});
 		} finally {
-			uni.hideLoading();
+			// [核心修复] 移除了多余的 uni.hideLoading() 调用
 		}
 	};
 
