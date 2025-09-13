@@ -7,11 +7,22 @@ export const useToastStore = defineStore('toast', () => {
 	const isVisible = ref(false);
 	const message = ref('');
 	const type = ref<ToastType>('info');
-	// [修改] 明确指定 timer 的类型，以提高在 uni-app 环境中的兼容性
 	let timer: ReturnType<typeof setTimeout> | null = null;
 
+	// [核心新增] 用于记录上一条消息的内容和隐藏时间，以实现“冷却”效果
+	let lastMessage = '';
+	let hideTimestamp = 0;
+	const COOLDOWN_PERIOD = 500; // ms, 定义一个500毫秒的冷却时间
+
 	function show(options: { message: string; type?: ToastType; duration?: number }) {
-		// [修改] 每次显示前都确保旧的定时器被清除
+		const now = Date.now();
+
+		// [核心改造] 增加冷却判断：如果在冷却期内收到了与上一条完全相同的消息，则忽略
+		if (options.message === lastMessage && now - hideTimestamp < COOLDOWN_PERIOD) {
+			return;
+		}
+
+		// 如果有新的消息进来（无论是否相同），都清除旧的定时器，让新消息重置显示时间
 		if (timer) {
 			clearTimeout(timer);
 			timer = null;
@@ -21,16 +32,17 @@ export const useToastStore = defineStore('toast', () => {
 		type.value = options.type || 'info';
 		isVisible.value = true;
 
-		// [修改] 在定时器回调中直接修改状态，并清空timer引用
+		// 设置新的定时器以隐藏Toast
 		timer = setTimeout(() => {
-			isVisible.value = false;
-			timer = null;
+			hide();
 		}, options.duration || 2000);
 	}
 
 	function hide() {
+		// [核心改造] 在隐藏时，记录消息内容和当前时间戳
+		lastMessage = message.value;
+		hideTimestamp = Date.now();
 		isVisible.value = false;
-		// [新增] hide函数也应该能清除定时器，以备手动关闭时使用
 		if (timer) {
 			clearTimeout(timer);
 			timer = null;

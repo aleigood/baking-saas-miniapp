@@ -86,8 +86,20 @@ export const request = <T = any>(options: RequestOptions): Promise<T> => {
 				}
 			},
 			fail: (err) => {
-				// 处理网络层面的失败
-				toastStore.show({ message: '网络错误，请检查您的连接', type: 'error' });
+				// [核心改造] 对网络错误进行条件化处理
+				// 如果是启动时验证用户身份的关键请求失败，则将Toast消息寄往登录页
+				if (options.url === '/auth/profile') {
+					uiStore.setNextPageToast(
+						{
+							message: '网络错误，无法验证身份',
+							type: 'error'
+						},
+						'/pages/login/login'
+					);
+				} else {
+					// 对于应用内部的其他普通请求，直接在当前页显示网络错误
+					toastStore.show({ message: '网络错误，请检查您的连接', type: 'error' });
+				}
 				reject(err);
 			}
 		});
