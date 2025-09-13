@@ -89,8 +89,8 @@ const scrollThreshold = 5;
 
 onShow(async () => {
 	isNavigating.value = false;
-	// [核心新增] 消费跨页 Toast
-	const toastMessage = uiStore.consumeNextPageToast();
+	// [核心改造] 指定自己的地址来消费Toast
+	const toastMessage = uiStore.consumeNextPageToast('/pages/personnel/list');
 	if (toastMessage) {
 		toastStore.show(toastMessage);
 	}

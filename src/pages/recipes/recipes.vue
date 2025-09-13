@@ -210,12 +210,7 @@ const fabActions = computed(() => {
 
 onShow(async () => {
 	isNavigating.value = false;
-	// [核心新增] 消费跨页 Toast
-	const toastMessage = uiStore.consumeNextPageToast();
-	if (toastMessage) {
-		toastStore.show(toastMessage);
-	}
-
+	// [核心修改] 移除此处的 Toast 消费逻辑，统一由 main.vue 处理
 	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
 		await dataStore.fetchRecipesData();
 	}

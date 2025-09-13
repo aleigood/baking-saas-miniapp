@@ -59,8 +59,8 @@ const form = reactive({
 
 // [核心新增] onShow生命周期钩子
 onShow(() => {
-	// 每次进入登录页时，都检查是否有“寄存”的 Toast 消息
-	const toastMessage = uiStore.consumeNextPageToast();
+	// [核心改造] 指定自己的地址来消费消息
+	const toastMessage = uiStore.consumeNextPageToast('/pages/login/login');
 	if (toastMessage) {
 		// 如果有，就在当前页（登录页）显示它
 		toastStore.show(toastMessage);

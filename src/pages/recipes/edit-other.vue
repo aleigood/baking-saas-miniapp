@@ -180,6 +180,9 @@ onLoad(async (options) => {
 				toastStore.show({ message: '加载配方模板失败', type: 'error' });
 			}
 		}
+	} else {
+		// [核心新增] 新建模式下，将 mode 明确设为 create
+		pageMode.value = 'create';
 	}
 });
 
@@ -268,16 +271,22 @@ const handleSubmit = async () => {
 			products: []
 		};
 
-		if (pageMode.value === 'edit' && familyId.value && versionId.value) {
-			await updateRecipeVersion(familyId.value, versionId.value, payload);
-		} else if (pageMode.value === 'newVersion' && familyId.value) {
-			await createRecipeVersion(familyId.value, payload);
-		} else {
+		if (pageMode.value === 'create') {
 			await createRecipe(payload);
+			// [核心改造] 新建时，指定首页(main.vue)为收件人
+			uiStore.setNextPageToast({ message: '配方保存成功', type: 'success' }, '/pages/main/main');
+		} else {
+			// [核心改造] 编辑或创建新版本时，指定详情页为收件人
+			const target = `/pages/recipes/detail?familyId=${familyId.value}`;
+			if (pageMode.value === 'edit' && familyId.value && versionId.value) {
+				await updateRecipeVersion(familyId.value, versionId.value, payload);
+				uiStore.setNextPageToast({ message: '配方修改成功', type: 'success' }, target);
+			} else if (pageMode.value === 'newVersion' && familyId.value) {
+				await createRecipeVersion(familyId.value, payload);
+				uiStore.setNextPageToast({ message: '新版本创建成功', type: 'success' }, target);
+			}
 		}
 
-		// [核心修改] 使用 uiStore.setNextPageToast 替代 toastStore.show
-		uiStore.setNextPageToast({ message: '配方保存成功', type: 'success' });
 		dataStore.markRecipesAsStale();
 		dataStore.markIngredientsAsStale();
 		uni.navigateBack();

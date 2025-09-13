@@ -301,6 +301,9 @@ const spoilageStages = ref<
 const activeLossTab = ref('');
 const modalContentHeight = ref<number | string>('auto');
 
+// [核心新增] 用于记录页面来源
+const fromPage = ref('');
+
 const popover = reactive<{
 	visible: boolean;
 	content: string;
@@ -393,7 +396,9 @@ const allProductsInTask = computed(() => {
 
 onLoad(async (options) => {
 	taskId.value = options?.taskId || null;
-	if (options?.from === 'history') {
+	// [核心改造] 记录页面来源
+	fromPage.value = options?.from || '';
+	if (fromPage.value === 'history') {
 		isReadOnly.value = true;
 	}
 
@@ -566,11 +571,17 @@ const handleConfirmComplete = async () => {
 			notes: completionNotes.value,
 			completedItems
 		});
-		// [核心修改] 将 toastStore.show 替换为 uiStore.setNextPageToast
-		uiStore.setNextPageToast({
-			message: '任务已完成',
-			type: 'success'
-		});
+
+		// [核心改造] 根据来源页面，定向发送Toast
+		const target = fromPage.value === 'history' ? '/pages/production/history' : '/pages/main/main';
+		uiStore.setNextPageToast(
+			{
+				message: '任务已完成',
+				type: 'success'
+			},
+			target
+		);
+
 		// [核心改造] 任务完成后，标记相关数据为脏
 		dataStore.markProductionAsStale();
 		dataStore.markHistoricalTasksAsStale();

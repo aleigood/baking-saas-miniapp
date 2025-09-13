@@ -167,7 +167,8 @@ const handleUpdateMemberRole = async () => {
 	isSubmitting.value = true;
 	try {
 		await updateMember(selectedMember.value.id, { role: editableMemberRole.value });
-		uiStore.setNextPageToast({ message: '角色更新成功', type: 'success' });
+		// [核心改造] 将Toast消息定向发送到人员列表页
+		uiStore.setNextPageToast({ message: '角色更新成功', type: 'success' }, '/pages/personnel/list');
 		dataStore.markMembersAsStale();
 		uni.navigateBack();
 	} catch (error: any) {
@@ -188,7 +189,8 @@ const handleRemoveMember = () => {
 				isSubmitting.value = true;
 				try {
 					await removeMember(selectedMember.value!.id);
-					uiStore.setNextPageToast({ message: '移除成功', type: 'success' });
+					// [核心改造] 将Toast消息定向发送到人员列表页
+					uiStore.setNextPageToast({ message: '移除成功', type: 'success' }, '/pages/personnel/list');
 					dataStore.markMembersAsStale();
 					uni.navigateBack();
 				} catch (error: any) {

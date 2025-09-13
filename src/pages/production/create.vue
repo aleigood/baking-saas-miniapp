@@ -188,10 +188,12 @@ const handleCreateTasks = async () => {
 		};
 		const res = await createTask(payload);
 
+		// [核心改造] 将Toast消息定向发送到首页
+		const target = '/pages/main/main';
 		if (res.warning) {
-			uiStore.setNextPageToast({ message: res.warning, type: 'error', duration: 3000 });
+			uiStore.setNextPageToast({ message: res.warning, type: 'error', duration: 3000 }, target);
 		} else {
-			uiStore.setNextPageToast({ message: '任务已创建', type: 'success' });
+			uiStore.setNextPageToast({ message: '任务已创建', type: 'success' }, target);
 		}
 
 		// [核心改造] 任务创建成功后，将生产数据和历史数据标记为脏

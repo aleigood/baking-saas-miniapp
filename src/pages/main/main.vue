@@ -60,6 +60,12 @@ const toastStore = useToastStore();
 
 // [核心重构] onShow 负责校验登录状态和加载基础数据
 onShow(async () => {
+	// [核心改造] 将消费Toast的逻辑移至main.vue的onShow顶部，并指定自己的地址
+	const toastMessage = uiStore.consumeNextPageToast('/pages/main/main');
+	if (toastMessage) {
+		toastStore.show(toastMessage);
+	}
+
 	if (userStore.token) {
 		try {
 			// 验证token并获取用户信息

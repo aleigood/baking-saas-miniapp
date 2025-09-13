@@ -47,6 +47,8 @@ import { ref, computed } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
+import { useToastStore } from '@/store/toast'; // [核心新增] 引入toastStore
+import { useUiStore } from '@/store/ui'; // [核心新增] 引入uiStore
 import type { ProductionTaskDto } from '@/types/api';
 import ListItem from '@/components/ListItem.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
@@ -60,6 +62,8 @@ defineOptions({
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
+const toastStore = useToastStore(); // [核心新增] 获取toastStore实例
+const uiStore = useUiStore(); // [核心新增] 获取uiStore实例
 const isLoading = ref(false);
 const isLoadingMore = ref(false);
 // [核心改造] 新增导航锁
@@ -82,6 +86,12 @@ const fabActions = computed(() => {
 onShow(async () => {
 	// [核心改造] 每次页面显示时，重置导航锁
 	isNavigating.value = false;
+
+	// [核心新增] 指定自己的地址来消费Toast
+	const toastMessage = uiStore.consumeNextPageToast('/pages/production/history');
+	if (toastMessage) {
+		toastStore.show(toastMessage);
+	}
 
 	// [核心改造] 实现按需刷新逻辑
 	if (dataStore.dataStale.historicalTasks || !dataStore.dataLoaded.historicalTasks) {

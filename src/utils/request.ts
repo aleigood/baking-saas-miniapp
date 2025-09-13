@@ -59,11 +59,14 @@ export const request = <T = any>(options: RequestOptions): Promise<T> => {
 			success: (res: UniApp.RequestSuccessCallbackResult) => {
 				// 核心：处理401 Unauthorized错误
 				if (res.statusCode === 401 && options.url !== '/auth/login') {
-					// [核心修改] 不再直接显示 Toast，而是调用 setNextPageToast 将消息“寄存”起来
-					uiStore.setNextPageToast({
-						message: '登录已过期，请重新登录',
-						type: 'error'
-					});
+					// [核心改造] 为 Toast 消息指定目标地址：登录页
+					uiStore.setNextPageToast(
+						{
+							message: '登录已过期，请重新登录',
+							type: 'error'
+						},
+						'/pages/login/login' // 指定登录页为消费者
+					);
 
 					userStore.handleUnauthorized();
 					return reject(res);

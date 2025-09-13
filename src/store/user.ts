@@ -42,6 +42,7 @@ export const useUserStore = defineStore('user', () => {
 		try {
 			const res = await loginApi(credentials);
 			setToken(res.accessToken);
+			// [核心新增] 登录成功后，立刻重置重定向标志，防止竞态问题
 			isRedirecting.value = false;
 			return true;
 		} catch (error) {

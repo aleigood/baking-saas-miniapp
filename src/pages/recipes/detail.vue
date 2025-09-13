@@ -71,6 +71,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
+import { useUiStore } from '@/store/ui'; // [核心新增] 导入uiStore
 import type { RecipeFamily, RecipeVersion } from '@/types/api';
 import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion, getRecipeVersionFormTemplate } from '@/api/recipes';
 
@@ -92,6 +93,7 @@ defineOptions({
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
+const uiStore = useUiStore(); // [核心新增] 获取uiStore实例
 const isLoading = ref(true);
 const isSubmitting = ref(false);
 const recipeFamily = ref<RecipeFamily | null>(null);
@@ -132,6 +134,16 @@ onLoad(async (options) => {
 
 // [核心修改] onShow 逻辑调整
 onShow(async () => {
+	// [核心改造] 拼接自己的完整地址来消费消息
+	if (familyId.value) {
+		// 构造当前页面的唯一路由地址
+		const currentPageRoute = `/pages/recipes/detail?familyId=${familyId.value}`;
+		const toastMessage = uiStore.consumeNextPageToast(currentPageRoute);
+		if (toastMessage) {
+			toastStore.show(toastMessage);
+		}
+	}
+
 	// 检查 familyId 是否存在，并且数据是否为“脏”数据
 	if (familyId.value && dataStore.dataStale.recipes) {
 		await loadRecipeData(familyId.value);
