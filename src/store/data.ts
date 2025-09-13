@@ -56,12 +56,14 @@ export const useDataStore = defineStore('data', () => {
 		historicalTasks: false
 	});
 
+	// [核心修改] 新增 productsForTaskCreation 脏数据标记
 	const dataStale = reactive({
 		production: true,
 		recipes: true,
 		ingredients: true,
 		members: true,
-		historicalTasks: true
+		historicalTasks: true,
+		productsForTaskCreation: true
 	});
 
 	const currentTenant = computed(() => tenants.value.find((t) => t.id === currentTenantId.value));

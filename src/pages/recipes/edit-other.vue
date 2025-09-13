@@ -237,7 +237,6 @@ const removeProcedureStep = (index: number) => {
 const handleSubmit = async () => {
 	isSubmitting.value = true;
 
-	// [核心修改] 自动关联已存在的原料
 	form.ingredients.forEach((ing) => {
 		if (!ing.id && ing.name) {
 			const existing = availableIngredients.value.find((item) => item.name === ing.name);
@@ -246,7 +245,6 @@ const handleSubmit = async () => {
 			}
 		}
 	});
-	// [修改结束]
 
 	try {
 		const allAvailableItemsMap = new Map(availableIngredients.value.map((i) => [i.id, i]));
@@ -273,10 +271,8 @@ const handleSubmit = async () => {
 
 		if (pageMode.value === 'create') {
 			await createRecipe(payload);
-			// [核心改造] 新建时，指定首页(main.vue)为收件人
 			uiStore.setNextPageToast({ message: '配方保存成功', type: 'success' }, '/pages/main/main');
 		} else {
-			// [核心改造] 编辑或创建新版本时，指定详情页为收件人
 			const target = `/pages/recipes/detail?familyId=${familyId.value}`;
 			if (pageMode.value === 'edit' && familyId.value && versionId.value) {
 				await updateRecipeVersion(familyId.value, versionId.value, payload);
@@ -289,6 +285,8 @@ const handleSubmit = async () => {
 
 		dataStore.markRecipesAsStale();
 		dataStore.markIngredientsAsStale();
+		dataStore.markProductionAsStale(); // [核心新增] 标记生产任务数据为脏数据
+		dataStore.markProductsForTaskCreationAsStale(); // [核心新增] 标记用于创建任务的产品列表为脏数据
 		uni.navigateBack();
 	} catch (error) {
 		console.error('Failed to save recipe:', error);
