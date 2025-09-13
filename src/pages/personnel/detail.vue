@@ -46,11 +46,10 @@
 
 <script setup lang="ts">
 	import { ref, computed } from 'vue';
-	import { onLoad, onShow } from '@dcloudio/uni-app'; // [核心改造] 导入 onShow
+	import { onLoad, onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { useToastStore } from '@/store/toast';
-	// [核心新增] 导入 uiStore
 	import { useUiStore } from '@/store/ui';
 	import type { Member, Role } from '@/types/api';
 	import { updateMember, removeMember } from '@/api/members';
@@ -67,19 +66,15 @@
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
-	// [核心新增] 获取 uiStore 实例
 	const uiStore = useUiStore();
 
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const selectedMember = ref<Member | null>(null);
 	const editableMemberRole = ref<Role>('MEMBER');
-	// [核心改造] 新增 memberId ref
 	const memberId = ref<string | null>(null);
 
-	// [核心改造] 将 onLoad 的逻辑提取到一个函数中
 	const loadMemberData = () => {
-		isLoading.value = true;
 		if (memberId.value) {
 			if (memberId.value === userStore.userInfo?.id) {
 				const currentUserTenantInfo = userStore.userInfo.tenants.find(t => t.tenant.id === dataStore.currentTenantId);
@@ -92,33 +87,35 @@
 						status: 'ACTIVE',
 						joinDate: userStore.userInfo.createdAt,
 					};
-					editableMemberRole.value = selectedMember.value.role;
 				}
 			} else {
 				const memberFromStore = dataStore.members.find(m => m.id === memberId.value);
 				if (memberFromStore) {
 					selectedMember.value = JSON.parse(JSON.stringify(memberFromStore));
-					editableMemberRole.value = selectedMember.value.role;
 				}
 			}
+			if (selectedMember.value) {
+				editableMemberRole.value = selectedMember.value.role;
+			}
+			// [核心修改] 加载成功后，重置脏标记
+			dataStore.dataStale.members = false;
 		}
-		isLoading.value = false;
 	};
 
 
 	onLoad(async (options) => {
 		memberId.value = options?.memberId || null;
-		// [核心改造] 确保数据已加载
+		isLoading.value = true;
 		if (!dataStore.dataLoaded.members) {
 			await dataStore.fetchMembersData();
 		}
 		loadMemberData();
+		isLoading.value = false;
 	});
 
-	// [核心改造] 新增 onShow，用于在数据变脏时刷新
+	// [核心修改] onShow 逻辑调整
 	onShow(() => {
-		// 只有在非首次加载时才检查，避免重复加载
-		if (!isLoading.value) {
+		if (dataStore.dataStale.members) {
 			loadMemberData();
 		}
 	});
@@ -187,7 +184,6 @@
 		isSubmitting.value = true;
 		try {
 			await updateMember(selectedMember.value.id, { role: editableMemberRole.value });
-			// [核心修改] 使用 uiStore.setNextPageToast
 			uiStore.setNextPageToast({ message: '角色更新成功', type: 'success' });
 			dataStore.markMembersAsStale();
 			uni.navigateBack();
@@ -209,7 +205,6 @@
 					isSubmitting.value = true;
 					try {
 						await removeMember(selectedMember.value!.id);
-						// [核心修改] 使用 uiStore.setNextPageToast
 						uiStore.setNextPageToast({ message: '移除成功', type: 'success' });
 						dataStore.markMembersAsStale();
 						uni.navigateBack();

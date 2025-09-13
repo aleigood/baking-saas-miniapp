@@ -233,7 +233,6 @@
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const ingredient = ref<Ingredient | null>(null);
-	// [核心改造] 新增 ingredientId ref 用于在 onShow 中刷新
 	const ingredientId = ref<string | null>(null);
 	const detailChartTab = ref<'price' | 'usage'>('price');
 	const chartTabs = ref([
@@ -274,7 +273,6 @@
 	const showProcurementActionsModal = ref(false);
 	const showUpdateStockConfirmModal = ref(false);
 
-	// [核心新增] FAB 按钮可见性控制
 	const isFabVisible = ref(true);
 	const lastScrollTop = ref(0);
 	const scrollThreshold = 5;
@@ -341,14 +339,13 @@
 		}
 	});
 
-	// [核心改造] 修改 onShow 逻辑，确保每次都刷新
+	// [核心修改] onShow 逻辑调整
 	onShow(async () => {
-		if (ingredientId.value && !isLoading.value) { // 确保不是在首次加载时重复执行
+		if (ingredientId.value && dataStore.dataStale.ingredients) {
 			await loadIngredientData(ingredientId.value);
 		}
 	});
 
-	// [核心修复] 为滚动事件处理函数增加健壮性检查
 	const handleScroll = (event ?: any) => {
 		if (!event || !event.detail) {
 			return;
@@ -388,7 +385,6 @@
 
 
 			if (ingredientData.activeSku?.id) {
-				// [核心改造] 检查 selectedSkuId 是否还存在于新的 skus 列表中
 				const currentSelectionIsValid = ingredientData.skus.some(sku => sku.id === selectedSkuId.value);
 				if (!currentSelectionIsValid) {
 					selectedSkuId.value = ingredientData.activeSku.id;
@@ -396,11 +392,11 @@
 			} else if (ingredientData.skus.length > 0) {
 				selectedSkuId.value = ingredientData.skus[0].id;
 			} else {
-				selectedSkuId.value = null; // 如果没有 SKU，则清空选择
+				selectedSkuId.value = null;
 			}
 
-			// [核心改造] 清除脏标记
-			dataStore.markIngredientsAsStale();
+			// [核心修改] 加载成功后，重置脏标记
+			dataStore.dataStale.ingredients = false;
 		} catch (error) {
 			console.error("Failed to load ingredient data:", error);
 		} finally {

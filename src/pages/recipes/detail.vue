@@ -110,7 +110,7 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import AppPopover from '@/components/AppPopover.vue';
-	import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
+	import ExpandingFab from '@/components/ExpandingFab.vue';
 
 	defineOptions({
 		inheritAttrs: false
@@ -131,7 +131,6 @@
 	const showDeleteVersionConfirmModal = ref(false);
 	const selectedVersionForAction = ref<RecipeVersion | null>(null);
 
-	// [核心新增] FAB 按钮可见性控制
 	const isFabVisible = ref(true);
 	const lastScrollTop = ref(0);
 	const scrollThreshold = 5;
@@ -158,19 +157,19 @@
 		}
 	});
 
+	// [核心修改] onShow 逻辑调整
 	onShow(async () => {
-		if (familyId.value && !isLoading.value) {
+		// 检查 familyId 是否存在，并且数据是否为“脏”数据
+		if (familyId.value && dataStore.dataStale.recipes) {
 			await loadRecipeData(familyId.value);
 		}
 	});
 
 	const handleScroll = (event ?: any) => {
-		// 隐藏 popover 的逻辑保持不变
 		if (popover.visible) {
 			popover.visible = false;
 		}
 
-		// [核心修复] 增加一个保护判断，确保 event 和 event.detail 存在
 		if (!event || !event.detail) {
 			return;
 		}
@@ -208,6 +207,10 @@
 			} else {
 				displayedVersionId.value = null;
 			}
+			// [核心修改] 数据加载成功后，将 recipes 的脏标记重置为 false
+			// 注意：这里我们借用全局的 recipes 脏标记。
+			// 如果未来有更精细的需求（比如只标记单个配方详情为脏），可以扩展 dataStore。
+			dataStore.dataStale.recipes = false;
 		} catch (error) {
 			console.error('Failed to fetch recipe details:', error);
 			toastStore.show({
@@ -252,8 +255,6 @@
 				message: '准备新版本数据失败',
 				type: 'error'
 			});
-		} finally {
-			// [核心修复] 移除了多余的 uni.hideLoading() 调用
 		}
 	};
 
