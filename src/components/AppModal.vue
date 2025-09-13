@@ -1,8 +1,6 @@
 <template>
-	<view v-if="isRendered" class="modal-overlay" :class="animationClass.overlay" @click="closeModal"
-		@touchmove.stop.prevent="() => {}">
-		<view class="modal-content" :style="{ width: width }"
-			:class="[animationClass.content, { 'is-options-modal': noHeaderLine }]" @click.stop>
+	<view v-if="isRendered" class="modal-overlay" :class="animationClass.overlay" @click="closeModal" @touchmove.stop.prevent="() => {}">
+		<view class="modal-content" :style="{ width: width }" :class="[animationClass.content, { 'is-options-modal': noHeaderLine }]" @click.stop>
 			<view class="modal-header" :class="{ 'no-line': noHeaderLine }" v-if="title">
 				<h3 class="modal-title">{{ title }}</h3>
 			</view>
@@ -12,46 +10,42 @@
 </template>
 
 <script setup lang="ts">
-	import {
-		watch,
-		ref,
-		reactive,
-		nextTick
-	} from 'vue';
+import { watch, ref, reactive, nextTick } from 'vue';
 
-	const props = defineProps({
-		visible: {
-			type: Boolean,
-			default: false,
-		},
-		title: {
-			type: String,
-			default: '',
-		},
-		width: {
-			type: String,
-			default: '90%',
-		},
-		noHeaderLine: {
-			type: Boolean,
-			default: false,
-		}
-	});
+const props = defineProps({
+	visible: {
+		type: Boolean,
+		default: false
+	},
+	title: {
+		type: String,
+		default: ''
+	},
+	width: {
+		type: String,
+		default: '90%'
+	},
+	noHeaderLine: {
+		type: Boolean,
+		default: false
+	}
+});
 
-	const emit = defineEmits(['update:visible']);
+const emit = defineEmits(['update:visible']);
 
-	// [新增] isRendered 用于 v-if，控制组件是否真实存在于DOM中
-	const isRendered = ref(false);
-	// [新增] animationClass 用于控制进入和离开的动画类
-	const animationClass = reactive({
-		overlay: '',
-		content: ''
-	});
-	// [新增] 用于管理动画结束后的DOM移除操作
-	let animationTimer : ReturnType<typeof setTimeout> | null = null;
+// [新增] isRendered 用于 v-if，控制组件是否真实存在于DOM中
+const isRendered = ref(false);
+// [新增] animationClass 用于控制进入和离开的动画类
+const animationClass = reactive({
+	overlay: '',
+	content: ''
+});
+// [新增] 用于管理动画结束后的DOM移除操作
+let animationTimer: ReturnType<typeof setTimeout> | null = null;
 
-
-	watch(() => props.visible, (newValue) => {
+watch(
+	() => props.visible,
+	(newValue) => {
 		// 清除可能存在的上一个定时器
 		if (animationTimer) {
 			clearTimeout(animationTimer);
@@ -74,133 +68,132 @@
 				isRendered.value = false;
 			}, 300); // 这个时间必须和CSS动画的持续时间一致
 		}
-	});
+	}
+);
 
-
-	const closeModal = () => {
-		emit('update:visible', false);
-	};
+const closeModal = () => {
+	emit('update:visible', false);
+};
 </script>
 
 <style scoped lang="scss">
-	.modal-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background-color: rgba(0, 0, 0, 0.5);
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		z-index: 99;
-		/* [新增] 初始状态为透明 */
+.modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: rgba(0, 0, 0, 0.5);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 99;
+	/* [新增] 初始状态为透明 */
+	opacity: 0;
+}
+
+.modal-content {
+	background-color: white;
+	border-radius: 20px;
+	padding: 25px;
+	box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+	max-height: 80vh;
+	overflow-y: auto;
+	/* [新增] 初始状态为透明且轻微向下偏移 */
+	opacity: 0;
+	transform: translateY(20px);
+	// [核心修复] 增加 box-sizing 属性，确保 width 属性包含 padding
+	box-sizing: border-box;
+}
+
+/* 恢复为移除水平内边距的策略，以确保通栏列表项的事件可以被完整触发 */
+.modal-content.is-options-modal {
+	padding: 25px 0;
+}
+
+.modal-header {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-bottom: 20px;
+	padding-bottom: 15px;
+	border-bottom: 1px solid var(--border-color);
+	/* 当父级是 is-options-modal 时，其自身没有水平内边距，所以需要在这里补上 */
+	padding-left: 25px;
+	padding-right: 25px;
+}
+
+.modal-header.no-line {
+	border-bottom: none;
+	padding-bottom: 0;
+	margin-bottom: 15px;
+}
+
+.modal-title {
+	font-size: 18px;
+	font-weight: 600;
+	color: var(--text-primary);
+}
+
+/* [新增] CSS动画定义 */
+@keyframes fadeIn {
+	from {
 		opacity: 0;
 	}
 
-	.modal-content {
-		background-color: white;
-		border-radius: 20px;
-		padding: 25px;
-		box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-		max-height: 80vh;
-		overflow-y: auto;
-		/* [新增] 初始状态为透明且轻微向下偏移 */
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes fadeOut {
+	from {
+		opacity: 1;
+	}
+
+	to {
+		opacity: 0;
+	}
+}
+
+@keyframes slideUp {
+	from {
 		opacity: 0;
 		transform: translateY(20px);
-		// [核心修复] 增加 box-sizing 属性，确保 width 属性包含 padding
-		box-sizing: border-box;
 	}
 
-	/* 恢复为移除水平内边距的策略，以确保通栏列表项的事件可以被完整触发 */
-	.modal-content.is-options-modal {
-		padding: 25px 0;
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes slideDown {
+	from {
+		opacity: 1;
+		transform: translateY(0);
 	}
 
-	.modal-header {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		margin-bottom: 20px;
-		padding-bottom: 15px;
-		border-bottom: 1px solid var(--border-color);
-		/* 当父级是 is-options-modal 时，其自身没有水平内边距，所以需要在这里补上 */
-		padding-left: 25px;
-		padding-right: 25px;
+	to {
+		opacity: 0;
+		transform: translateY(20px);
 	}
+}
 
-	.modal-header.no-line {
-		border-bottom: none;
-		padding-bottom: 0;
-		margin-bottom: 15px;
-	}
+/* [新增] 应用动画的类 */
+.modal-overlay.fade-in {
+	animation: fadeIn 0.3s ease-in-out forwards;
+}
 
+.modal-overlay.fade-out {
+	animation: fadeOut 0.3s ease-in-out forwards;
+}
 
-	.modal-title {
-		font-size: 18px;
-		font-weight: 600;
-		color: var(--text-primary);
-	}
+.modal-content.slide-up {
+	animation: slideUp 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
 
-	/* [新增] CSS动画定义 */
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-		}
-
-		to {
-			opacity: 1;
-		}
-	}
-
-	@keyframes fadeOut {
-		from {
-			opacity: 1;
-		}
-
-		to {
-			opacity: 0;
-		}
-	}
-
-	@keyframes slideUp {
-		from {
-			opacity: 0;
-			transform: translateY(20px);
-		}
-
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-
-	@keyframes slideDown {
-		from {
-			opacity: 1;
-			transform: translateY(0);
-		}
-
-		to {
-			opacity: 0;
-			transform: translateY(20px);
-		}
-	}
-
-	/* [新增] 应用动画的类 */
-	.modal-overlay.fade-in {
-		animation: fadeIn 0.3s ease-in-out forwards;
-	}
-
-	.modal-overlay.fade-out {
-		animation: fadeOut 0.3s ease-in-out forwards;
-	}
-
-	.modal-content.slide-up {
-		animation: slideUp 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-	}
-
-	.modal-content.slide-down {
-		animation: slideDown 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-	}
+.modal-content.slide-down {
+	animation: slideDown 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
 </style>

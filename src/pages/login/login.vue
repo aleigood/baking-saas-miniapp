@@ -2,8 +2,7 @@
 	<view class="login-container">
 		<view class="header-bg"></view>
 
-		<view class="content-wrapper" :class="{ 'enter-active': pageLoaded }"
-			:style="{ paddingTop: safeAreaTop + 'px' }">
+		<view class="content-wrapper" :class="{ 'enter-active': pageLoaded }" :style="{ paddingTop: safeAreaTop + 'px' }">
 			<image class="logo" src="/static/icons/croissant.svg" mode="aspectFit"></image>
 
 			<view class="welcome-text-group">
@@ -26,174 +25,174 @@
 	</view>
 </template>
 <script lang="ts" setup>
-	import { reactive, ref, onMounted, computed } from 'vue';
-	// [核心修改] 新增导入 onShow
-	import { onShow } from '@dcloudio/uni-app';
-	import { useUserStore } from '@/store/user';
-	import { useDataStore } from '@/store/data';
-	import { useSystemStore } from '@/store/system';
-	// [核心修改] 新增导入 uiStore 和 toastStore
-	import { useUiStore } from '@/store/ui';
-	import { useToastStore } from '@/store/toast';
-	import AppButton from '@/components/AppButton.vue';
-	import Toast from '@/components/Toast.vue';
+import { reactive, ref, onMounted, computed } from 'vue';
+// [核心修改] 新增导入 onShow
+import { onShow } from '@dcloudio/uni-app';
+import { useUserStore } from '@/store/user';
+import { useDataStore } from '@/store/data';
+import { useSystemStore } from '@/store/system';
+// [核心修改] 新增导入 uiStore 和 toastStore
+import { useUiStore } from '@/store/ui';
+import { useToastStore } from '@/store/toast';
+import AppButton from '@/components/AppButton.vue';
+import Toast from '@/components/Toast.vue';
 
-	const loading = ref(false);
-	const pageLoaded = ref(false);
-	const userStore = useUserStore();
-	const dataStore = useDataStore();
-	const systemStore = useSystemStore();
-	// [核心修改] 新增 uiStore 和 toastStore 实例
-	const uiStore = useUiStore();
-	const toastStore = useToastStore();
+const loading = ref(false);
+const pageLoaded = ref(false);
+const userStore = useUserStore();
+const dataStore = useDataStore();
+const systemStore = useSystemStore();
+// [核心修改] 新增 uiStore 和 toastStore 实例
+const uiStore = useUiStore();
+const toastStore = useToastStore();
 
-	// 新增计算属性，用于获取顶部安全区域高度
-	const safeAreaTop = computed(() => {
-		// [核心修改] 增加了额外的垂直间距（从 40px 增加到 80px）来使内容整体下移
-		return systemStore.statusBarHeight + 80;
-	});
+// 新增计算属性，用于获取顶部安全区域高度
+const safeAreaTop = computed(() => {
+	// [核心修改] 增加了额外的垂直间距（从 40px 增加到 80px）来使内容整体下移
+	return systemStore.statusBarHeight + 80;
+});
 
-	const form = reactive({
-		phone: '13966666666',
-		password: '123',
-	});
+const form = reactive({
+	phone: '13966666666',
+	password: '123'
+});
 
-	// [核心新增] onShow生命周期钩子
-	onShow(() => {
-		// 每次进入登录页时，都检查是否有“寄存”的 Toast 消息
-		const toastMessage = uiStore.consumeNextPageToast();
-		if (toastMessage) {
-			// 如果有，就在当前页（登录页）显示它
-			toastStore.show(toastMessage);
-		}
-	});
+// [核心新增] onShow生命周期钩子
+onShow(() => {
+	// 每次进入登录页时，都检查是否有“寄存”的 Toast 消息
+	const toastMessage = uiStore.consumeNextPageToast();
+	if (toastMessage) {
+		// 如果有，就在当前页（登录页）显示它
+		toastStore.show(toastMessage);
+	}
+});
 
-	onMounted(() => {
-		setTimeout(() => {
-			pageLoaded.value = true;
-		}, 100);
-	});
+onMounted(() => {
+	setTimeout(() => {
+		pageLoaded.value = true;
+	}, 100);
+});
 
-	const handleLogin = async () => {
-		loading.value = true;
-		const loginSuccess = await userStore.login(form);
-		if (loginSuccess) {
-			try {
-				await userStore.fetchUserInfo();
-				await dataStore.fetchTenants();
-				uni.reLaunch({ url: '/pages/main/main' });
-			} catch (error) {
-				loading.value = false;
-			}
-		} else {
+const handleLogin = async () => {
+	loading.value = true;
+	const loginSuccess = await userStore.login(form);
+	if (loginSuccess) {
+		try {
+			await userStore.fetchUserInfo();
+			await dataStore.fetchTenants();
+			uni.reLaunch({ url: '/pages/main/main' });
+		} catch (error) {
 			loading.value = false;
 		}
-	};
+	} else {
+		loading.value = false;
+	}
+};
 </script>
 <style scoped lang="scss">
-	@import '@/styles/common.scss';
+@import '@/styles/common.scss';
 
-	.login-container {
-		display: flex;
-		flex-direction: column;
-		justify-content: flex-start;
-		align-items: center;
-		height: 100vh;
-		background-color: var(--bg-color);
-		padding: 0 40px; // 修改: 移除顶部的 padding
-		box-sizing: border-box;
-		overflow: hidden;
-		position: relative;
-	}
+.login-container {
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	align-items: center;
+	height: 100vh;
+	background-color: var(--bg-color);
+	padding: 0 40px; // 修改: 移除顶部的 padding
+	box-sizing: border-box;
+	overflow: hidden;
+	position: relative;
+}
 
-	.header-bg {
-		position: absolute;
-		top: -15vh;
-		left: -20vw;
-		width: 140vw;
-		height: 40vh;
-		background-image: url("@/static/backgrounds/personnel-bg.svg");
-		background-size: cover;
-		opacity: 0.3;
-		transform: rotate(-10deg);
-		z-index: 0;
-	}
+.header-bg {
+	position: absolute;
+	top: -15vh;
+	left: -20vw;
+	width: 140vw;
+	height: 40vh;
+	background-image: url('@/static/backgrounds/personnel-bg.svg');
+	background-size: cover;
+	opacity: 0.3;
+	transform: rotate(-10deg);
+	z-index: 0;
+}
 
-	.content-wrapper {
-		width: 100%;
-		z-index: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		// [核心修改] 移除固定的 padding-top，改为通过 style 绑定动态计算的高度
-		opacity: 0;
-		transform: translateY(30px);
-		transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-	}
+.content-wrapper {
+	width: 100%;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	// [核心修改] 移除固定的 padding-top，改为通过 style 绑定动态计算的高度
+	opacity: 0;
+	transform: translateY(30px);
+	transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
 
-	.content-wrapper.enter-active {
-		opacity: 1;
-		transform: translateY(0);
-	}
+.content-wrapper.enter-active {
+	opacity: 1;
+	transform: translateY(0);
+}
 
-	.welcome-text-group {
-		width: 100%;
-	}
+.welcome-text-group {
+	width: 100%;
+}
 
-	.logo {
-		width: 130px;
-		height: 130px;
-		// [核心修改] 调整与下方文字的间距
-		margin-bottom: 30px;
-		align-self: center;
-	}
+.logo {
+	width: 130px;
+	height: 130px;
+	// [核心修改] 调整与下方文字的间距
+	margin-bottom: 30px;
+	align-self: center;
+}
 
-	.title {
-		color: var(--text-primary);
-		font-size: 32px;
-		font-weight: 600;
-		margin-bottom: 5px;
-	}
+.title {
+	color: var(--text-primary);
+	font-size: 32px;
+	font-weight: 600;
+	margin-bottom: 5px;
+}
 
-	.subtitle {
-		color: var(--text-secondary);
-		font-size: 16px;
-		margin-bottom: 40px;
-	}
+.subtitle {
+	color: var(--text-secondary);
+	font-size: 16px;
+	margin-bottom: 40px;
+}
 
-	.form-container {
-		width: 100%;
-	}
+.form-container {
+	width: 100%;
+}
 
-	.input-field {
-		width: 100%;
-		height: 54px;
-		background-color: #ffffff;
-		border-radius: 15px;
-		padding: 0 20px;
-		margin-bottom: 20px;
-		font-size: 16px;
-		box-sizing: border-box;
-		border: 1px solid var(--border-color);
-		transition: border-color 0.3s, box-shadow 0.3s;
-	}
+.input-field {
+	width: 100%;
+	height: 54px;
+	background-color: #ffffff;
+	border-radius: 15px;
+	padding: 0 20px;
+	margin-bottom: 20px;
+	font-size: 16px;
+	box-sizing: border-box;
+	border: 1px solid var(--border-color);
+	transition: border-color 0.3s, box-shadow 0.3s;
+}
 
-	.input-field:focus {
-		border-color: var(--primary-color);
-		box-shadow: 0 0 0 3px rgba(140, 90, 59, 0.1);
-	}
+.input-field:focus {
+	border-color: var(--primary-color);
+	box-shadow: 0 0 0 3px rgba(140, 90, 59, 0.1);
+}
 
-	.login-button {
-		margin-top: 10px;
-	}
+.login-button {
+	margin-top: 10px;
+}
 
-	.footer-croissant {
-		position: absolute;
-		bottom: -10vh;
-		right: -10vw;
-		width: 60vw;
-		height: 60vw;
-		opacity: 0.05;
-		z-index: 0;
-	}
+.footer-croissant {
+	position: absolute;
+	bottom: -10vh;
+	right: -10vw;
+	width: 60vw;
+	height: 60vw;
+	opacity: 0.05;
+	z-index: 0;
+}
 </style>

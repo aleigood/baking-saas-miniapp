@@ -6,13 +6,13 @@ import { MODAL_KEYS, type ModalKey } from '@/constants/modalKeys';
 export const useUiStore = defineStore('ui', () => {
 	const activeTab = ref('production');
 
-	const toastMessageQueue = ref<{ message : string; type : 'success' | 'error' | 'info'; duration ?: number } | null>(null);
+	const toastMessageQueue = ref<{ message: string; type: 'success' | 'error' | 'info'; duration?: number } | null>(null);
 
 	// [核心改造] 大幅精简 modalVisibility，只保留全局状态
 	const modalVisibility = ref<Record<ModalKey, boolean>>({
 		[MODAL_KEYS.STORE]: false,
 		[MODAL_KEYS.USER_OPTIONS]: false,
-		[MODAL_KEYS.LOGOUT_CONFIRM]: false,
+		[MODAL_KEYS.LOGOUT_CONFIRM]: false
 	});
 
 	// [核心改造] 移除所有被本地化的 computed 属性
@@ -20,21 +20,21 @@ export const useUiStore = defineStore('ui', () => {
 	const showUserOptionsModal = computed(() => modalVisibility.value[MODAL_KEYS.USER_OPTIONS]);
 	const showLogoutConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.LOGOUT_CONFIRM]);
 
-	const isAnyModalOpen = computed(() => Object.values(modalVisibility.value).some(isOpen => isOpen));
+	const isAnyModalOpen = computed(() => Object.values(modalVisibility.value).some((isOpen) => isOpen));
 
-	function setActiveTab(tabKey : string) {
+	function setActiveTab(tabKey: string) {
 		activeTab.value = tabKey;
 	}
 
-	function openModal(modalName : ModalKey) {
+	function openModal(modalName: ModalKey) {
 		modalVisibility.value[modalName] = true;
 	}
 
-	function closeModal(modalName : ModalKey) {
+	function closeModal(modalName: ModalKey) {
 		modalVisibility.value[modalName] = false;
 	}
 
-	function setNextPageToast(options : { message : string; type : 'success' | 'error' | 'info'; duration ?: number }) {
+	function setNextPageToast(options: { message: string; type: 'success' | 'error' | 'info'; duration?: number }) {
 		toastMessageQueue.value = options;
 	}
 
@@ -43,7 +43,6 @@ export const useUiStore = defineStore('ui', () => {
 		toastMessageQueue.value = null;
 		return message;
 	}
-
 
 	return {
 		activeTab,
@@ -56,6 +55,6 @@ export const useUiStore = defineStore('ui', () => {
 		closeModal,
 		isAnyModalOpen,
 		setNextPageToast,
-		consumeNextPageToast,
+		consumeNextPageToast
 	};
 });

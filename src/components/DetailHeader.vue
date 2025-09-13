@@ -15,33 +15,35 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, computed, getCurrentInstance } from 'vue';
-	import { useSystemStore } from '@/store/system';
+import { ref, computed, getCurrentInstance } from 'vue';
+import { useSystemStore } from '@/store/system';
 
-	defineProps({
-		title: {
-			type: String,
-			required: true,
-		},
-	});
+defineProps({
+	title: {
+		type: String,
+		required: true
+	}
+});
 
-	const systemStore = useSystemStore();
+const systemStore = useSystemStore();
 
-	const headerStyle = computed(() => ({
-		height: `${systemStore.headerHeight}px`
-	}));
+const headerStyle = computed(() => ({
+	height: `${systemStore.headerHeight}px`
+}));
 
-	const contentStyle = computed(() => ({
-		top: `${systemStore.navBarContentTop}px`,
-		height: `${systemStore.navBarHeight}px`
-	}));
+const contentStyle = computed(() => ({
+	top: `${systemStore.navBarContentTop}px`,
+	height: `${systemStore.navBarHeight}px`
+}));
 
-	const ripples = ref<any[]>([]);
-	const instance = getCurrentInstance();
-	const handleTouchStart = (event : TouchEvent) => {
-		const touch = event.touches[0];
-		const query = uni.createSelectorQuery().in(instance);
-		query.select('.ripple-container').boundingClientRect(rect => {
+const ripples = ref<any[]>([]);
+const instance = getCurrentInstance();
+const handleTouchStart = (event: TouchEvent) => {
+	const touch = event.touches[0];
+	const query = uni.createSelectorQuery().in(instance);
+	query
+		.select('.ripple-container')
+		.boundingClientRect((rect) => {
 			if (rect) {
 				const x = touch.clientX - rect.left;
 				const y = touch.clientY - rect.top;
@@ -52,7 +54,7 @@
 						width: `${size}px`,
 						height: `${size}px`,
 						top: `${y - size / 2}px`,
-						left: `${x - size / 2}px`,
+						left: `${x - size / 2}px`
 					}
 				};
 				ripples.value.push(newRipple);
@@ -60,63 +62,64 @@
 					if (ripples.value.length > 0) ripples.value.shift();
 				}, 600);
 			}
-		}).exec();
-	};
+		})
+		.exec();
+};
 
-	const navigateBack = () => {
-		uni.navigateBack();
-	};
+const navigateBack = () => {
+	uni.navigateBack();
+};
 
-	// [体验优化] 新增 handleClick 方法以延迟事件触发
-	const handleClick = () => {
-		// [体验优化] 增加 300ms 延迟，确保水波纹动画可见后再执行点击操作
-		setTimeout(() => {
-			navigateBack();
-		}, 300);
-	};
+// [体验优化] 新增 handleClick 方法以延迟事件触发
+const handleClick = () => {
+	// [体验优化] 增加 300ms 延迟，确保水波纹动画可见后再执行点击操作
+	setTimeout(() => {
+		navigateBack();
+	}, 300);
+};
 </script>
 
 <style scoped lang="scss">
-	.back-btn {
-		font-size: 20px;
-		cursor: pointer;
-		margin-right: 10px;
-		color: var(--text-secondary);
-		position: relative;
-		overflow: hidden;
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		transform: translateZ(0);
-		padding: 0;
-		-webkit-user-select: none;
-		user-select: none;
-		-webkit-tap-highlight-color: transparent;
+.back-btn {
+	font-size: 20px;
+	cursor: pointer;
+	margin-right: 10px;
+	color: var(--text-secondary);
+	position: relative;
+	overflow: hidden;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	transform: translateZ(0);
+	padding: 0;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-tap-highlight-color: transparent;
 
-		&::after {
-			display: none;
-		}
+	&::after {
+		display: none;
 	}
+}
 
-	.detail-title {
-		font-size: 20px;
-		font-weight: 600;
-		flex: 1;
-		color: var(--text-primary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
+.detail-title {
+	font-size: 20px;
+	font-weight: 600;
+	flex: 1;
+	color: var(--text-primary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
 
-	.back-btn .ripple {
-		background-color: rgba(0, 0, 0, 0.08);
-	}
+.back-btn .ripple {
+	background-color: rgba(0, 0, 0, 0.08);
+}
 
-	.actions {
-		display: flex;
-		align-items: center;
-	}
+.actions {
+	display: flex;
+	align-items: center;
+}
 </style>

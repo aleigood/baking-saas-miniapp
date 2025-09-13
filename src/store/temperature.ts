@@ -7,10 +7,10 @@ import { ref, reactive } from 'vue';
 
 // 定义温度设置的数据结构
 export interface TemperatureSettings {
-	mixerType : number;
-	envTemp : number;
-	flourTemp : number;
-	waterTemp : number;
+	mixerType: number;
+	envTemp: number;
+	flourTemp: number;
+	waterTemp: number;
 }
 
 export const useTemperatureStore = defineStore('temperature', () => {
@@ -21,7 +21,7 @@ export const useTemperatureStore = defineStore('temperature', () => {
 		{ text: '家用（星型）和面机', value: 6 },
 		{ text: '低速螺旋和面机', value: 7 },
 		{ text: '卧式和面机', value: 8 },
-		{ text: '高速螺旋和面机', value: 9 },
+		{ text: '高速螺旋和面机', value: 9 }
 	]);
 
 	// 使用 reactive 来管理设置对象
@@ -29,7 +29,7 @@ export const useTemperatureStore = defineStore('temperature', () => {
 		mixerType: 9, // 高速螺旋和面机
 		envTemp: 25,
 		flourTemp: 25,
-		waterTemp: 25,
+		waterTemp: 25
 	});
 
 	/**
@@ -54,7 +54,7 @@ export const useTemperatureStore = defineStore('temperature', () => {
 	 * 保存设置到本地存储
 	 * @param newSettings 新的温度设置
 	 */
-	const saveTemperatureSettings = (newSettings : Partial<TemperatureSettings>) => {
+	const saveTemperatureSettings = (newSettings: Partial<TemperatureSettings>) => {
 		Object.assign(settings, newSettings);
 		try {
 			uni.setStorageSync('temperature_settings', JSON.stringify(settings));
@@ -67,6 +67,6 @@ export const useTemperatureStore = defineStore('temperature', () => {
 		settings,
 		mixerTypes,
 		initTemperatureSettings,
-		saveTemperatureSettings,
+		saveTemperatureSettings
 	};
 });

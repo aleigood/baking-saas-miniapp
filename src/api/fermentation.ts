@@ -9,10 +9,10 @@ import type { FermentationType, YeastBrand } from '@/types/fermentation';
  * 获取可用的温度列表 (摄氏度)
  * @param type - 发酵类型 (酵母或鲁邦种)
  */
-export function getAvailableTemperatures(type : FermentationType) : Promise<number[]> {
+export function getAvailableTemperatures(type: FermentationType): Promise<number[]> {
 	return request<number[]>({
 		url: '/fermentation/temperatures',
-		data: { type },
+		data: { type }
 	});
 }
 
@@ -21,10 +21,10 @@ export function getAvailableTemperatures(type : FermentationType) : Promise<numb
  * @param type - 发酵类型
  * @param temperatureC - 摄氏温度
  */
-export function getAvailableTimes(type : FermentationType, temperatureC : number) : Promise<number[]> {
+export function getAvailableTimes(type: FermentationType, temperatureC: number): Promise<number[]> {
 	return request<number[]>({
 		url: '/fermentation/times',
-		data: { type, temperatureC },
+		data: { type, temperatureC }
 	});
 }
 
@@ -33,14 +33,9 @@ export function getAvailableTimes(type : FermentationType, temperatureC : number
  * @param params - 查询参数
  * @returns 用量百分比数组
  */
-export function findAmount(params : {
-	type : FermentationType;
-	brand : YeastBrand;
-	temperatureC : number;
-	time : number;
-}) : Promise<number[]> {
+export function findAmount(params: { type: FermentationType; brand: YeastBrand; temperatureC: number; time: number }): Promise<number[]> {
 	return request<number[]>({
 		url: '/fermentation/amount',
-		data: params,
+		data: params
 	});
 }

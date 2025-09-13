@@ -10,18 +10,18 @@ import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductListItem,
  * 获取当前店铺的配方/产品列表
  * @returns 返回配方家族列表，每个家族包含其激活的版本信息
  */
-export function getRecipes() : Promise<RecipesListResponse> {
+export function getRecipes(): Promise<RecipesListResponse> {
 	return request<RecipesListResponse>({
-		url: '/recipes',
+		url: '/recipes'
 	});
 }
 
 /**
  * [核心新增] 获取用于创建生产任务的、按配方分组的产品列表
  */
-export function getProductsForTasks() : Promise<Record<string, ProductListItem[]>> {
+export function getProductsForTasks(): Promise<Record<string, ProductListItem[]>> {
 	return request<Record<string, ProductListItem[]>>({
-		url: '/recipes/products-for-tasks',
+		url: '/recipes/products-for-tasks'
 	});
 }
 
@@ -29,14 +29,14 @@ export function getProductsForTasks() : Promise<Record<string, ProductListItem[]
  * [新增] 获取指定配方家族的所有版本列表
  * @param familyId 配方家族的ID
  */
-export function getRecipeVersions(familyId : string) : Promise<RecipeVersion[]> {
+export function getRecipeVersions(familyId: string): Promise<RecipeVersion[]> {
 	// 注意：这个接口在后端 recipes.controller.ts 中并未直接提供，
 	// 后端 findOne(id) 可以获取所有版本，这里模拟前端调用，实际项目中后端可能需要单独接口。
 	// 为符合重构要求，我们假设前端将通过调用 findOne 实现。
 	// 这里保留函数名，但在页面中会通过调用 findOne 实现。
 	// 实际调用将是 getRecipeFamily(familyId)。
 	return request<RecipeVersion[]>({
-		url: `/recipes/${familyId}/versions`, // 假设后端提供了此端点
+		url: `/recipes/${familyId}/versions` // 假设后端提供了此端点
 	});
 }
 
@@ -44,9 +44,9 @@ export function getRecipeVersions(familyId : string) : Promise<RecipeVersion[]> 
  * [新增] 获取单个配方家族的完整信息，包括所有版本
  * @param familyId 配方家族的ID
  */
-export function getRecipeFamily(familyId : string) : Promise<RecipeFamily> {
+export function getRecipeFamily(familyId: string): Promise<RecipeFamily> {
 	return request<RecipeFamily>({
-		url: `/recipes/${familyId}`,
+		url: `/recipes/${familyId}`
 	});
 }
 
@@ -55,9 +55,9 @@ export function getRecipeFamily(familyId : string) : Promise<RecipeFamily> {
  * @param familyId 配方家族的ID
  * @param versionId 源版本的ID
  */
-export function getRecipeVersionFormTemplate(familyId : string, versionId : string) : Promise<RecipeFormTemplate> {
+export function getRecipeVersionFormTemplate(familyId: string, versionId: string): Promise<RecipeFormTemplate> {
 	return request<RecipeFormTemplate>({
-		url: `/recipes/${familyId}/versions/${versionId}/form-template`,
+		url: `/recipes/${familyId}/versions/${versionId}/form-template`
 	});
 }
 
@@ -66,11 +66,11 @@ export function getRecipeVersionFormTemplate(familyId : string, versionId : stri
  * @param familyId 配方家族的ID
  * @param createDto 新版本的配方数据
  */
-export function createRecipeVersion(familyId : string, createDto : any) : Promise<RecipeVersion> {
+export function createRecipeVersion(familyId: string, createDto: any): Promise<RecipeVersion> {
 	return request<RecipeVersion>({
 		url: `/recipes/${familyId}/versions`, // [修改] 调用新的版本创建接口
 		method: 'POST',
-		data: createDto,
+		data: createDto
 	});
 }
 
@@ -80,24 +80,23 @@ export function createRecipeVersion(familyId : string, createDto : any) : Promis
  * @param versionId 要修改的版本ID
  * @param updateDto 新的配方数据
  */
-export function updateRecipeVersion(familyId : string, versionId : string, updateDto : any) : Promise<RecipeVersion> {
+export function updateRecipeVersion(familyId: string, versionId: string, updateDto: any): Promise<RecipeVersion> {
 	return request<RecipeVersion>({
 		url: `/recipes/${familyId}/versions/${versionId}`,
 		method: 'PATCH',
-		data: updateDto,
+		data: updateDto
 	});
 }
-
 
 /**
  * [修改] 此函数现在只用于创建全新的配方家族
  * @param data 完整的配方数据，符合后端的 CreateRecipeDto 结构
  */
-export function createRecipe(data : any) : Promise<any> {
+export function createRecipe(data: any): Promise<any> {
 	return request({
 		url: '/recipes',
 		method: 'POST',
-		data,
+		data
 	});
 }
 
@@ -106,10 +105,10 @@ export function createRecipe(data : any) : Promise<any> {
  * @param familyId 配方家族的ID
  * @param versionId 要激活的版本ID
  */
-export function activateRecipeVersion(familyId : string, versionId : string) : Promise<any> {
+export function activateRecipeVersion(familyId: string, versionId: string): Promise<any> {
 	return request({
 		url: `/recipes/${familyId}/versions/${versionId}/activate`,
-		method: 'PATCH',
+		method: 'PATCH'
 	});
 }
 
@@ -118,10 +117,10 @@ export function activateRecipeVersion(familyId : string, versionId : string) : P
  * @param familyId 配方家族的ID
  * @param versionId 要删除的版本ID
  */
-export function deleteRecipeVersion(familyId : string, versionId : string) : Promise<any> {
+export function deleteRecipeVersion(familyId: string, versionId: string): Promise<any> {
 	return request({
 		url: `/recipes/${familyId}/versions/${versionId}`,
-		method: 'DELETE',
+		method: 'DELETE'
 	});
 }
 
@@ -129,10 +128,10 @@ export function deleteRecipeVersion(familyId : string, versionId : string) : Pro
  * [新增] 停用一个配方家族
  * @param familyId 配方家族的ID
  */
-export function discontinueRecipe(familyId : string) : Promise<any> {
+export function discontinueRecipe(familyId: string): Promise<any> {
 	return request({
 		url: `/recipes/${familyId}/discontinue`,
-		method: 'PATCH',
+		method: 'PATCH'
 	});
 }
 
@@ -140,10 +139,10 @@ export function discontinueRecipe(familyId : string) : Promise<any> {
  * [新增] 恢复一个已停用的配方家族
  * @param familyId 配方家族的ID
  */
-export function restoreRecipe(familyId : string) : Promise<any> {
+export function restoreRecipe(familyId: string): Promise<any> {
 	return request({
 		url: `/recipes/${familyId}/restore`,
-		method: 'PATCH',
+		method: 'PATCH'
 	});
 }
 
@@ -151,9 +150,9 @@ export function restoreRecipe(familyId : string) : Promise<any> {
  * [新增] 删除一个配方家族
  * @param familyId 配方家族的ID
  */
-export function deleteRecipe(familyId : string) : Promise<any> {
+export function deleteRecipe(familyId: string): Promise<any> {
 	return request({
 		url: `/recipes/${familyId}`,
-		method: 'DELETE',
+		method: 'DELETE'
 	});
 }

@@ -8,9 +8,9 @@ export const useToastStore = defineStore('toast', () => {
 	const message = ref('');
 	const type = ref<ToastType>('info');
 	// [修改] 明确指定 timer 的类型，以提高在 uni-app 环境中的兼容性
-	let timer : ReturnType<typeof setTimeout> | null = null;
+	let timer: ReturnType<typeof setTimeout> | null = null;
 
-	function show(options : { message : string; type ?: ToastType; duration ?: number }) {
+	function show(options: { message: string; type?: ToastType; duration?: number }) {
 		// [修改] 每次显示前都确保旧的定时器被清除
 		if (timer) {
 			clearTimeout(timer);
@@ -42,6 +42,6 @@ export const useToastStore = defineStore('toast', () => {
 		message,
 		type,
 		show,
-		hide,
+		hide
 	};
 });

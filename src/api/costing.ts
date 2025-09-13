@@ -6,27 +6,25 @@ import { request } from '@/utils/request';
 // [新增] 导入新的配方详情类型
 import type { RecipeDetails } from '@/types/api';
 
-
 /**
  * [新增] 获取计算后的产品配方详情，用于客户端展示
  * @param productId 产品的ID
  * @returns 返回结构化的配方详情，包含用量和成本
  */
-export function getRecipeDetails(productId : string) : Promise<RecipeDetails> {
+export function getRecipeDetails(productId: string): Promise<RecipeDetails> {
 	return request<RecipeDetails>({
-		url: `/costing/products/${productId}/details`,
+		url: `/costing/products/${productId}/details`
 	});
 }
-
 
 /**
  * [新增] 获取单个产品成本的历史变化记录
  * @param productId 产品的ID
  * @returns 返回一个包含成本变化点的数组，每个点是一个 { cost: number } 对象
  */
-export function getProductCostHistory(productId : string) : Promise<{ cost : number }[]> {
-	return request<{ cost : number }[]>({
-		url: `/costing/products/${productId}/cost-history`,
+export function getProductCostHistory(productId: string): Promise<{ cost: number }[]> {
+	return request<{ cost: number }[]>({
+		url: `/costing/products/${productId}/cost-history`
 	});
 }
 
@@ -35,21 +33,20 @@ export function getProductCostHistory(productId : string) : Promise<{ cost : num
  * @param productId 产品的ID
  * @returns 返回一个包含 { name: string, value: number } 的数组，用于饼图
  */
-export function getProductCostBreakdown(productId : string) : Promise<{ name : string, value : number }[]> {
-	return request<{ name : string, value : number }[]>({
-		url: `/costing/products/${productId}/cost-breakdown`,
+export function getProductCostBreakdown(productId: string): Promise<{ name: string; value: number }[]> {
+	return request<{ name: string; value: number }[]>({
+		url: `/costing/products/${productId}/cost-breakdown`
 	});
 }
-
 
 /**
  * [新增] 获取单个原料成本的历史变化记录
  * @param ingredientId 原料的ID
  * @returns 返回一个包含成本变化点的数组，每个点是一个 { cost: number } 对象
  */
-export function getIngredientCostHistory(ingredientId : string) : Promise<{ cost : number }[]> {
-	return request<{ cost : number }[]>({
-		url: `/costing/ingredients/${ingredientId}/cost-history`,
+export function getIngredientCostHistory(ingredientId: string): Promise<{ cost: number }[]> {
+	return request<{ cost: number }[]>({
+		url: `/costing/ingredients/${ingredientId}/cost-history`
 	});
 }
 
@@ -58,8 +55,8 @@ export function getIngredientCostHistory(ingredientId : string) : Promise<{ cost
  * @param ingredientId 原料的ID
  * @returns 返回一个包含用量变化点的数组
  */
-export function getIngredientUsageHistory(ingredientId : string) : Promise<{ cost : number }[]> {
-	return request<{ cost : number }[]>({
-		url: `/costing/ingredients/${ingredientId}/usage-history`,
+export function getIngredientUsageHistory(ingredientId: string): Promise<{ cost: number }[]> {
+	return request<{ cost: number }[]>({
+		url: `/costing/ingredients/${ingredientId}/usage-history`
 	});
 }

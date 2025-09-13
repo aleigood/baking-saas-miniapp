@@ -10,10 +10,10 @@ import type { InvitationResponse } from '@/types/api';
  * @param phone 被邀请人的手机号
  * @returns 返回邀请创建成功的信息
  */
-export function createInvitation(phone : string) : Promise<InvitationResponse> {
+export function createInvitation(phone: string): Promise<InvitationResponse> {
 	return request<InvitationResponse>({
 		url: '/invitations',
 		method: 'POST',
-		data: { phone },
+		data: { phone }
 	});
 }

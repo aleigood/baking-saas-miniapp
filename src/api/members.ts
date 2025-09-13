@@ -8,9 +8,9 @@ import type { Member, Role } from '@/types/api';
 /**
  * 获取当前店铺的人员列表
  */
-export function getMembers() : Promise<Member[]> {
+export function getMembers(): Promise<Member[]> {
 	return request<Member[]>({
-		url: '/members',
+		url: '/members'
 	});
 }
 
@@ -19,14 +19,11 @@ export function getMembers() : Promise<Member[]> {
  * @param memberId 成员的用户ID
  * @param data 包含新角色或新状态的对象
  */
-export function updateMember(
-	memberId : string,
-	data : { role ?: Role; status ?: Member['status'] },
-) : Promise<any> {
+export function updateMember(memberId: string, data: { role?: Role; status?: Member['status'] }): Promise<any> {
 	return request({
 		url: `/members/${memberId}`,
 		method: 'PATCH',
-		data,
+		data
 	});
 }
 
@@ -34,9 +31,9 @@ export function updateMember(
  * [已更新] 从当前店铺中移除一个成员
  * @param memberId 成员的用户ID
  */
-export function removeMember(memberId : string) : Promise<any> {
+export function removeMember(memberId: string): Promise<any> {
 	return request({
 		url: `/members/${memberId}`,
-		method: 'DELETE',
+		method: 'DELETE'
 	});
 }

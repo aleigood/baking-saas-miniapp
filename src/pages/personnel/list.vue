@@ -5,9 +5,13 @@
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content no-horizontal-padding page-content-with-fab">
 				<template v-if="dataStore.members.length > 0">
-					<ListItem v-for="(member, index) in dataStore.members" :key="member.id"
-						@click="navigateToDetail(member.id)" :bleed="true"
-						:divider="index < dataStore.members.length - 1">
+					<ListItem
+						v-for="(member, index) in dataStore.members"
+						:key="member.id"
+						@click="navigateToDetail(member.id)"
+						:bleed="true"
+						:divider="index < dataStore.members.length - 1"
+					>
 						<view class="member-details">
 							<view class="member-avatar">
 								{{ member.name?.[0] || '员' }}
@@ -35,11 +39,8 @@
 				<input class="input-field" type="tel" v-model="inviteePhone" placeholder="请输入手机号" />
 			</FormItem>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="showInviteModal = false">
-					取消
-				</AppButton>
-				<AppButton type="primary" @click="handleInvite" :disabled="isCreatingInvite"
-					:loading="isCreatingInvite">
+				<AppButton type="secondary" @click="showInviteModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleInvite" :disabled="isCreatingInvite" :loading="isCreatingInvite">
 					{{ isCreatingInvite ? '' : '确认邀请' }}
 				</AppButton>
 			</view>
@@ -48,168 +49,166 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, computed } from 'vue';
-	import { onShow } from '@dcloudio/uni-app';
-	import { useDataStore } from '@/store/data';
-	import { useUserStore } from '@/store/user';
-	import { useToastStore } from '@/store/toast';
-	// [核心新增] 导入 uiStore
-	import { useUiStore } from '@/store/ui';
-	import { createInvitation } from '@/api/invitations';
-	import DetailHeader from '@/components/DetailHeader.vue';
-	import DetailPageLayout from '@/components/DetailPageLayout.vue';
-	import ListItem from '@/components/ListItem.vue';
-	import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
-	import AppModal from '@/components/AppModal.vue';
-	import FormItem from '@/components/FormItem.vue';
-	import AppButton from '@/components/AppButton.vue';
-	import type { Role } from '@/types/api';
-	import { formatChineseDate } from '@/utils/format';
+import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import { useDataStore } from '@/store/data';
+import { useUserStore } from '@/store/user';
+import { useToastStore } from '@/store/toast';
+// [核心新增] 导入 uiStore
+import { useUiStore } from '@/store/ui';
+import { createInvitation } from '@/api/invitations';
+import DetailHeader from '@/components/DetailHeader.vue';
+import DetailPageLayout from '@/components/DetailPageLayout.vue';
+import ListItem from '@/components/ListItem.vue';
+import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
+import AppModal from '@/components/AppModal.vue';
+import FormItem from '@/components/FormItem.vue';
+import AppButton from '@/components/AppButton.vue';
+import type { Role } from '@/types/api';
+import { formatChineseDate } from '@/utils/format';
 
-	defineOptions({
-		inheritAttrs: false
+defineOptions({
+	inheritAttrs: false
+});
+
+const dataStore = useDataStore();
+const userStore = useUserStore();
+const toastStore = useToastStore();
+// [核心新增] 获取 uiStore 实例
+const uiStore = useUiStore();
+
+const isCreatingInvite = ref(false);
+const inviteePhone = ref('');
+const isNavigating = ref(false);
+const showInviteModal = ref(false);
+
+// [核心新增] FAB 按钮可见性控制
+const isFabVisible = ref(true);
+const lastScrollTop = ref(0);
+const scrollThreshold = 5;
+
+onShow(async () => {
+	isNavigating.value = false;
+	// [核心新增] 消费跨页 Toast
+	const toastMessage = uiStore.consumeNextPageToast();
+	if (toastMessage) {
+		toastStore.show(toastMessage);
+	}
+
+	if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
+		await dataStore.fetchMembersData();
+	}
+});
+
+// [核心修复] 为滚动事件处理函数增加健壮性检查
+const handleScroll = (event?: any) => {
+	if (!event || !event.detail) {
+		return;
+	}
+	const scrollTop = event.detail.scrollTop;
+
+	if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
+		return;
+	}
+
+	if (scrollTop > lastScrollTop.value && scrollTop > 50) {
+		isFabVisible.value = false;
+	} else {
+		isFabVisible.value = true;
+	}
+
+	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
+};
+
+const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
+
+const canManagePersonnel = computed(() => {
+	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
+});
+
+const getRoleName = (role: Role) => {
+	const roleMap: Record<Role, string> = {
+		OWNER: '店主',
+		ADMIN: '管理员',
+		MEMBER: '员工',
+		SUPER_ADMIN: '超级管理员'
+	};
+	return roleMap[role] || role;
+};
+
+const navigateToDetail = (memberId: string) => {
+	if (isNavigating.value) return;
+	isNavigating.value = true;
+
+	uni.navigateTo({
+		url: `/pages/personnel/detail?memberId=${memberId}`
 	});
+};
 
-	const dataStore = useDataStore();
-	const userStore = useUserStore();
-	const toastStore = useToastStore();
-	// [核心新增] 获取 uiStore 实例
-	const uiStore = useUiStore();
+const openInviteModal = () => {
+	showInviteModal.value = true;
+};
 
-	const isCreatingInvite = ref(false);
-	const inviteePhone = ref('');
-	const isNavigating = ref(false);
-	const showInviteModal = ref(false);
-
-	// [核心新增] FAB 按钮可见性控制
-	const isFabVisible = ref(true);
-	const lastScrollTop = ref(0);
-	const scrollThreshold = 5;
-
-	onShow(async () => {
-		isNavigating.value = false;
-		// [核心新增] 消费跨页 Toast
-		const toastMessage = uiStore.consumeNextPageToast();
-		if (toastMessage) {
-			toastStore.show(toastMessage);
-		}
-
-		if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
-			await dataStore.fetchMembersData();
-		}
-	});
-
-	// [核心修复] 为滚动事件处理函数增加健壮性检查
-	const handleScroll = (event ?: any) => {
-		if (!event || !event.detail) {
-			return;
-		}
-		const scrollTop = event.detail.scrollTop;
-
-		if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
-			return;
-		}
-
-		if (scrollTop > lastScrollTop.value && scrollTop > 50) {
-			isFabVisible.value = false;
-		} else {
-			isFabVisible.value = true;
-		}
-
-		lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
-	};
-
-	const currentUserRoleInTenant = computed(
-		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
-	);
-
-	const canManagePersonnel = computed(() => {
-		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
-	});
-
-	const getRoleName = (role : Role) => {
-		const roleMap : Record<Role, string> = {
-			OWNER: '店主',
-			ADMIN: '管理员',
-			MEMBER: '员工',
-			SUPER_ADMIN: '超级管理员'
-		};
-		return roleMap[role] || role;
-	};
-
-	const navigateToDetail = (memberId : string) => {
-		if (isNavigating.value) return;
-		isNavigating.value = true;
-
-		uni.navigateTo({
-			url: `/pages/personnel/detail?memberId=${memberId}`,
-		});
-	};
-
-	const openInviteModal = () => {
-		showInviteModal.value = true;
-	};
-
-	const handleInvite = async () => {
-		if (!inviteePhone.value) {
-			toastStore.show({ message: '请输入手机号', type: 'error' });
-			return;
-		}
-		isCreatingInvite.value = true;
-		try {
-			await createInvitation(inviteePhone.value);
-			toastStore.show({ message: '邀请已发送', type: 'success' });
-			showInviteModal.value = false;
-			inviteePhone.value = '';
-			dataStore.markMembersAsStale();
-		} catch (error) {
-			console.error('Failed to create invitation:', error);
-		} finally {
-			isCreatingInvite.value = false;
-		}
-	};
+const handleInvite = async () => {
+	if (!inviteePhone.value) {
+		toastStore.show({ message: '请输入手机号', type: 'error' });
+		return;
+	}
+	isCreatingInvite.value = true;
+	try {
+		await createInvitation(inviteePhone.value);
+		toastStore.show({ message: '邀请已发送', type: 'success' });
+		showInviteModal.value = false;
+		inviteePhone.value = '';
+		dataStore.markMembersAsStale();
+	} catch (error) {
+		console.error('Failed to create invitation:', error);
+	} finally {
+		isCreatingInvite.value = false;
+	}
+};
 </script>
 
 <style scoped lang="scss">
-	@import '@/styles/common.scss';
-	@include list-item-content-style;
+@import '@/styles/common.scss';
+@include list-item-content-style;
 
-	.page-wrapper {
-		display: flex;
-		flex-direction: column;
-		height: 100vh;
-	}
+.page-wrapper {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+}
 
-	.member-details {
-		display: flex;
-		align-items: center;
-		flex: 1;
-	}
+.member-details {
+	display: flex;
+	align-items: center;
+	flex: 1;
+}
 
-	.member-avatar {
-		width: 42px;
-		height: 42px;
-		border-radius: 50%;
-		background-color: var(--primary-color);
-		color: white;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		font-size: 18px;
-		font-weight: bold;
-		margin-right: 15px;
-		flex-shrink: 0;
-	}
+.member-avatar {
+	width: 42px;
+	height: 42px;
+	border-radius: 50%;
+	background-color: var(--primary-color);
+	color: white;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: 18px;
+	font-weight: bold;
+	margin-right: 15px;
+	flex-shrink: 0;
+}
 
-	.input-field {
-		width: 100%;
-		height: 44px;
-		line-height: 44px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-	}
+.input-field {
+	width: 100%;
+	height: 44px;
+	line-height: 44px;
+	padding: 0 12px;
+	border: 1px solid var(--border-color);
+	border-radius: 10px;
+	font-size: 14px;
+	background-color: #f8f9fa;
+	box-sizing: border-box;
+}
 </style>

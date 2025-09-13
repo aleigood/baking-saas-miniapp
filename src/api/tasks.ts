@@ -12,46 +12,45 @@ import type { TemperatureSettings } from '@/store/temperature';
  * @param page 页码
  * @param limit 每页数量
  */
-export function getHistoryTasks(page : number, limit : number) : Promise<{ data : Record<string, ProductionTaskDto[]>, meta : any }> {
+export function getHistoryTasks(page: number, limit: number): Promise<{ data: Record<string, ProductionTaskDto[]>; meta: any }> {
 	return request({
 		url: '/production-tasks/history', // [修改] URL 指向新接口
 		data: {
 			page: String(page),
 			limit: String(limit)
-		},
+		}
 	});
 }
-
 
 /**
  * [修改] API 指向新的 active 专用接口, 并支持按日期查询
  * @param date 'YYYY-MM-DD' 格式的日期字符串
  */
-export function getTasks(date ?: string) : Promise<ProductionDataPayload> {
+export function getTasks(date?: string): Promise<ProductionDataPayload> {
 	return request<ProductionDataPayload>({
 		url: '/production-tasks/active',
 		method: 'GET',
-		data: { date }, // 传入日期参数
+		data: { date } // 传入日期参数
 	});
 }
 
 /**
  * [新增] 获取所有存在任务的日期
  */
-export function getTaskDates() : Promise<string[]> {
+export function getTaskDates(): Promise<string[]> {
 	return request<string[]>({
 		url: '/production-tasks/task-dates',
-		method: 'GET',
+		method: 'GET'
 	});
 }
 
 /**
  * [核心新增] 获取预设的损耗阶段列表
  */
-export function getSpoilageStages() : Promise<{ key : string, label : string }[]> {
-	return request<{ key : string, label : string }[]>({
+export function getSpoilageStages(): Promise<{ key: string; label: string }[]> {
+	return request<{ key: string; label: string }[]>({
 		url: '/production-tasks/spoilage-stages',
-		method: 'GET',
+		method: 'GET'
 	});
 }
 
@@ -60,28 +59,22 @@ export function getSpoilageStages() : Promise<{ key : string, label : string }[]
  * @param taskId 任务ID
  * @param params 温度相关的查询参数
  */
-export function getTaskDetail(taskId : string, params ?: Partial<TemperatureSettings>) : Promise<ProductionTaskDetailDto> {
+export function getTaskDetail(taskId: string, params?: Partial<TemperatureSettings>): Promise<ProductionTaskDetailDto> {
 	return request<ProductionTaskDetailDto>({
 		url: `/production-tasks/${taskId}`,
-		data: params, // 将温度参数作为查询字符串发送
+		data: params // 将温度参数作为查询字符串发送
 	});
 }
-
 
 /**
  * [修改] 创建一个新的生产任务，使用 startDate 和 endDate
  * @param data 包含 startDate, endDate 和 products 数组等信息
  */
-export function createTask(data : {
-	startDate : string;
-	endDate ?: string;
-	notes ?: string;
-	products : { productId : string; quantity : number }[];
-}) : Promise<CreateTaskResponse> {
+export function createTask(data: { startDate: string; endDate?: string; notes?: string; products: { productId: string; quantity: number }[] }): Promise<CreateTaskResponse> {
 	return request<CreateTaskResponse>({
 		url: '/production-tasks',
 		method: 'POST',
-		data,
+		data
 	});
 }
 
@@ -91,27 +84,27 @@ export function createTask(data : {
  * @param status 新的状态
  */
 export function updateTaskStatus(
-	taskId : string,
-	status : 'CANCELLED' | 'IN_PROGRESS', // [修改] 允许将状态更新为 IN_PROGRESS
-) : Promise<any> {
+	taskId: string,
+	status: 'CANCELLED' | 'IN_PROGRESS' // [修改] 允许将状态更新为 IN_PROGRESS
+): Promise<any> {
 	return request({
 		url: `/production-tasks/${taskId}`,
 		method: 'PATCH',
-		data: { status },
+		data: { status }
 	});
 }
 
 // [核心修改] 更新 completeTask 的 payload 类型
 interface SpoilageDetail {
-	stage : string;
-	quantity : number;
-	notes ?: string;
+	stage: string;
+	quantity: number;
+	notes?: string;
 }
 
 interface CompletedTaskItem {
-	productId : string;
-	completedQuantity : number;
-	spoilageDetails ?: SpoilageDetail[];
+	productId: string;
+	completedQuantity: number;
+	spoilageDetails?: SpoilageDetail[];
 }
 
 /**
@@ -119,10 +112,10 @@ interface CompletedTaskItem {
  * @param taskId 任务ID
  * @param data 包含 completedItems 数组等信息
  */
-export function completeTask(taskId : string, data : { notes ?: string, completedItems : CompletedTaskItem[] }) : Promise<any> {
+export function completeTask(taskId: string, data: { notes?: string; completedItems: CompletedTaskItem[] }): Promise<any> {
 	return request({
 		url: `/production-tasks/${taskId}/complete`,
 		method: 'POST',
-		data,
+		data
 	});
 }

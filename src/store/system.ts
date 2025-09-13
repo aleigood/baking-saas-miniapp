@@ -56,7 +56,6 @@ export const useSystemStore = defineStore('system', () => {
 			headerHeight.value = (windowInfo.statusBarHeight || 0) + DEFAULT_NAV_BAR_HEIGHT;
 			navBarContentTop.value = windowInfo.statusBarHeight || 0;
 			// #endif
-
 		} catch (e) {
 			console.error('获取系统信息失败', e);
 			// 在异常情况下提供一个备用值
@@ -73,6 +72,6 @@ export const useSystemStore = defineStore('system', () => {
 		headerHeight,
 		navBarContentTop,
 		menuButtonPosition,
-		initSystemInfo,
+		initSystemInfo
 	};
 });

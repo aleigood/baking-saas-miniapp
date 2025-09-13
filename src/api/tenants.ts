@@ -8,8 +8,8 @@ import type { Tenant } from '@/types/api';
 /**
  * 获取当前用户有权访问的所有店铺列表
  */
-export function getTenants() : Promise<Tenant[]> {
+export function getTenants(): Promise<Tenant[]> {
 	return request<Tenant[]>({
-		url: '/tenants',
+		url: '/tenants'
 	});
 }

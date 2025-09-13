@@ -1,6 +1,5 @@
 <template <view class="autocomplete-container" :style="{ zIndex: focused ? 99 : 1 }">
-	<input class="input-field" :value="modelValue" :placeholder="placeholder" @input="onInput" @focus="onFocus"
-		@blur="onBlur" />
+	<input class="input-field" :value="modelValue" :placeholder="placeholder" @input="onInput" @focus="onFocus" @blur="onBlur" />
 	<view v-if="showSuggestions" class="suggestions-container" :style="suggestionsStyle">
 		<scroll-view :scroll-y="true" class="suggestions-scroll-view">
 			<view v-for="item in filteredItems" :key="item.id" class="suggestion-item" @click="selectItem(item)">
@@ -10,153 +9,155 @@
 				<text class="create-icon">+</text>
 				<text>新建: "{{ modelValue }}"</text>
 			</view>
-			<view v-if="filteredItems.length === 0 && !canCreateNew" class="no-results">
-				无匹配项
-			</view>
+			<view v-if="filteredItems.length === 0 && !canCreateNew" class="no-results">无匹配项</view>
 		</scroll-view>
 	</view>
 </template>
 
 <script setup lang="ts">
-	import { ref, computed, watch, getCurrentInstance, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, getCurrentInstance, onMounted, nextTick } from 'vue';
 
-	const props = withDefaults(defineProps<{
-		modelValue : string;
-		items : { id : string | null; name : string }[];
-		placeholder ?: string;
-	}>(), {
+const props = withDefaults(
+	defineProps<{
+		modelValue: string;
+		items: { id: string | null; name: string }[];
+		placeholder?: string;
+	}>(),
+	{
 		modelValue: '',
 		items: () => [],
 		placeholder: ''
-	});
+	}
+);
 
-	const emit = defineEmits(['update:modelValue', 'select']);
+const emit = defineEmits(['update:modelValue', 'select']);
 
-	const instance = getCurrentInstance();
-	const focused = ref(false);
-	const inputRect = ref<UniApp.NodeInfo | null>(null);
+const instance = getCurrentInstance();
+const focused = ref(false);
+const inputRect = ref<UniApp.NodeInfo | null>(null);
 
-	const filteredItems = computed(() => {
-		if (!props.modelValue) {
-			return [];
-		}
-		return props.items.filter(item =>
-			item.name.toLowerCase().includes(props.modelValue.toLowerCase())
-		).slice(0, 50);
-	});
+const filteredItems = computed(() => {
+	if (!props.modelValue) {
+		return [];
+	}
+	return props.items.filter((item) => item.name.toLowerCase().includes(props.modelValue.toLowerCase())).slice(0, 50);
+});
 
-	const canCreateNew = computed(() => {
-		if (!props.modelValue) {
-			return false;
-		}
-		return !props.items.some(item => item.name.toLowerCase() === props.modelValue.toLowerCase());
-	});
+const canCreateNew = computed(() => {
+	if (!props.modelValue) {
+		return false;
+	}
+	return !props.items.some((item) => item.name.toLowerCase() === props.modelValue.toLowerCase());
+});
 
-	const suggestionsStyle = computed(() => {
-		if (!inputRect.value) {
-			return { display: 'none' };
-		}
-		// [核心修复] 使用 uni.getWindowInfo() 替代 uni.getSystemInfoSync()
-		const bottom = uni.getWindowInfo().windowHeight - (inputRect.value.top || 0);
-		return {
-			bottom: `${bottom}px`,
-			left: `${inputRect.value.left || 0}px`,
-			width: `${inputRect.value.width || 0}px`,
-		};
-	});
-
-	const showSuggestions = computed(() => {
-		return focused.value && props.modelValue.length > 0;
-	});
-
-	const onInput = (event : any) => {
-		emit('update:modelValue', event.detail.value);
+const suggestionsStyle = computed(() => {
+	if (!inputRect.value) {
+		return { display: 'none' };
+	}
+	// [核心修复] 使用 uni.getWindowInfo() 替代 uni.getSystemInfoSync()
+	const bottom = uni.getWindowInfo().windowHeight - (inputRect.value.top || 0);
+	return {
+		bottom: `${bottom}px`,
+		left: `${inputRect.value.left || 0}px`,
+		width: `${inputRect.value.width || 0}px`
 	};
+});
 
-	const onFocus = () => {
-		focused.value = true;
-		nextTick(() => {
-			const query = uni.createSelectorQuery().in(instance);
-			query.select('.input-field').boundingClientRect(rect => {
+const showSuggestions = computed(() => {
+	return focused.value && props.modelValue.length > 0;
+});
+
+const onInput = (event: any) => {
+	emit('update:modelValue', event.detail.value);
+};
+
+const onFocus = () => {
+	focused.value = true;
+	nextTick(() => {
+		const query = uni.createSelectorQuery().in(instance);
+		query
+			.select('.input-field')
+			.boundingClientRect((rect) => {
 				if (rect) {
 					inputRect.value = rect;
 				}
-			}).exec();
-		});
-	};
+			})
+			.exec();
+	});
+};
 
-	const onBlur = () => {
-		setTimeout(() => {
-			focused.value = false;
-		}, 200);
-	};
-
-	const selectItem = (item : { id : string | null; name : string }) => {
-		emit('update:modelValue', item.name);
-		emit('select', item);
+const onBlur = () => {
+	setTimeout(() => {
 		focused.value = false;
-	};
+	}, 200);
+};
 
-	const createNewItem = () => {
-		emit('select', { id: null, name: props.modelValue });
-		focused.value = false;
-	};
+const selectItem = (item: { id: string | null; name: string }) => {
+	emit('update:modelValue', item.name);
+	emit('select', item);
+	focused.value = false;
+};
+
+const createNewItem = () => {
+	emit('select', { id: null, name: props.modelValue });
+	focused.value = false;
+};
 </script>
 
 <style scoped lang="scss">
-	@import '@/styles/common.scss';
-	@include form-control-styles;
+@import '@/styles/common.scss';
+@include form-control-styles;
 
-	.autocomplete-container {
-		position: relative;
+.autocomplete-container {
+	position: relative;
+}
+
+.suggestions-container {
+	position: fixed;
+	background-color: #ffffff;
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	max-height: 200px;
+	overflow: hidden;
+	z-index: 100;
+}
+
+.suggestions-scroll-view {
+	max-height: 200px;
+}
+
+.suggestion-item {
+	padding: 12px 15px;
+	font-size: 14px;
+	color: var(--text-primary);
+	border-bottom: 1px solid var(--border-color);
+
+	&:last-child {
+		border-bottom: none;
 	}
 
-	.suggestions-container {
-		position: fixed;
-		background-color: #ffffff;
-		border: 1px solid var(--border-color);
-		border-radius: 12px;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-		max-height: 200px;
-		overflow: hidden;
-		z-index: 100;
+	&:active {
+		background-color: #f8f9fa;
 	}
+}
 
-	.suggestions-scroll-view {
-		max-height: 200px;
-	}
+.create-item {
+	display: flex;
+	align-items: center;
+	color: var(--primary-color);
+	font-weight: 500;
+}
 
-	.suggestion-item {
-		padding: 12px 15px;
-		font-size: 14px;
-		color: var(--text-primary);
-		border-bottom: 1px solid var(--border-color);
+.create-icon {
+	margin-right: 8px;
+	font-weight: bold;
+}
 
-		&:last-child {
-			border-bottom: none;
-		}
-
-		&:active {
-			background-color: #f8f9fa;
-		}
-	}
-
-	.create-item {
-		display: flex;
-		align-items: center;
-		color: var(--primary-color);
-		font-weight: 500;
-	}
-
-	.create-icon {
-		margin-right: 8px;
-		font-weight: bold;
-	}
-
-	.no-results {
-		padding: 12px 15px;
-		font-size: 14px;
-		color: #999;
-		text-align: center;
-	}
+.no-results {
+	padding: 12px 15px;
+	font-size: 14px;
+	color: #999;
+	text-align: center;
+}
 </style>

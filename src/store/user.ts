@@ -9,7 +9,7 @@ export const useUserStore = defineStore('user', () => {
 	const userInfo = ref<UserInfo | null>(null);
 	const isRedirecting = ref(false);
 
-	function setToken(newToken : string) {
+	function setToken(newToken: string) {
 		token.value = newToken;
 		uni.setStorageSync('token', newToken);
 	}
@@ -36,7 +36,7 @@ export const useUserStore = defineStore('user', () => {
 		handleUnauthorized();
 	}
 
-	async function login(credentials : { phone : string; password : string }) {
+	async function login(credentials: { phone: string; password: string }) {
 		clearSession();
 
 		try {
@@ -52,8 +52,8 @@ export const useUserStore = defineStore('user', () => {
 
 	async function fetchUserInfo() {
 		if (!token.value) {
-			throw new Error("No token found");
-		};
+			throw new Error('No token found');
+		}
 		try {
 			const data = await getProfile();
 			userInfo.value = data;

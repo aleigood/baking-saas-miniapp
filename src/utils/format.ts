@@ -9,9 +9,9 @@
  * @param b - 第二个乘数
  * @returns 准确的乘法结果
  */
-export const multiply = (a : number, b : number) : number => {
+export const multiply = (a: number, b: number): number => {
 	// 获取数字的小数位数
-	const getDecimalLength = (n : number) => (String(n).split('.')[1] || '').length;
+	const getDecimalLength = (n: number) => (String(n).split('.')[1] || '').length;
 	const lenA = getDecimalLength(a);
 	const lenB = getDecimalLength(b);
 	// 计算放大倍数
@@ -23,13 +23,12 @@ export const multiply = (a : number, b : number) : number => {
 	return (intA * intB) / multiplier;
 };
 
-
 /**
  * 格式化日期为 "YYYY/M/D" 的格式
  * @param dateInput - 可以是日期字符串或Date对象
  * @returns 格式化后的中文字符串，如果输入无效则返回空字符串
  */
-export function formatChineseDate(dateInput : string | Date | null | undefined) : string {
+export function formatChineseDate(dateInput: string | Date | null | undefined): string {
 	if (!dateInput) {
 		return '';
 	}
@@ -54,7 +53,7 @@ export function formatChineseDate(dateInput : string | Date | null | undefined) 
  * @param dateInput - 可以是日期字符串或Date对象
  * @returns 格式化后的时间字符串，如果输入无效则返回空字符串
  */
-export function formatTime(dateInput : string | Date | null | undefined) : string {
+export function formatTime(dateInput: string | Date | null | undefined): string {
 	if (!dateInput) {
 		return '';
 	}
@@ -79,7 +78,7 @@ export function formatTime(dateInput : string | Date | null | undefined) : strin
  * @param eventDateInput - 要格式化的事件日期 (如 updatedAt)
  * @returns 格式化后的时间或日期时间字符串
  */
-export function formatEventTime(primaryDateInput : string | Date, eventDateInput : string | Date) : string {
+export function formatEventTime(primaryDateInput: string | Date, eventDateInput: string | Date): string {
 	try {
 		const primaryDate = new Date(primaryDateInput);
 		const eventDate = new Date(eventDateInput);
@@ -88,10 +87,7 @@ export function formatEventTime(primaryDateInput : string | Date, eventDateInput
 			return '';
 		}
 
-		const isSameDay =
-			primaryDate.getFullYear() === eventDate.getFullYear() &&
-			primaryDate.getMonth() === eventDate.getMonth() &&
-			primaryDate.getDate() === eventDate.getDate();
+		const isSameDay = primaryDate.getFullYear() === eventDate.getFullYear() && primaryDate.getMonth() === eventDate.getMonth() && primaryDate.getDate() === eventDate.getDate();
 
 		const hours = String(eventDate.getHours()).padStart(2, '0');
 		const minutes = String(eventDate.getMinutes()).padStart(2, '0');
@@ -109,14 +105,13 @@ export function formatEventTime(primaryDateInput : string | Date, eventDateInput
 	}
 }
 
-
 /**
  * [核心修改] 优化数字格式化，移除末尾多余的零和小数点
  * @description 例如：12.50 -> "12.5", 12.00 -> "12"
  * @param num - 需要格式化的数字
  * @returns 格式化后的字符串
  */
-export function formatNumber(num : number | string | null | undefined) : string {
+export function formatNumber(num: number | string | null | undefined): string {
 	if (num === null || num === undefined) {
 		return '0';
 	}
@@ -133,7 +128,7 @@ export function formatNumber(num : number | string | null | undefined) : string 
  * @param grams - 需要格式化的克数
  * @returns 格式化后的带单位的字符串
  */
-export function formatWeight(grams : number | null | undefined) : string {
+export function formatWeight(grams: number | null | undefined): string {
 	if (grams === null || grams === undefined) {
 		return '0g';
 	}
@@ -159,14 +154,13 @@ export function formatWeight(grams : number | null | undefined) : string {
 	}
 }
 
-
 /**
  * 新增：格式化日期时间函数，用于采购记录列表
  * @param date - 日期对象或字符串
  * @param format - 格式，默认为 'YYYY-MM-DD HH:mm'
  * @returns 格式化后的日期字符串
  */
-export function formatDateTime(date : string | Date, format = 'YYYY-MM-DD HH:mm') : string {
+export function formatDateTime(date: string | Date, format = 'YYYY-MM-DD HH:mm'): string {
 	if (!date) return '';
 	const d = new Date(date);
 	if (isNaN(d.getTime())) {
@@ -180,13 +174,7 @@ export function formatDateTime(date : string | Date, format = 'YYYY-MM-DD HH:mm'
 	const minutes = d.getMinutes().toString().padStart(2, '0');
 	const seconds = d.getSeconds().toString().padStart(2, '0');
 
-	return format
-		.replace('YYYY', String(year))
-		.replace('MM', month)
-		.replace('DD', day)
-		.replace('HH', hours)
-		.replace('mm', minutes)
-		.replace('ss', seconds);
+	return format.replace('YYYY', String(year)).replace('MM', month).replace('DD', day).replace('HH', hours).replace('mm', minutes).replace('ss', seconds);
 }
 
 /**
@@ -194,7 +182,7 @@ export function formatDateTime(date : string | Date, format = 'YYYY-MM-DD HH:mm'
  * @param decimalValue - 从后端获取的小数值 (例如 0.2576)
  * @returns 格式化后的百分比数值 (例如 25.76)
  */
-export const toPercentage = (decimalValue : number | null | undefined) => {
+export const toPercentage = (decimalValue: number | null | undefined) => {
 	if (decimalValue === null || decimalValue === undefined || isNaN(decimalValue)) {
 		return 0;
 	}
@@ -207,7 +195,7 @@ export const toPercentage = (decimalValue : number | null | undefined) => {
  * @param percentageValue - 用户输入的百分比数值 (例如 25.76)
  * @returns 转换后的小数值 (例如 0.2576)
  */
-export const toDecimal = (percentageValue : number | null | undefined) => {
+export const toDecimal = (percentageValue: number | null | undefined) => {
 	if (percentageValue === null || percentageValue === undefined) {
 		return 0;
 	}

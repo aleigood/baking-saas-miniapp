@@ -10,13 +10,13 @@ import { useUiStore } from '@/store/ui';
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface RequestOptions {
-	url : string;
-	method ?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-	data ?: any;
-	header ?: any;
+	url: string;
+	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+	data?: any;
+	header?: any;
 }
 
-export const request = <T = any>(options : RequestOptions) : Promise<T> => {
+export const request = <T = any>(options: RequestOptions): Promise<T> => {
 	return new Promise((resolve, reject) => {
 		const userStore = useUserStore();
 		const toastStore = useToastStore();
@@ -30,10 +30,10 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 		// 处理 GET 请求的参数拼接
 		if (method === 'GET' && Object.keys(data).length > 0) {
 			const params = Object.keys(data)
-				.map(key => {
+				.map((key) => {
 					const value = data[key];
 					if (Array.isArray(value)) {
-						return value.map(item => `${key}=${encodeURIComponent(item)}`).join('&');
+						return value.map((item) => `${key}=${encodeURIComponent(item)}`).join('&');
 					} else if (value !== undefined && value !== null) {
 						return `${key}=${encodeURIComponent(value)}`;
 					}
@@ -54,15 +54,15 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 			data: data,
 			header: {
 				...options.header,
-				Authorization: userStore.token ? `Bearer ${userStore.token}` : '',
+				Authorization: userStore.token ? `Bearer ${userStore.token}` : ''
 			},
-			success: (res : UniApp.RequestSuccessCallbackResult) => {
+			success: (res: UniApp.RequestSuccessCallbackResult) => {
 				// 核心：处理401 Unauthorized错误
 				if (res.statusCode === 401 && options.url !== '/auth/login') {
 					// [核心修改] 不再直接显示 Toast，而是调用 setNextPageToast 将消息“寄存”起来
 					uiStore.setNextPageToast({
 						message: '登录已过期，请重新登录',
-						type: 'error',
+						type: 'error'
 					});
 
 					userStore.handleUnauthorized();
@@ -86,7 +86,7 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 				// 处理网络层面的失败
 				toastStore.show({ message: '网络错误，请检查您的连接', type: 'error' });
 				reject(err);
-			},
+			}
 		});
 	});
 };

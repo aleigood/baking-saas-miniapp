@@ -4,17 +4,7 @@
  */
 import { defineStore } from 'pinia';
 import { ref, computed, reactive } from 'vue';
-import type {
-	Tenant,
-	ProductListItem,
-	RecipeFamily,
-	Ingredient,
-	Member,
-	ProductionTaskDto,
-	RecipeStatDto,
-	IngredientStatDto,
-	PrepTask,
-} from '@/types/api';
+import type { Tenant, ProductListItem, RecipeFamily, Ingredient, Member, ProductionTaskDto, RecipeStatDto, IngredientStatDto, PrepTask } from '@/types/api';
 import { useUserStore } from './user';
 import { useToastStore } from './toast';
 import { getTenants as getTenantsApi } from '@/api/tenants';
@@ -35,23 +25,23 @@ function getMonthDateRange() {
 export const useDataStore = defineStore('data', () => {
 	const tenants = ref<Tenant[]>([]);
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
-	const production = ref<(ProductionTaskDto | (PrepTask & { status : 'PREP' }))[]>([]);
+	const production = ref<(ProductionTaskDto | (PrepTask & { status: 'PREP' }))[]>([]);
 	// [核心改造] 将 todayPendingCount 重命名为 pendingCount
 	const homeStats = ref({ pendingCount: 0 });
 	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
 	const historicalTasksMeta = ref({
 		page: 1,
 		limit: 10,
-		hasMore: true,
+		hasMore: true
 	});
-	const recipes = ref<{ mainRecipes : RecipeFamily[]; otherRecipes : RecipeFamily[] }>({
+	const recipes = ref<{ mainRecipes: RecipeFamily[]; otherRecipes: RecipeFamily[] }>({
 		mainRecipes: [],
-		otherRecipes: [],
+		otherRecipes: []
 	});
 	const productsForTaskCreation = ref<Record<string, ProductListItem[]>>({});
-	const ingredients = ref<{ allIngredients : Ingredient[]; lowStockIngredients : Ingredient[] }>({
+	const ingredients = ref<{ allIngredients: Ingredient[]; lowStockIngredients: Ingredient[] }>({
 		allIngredients: [],
-		lowStockIngredients: [],
+		lowStockIngredients: []
 	});
 	const members = ref<Member[]>([]);
 	const recipeStats = ref<RecipeStatDto[]>([]);
@@ -63,7 +53,7 @@ export const useDataStore = defineStore('data', () => {
 		productsForTaskCreation: false,
 		ingredients: false,
 		members: false,
-		historicalTasks: false,
+		historicalTasks: false
 	});
 
 	const dataStale = reactive({
@@ -71,7 +61,7 @@ export const useDataStore = defineStore('data', () => {
 		recipes: true,
 		ingredients: true,
 		members: true,
-		historicalTasks: true,
+		historicalTasks: true
 	});
 
 	const currentTenant = computed(() => tenants.value.find((t) => t.id === currentTenantId.value));
@@ -80,13 +70,24 @@ export const useDataStore = defineStore('data', () => {
 
 	const allIngredients = computed(() => ingredients.value.allIngredients);
 
-	const markProductionAsStale = () => { dataStale.production = true; };
-	const markHistoricalTasksAsStale = () => { dataStale.historicalTasks = true; };
-	const markRecipesAsStale = () => { dataStale.recipes = true; };
-	const markProductsForTaskCreationAsStale = () => { dataStale.productsForTaskCreation = true; };
-	const markIngredientsAsStale = () => { dataStale.ingredients = true; };
-	const markMembersAsStale = () => { dataStale.members = true; };
-
+	const markProductionAsStale = () => {
+		dataStale.production = true;
+	};
+	const markHistoricalTasksAsStale = () => {
+		dataStale.historicalTasks = true;
+	};
+	const markRecipesAsStale = () => {
+		dataStale.recipes = true;
+	};
+	const markProductsForTaskCreationAsStale = () => {
+		dataStale.productsForTaskCreation = true;
+	};
+	const markIngredientsAsStale = () => {
+		dataStale.ingredients = true;
+	};
+	const markMembersAsStale = () => {
+		dataStale.members = true;
+	};
 
 	async function fetchTenants() {
 		try {
@@ -112,7 +113,7 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	async function fetchProductionData(date ?: string) {
+	async function fetchProductionData(date?: string) {
 		if (!currentTenantId.value) return;
 		try {
 			const payload = await getTasks(date);
@@ -215,7 +216,7 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	async function selectTenant(tenantId : string) {
+	async function selectTenant(tenantId: string) {
 		const userStore = useUserStore();
 		const toastStore = useToastStore();
 		try {
@@ -252,9 +253,9 @@ export const useDataStore = defineStore('data', () => {
 			productsForTaskCreation: false,
 			ingredients: false,
 			members: false,
-			historicalTasks: false,
+			historicalTasks: false
 		};
-		Object.keys(dataStale).forEach(key => dataStale[key as keyof typeof dataStale] = true);
+		Object.keys(dataStale).forEach((key) => (dataStale[key as keyof typeof dataStale] = true));
 		resetHistoricalTasks();
 	}
 
@@ -296,6 +297,6 @@ export const useDataStore = defineStore('data', () => {
 		markRecipesAsStale,
 		markProductsForTaskCreationAsStale,
 		markIngredientsAsStale,
-		markMembersAsStale,
+		markMembersAsStale
 	};
 });
