@@ -1,16 +1,18 @@
-<template <view class="autocomplete-container" :style="{ zIndex: focused ? 99 : 1 }">
-	<input class="input-field" :value="modelValue" :placeholder="placeholder" @input="onInput" @focus="onFocus" @blur="onBlur" />
-	<view v-if="showSuggestions" class="suggestions-container" :style="suggestionsStyle">
-		<scroll-view :scroll-y="true" class="suggestions-scroll-view">
-			<view v-for="item in filteredItems" :key="item.id" class="suggestion-item" @click="selectItem(item)">
-				{{ item.name }}
-			</view>
-			<view v-if="canCreateNew" class="suggestion-item create-item" @click="createNewItem">
-				<text class="create-icon">+</text>
-				<text>新建: "{{ modelValue }}"</text>
-			</view>
-			<view v-if="filteredItems.length === 0 && !canCreateNew" class="no-results">无匹配项</view>
-		</scroll-view>
+<template>
+	<view class="autocomplete-container" :style="{ zIndex: focused ? 99 : 1 }">
+		<input class="input-field" :value="modelValue" :placeholder="placeholder" @input="onInput" @focus="onFocus" @blur="handleInputBlur" />
+		<view v-if="showSuggestions" class="suggestions-container" :style="suggestionsStyle">
+			<scroll-view :scroll-y="true" class="suggestions-scroll-view">
+				<view v-for="item in filteredItems" :key="item.id" class="suggestion-item" @click="selectItem(item)">
+					{{ item.name }}
+				</view>
+				<view v-if="canCreateNew" class="suggestion-item create-item" @click="createNewItem">
+					<text class="create-icon">+</text>
+					<text>新建: "{{ modelValue }}"</text>
+				</view>
+				<view v-if="filteredItems.length === 0 && !canCreateNew" class="no-results">无匹配项</view>
+			</scroll-view>
+		</view>
 	</view>
 </template>
 
@@ -30,7 +32,8 @@ const props = withDefaults(
 	}
 );
 
-const emit = defineEmits(['update:modelValue', 'select']);
+// [核心修改] 增加 'blur' 事件
+const emit = defineEmits(['update:modelValue', 'select', 'blur']);
 
 const instance = getCurrentInstance();
 const focused = ref(false);
@@ -86,10 +89,12 @@ const onFocus = () => {
 	});
 };
 
-const onBlur = () => {
+// [核心修改] 将原 onBlur 重命名并增加 emit('blur')
+const handleInputBlur = () => {
 	setTimeout(() => {
 		focused.value = false;
 	}, 200);
+	emit('blur');
 };
 
 const selectItem = (item: { id: string | null; name: string }) => {

@@ -32,7 +32,13 @@
 					</view>
 					<view v-for="(ing, ingIndex) in form.ingredients" :key="ingIndex" class="ingredient-row">
 						<view class="autocomplete-input-wrapper">
-							<AutocompleteInput v-model="ing.name" :items="availableIngredients" placeholder="输入或选择原料" @select="onIngredientSelect($event, ingIndex)" />
+							<AutocompleteInput
+								v-model="ing.name"
+								:items="availableIngredients"
+								placeholder="输入或选择原料"
+								@select="onIngredientSelect($event, ingIndex)"
+								@blur="handleIngredientBlur(ing)"
+							/>
 						</view>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio" placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
@@ -141,6 +147,16 @@ const availableIngredients = computed(() => {
 	return combined.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
+// [核心新增] 定义失焦事件处理函数
+const handleIngredientBlur = (ingredient: { id: string | null; name: string }) => {
+	if (!ingredient.id && ingredient.name) {
+		const existing = availableIngredients.value.find((item) => item.name === ingredient.name);
+		if (existing) {
+			ingredient.id = existing.id;
+		}
+	}
+};
+
 onLoad(async (options) => {
 	if (!dataStore.dataLoaded.ingredients) {
 		await dataStore.fetchIngredientsData();
@@ -217,6 +233,18 @@ const removeProcedureStep = (index: number) => {
 
 const handleSubmit = async () => {
 	isSubmitting.value = true;
+
+	// [核心修改] 自动关联已存在的原料
+	form.ingredients.forEach((ing) => {
+		if (!ing.id && ing.name) {
+			const existing = availableIngredients.value.find((item) => item.name === ing.name);
+			if (existing) {
+				ing.id = existing.id;
+			}
+		}
+	});
+	// [修改结束]
+
 	try {
 		const allAvailableItemsMap = new Map(availableIngredients.value.map((i) => [i.id, i]));
 		const allIngredientsMap = new Map(dataStore.allIngredients.map((i) => [i.id, i]));

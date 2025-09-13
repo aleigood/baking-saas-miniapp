@@ -59,6 +59,7 @@
 								:items="availableMainDoughIngredients"
 								placeholder="输入或选择原料"
 								@select="onIngredientSelect($event, ingIndex)"
+								@blur="handleIngredientBlur(ing, availableMainDoughIngredients)"
 							/>
 						</view>
 						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio" placeholder="%" />
@@ -109,6 +110,7 @@
 										:items="availableSubIngredients"
 										placeholder="输入或选择原料/馅料"
 										@select="onSubIngredientSelect($event, prodIndex, 'mixIns', ingIndex)"
+										@blur="handleIngredientBlur(ing, availableSubIngredients)"
 									/>
 								</view>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.ratio" placeholder="%" />
@@ -128,6 +130,7 @@
 										:items="availableSubIngredients"
 										placeholder="输入或选择原料/馅料"
 										@select="onSubIngredientSelect($event, prodIndex, 'fillings', ingIndex)"
+										@blur="handleIngredientBlur(ing, availableSubIngredients)"
 									/>
 								</view>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams" placeholder="g/个" />
@@ -147,6 +150,7 @@
 										:items="availableSubIngredients"
 										placeholder="输入或选择原料/馅料"
 										@select="onSubIngredientSelect($event, prodIndex, 'toppings', ingIndex)"
+										@blur="handleIngredientBlur(ing, availableSubIngredients)"
 									/>
 								</view>
 								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams" placeholder="g/个" />
@@ -309,6 +313,16 @@ const availableSubIngredients = computed(() => {
 	const combined = [...dataStore.allIngredients.map((i) => ({ id: i.id, name: i.name })), ...extras.map((e) => ({ id: e.id, name: e.name }))];
 	return combined.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
+
+// [核心新增] 定义失焦事件处理函数
+const handleIngredientBlur = (ingredient: { id: string | null; name: string }, availableList: { id: string | null; name: string }[]) => {
+	if (!ingredient.id && ingredient.name) {
+		const existing = availableList.find((item) => item.name === ingredient.name);
+		if (existing) {
+			ingredient.id = existing.id;
+		}
+	}
+};
 
 onLoad(async (options) => {
 	if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
@@ -502,6 +516,25 @@ const handleSubmit = async () => {
 	}
 
 	isSubmitting.value = true;
+
+	// [核心修改] 自动关联已存在的原料
+	const checkAndLinkIngredient = (ingredient: { id: string | null; name: string }, availableList: { id: string | null; name: string }[]) => {
+		if (!ingredient.id && ingredient.name) {
+			const existing = availableList.find((item) => item.name === ingredient.name);
+			if (existing) {
+				ingredient.id = existing.id;
+			}
+		}
+	};
+
+	mainDough.value.ingredients.forEach((ing) => checkAndLinkIngredient(ing, availableMainDoughIngredients.value));
+	form.value.products?.forEach((p) => {
+		p.mixIns?.forEach((ing) => checkAndLinkIngredient(ing, availableSubIngredients.value));
+		p.fillings?.forEach((ing) => checkAndLinkIngredient(ing, availableSubIngredients.value));
+		p.toppings?.forEach((ing) => checkAndLinkIngredient(ing, availableSubIngredients.value));
+	});
+	// [修改结束]
+
 	try {
 		const mainDoughFromForm = form.value.doughs!.find((d) => d.type === 'MAIN_DOUGH');
 		if (!mainDoughFromForm) {
