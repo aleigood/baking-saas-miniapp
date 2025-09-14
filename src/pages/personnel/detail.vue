@@ -7,13 +7,13 @@
 				<view class="card">
 					<view class="card-title">人员信息</view>
 					<FormItem label="姓名">
-						<input class="input-field is-disabled" type="text" :value="selectedMember.name || '未设置'" readonly />
+						<input class="input-field is-disabled" type="text" :value="selectedMember.name || '未设置'" disabled />
 					</FormItem>
 					<FormItem label="手机号">
-						<input class="input-field is-disabled" type="text" :value="selectedMember.phone" readonly />
+						<input class="input-field is-disabled" type="text" :value="selectedMember.phone" disabled />
 					</FormItem>
 					<FormItem label="加入日期">
-						<input class="input-field is-disabled" type="text" :value="formatChineseDate(selectedMember.joinDate)" readonly />
+						<input class="input-field is-disabled" type="text" :value="formatChineseDate(selectedMember.joinDate)" disabled />
 					</FormItem>
 					<FormItem label="角色">
 						<picker mode="selector" :range="availableRolesDisplay" @change="onRoleChange" :disabled="!canEditRole">

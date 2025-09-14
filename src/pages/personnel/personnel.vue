@@ -138,7 +138,7 @@ const handleLogout = () => {
 	align-items: center;
 	padding: 20px;
 	border-radius: 20px;
-	margin-bottom: 20px;
+	margin-bottom: 40px;
 	position: relative;
 }
 
@@ -198,7 +198,7 @@ const handleLogout = () => {
 	display: flex;
 	align-items: center;
 	width: 100%;
-	padding: 5px 20px;
+	padding: 5px 5px;
 	font-size: 16px;
 	color: var(--text-primary);
 }

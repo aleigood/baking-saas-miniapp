@@ -522,7 +522,7 @@ const handleSaveTemperatureSettings = () => {
 }
 
 .input-field {
-	width: 120px;
+	width: 90px;
 }
 
 .picker {
