@@ -6,6 +6,18 @@ import { request } from '@/utils/request';
 import type { Member, Role } from '@/types/api';
 
 /**
+ * [核心新增] 直接创建一个新成员并将其添加到当前店铺
+ * @param data 包含姓名、手机和初始密码
+ */
+export function createMember(data: { name: string; phone: string; password: string }): Promise<Member> {
+	return request<Member>({
+		url: '/members',
+		method: 'POST',
+		data
+	});
+}
+
+/**
  * 获取店铺的人员列表
  * @param tenantId [可选] 店铺ID，仅所有者可传递此参数以查询指定店铺
  */

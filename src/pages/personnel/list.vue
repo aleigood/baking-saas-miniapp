@@ -41,16 +41,22 @@
 			</view>
 		</DetailPageLayout>
 
-		<ExpandingFab v-if="canManagePersonnel" @click="openInviteModal" :no-tab-bar="true" :visible="isFabVisible" />
+		<ExpandingFab v-if="canManagePersonnel" @click="openCreateModal" :no-tab-bar="true" :visible="isFabVisible" />
 
-		<AppModal v-model:visible="showInviteModal" title="邀请新成员">
-			<FormItem label="被邀请人手机号">
-				<input class="input-field" type="tel" v-model="inviteePhone" placeholder="请输入手机号" />
+		<AppModal v-model:visible="showCreateModal" title="新增员工">
+			<FormItem label="员工姓名">
+				<input class="input-field" type="text" v-model="createForm.name" placeholder="请输入姓名" />
+			</FormItem>
+			<FormItem label="手机号码">
+				<input class="input-field" type="tel" v-model="createForm.phone" placeholder="请输入手机号" />
+			</FormItem>
+			<FormItem label="初始密码">
+				<input class="input-field" type="password" v-model="createForm.password" placeholder="请输入初始密码" />
 			</FormItem>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="showInviteModal = false">取消</AppButton>
-				<AppButton type="primary" @click="handleInvite" :disabled="isCreatingInvite" :loading="isCreatingInvite">
-					{{ isCreatingInvite ? '' : '确认邀请' }}
+				<AppButton type="secondary" @click="showCreateModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleCreateMember" :disabled="isSubmitting" :loading="isSubmitting">
+					{{ isSubmitting ? '' : '确认新增' }}
 				</AppButton>
 			</view>
 		</AppModal>
@@ -58,14 +64,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue'; // [核心新增] 导入 reactive
 import { onShow } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
-import { createInvitation } from '@/api/invitations';
-import { getMembers } from '@/api/members'; // [核心修改] 导入 getMembers API
+import { createMember, getMembers } from '@/api/members'; // [核心修改] 导入 createMember API
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import ListItem from '@/components/ListItem.vue';
@@ -73,7 +78,7 @@ import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppModal from '@/components/AppModal.vue';
 import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
-import type { Role, Member, Tenant } from '@/types/api'; // [核心修改] 导入 Member 和 Tenant 类型
+import type { Role, Member, Tenant } from '@/types/api';
 import { formatChineseDate } from '@/utils/format';
 
 defineOptions({
@@ -85,14 +90,20 @@ const userStore = useUserStore();
 const toastStore = useToastStore();
 const uiStore = useUiStore();
 
-const isCreatingInvite = ref(false);
-const inviteePhone = ref('');
+const isSubmitting = ref(false); // [核心修改] 复用 isSubmitting 状态
 const isNavigating = ref(false);
-const showInviteModal = ref(false);
+const showCreateModal = ref(false); // [核心修改] 更改变量名以更清晰地反映其用途
 
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
+
+// [核心改造] 创建一个响应式对象来处理新增员工的表单
+const createForm = reactive({
+	name: '',
+	phone: '',
+	password: ''
+});
 
 // [核心新增] 用于存储所有者选择的店铺ID和该店铺的成员列表
 const selectedTenantIdForOwner = ref<string>('');
@@ -208,28 +219,40 @@ const navigateToDetail = (memberId: string) => {
 	});
 };
 
-const openInviteModal = () => {
-	showInviteModal.value = true;
+const openCreateModal = () => {
+	// [核心改造] 打开模态框时重置表单
+	createForm.name = '';
+	createForm.phone = '';
+	createForm.password = '';
+	showCreateModal.value = true;
 };
 
-const handleInvite = async () => {
-	if (!inviteePhone.value) {
-		toastStore.show({ message: '请输入手机号', type: 'error' });
+const handleCreateMember = async () => {
+	if (!createForm.name || !createForm.phone || !createForm.password) {
+		toastStore.show({ message: '请填写所有字段', type: 'error' });
 		return;
 	}
-	isCreatingInvite.value = true;
+	isSubmitting.value = true;
 	try {
-		// 提示：邀请功能默认是邀请到当前登录的店铺。
-		// 如果需要所有者能邀请到指定店铺，后端 createInvitation 也需要接收 tenantId。
-		await createInvitation(inviteePhone.value);
-		toastStore.show({ message: '邀请已发送', type: 'success' });
-		showInviteModal.value = false;
-		inviteePhone.value = '';
-		dataStore.markMembersAsStale();
-	} catch (error) {
-		console.error('Failed to create invitation:', error);
+		await createMember(createForm);
+		toastStore.show({ message: '员工创建成功', type: 'success' });
+		showCreateModal.value = false;
+
+		// [核心修改] 创建成功后，刷新对应店铺的成员列表
+		if (isOwner.value) {
+			await fetchMembersForSelectedTenant();
+		} else {
+			dataStore.markMembersAsStale();
+			await dataStore.fetchMembersData();
+		}
+	} catch (error: any) {
+		console.error('创建成员失败:', error);
+		// 后端 ConflictException (409) 会触发这里的错误处理
+		if (error.statusCode !== 409) {
+			toastStore.show({ message: '创建失败，请重试', type: 'error' });
+		}
 	} finally {
-		isCreatingInvite.value = false;
+		isSubmitting.value = false;
 	}
 };
 </script>
@@ -237,7 +260,7 @@ const handleInvite = async () => {
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 @include list-item-content-style;
-@include form-control-styles; // [核心新增] 引入表单样式以美化 picker
+@include form-control-styles;
 
 .page-wrapper {
 	display: flex;

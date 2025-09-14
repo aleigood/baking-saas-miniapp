@@ -36,7 +36,6 @@ import { useUiStore } from '@/store/ui';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
-import { createInvitation } from '@/api/invitations';
 import { MODAL_KEYS } from '@/constants/modalKeys';
 
 import CustomTabBar from '@/components/CustomTabBar.vue';
