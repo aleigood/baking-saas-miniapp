@@ -373,6 +373,14 @@ export interface ProductionStatsResponse {
 	ingredientConsumption: IngredientStatDto[];
 }
 
+// [核心新增] 定义客户端看板数据类型
+export interface DashboardStats {
+	totalTenants?: number;
+	totalUsers: number;
+	totalRecipes: number;
+	totalTasks: number;
+}
+
 // [核心修改] 为任务详情页增加一个类型，与后端的 TaskDetailResponseDto 对应
 // 定义原料详情的数据结构
 export interface TaskIngredientDetail {

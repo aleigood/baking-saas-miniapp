@@ -19,9 +19,25 @@
 				<view class="arrow-icon">&#10095;</view>
 			</view>
 
-			<view class="card placeholder-card">
-				<view class="card-title">新功能开发中</view>
-				<view class="placeholder-text">敬请期待更多精彩功能！</view>
+			<view class="card stats-card">
+				<view class="stats-grid">
+					<view class="stat-item" v-if="isOwner">
+						<text class="stat-value">{{ stats.totalTenants ?? 0 }}</text>
+						<text class="stat-label">店铺总数</text>
+					</view>
+					<view class="stat-item">
+						<text class="stat-value">{{ stats.totalUsers ?? 0 }}</text>
+						<text class="stat-label">人员总数</text>
+					</view>
+					<view class="stat-item">
+						<text class="stat-value">{{ stats.totalRecipes ?? 0 }}</text>
+						<text class="stat-label">配方总数</text>
+					</view>
+					<view class="stat-item">
+						<text class="stat-value">{{ stats.totalTasks ?? 0 }}</text>
+						<text class="stat-label">生产任务</text>
+					</view>
+				</view>
 			</view>
 
 			<view class="action-list">
@@ -57,36 +73,56 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'; // [核心改造] 导入 ref
-import { onShow } from '@dcloudio/uni-app'; // [核心改造] 导入 onShow
+import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useUiStore } from '@/store/ui';
 import { useSystemStore } from '@/store/system';
 import { MODAL_KEYS } from '@/constants/modalKeys';
+import { getAppDashboardStats } from '@/api/dashboard'; // [核心新增] 导入看板API
 import ListItem from '@/components/ListItem.vue';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
-import type { Role } from '@/types/api';
+import type { Role, DashboardStats } from '@/types/api'; // [核心新增] 导入看板类型
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const uiStore = useUiStore();
 const systemStore = useSystemStore();
-// [核心改造] 新增导航锁
 const isNavigating = ref(false);
 
-// [核心改造] 实现按需刷新
-onShow(() => {
+// [核心新增] 用于存储看板数据的响应式状态
+const stats = ref<Partial<DashboardStats>>({});
+const isLoadingStats = ref(false);
+
+// [核心修正] 将函数定义移至 onShow 钩子之前
+const fetchDashboardStats = async () => {
+	isLoadingStats.value = true;
+	try {
+		const data = await getAppDashboardStats();
+		stats.value = data;
+	} catch (error) {
+		console.error('获取看板数据失败:', error);
+		// 可以在这里给一个默认值或错误提示
+		stats.value = {};
+	} finally {
+		isLoadingStats.value = false;
+	}
+};
+
+// [核心修改] onShow 钩子中增加获取看板数据的逻辑
+onShow(async () => {
 	isNavigating.value = false;
 	if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
 		dataStore.fetchMembersData();
 	}
+	// 获取看板数据
+	await fetchDashboardStats();
 });
 
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
 
-// [核心新增] 计算属性，判断当前用户是否为所有者
 const isOwner = computed(() => currentUserRoleInTenant.value === 'OWNER');
 
 const canManagePersonnel = computed(() => {
@@ -108,27 +144,21 @@ const currentTenantRoleDisplay = computed(() => {
 });
 
 const navigateToCurrentUserDetail = () => {
-	// [核心改造] 增加导航锁
 	if (isNavigating.value) return;
 	isNavigating.value = true;
-
-	// [核心修改] 导航到新的个人资料页
 	uni.navigateTo({
 		url: `/pages/personnel/profile`
 	});
 };
 
 const navigateToPersonnelList = () => {
-	// [核心改造] 增加导航锁
 	if (isNavigating.value) return;
 	isNavigating.value = true;
-
 	uni.navigateTo({
 		url: '/pages/personnel/list'
 	});
 };
 
-// [核心新增] 导航到店铺管理页
 const navigateToTenantList = () => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
@@ -185,7 +215,7 @@ const handleLogout = () => {
 	align-items: center;
 	padding: 20px;
 	border-radius: 20px;
-	margin-bottom: 40px;
+	margin-bottom: 20px; /* [核心修改] 调整与下方卡片的间距 */
 	position: relative;
 }
 
@@ -201,10 +231,9 @@ const handleLogout = () => {
 	font-size: 24px;
 	font-weight: bold;
 	margin-right: 15px;
-	overflow: hidden; /* [核心新增] 确保图片在圆角内 */
+	overflow: hidden;
 }
 
-/* [核心新增] 头像图片的样式 */
 .avatar-image {
 	width: 100%;
 	height: 100%;
@@ -231,14 +260,37 @@ const handleLogout = () => {
 	color: var(--text-secondary);
 }
 
-.placeholder-card {
+/* [核心新增] 数据看板卡片样式 */
+.stats-card {
+	padding: 15px 0;
+	margin-bottom: 40px;
+}
+
+.stats-grid {
+	display: flex;
+	justify-content: space-around;
 	text-align: center;
 }
 
-.placeholder-text {
+.stat-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	padding: 5px 0;
+}
+
+.stat-value {
+	font-size: 24px;
+	font-weight: 600;
+	color: var(--primary-color);
+}
+
+.stat-label {
+	font-size: 13px;
 	color: var(--text-secondary);
-	font-size: 14px;
-	margin-top: 10px;
+	margin-top: 5px;
 }
 
 .action-list {
