@@ -53,6 +53,14 @@
 			<FormItem label="初始密码">
 				<input class="input-field" type="password" v-model="createForm.password" placeholder="请输入初始密码" />
 			</FormItem>
+			<FormItem label="员工角色">
+				<picker mode="selector" :range="availableRolesForCreation" range-key="text" @change="onRoleChange">
+					<view class="picker">
+						{{ selectedRoleForCreationText }}
+						<view class="arrow-down"></view>
+					</view>
+				</picker>
+			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showCreateModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleCreateMember" :disabled="isSubmitting" :loading="isSubmitting">
@@ -78,7 +86,7 @@ import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppModal from '@/components/AppModal.vue';
 import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
-import type { Role, Member, Tenant } from '@/types/api';
+import type { Role, Member, Tenant } from '@/types/api'; // [核心修改] 导入 Member 和 Tenant 类型
 import { formatChineseDate } from '@/utils/format';
 
 defineOptions({
@@ -99,10 +107,11 @@ const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
 // [核心改造] 创建一个响应式对象来处理新增员工的表单
-const createForm = reactive({
+const createForm = reactive<{ name: string; phone: string; password: string; role: Role }>({
 	name: '',
 	phone: '',
-	password: ''
+	password: '',
+	role: 'MEMBER' // 默认角色为员工
 });
 
 // [核心新增] 用于存储所有者选择的店铺ID和该店铺的成员列表
@@ -176,14 +185,37 @@ const selectedTenantName = computed(() => {
 	return tenant ? tenant.name : '选择店铺';
 });
 
+const roleMap: Record<Role, string> = {
+	OWNER: '店主',
+	ADMIN: '管理员',
+	MEMBER: '员工',
+	SUPER_ADMIN: '超级管理员'
+};
+
 const getRoleName = (role: Role) => {
-	const roleMap: Record<Role, string> = {
-		OWNER: '店主',
-		ADMIN: '管理员',
-		MEMBER: '员工',
-		SUPER_ADMIN: '超级管理员'
-	};
 	return roleMap[role] || role;
+};
+
+// [核心新增] 计算创建新成员时可选的角色列表
+const availableRolesForCreation = computed(() => {
+	if (isOwner.value) {
+		return [
+			{ text: '管理员', value: 'ADMIN' },
+			{ text: '员工', value: 'MEMBER' }
+		];
+	}
+	return [{ text: '员工', value: 'MEMBER' }];
+});
+
+// [核心新增] 计算 picker 中显示的当前选中的角色文本
+const selectedRoleForCreationText = computed(() => {
+	return getRoleName(createForm.role);
+});
+
+// [核心新增] 当创建角色选择变化时
+const onRoleChange = (e: any) => {
+	const selectedIndex = e.detail.value;
+	createForm.role = availableRolesForCreation.value[selectedIndex].value as Role;
 };
 
 // [核心新增] 当所有者切换店铺选择时触发
@@ -224,6 +256,7 @@ const openCreateModal = () => {
 	createForm.name = '';
 	createForm.phone = '';
 	createForm.password = '';
+	createForm.role = 'MEMBER'; // 总是重置为默认角色
 	showCreateModal.value = true;
 };
 

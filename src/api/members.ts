@@ -7,9 +7,9 @@ import type { Member, Role } from '@/types/api';
 
 /**
  * [核心新增] 直接创建一个新成员并将其添加到当前店铺
- * @param data 包含姓名、手机和初始密码
+ * @param data 包含姓名、手机、初始密码和角色
  */
-export function createMember(data: { name: string; phone: string; password: string }): Promise<Member> {
+export function createMember(data: { name: string; phone: string; password: string; role: Role }): Promise<Member> {
 	return request<Member>({
 		url: '/members',
 		method: 'POST',
