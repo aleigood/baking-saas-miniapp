@@ -54,7 +54,8 @@
 			</view>
 			<view class="form-row">
 				<label class="form-row-label">含水量 (%)</label>
-				<input class="input-field" type="number" v-model.number="ingredientForm.waterContent" placeholder="例如: 75" />
+				<!-- [核心修改] 移除 .number 修饰符 -->
+				<input class="input-field" type="number" v-model="ingredientForm.waterContent" placeholder="例如: 75" />
 			</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditModal = false">取消</AppButton>
@@ -72,6 +73,7 @@
 				<input class="input-field" v-model="newSkuForm.specName" placeholder="例如：1kg袋装" />
 			</FormItem>
 			<FormItem label="规格重量 (g)">
+				<!-- [核心修改] 移除 .number 修饰符 -->
 				<input class="input-field" type="number" v-model="newSkuForm.specWeightInGrams" placeholder="例如：1000" />
 			</FormItem>
 			<view class="modal-actions">
@@ -155,7 +157,8 @@
 				<input class="input-field" :value="`${editProcurementForm.packagesPurchased} 包`" readonly disabled />
 			</FormItem>
 			<FormItem label="采购总价 (元)">
-				<input class="input-field" type="number" v-model.number="editProcurementForm.totalPrice" placeholder="输入总价" />
+				<!-- [核心修改] 移除 .number 修饰符 -->
+				<input class="input-field" type="number" v-model="editProcurementForm.totalPrice" placeholder="输入总价" />
 			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditProcurementModal = false">取消</AppButton>
@@ -167,10 +170,12 @@
 
 		<AppModal v-model:visible="showUpdateStockConfirmModal" title="库存调整">
 			<FormItem label="库存变化量 (kg)">
-				<input class="input-field" type="digit" v-model.number="stockAdjustment.changeInKg" placeholder="正数代表盘盈，负数代表损耗" />
+				<!-- [核心修改] 移除 .number 修饰符 -->
+				<input class="input-field" type="digit" v-model="stockAdjustment.changeInKg" placeholder="正数代表盘盈，负数代表损耗" />
 			</FormItem>
 			<FormItem v-if="isInitialStockEntry" label="期初单价 (元/kg)">
-				<input class="input-field" type="digit" v-model.number="stockAdjustment.initialCostPerKg" placeholder="输入估算单价" />
+				<!-- [核心修改] 移除 .number 修饰符 -->
+				<input class="input-field" type="digit" v-model="stockAdjustment.initialCostPerKg" placeholder="输入估算单价" />
 			</FormItem>
 			<FormItem label="调整原因 (可选)">
 				<view class="reason-tags">
@@ -266,20 +271,31 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const ingredientForm = reactive({
+const ingredientForm = reactive<{
+	name: string;
+	type: 'STANDARD' | 'UNTRACKED';
+	isFlour: boolean;
+	waterContent: number | null; // [核心修改] 允许为 null
+}>({
 	name: '',
-	type: 'STANDARD' as 'STANDARD' | 'UNTRACKED',
+	type: 'STANDARD',
 	isFlour: false,
-	waterContent: 0
+	waterContent: null
 });
 
 const showEditProcurementModal = ref(false);
-const editProcurementForm = reactive({
+const editProcurementForm = reactive<{
+	id: string;
+	packagesPurchased: number;
+	pricePerPackage: number;
+	purchaseDate: string;
+	totalPrice: number | null; // [核心修改] 允许为 null
+}>({
 	id: '',
 	packagesPurchased: 0,
 	pricePerPackage: 0,
 	purchaseDate: '',
-	totalPrice: 0
+	totalPrice: null
 });
 
 const stockAdjustment = reactive<{
@@ -628,7 +644,7 @@ const handleUpdateProcurement = async () => {
 	if (!editProcurementForm.id || !ingredient.value) return;
 	isSubmitting.value = true;
 	try {
-		const pricePerPackage = editProcurementForm.totalPrice / editProcurementForm.packagesPurchased;
+		const pricePerPackage = Number(editProcurementForm.totalPrice) / editProcurementForm.packagesPurchased;
 		if (isNaN(pricePerPackage) || pricePerPackage <= 0) {
 			toastStore.show({ message: '请输入有效的采购总价', type: 'error' });
 			isSubmitting.value = false;
@@ -671,7 +687,7 @@ const handleConfirmUpdateStock = async () => {
 
 	isSubmitting.value = true;
 	try {
-		const changeInGrams = stockAdjustment.changeInKg * 1000;
+		const changeInGrams = Number(stockAdjustment.changeInKg) * 1000;
 		const payload: {
 			changeInGrams: number;
 			reason?: string;

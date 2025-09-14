@@ -42,10 +42,12 @@
 						<span class="card-title">主面团</span>
 					</view>
 					<FormItem label="面团出缸温度 (°C)">
-						<input class="input-field" type="number" v-model.number="form.targetTemp" placeholder="例如: 26" />
+						<!-- [核心修改] 移除 .number 修饰符 -->
+						<input class="input-field" type="number" v-model="form.targetTemp" placeholder="例如: 26" />
 					</FormItem>
 					<FormItem label="工艺损耗率 (%)">
-						<input class="input-field" type="number" v-model.number="mainDough.lossRatio" placeholder="例如: 2" />
+						<!-- [核心修改] 移除 .number 修饰符 -->
+						<input class="input-field" type="number" v-model="mainDough.lossRatio" placeholder="例如: 2" />
 					</FormItem>
 					<view class="ingredient-header">
 						<text class="col-name">原料名称</text>
@@ -62,7 +64,8 @@
 								@blur="handleIngredientBlur(ing, availableMainDoughIngredients)"
 							/>
 						</view>
-						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio" placeholder="%" />
+						<!-- [核心修改] 移除 .number 修饰符 -->
+						<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
 							<image class="remove-icon" src="/static/icons/trash.svg" />
 						</IconButton>
@@ -98,7 +101,8 @@
 							<input class="input-field" v-model="product.name" :placeholder="`产品${prodIndex + 1}`" />
 						</FormItem>
 						<FormItem label="基础面团克重 (g)">
-							<input class="input-field" type="number" v-model.number="product.baseDoughWeight" placeholder="例如: 100" />
+							<!-- [核心修改] 移除 .number 修饰符 -->
+							<input class="input-field" type="number" v-model="product.baseDoughWeight" placeholder="例如: 100" />
 						</FormItem>
 
 						<view class="sub-group">
@@ -113,7 +117,8 @@
 										@blur="handleIngredientBlur(ing, availableSubIngredients)"
 									/>
 								</view>
-								<input class="input-field ratio-input" type="number" v-model.number="ing.ratio" placeholder="%" />
+								<!-- [核心修改] 移除 .number 修饰符 -->
+								<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
 								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
 									<image class="remove-icon" src="/static/icons/trash.svg" />
 								</IconButton>
@@ -133,7 +138,8 @@
 										@blur="handleIngredientBlur(ing, availableSubIngredients)"
 									/>
 								</view>
-								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams" placeholder="g/个" />
+								<!-- [核心修改] 移除 .number 修饰符 -->
+								<input class="input-field ratio-input" type="number" v-model="ing.weightInGrams" placeholder="g/个" />
 								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'fillings', ingIndex)">
 									<image class="remove-icon" src="/static/icons/trash.svg" />
 								</IconButton>
@@ -153,7 +159,8 @@
 										@blur="handleIngredientBlur(ing, availableSubIngredients)"
 									/>
 								</view>
-								<input class="input-field ratio-input" type="number" v-model.number="ing.weightInGrams" placeholder="g/个" />
+								<!-- [核心修改] 移除 .number 修饰符 -->
+								<input class="input-field ratio-input" type="number" v-model="ing.weightInGrams" placeholder="g/个" />
 								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'toppings', ingIndex)">
 									<image class="remove-icon" src="/static/icons/trash.svg" />
 								</IconButton>
@@ -192,7 +199,8 @@
 				</picker>
 			</FormItem>
 			<FormItem label="面种中面粉占总面粉的百分比 (%)">
-				<input class="input-field" type="number" v-model.number="preDoughFlourRatio" placeholder="例如：20" />
+				<!-- [核心修改] 移除 .number 修饰符 -->
+				<input class="input-field" type="number" v-model="preDoughFlourRatio" placeholder="例如：20" />
 			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showAddPreDoughModal = false">取消</AppButton>
@@ -255,11 +263,11 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const form = ref<RecipeFormTemplate & { targetTemp?: number }>({
+const form = ref<RecipeFormTemplate & { targetTemp?: number | null }>({
 	name: '',
 	type: 'MAIN',
 	notes: '',
-	targetTemp: undefined,
+	targetTemp: null,
 	doughs: [
 		{
 			id: `main_${Date.now()}`,
@@ -314,7 +322,6 @@ const availableSubIngredients = computed(() => {
 	return combined.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-// [核心新增] 定义失焦事件处理函数
 const handleIngredientBlur = (ingredient: { id: string | null; name: string }, availableList: { id: string | null; name: string }[]) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableList.find((item) => item.name === ingredient.name);
@@ -347,7 +354,6 @@ onLoad(async (options) => {
 			}
 		}
 	} else {
-		// [核心新增] 新建模式下，将 mode 明确设为 create
 		pageMode.value = 'create';
 	}
 });
@@ -547,13 +553,13 @@ const handleSubmit = async () => {
 
 		const ingredientsPayload = [
 			...mainDoughFromForm.ingredients
-				.filter((ing) => ing.name && ing.ratio !== null && ing.ratio > 0)
+				.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0) // 确保在转换前检查
 				.map((ing) => {
 					const details = allIngredientsMap.get(ing.id!);
 					return {
 						ingredientId: ing.id || undefined,
 						name: ing.name,
-						ratio: toDecimal(ing.ratio),
+						ratio: toDecimal(Number(ing.ratio)), // 确保转换为数字
 						isFlour: details?.isFlour || false,
 						waterContent: details?.waterContent || 0
 					};
@@ -562,13 +568,16 @@ const handleSubmit = async () => {
 				.doughs!.filter((d) => d.type === 'PRE_DOUGH')
 				.map((d) => ({
 					name: d.name,
-					flourRatio: toDecimal(d.flourRatioInMainDough)
+					flourRatio: toDecimal(Number(d.flourRatioInMainDough))
 				}))
 		];
 
 		const processSubIngredients = (subIngredients: (SubIngredientWeight | SubIngredientRatio)[], type: 'MIX_IN' | 'FILLING' | 'TOPPING') => {
 			return subIngredients
-				.filter((i) => i.name && (('ratio' in i && i.ratio !== null && i.ratio > 0) || ('weightInGrams' in i && i.weightInGrams !== null && i.weightInGrams > 0)))
+				.filter(
+					(i) =>
+						i.name && (('ratio' in i && i.ratio !== null && Number(i.ratio) > 0) || ('weightInGrams' in i && i.weightInGrams !== null && Number(i.weightInGrams) > 0))
+				)
 				.map((i) => {
 					const base: { name: string; type: string; ingredientId?: string; ratio?: number; weightInGrams?: number } = { name: i.name, type };
 					if (i.id) {
@@ -579,10 +588,10 @@ const handleSubmit = async () => {
 					}
 
 					if ('ratio' in i && i.ratio !== null) {
-						base.ratio = toDecimal(i.ratio);
+						base.ratio = toDecimal(Number(i.ratio));
 					}
 					if ('weightInGrams' in i && i.weightInGrams !== null) {
-						base.weightInGrams = i.weightInGrams;
+						base.weightInGrams = Number(i.weightInGrams);
 					}
 					return base;
 				})
@@ -594,12 +603,12 @@ const handleSubmit = async () => {
 			type: form.value.type,
 			notes: form.value.notes,
 			targetTemp: form.value.targetTemp,
-			lossRatio: toDecimal(mainDoughFromForm.lossRatio),
+			lossRatio: toDecimal(Number(mainDoughFromForm.lossRatio)),
 			procedure: mainDoughFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
 			products: form.value.products!.map((p) => ({
 				name: p.name,
-				weight: p.baseDoughWeight,
+				weight: Number(p.baseDoughWeight),
 				procedure: p.procedure.filter((step) => step && step.trim()),
 				mixIn: processSubIngredients(p.mixIns, 'MIX_IN'),
 				fillings: processSubIngredients(p.fillings, 'FILLING'),

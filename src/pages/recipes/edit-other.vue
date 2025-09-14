@@ -40,7 +40,8 @@
 								@blur="handleIngredientBlur(ing)"
 							/>
 						</view>
-						<input class="input-field ratio-input" type="number" v-model.number="ing.ratio" placeholder="%" />
+						<!-- [核心修改] 移除 .number 修饰符 -->
+						<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
 							<image class="remove-icon" src="/static/icons/trash.svg" />
 						</IconButton>
@@ -181,7 +182,6 @@ onLoad(async (options) => {
 			}
 		}
 	} else {
-		// [核心新增] 新建模式下，将 mode 明确设为 create
 		pageMode.value = 'create';
 	}
 });
@@ -255,13 +255,13 @@ const handleSubmit = async () => {
 			type: form.type,
 			notes: form.notes,
 			ingredients: form.ingredients
-				.filter((ing) => ing.name && ing.ratio !== null && ing.ratio > 0)
+				.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
 				.map((ing) => {
 					const ingredientDetails = allIngredientsMap.get(ing.id!);
 					return {
 						ingredientId: ing.id || undefined,
 						name: ing.name,
-						ratio: toDecimal(ing.ratio),
+						ratio: toDecimal(Number(ing.ratio)),
 						isFlour: ingredientDetails ? ingredientDetails.isFlour : false
 					};
 				}),

@@ -111,7 +111,8 @@
 			</view>
 			<view class="form-row">
 				<label class="form-row-label">含水量 (%)</label>
-				<input class="input-field" type="number" v-model.number="newIngredientForm.waterContent" placeholder="例如: 75" />
+				<!-- [核心修改] 移除 .number 修饰符 -->
+				<input class="input-field" type="number" v-model="newIngredientForm.waterContent" placeholder="例如: 75" />
 			</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showCreateIngredientModal = false">取消</AppButton>
@@ -164,9 +165,14 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const newIngredientForm = reactive({
+const newIngredientForm = reactive<{
+	name: string;
+	type: 'STANDARD' | 'UNTRACKED';
+	isFlour: boolean;
+	waterContent: number | null; // [核心修改] 允许为 null
+}>({
 	name: '',
-	type: 'STANDARD' as 'STANDARD' | 'UNTRACKED',
+	type: 'STANDARD',
 	isFlour: false,
 	waterContent: 0
 });

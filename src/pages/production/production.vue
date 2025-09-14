@@ -92,15 +92,18 @@
 				</view>
 				<view class="form-item">
 					<view class="form-label">环境温度 (°C)</view>
-					<input class="input-field" type="number" v-model.number="tempSettings.envTemp" placeholder="输入温度" />
+					<!-- [核心修改] 移除 .number 修饰符 -->
+					<input class="input-field" type="number" v-model="tempSettings.envTemp" placeholder="输入温度" />
 				</view>
 				<view class="form-item">
 					<view class="form-label">面粉温度 (°C)</view>
-					<input class="input-field" type="number" v-model.number="tempSettings.flourTemp" placeholder="输入温度" />
+					<!-- [核心修改] 移除 .number 修饰符 -->
+					<input class="input-field" type="number" v-model="tempSettings.flourTemp" placeholder="输入温度" />
 				</view>
 				<view class="form-item">
 					<view class="form-label">水温 (°C)</view>
-					<input class="input-field" type="number" v-model.number="tempSettings.waterTemp" placeholder="输入温度" />
+					<!-- [核心修改] 移除 .number 修饰符 -->
+					<input class="input-field" type="number" v-model="tempSettings.waterTemp" placeholder="输入温度" />
 				</view>
 			</view>
 			<view class="modal-actions">
@@ -156,7 +159,12 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const tempSettings = reactive({
+const tempSettings = reactive<{
+	mixerType: number;
+	envTemp: number | null; // [核心修改] 允许为 null
+	flourTemp: number | null; // [核心修改] 允许为 null
+	waterTemp: number | null; // [核心修改] 允许为 null
+}>({
 	mixerType: 9,
 	envTemp: 25,
 	flourTemp: 25,
@@ -194,11 +202,6 @@ onLoad(() => {
 
 onShow(async () => {
 	isNavigating.value = false;
-
-	const toastMessage = uiStore.consumeNextPageToast();
-	if (toastMessage) {
-		toastStore.show(toastMessage);
-	}
 
 	if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
 		try {
@@ -363,7 +366,13 @@ const handleMixerChange = (e: any) => {
 };
 
 const handleSaveTemperatureSettings = () => {
-	temperatureStore.saveTemperatureSettings(tempSettings);
+	temperatureStore.saveTemperatureSettings({
+		mixerType: tempSettings.mixerType,
+		// [核心修改] 保存时, 将 null 值转换回 store 中的默认值
+		envTemp: Number(tempSettings.envTemp) || temperatureStore.settings.envTemp,
+		flourTemp: Number(tempSettings.flourTemp) || temperatureStore.settings.flourTemp,
+		waterTemp: Number(tempSettings.waterTemp) || temperatureStore.settings.waterTemp
+	});
 	showTemperatureSettingsModal.value = false;
 	toastStore.show({ message: '设置已保存', type: 'success' });
 };

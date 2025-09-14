@@ -86,6 +86,13 @@ export const request = <T = any>(options: RequestOptions): Promise<T> => {
 				}
 			},
 			fail: (err) => {
+				// [核心改造] 在处理任何网络错误前，首先检查应用是否已处于“正在重定向到登录页”的状态
+				if (userStore.isRedirecting) {
+					// 如果是，则静默失败，不显示任何额外的Toast，以防止在页面跳转时出现消息闪现。
+					// 因为 handleUnauthorized 已经确保了登录页会显示一个明确的提示。
+					return reject(err);
+				}
+
 				// [核心改造] 对网络错误进行条件化处理
 				// 如果是启动时验证用户身份的关键请求失败，则将Toast消息寄往登录页
 				if (options.url === '/auth/profile') {
