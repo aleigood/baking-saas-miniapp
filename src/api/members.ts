@@ -6,11 +6,13 @@ import { request } from '@/utils/request';
 import type { Member, Role } from '@/types/api';
 
 /**
- * 获取当前店铺的人员列表
+ * 获取店铺的人员列表
+ * @param tenantId [可选] 店铺ID，仅所有者可传递此参数以查询指定店铺
  */
-export function getMembers(): Promise<Member[]> {
+export function getMembers(tenantId?: string): Promise<Member[]> {
 	return request<Member[]>({
-		url: '/members'
+		url: '/members',
+		data: { tenantId }
 	});
 }
 

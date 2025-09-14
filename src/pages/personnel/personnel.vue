@@ -1,9 +1,16 @@
 <template>
 	<view>
+		<view class="personnel-header" :style="{ paddingTop: systemStore.statusBarHeight + 'px' }">
+			<view class="header-title-container" :style="{ height: systemStore.navBarHeight + 'px' }">
+				<text class="header-title">我的</text>
+			</view>
+		</view>
+
 		<view class="page-content page-content-with-tabbar">
-			<view class="profile-card" @click="navigateToCurrentUserDetail">
+			<view class="profile-card" @click="navigateToCurrentUserDetail" :style="{ marginTop: systemStore.headerHeight + 'px' }">
 				<view class="avatar">
-					{{ userStore.userInfo?.name?.[0] || '管' }}
+					<image v-if="userStore.userInfo && userStore.userInfo.avatarUrl" :src="userStore.userInfo.avatarUrl" class="avatar-image"></image>
+					<text v-else>{{ userStore.userInfo?.name?.[0] || '管' }}</text>
 				</view>
 				<view class="user-info">
 					<view class="name">{{ userStore.userInfo?.name || '未设置昵称' }}</view>
@@ -18,6 +25,12 @@
 			</view>
 
 			<view class="action-list">
+				<ListItem v-if="isOwner" class="action-item" @click="navigateToTenantList" :bleed="true">
+					<view class="action-item-content">
+						<image class="action-icon" src="/static/icons/store.svg" />
+						<text>店铺管理</text>
+					</view>
+				</ListItem>
 				<ListItem v-if="canManagePersonnel" class="action-item" @click="navigateToPersonnelList" :bleed="true">
 					<view class="action-item-content">
 						<image class="action-icon" src="/static/icons/person.svg" />
@@ -73,6 +86,9 @@ onShow(() => {
 
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
 
+// [核心新增] 计算属性，判断当前用户是否为所有者
+const isOwner = computed(() => currentUserRoleInTenant.value === 'OWNER');
+
 const canManagePersonnel = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
@@ -96,11 +112,10 @@ const navigateToCurrentUserDetail = () => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
 
-	if (userStore.userInfo?.id) {
-		uni.navigateTo({
-			url: `/pages/personnel/detail?memberId=${userStore.userInfo.id}`
-		});
-	}
+	// [核心修改] 导航到新的个人资料页
+	uni.navigateTo({
+		url: `/pages/personnel/profile`
+	});
 };
 
 const navigateToPersonnelList = () => {
@@ -110,6 +125,15 @@ const navigateToPersonnelList = () => {
 
 	uni.navigateTo({
 		url: '/pages/personnel/list'
+	});
+};
+
+// [核心新增] 导航到店铺管理页
+const navigateToTenantList = () => {
+	if (isNavigating.value) return;
+	isNavigating.value = true;
+	uni.navigateTo({
+		url: '/pages/tenants/list'
 	});
 };
 
@@ -126,6 +150,29 @@ const handleLogout = () => {
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 @include list-item-content-style;
+
+/* [核心新增] 独立头部的样式 */
+.personnel-header {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	background-color: rgba(253, 248, 242, 0.85);
+	backdrop-filter: saturate(180%) blur(20px);
+	z-index: 10;
+	box-sizing: border-box;
+}
+.header-title-container {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+}
+.header-title {
+	font-size: 18px;
+	font-weight: 600;
+	color: var(--text-primary);
+}
 
 .page-content {
 	padding: 20px 15px 0 15px;
@@ -154,6 +201,13 @@ const handleLogout = () => {
 	font-size: 24px;
 	font-weight: bold;
 	margin-right: 15px;
+	overflow: hidden; /* [核心新增] 确保图片在圆角内 */
+}
+
+/* [核心新增] 头像图片的样式 */
+.avatar-image {
+	width: 100%;
+	height: 100%;
 }
 
 .user-info {

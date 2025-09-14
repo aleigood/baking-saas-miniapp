@@ -54,6 +54,7 @@ export interface UserInfo {
 	id: string;
 	phone: string;
 	name: string | null;
+	avatarUrl: string | null; // [核心新增] 新增用户头像URL
 	role: Role;
 	status: string;
 	createdAt: string;
@@ -67,6 +68,7 @@ export interface UserInfo {
 export interface Tenant {
 	id: string;
 	name: string;
+	status: 'ACTIVE' | 'INACTIVE'; // [核心新增] 店铺状态
 }
 
 // --- 邀请 ---

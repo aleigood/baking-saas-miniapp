@@ -73,6 +73,18 @@
 			}
 		},
 		{
+			"path": "pages/personnel/profile",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/tenants/list",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/production/prep-detail",
 			"style": {
 				"navigationStyle": "custom"

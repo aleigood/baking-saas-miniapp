@@ -3,14 +3,23 @@
 	<view class="page-wrapper">
 		<DetailHeader title="人员管理" />
 		<DetailPageLayout @scroll="handleScroll">
+			<view v-if="isOwner" class="shop-selector-container">
+				<picker mode="selector" :range="tenantsForPicker" range-key="name" @change="onTenantChange">
+					<view class="picker">
+						<text>{{ selectedTenantName }}</text>
+						<view class="arrow-down"></view>
+					</view>
+				</picker>
+			</view>
+
 			<view class="page-content no-horizontal-padding page-content-with-fab">
-				<template v-if="dataStore.members.length > 0">
+				<template v-if="membersToDisplay.length > 0">
 					<ListItem
-						v-for="(member, index) in dataStore.members"
+						v-for="(member, index) in membersToDisplay"
 						:key="member.id"
 						@click="navigateToDetail(member.id)"
 						:bleed="true"
-						:divider="index < dataStore.members.length - 1"
+						:divider="index < membersToDisplay.length - 1"
 					>
 						<view class="member-details">
 							<view class="member-avatar">
@@ -49,22 +58,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
-// [核心新增] 导入 uiStore
 import { useUiStore } from '@/store/ui';
 import { createInvitation } from '@/api/invitations';
+import { getMembers } from '@/api/members'; // [核心修改] 导入 getMembers API
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import ListItem from '@/components/ListItem.vue';
-import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
+import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppModal from '@/components/AppModal.vue';
 import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
-import type { Role } from '@/types/api';
+import type { Role, Member, Tenant } from '@/types/api'; // [核心修改] 导入 Member 和 Tenant 类型
 import { formatChineseDate } from '@/utils/format';
 
 defineOptions({
@@ -74,7 +83,6 @@ defineOptions({
 const dataStore = useDataStore();
 const userStore = useUserStore();
 const toastStore = useToastStore();
-// [核心新增] 获取 uiStore 实例
 const uiStore = useUiStore();
 
 const isCreatingInvite = ref(false);
@@ -82,25 +90,39 @@ const inviteePhone = ref('');
 const isNavigating = ref(false);
 const showInviteModal = ref(false);
 
-// [核心新增] FAB 按钮可见性控制
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
+// [核心新增] 用于存储所有者选择的店铺ID和该店铺的成员列表
+const selectedTenantIdForOwner = ref<string>('');
+const ownerSelectedTenantMembers = ref<Member[]>([]);
+const isLoadingMembers = ref(false);
+
+onMounted(async () => {
+	// 页面挂载时，如果用户是所有者，则默认选中当前登录的店铺
+	if (isOwner.value) {
+		selectedTenantIdForOwner.value = dataStore.currentTenantId;
+	}
+});
+
 onShow(async () => {
 	isNavigating.value = false;
-	// [核心改造] 指定自己的地址来消费Toast
 	const toastMessage = uiStore.consumeNextPageToast('/pages/personnel/list');
 	if (toastMessage) {
 		toastStore.show(toastMessage);
 	}
 
-	if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
+	// [核心修改] 更新数据获取逻辑
+	if (isOwner.value) {
+		// 如果是所有者，根据选择的店铺ID获取成员
+		await fetchMembersForSelectedTenant();
+	} else if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
+		// 如果是管理员，则像以前一样获取当前店铺的成员
 		await dataStore.fetchMembersData();
 	}
 });
 
-// [核心修复] 为滚动事件处理函数增加健壮性检查
 const handleScroll = (event?: any) => {
 	if (!event || !event.detail) {
 		return;
@@ -122,8 +144,25 @@ const handleScroll = (event?: any) => {
 
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
 
+// [核心新增] 判断当前用户是否为所有者
+const isOwner = computed(() => currentUserRoleInTenant.value === 'OWNER');
+
 const canManagePersonnel = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
+});
+
+// [核心新增] 根据角色决定显示哪个成员列表
+const membersToDisplay = computed(() => {
+	return isOwner.value ? ownerSelectedTenantMembers.value : dataStore.members;
+});
+
+// [核心新增] 为 picker 准备的店铺列表
+const tenantsForPicker = computed(() => dataStore.tenants);
+
+// [核心新增] 显示在 picker 中的当前选中店铺名称
+const selectedTenantName = computed(() => {
+	const tenant = dataStore.tenants.find((t) => t.id === selectedTenantIdForOwner.value);
+	return tenant ? tenant.name : '选择店铺';
 });
 
 const getRoleName = (role: Role) => {
@@ -134,6 +173,30 @@ const getRoleName = (role: Role) => {
 		SUPER_ADMIN: '超级管理员'
 	};
 	return roleMap[role] || role;
+};
+
+// [核心新增] 当所有者切换店铺选择时触发
+const onTenantChange = async (e: any) => {
+	const selectedIndex = e.detail.value;
+	const selectedTenant = tenantsForPicker.value[selectedIndex];
+	if (selectedTenant) {
+		selectedTenantIdForOwner.value = selectedTenant.id;
+		await fetchMembersForSelectedTenant();
+	}
+};
+
+// [核心新增] 为所有者获取指定店铺成员列表的函数
+const fetchMembersForSelectedTenant = async () => {
+	if (!selectedTenantIdForOwner.value || isLoadingMembers.value) return;
+	isLoadingMembers.value = true;
+	try {
+		ownerSelectedTenantMembers.value = await getMembers(selectedTenantIdForOwner.value);
+	} catch (error) {
+		console.error('获取指定店铺成员失败:', error);
+		toastStore.show({ message: '获取成员列表失败', type: 'error' });
+	} finally {
+		isLoadingMembers.value = false;
+	}
 };
 
 const navigateToDetail = (memberId: string) => {
@@ -156,6 +219,8 @@ const handleInvite = async () => {
 	}
 	isCreatingInvite.value = true;
 	try {
+		// 提示：邀请功能默认是邀请到当前登录的店铺。
+		// 如果需要所有者能邀请到指定店铺，后端 createInvitation 也需要接收 tenantId。
 		await createInvitation(inviteePhone.value);
 		toastStore.show({ message: '邀请已发送', type: 'success' });
 		showInviteModal.value = false;
@@ -172,11 +237,34 @@ const handleInvite = async () => {
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 @include list-item-content-style;
+@include form-control-styles; // [核心新增] 引入表单样式以美化 picker
 
 .page-wrapper {
 	display: flex;
 	flex-direction: column;
 	height: 100vh;
+}
+
+/* [核心新增] 店铺选择器样式 */
+.shop-selector-container {
+	padding: 10px 15px;
+	background-color: #fdf8f2;
+	border-bottom: 1px solid var(--border-color);
+
+	.picker {
+		font-size: 16px;
+		font-weight: 600;
+		color: var(--text-primary);
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		height: 30px;
+
+		.arrow-down {
+			margin-left: 8px;
+			border-top-color: var(--text-primary);
+		}
+	}
 }
 
 .member-details {

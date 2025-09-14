@@ -1,7 +1,7 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="main-page-container" :class="{ 'personnel-active-bg': uiStore.activeTab === 'personnel' }">
-		<MainHeader :transparent="uiStore.activeTab === 'personnel'" />
+		<MainHeader v-if="uiStore.activeTab !== 'personnel'" :transparent="uiStore.activeTab === 'personnel'" />
 
 		<view class="content-area">
 			<ProductionPage v-show="uiStore.activeTab === 'production'" />
