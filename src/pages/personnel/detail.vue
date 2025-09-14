@@ -44,7 +44,7 @@ import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
 import type { Member, Role } from '@/types/api';
-import { updateMember, removeMember } from '@/api/members';
+import { getMember, updateMember, removeMember } from '@/api/members'; // [核心修正] 导入 getMember
 import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
@@ -66,48 +66,53 @@ const selectedMember = ref<Member | null>(null);
 const editableMemberRole = ref<Role>('MEMBER');
 const memberId = ref<string | null>(null);
 
-const loadMemberData = () => {
-	if (memberId.value) {
-		if (memberId.value === userStore.userInfo?.id) {
-			const currentUserTenantInfo = userStore.userInfo.tenants.find((t) => t.tenant.id === dataStore.currentTenantId);
-			if (currentUserTenantInfo) {
-				selectedMember.value = {
-					id: userStore.userInfo.id,
-					name: userStore.userInfo.name || '',
-					phone: userStore.userInfo.phone,
-					role: currentUserTenantInfo.role,
-					status: 'ACTIVE',
-					joinDate: userStore.userInfo.createdAt
-				};
-			}
-		} else {
-			const memberFromStore = dataStore.members.find((m) => m.id === memberId.value);
-			if (memberFromStore) {
-				selectedMember.value = JSON.parse(JSON.stringify(memberFromStore));
-			}
+// [核心重构] 封装数据加载逻辑
+const loadMemberData = async () => {
+	if (!memberId.value) return;
+
+	// 优先尝试从 Pinia store 中获取数据
+	let member = dataStore.members.find((m) => m.id === memberId.value);
+
+	if (member) {
+		selectedMember.value = JSON.parse(JSON.stringify(member));
+	} else {
+		// 如果 store 中没有，则直接通过 API 请求
+		try {
+			const fetchedMember = await getMember(memberId.value);
+			selectedMember.value = fetchedMember;
+			// 获取到数据后，可以标记成员列表为过时，以便下次返回时刷新
+			dataStore.markMembersAsStale();
+		} catch (error) {
+			console.error('获取成员信息失败:', error);
+			toastStore.show({ message: '无法加载成员信息', type: 'error' });
+			uni.navigateBack();
+			return;
 		}
-		if (selectedMember.value) {
-			editableMemberRole.value = selectedMember.value.role;
-		}
-		// [核心修改] 加载成功后，重置脏标记
-		dataStore.dataStale.members = false;
+	}
+
+	if (selectedMember.value) {
+		editableMemberRole.value = selectedMember.value.role;
 	}
 };
 
 onLoad(async (options) => {
 	memberId.value = options?.memberId || null;
 	isLoading.value = true;
+	// 确保基础数据已加载，以便进行权限判断
 	if (!dataStore.dataLoaded.members) {
 		await dataStore.fetchMembersData();
 	}
-	loadMemberData();
+	await loadMemberData(); // 执行数据加载
 	isLoading.value = false;
 });
 
-// [核心修改] onShow 逻辑调整
-onShow(() => {
+// [核心修正] 修复 onShow 逻辑，在数据过时的情况下重新获取
+onShow(async () => {
 	if (dataStore.dataStale.members) {
-		loadMemberData();
+		isLoading.value = true;
+		await dataStore.fetchMembersData(); // 先刷新列表
+		await loadMemberData(); // 再重新加载当前成员数据
+		isLoading.value = false;
 	}
 });
 

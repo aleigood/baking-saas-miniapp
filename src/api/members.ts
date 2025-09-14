@@ -29,6 +29,16 @@ export function getMembers(tenantId?: string): Promise<Member[]> {
 }
 
 /**
+ * [核心新增] 获取单个成员的详细信息
+ * @param memberId 成员的用户ID
+ */
+export function getMember(memberId: string): Promise<Member> {
+	return request<Member>({
+		url: `/members/${memberId}`
+	});
+}
+
+/**
  * [重构] 更新指定成员的角色或状态
  * @param memberId 成员的用户ID
  * @param data 包含新角色或新状态的对象
