@@ -54,7 +54,6 @@
 			</view>
 			<view class="form-row">
 				<label class="form-row-label">含水量 (%)</label>
-				<!-- [核心修改] 移除 .number 修饰符 -->
 				<input class="input-field" type="number" v-model="ingredientForm.waterContent" placeholder="例如: 75" />
 			</view>
 			<view class="modal-actions">
@@ -73,7 +72,6 @@
 				<input class="input-field" v-model="newSkuForm.specName" placeholder="例如：1kg袋装" />
 			</FormItem>
 			<FormItem label="规格重量 (g)">
-				<!-- [核心修改] 移除 .number 修饰符 -->
 				<input class="input-field" type="number" v-model="newSkuForm.specWeightInGrams" placeholder="例如：1000" />
 			</FormItem>
 			<view class="modal-actions">
@@ -157,7 +155,6 @@
 				<input class="input-field" :value="`${editProcurementForm.packagesPurchased} 包`" readonly disabled />
 			</FormItem>
 			<FormItem label="采购总价 (元)">
-				<!-- [核心修改] 移除 .number 修饰符 -->
 				<input class="input-field" type="number" v-model="editProcurementForm.totalPrice" placeholder="输入总价" />
 			</FormItem>
 			<view class="modal-actions">
@@ -170,11 +167,9 @@
 
 		<AppModal v-model:visible="showUpdateStockConfirmModal" title="库存调整">
 			<FormItem label="库存变化量 (kg)">
-				<!-- [核心修改] 移除 .number 修饰符 -->
 				<input class="input-field" type="digit" v-model="stockAdjustment.changeInKg" placeholder="正数代表盘盈，负数代表损耗" />
 			</FormItem>
 			<FormItem v-if="isInitialStockEntry" label="期初单价 (元/kg)">
-				<!-- [核心修改] 移除 .number 修饰符 -->
 				<input class="input-field" type="digit" v-model="stockAdjustment.initialCostPerKg" placeholder="输入估算单价" />
 			</FormItem>
 			<FormItem label="调整原因 (可选)">
@@ -398,8 +393,8 @@ const loadIngredientData = async (id: string) => {
 			selectedSkuId.value = null;
 		}
 
-		// [核心修改] 加载成功后，重置脏标记
-		dataStore.dataStale.ingredients = false;
+		// [核心修复] 移除错误的脏标记重置操作
+		// dataStore.dataStale.ingredients = false;
 	} catch (error) {
 		console.error('Failed to load ingredient data:', error);
 	} finally {
