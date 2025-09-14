@@ -48,6 +48,7 @@ export interface ProductionDataPayload {
 // --- 认证与用户 ---
 export interface LoginRes {
 	accessToken: string;
+	redirectTo?: string; // [核心新增] 新增可选的重定向路径
 }
 
 export interface UserInfo {

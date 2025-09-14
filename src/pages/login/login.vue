@@ -75,12 +75,18 @@ onMounted(() => {
 
 const handleLogin = async () => {
 	loading.value = true;
-	const loginSuccess = await userStore.login(form);
-	if (loginSuccess) {
+	const loginResult = await userStore.login(form);
+	if (loginResult) {
 		try {
 			await userStore.fetchUserInfo();
 			await dataStore.fetchTenants();
-			uni.reLaunch({ url: '/pages/main/main' });
+
+			// [核心改造] 根据登录结果进行重定向
+			if (loginResult.redirectTo) {
+				uni.reLaunch({ url: loginResult.redirectTo });
+			} else {
+				uni.reLaunch({ url: '/pages/main/main' });
+			}
 		} catch (error) {
 			loading.value = false;
 		}

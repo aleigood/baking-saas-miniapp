@@ -36,7 +36,7 @@ export const useUserStore = defineStore('user', () => {
 		handleUnauthorized();
 	}
 
-	async function login(credentials: { phone: string; password: string }) {
+	async function login(credentials: { phone: string; password: string }): Promise<LoginRes | null> {
 		clearSession();
 
 		try {
@@ -44,10 +44,10 @@ export const useUserStore = defineStore('user', () => {
 			setToken(res.accessToken);
 			// [核心新增] 登录成功后，立刻重置重定向标志，防止竞态问题
 			isRedirecting.value = false;
-			return true;
+			return res; // [核心修改] 返回完整的登录响应
 		} catch (error) {
 			console.error('Login failed:', error);
-			return false;
+			return null;
 		}
 	}
 
