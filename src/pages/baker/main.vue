@@ -3,7 +3,7 @@
 	<view class="baker-page-container">
 		<BakerHeader />
 
-		<view class="content-area" :style="{ paddingTop: systemStore.headerHeight + 'px' }">
+		<view class="content-area">
 			<ProductionPage :has-tab-bar="false" />
 		</view>
 
@@ -18,6 +18,8 @@ import { onShow } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useSystemStore } from '@/store/system';
+import { useUiStore } from '@/store/ui';
+import { useToastStore } from '@/store/toast';
 import BakerHeader from '@/components/BakerHeader.vue';
 import ProductionPage from '@/pages/production/production.vue';
 import Toast from '@/components/Toast.vue';
@@ -26,9 +28,17 @@ import StoreSelectorModal from '@/components/StoreSelectorModal.vue'; // [核心
 const dataStore = useDataStore();
 const userStore = useUserStore();
 const systemStore = useSystemStore();
+const uiStore = useUiStore();
+const toastStore = useToastStore();
 
 // onShow 钩子用于确保页面显示时数据是最新的
 onShow(async () => {
+	// [核心新增] 消费定向发送到本页面的 Toast 消息
+	const toastMessage = uiStore.consumeNextPageToast('/pages/baker/main');
+	if (toastMessage) {
+		toastStore.show(toastMessage);
+	}
+
 	// 校验登录状态，如果未登录则返回登录页
 	if (!userStore.token) {
 		userStore.handleUnauthorized();

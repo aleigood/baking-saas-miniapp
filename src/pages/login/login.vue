@@ -194,10 +194,10 @@ const handleLogin = async () => {
 
 .footer-croissant {
 	position: absolute;
-	bottom: -10vh;
-	right: -10vw;
-	width: 60vw;
-	height: 60vw;
+	bottom: -20vh;
+	right: -40vw;
+	width: 120vw;
+	height: 120vw;
 	opacity: 0.05;
 	z-index: 0;
 }

@@ -10,7 +10,6 @@
 						<view class="date-picker-item">
 							<label class="date-label">开始日期</label>
 							<picker mode="date" :value="taskForm.startDate" @change="onDateChange($event, 'start')">
-								<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
 								<view class="picker">
 									{{ taskForm.startDate }}
 									<view class="arrow-down"></view>
@@ -20,7 +19,6 @@
 						<view class="date-picker-item">
 							<label class="date-label">结束日期</label>
 							<picker mode="date" :value="taskForm.endDate" :start="taskForm.startDate" @change="onDateChange($event, 'end')">
-								<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
 								<view class="picker">
 									{{ taskForm.endDate }}
 									<view class="arrow-down"></view>
@@ -77,6 +75,7 @@ import { ref, computed, reactive, onMounted } from 'vue';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
+import { useUserStore } from '@/store/user'; // [核心新增] 导入 userStore
 import { createTask } from '@/api/tasks';
 import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
@@ -91,6 +90,7 @@ defineOptions({
 const dataStore = useDataStore();
 const toastStore = useToastStore();
 const uiStore = useUiStore();
+const userStore = useUserStore(); // [核心新增] 获取 userStore 实例
 
 const isLoading = ref(false);
 const isCreating = ref(false);
@@ -188,8 +188,10 @@ const handleCreateTasks = async () => {
 		};
 		const res = await createTask(payload);
 
-		// [核心改造] 将Toast消息定向发送到首页
-		const target = '/pages/main/main';
+		// [核心改造] 根据当前用户角色动态决定Toast消息的目标页面
+		const currentUserRole = userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role;
+		const target = currentUserRole === 'MEMBER' ? '/pages/baker/main' : '/pages/main/main';
+
 		if (res.warning) {
 			uiStore.setNextPageToast({ message: res.warning, type: 'error', duration: 3000 }, target);
 		} else {

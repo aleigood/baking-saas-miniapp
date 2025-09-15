@@ -1,7 +1,7 @@
 <template>
-	<view class="baker-header-wrapper" :style="{ height: systemStore.headerHeight + 'px', paddingTop: systemStore.statusBarHeight + 'px' }">
-		<view class="baker-header-content" :style="{ height: systemStore.navBarHeight + 'px', paddingRight: systemStore.navRightGap + 'px' }">
-			<view class="user-profile" @click="toggleMenu">
+	<view class="page-header" :style="headerStyle">
+		<view class="header-content" :style="contentStyle">
+			<view class="user-profile" @click="openMenu">
 				<view class="avatar">
 					<image v-if="userStore.userInfo?.avatarUrl" :src="userStore.userInfo.avatarUrl" class="avatar-image"></image>
 					<text v-else>{{ userStore.userInfo?.name?.[0] || '员' }}</text>
@@ -14,30 +14,55 @@
 		</view>
 	</view>
 
-	<view v-if="isMenuVisible" class="menu-overlay" @click="closeMenu"></view>
-	<view v-if="isMenuVisible" class="menu-dropdown" :style="{ top: systemStore.headerHeight + 'px' }">
-		<view v-if="canSwitchTenants" class="menu-item" @click="openStoreSelector">
-			<image src="/static/icons/store.svg" class="menu-icon" />
-			<text>切换门店</text>
+	<AppModal v-model:visible="isMenuVisible" title="用户选项" :no-header-line="true">
+		<view class="options-list">
+			<ListItem v-if="canSwitchTenants" class="option-item" @click="openStoreSelector" :bleed="true">
+				<view class="main-info">
+					<view class="name">
+						<image src="/static/icons/store.svg" class="menu-icon" />
+						<text>切换门店</text>
+					</view>
+				</view>
+			</ListItem>
+			<ListItem class="option-item" @click="navigateToProfile" :bleed="true">
+				<view class="main-info">
+					<view class="name">
+						<image src="/static/icons/person.svg" class="menu-icon" />
+						<text>修改信息</text>
+					</view>
+				</view>
+			</ListItem>
+			<ListItem class="option-item" @click="handleOpenLogoutConfirm" :bleed="true">
+				<view class="main-info">
+					<view class="name">
+						<image src="/static/icons/logout.svg" class="menu-icon" />
+						<text>退出登录</text>
+					</view>
+				</view>
+			</ListItem>
 		</view>
-		<view class="menu-item" @click="navigateToProfile">
-			<image src="/static/icons/person.svg" class="menu-icon" />
-			<text>修改信息</text>
+	</AppModal>
+
+	<AppModal :visible="uiStore.showLogoutConfirmModal" @update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
+		<view class="modal-prompt-text">您确定要退出登录吗？</view>
+		<view class="modal-actions">
+			<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)">取消</AppButton>
+			<AppButton type="danger" @click="handleConfirmLogout">确认退出</AppButton>
 		</view>
-		<view class="menu-item" @click="handleLogout">
-			<image src="/static/icons/logout.svg" class="menu-icon" />
-			<text>退出登录</text>
-		</view>
-	</view>
+	</AppModal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'; // [核心新增] 导入 computed
+import { ref, computed } from 'vue';
 import { useSystemStore } from '@/store/system';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useUiStore } from '@/store/ui';
 import { MODAL_KEYS } from '@/constants/modalKeys';
+import AppModal from '@/components/AppModal.vue';
+import ListItem from '@/components/ListItem.vue';
+// [核心新增] 导入 AppButton 组件
+import AppButton from '@/components/AppButton.vue';
 
 const systemStore = useSystemStore();
 const userStore = useUserStore();
@@ -46,54 +71,56 @@ const uiStore = useUiStore();
 
 const isMenuVisible = ref(false);
 
-// [核心新增] 计算属性，判断用户是否可以切换店铺
+const headerStyle = computed(() => ({
+	height: `${systemStore.headerHeight}px`
+}));
+
+const contentStyle = computed(() => ({
+	top: `${systemStore.navBarContentTop}px`,
+	height: `${systemStore.navBarHeight}px`
+}));
+
 const canSwitchTenants = computed(() => {
 	return userStore.userInfo && userStore.userInfo.tenants && userStore.userInfo.tenants.length > 1;
 });
 
-const toggleMenu = () => {
-	isMenuVisible.value = !isMenuVisible.value;
-};
-
-const closeMenu = () => {
-	isMenuVisible.value = false;
+const openMenu = () => {
+	isMenuVisible.value = true;
 };
 
 const openStoreSelector = () => {
-	uiStore.openModal(MODAL_KEYS.STORE);
-	closeMenu();
+	isMenuVisible.value = false;
+	setTimeout(() => {
+		uiStore.openModal(MODAL_KEYS.STORE);
+	}, 300);
 };
 
 const navigateToProfile = () => {
 	uni.navigateTo({
 		url: '/pages/personnel/profile'
 	});
-	closeMenu();
+	isMenuVisible.value = false;
 };
 
-const handleLogout = () => {
+// [核心修改] handleLogout 重命名为 handleOpenLogoutConfirm，并修改逻辑
+const handleOpenLogoutConfirm = () => {
+	isMenuVisible.value = false; // 先关闭选项模态框
+	// 延迟打开下一个模态框，以获得更好的过渡效果
+	setTimeout(() => {
+		uiStore.openModal(MODAL_KEYS.LOGOUT_CONFIRM);
+	}, 300);
+};
+
+// [核心新增] 新增确认退出登录的函数
+const handleConfirmLogout = () => {
 	userStore.logout();
-	closeMenu();
+	uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM);
 };
 </script>
 
 <style scoped lang="scss">
-.baker-header-wrapper {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	background-color: rgba(253, 248, 242, 0.85);
-	backdrop-filter: saturate(180%) blur(20px);
-	z-index: 90;
-	box-sizing: border-box;
-}
-
-.baker-header-content {
-	display: flex;
-	align-items: center;
-	padding-left: 15px;
-}
+@import '@/styles/common.scss';
+@include list-item-option-style;
 
 .user-profile {
 	display: flex;
@@ -150,44 +177,22 @@ const handleLogout = () => {
 	overflow: hidden;
 }
 
-.menu-overlay {
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100vw;
-	height: 100vh;
-	background-color: rgba(0, 0, 0, 0.1);
-	z-index: 98;
-}
-
-.menu-dropdown {
-	position: fixed;
-	left: 15px;
-	background-color: white;
-	border-radius: 12px;
-	box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-	z-index: 99;
-	width: 150px;
-	overflow: hidden;
-	padding: 5px;
-}
-
-.menu-item {
+.option-item .main-info .name {
 	display: flex;
 	align-items: center;
-	padding: 12px 15px;
-	font-size: 15px;
-	color: var(--text-primary);
-	border-radius: 8px;
-
-	&:active {
-		background-color: #f7f7f7;
-	}
 }
 
 .menu-icon {
-	width: 18px;
-	height: 18px;
-	margin-right: 12px;
+	width: 22px;
+	height: 22px;
+	margin-right: 15px;
+}
+
+/* [核心新增] 确认对话框的文字样式 */
+.modal-prompt-text {
+	font-size: 16px;
+	color: var(--text-primary);
+	text-align: center;
+	margin-bottom: 25px;
 }
 </style>

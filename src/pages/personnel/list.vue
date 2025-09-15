@@ -119,11 +119,12 @@ const selectedTenantIdForOwner = ref<string>('');
 const ownerSelectedTenantMembers = ref<Member[]>([]);
 const isLoadingMembers = ref(false);
 
+// [核心修改] onMounted 中不再需要设置默认店铺
 onMounted(async () => {
 	// 页面挂载时，如果用户是所有者，则默认选中当前登录的店铺
-	if (isOwner.value) {
-		selectedTenantIdForOwner.value = dataStore.currentTenantId;
-	}
+	// if (isOwner.value) {
+	// 	selectedTenantIdForOwner.value = dataStore.currentTenantId;
+	// }
 });
 
 onShow(async () => {
@@ -135,6 +136,8 @@ onShow(async () => {
 
 	// [核心修改] 更新数据获取逻辑
 	if (isOwner.value) {
+		// [核心修改] 每次显示页面时，都将当前选择的店铺ID与全局currentTenantId同步
+		selectedTenantIdForOwner.value = dataStore.currentTenantId;
 		// 如果是所有者，根据选择的店铺ID获取成员
 		await fetchMembersForSelectedTenant();
 	} else if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
