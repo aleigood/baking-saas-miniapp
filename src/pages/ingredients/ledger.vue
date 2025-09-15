@@ -4,8 +4,8 @@
 		<DetailHeader title="库存流水" />
 		<DetailPageLayout @scrolltolower="handleLoadMore">
 			<view class="page-content">
-				<view class="ingredient-selector-btn" @click="isSelectorVisible = true">
-					<text class="selected-name">{{ selectedIngredient?.name || '请选择原料' }}</text>
+				<view class="filter-container">
+					<DropdownPill :text="selectedIngredient?.name || '请选择原料'" @click="isSelectorVisible = true" />
 				</view>
 
 				<view v-if="isLoading" class="loading-spinner">
@@ -46,7 +46,7 @@
 			</view>
 		</DetailPageLayout>
 
-		<AppModal :visible="isSelectorVisible" @update:visible="isSelectorVisible = false" title="选择原料" :no-header-line="true">
+		<AppModal :visible="isSelectorVisible" @update:visible="isSelectorVisible = false" title="选择原料" mode="bottom-sheet" :no-header-line="true">
 			<view class="options-list">
 				<ListItem v-for="ing in allIngredients" :key="ing.id" @click="handleIngredientSelect(ing)" class="option-item" :bleed="true">
 					<view class="main-info">
@@ -73,6 +73,8 @@ import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import ListItem from '@/components/ListItem.vue';
 import AppModal from '@/components/AppModal.vue';
+// [核心新增] 导入 DropdownPill 组件
+import DropdownPill from '@/components/DropdownPill.vue';
 
 defineOptions({
 	inheritAttrs: false
@@ -86,7 +88,6 @@ const selectedIngredient = ref<Ingredient | null>(null);
 const ledgerEntries = ref<IngredientLedgerEntry[]>([]);
 const isSelectorVisible = ref(false);
 
-// [核心修改] 使用新的 allIngredients 计算属性
 const allIngredients = computed(() => {
 	if (!dataStore.allIngredients) return [];
 	return [...dataStore.allIngredients].sort((a, b) => b.totalConsumptionInGrams - a.totalConsumptionInGrams);
@@ -172,26 +173,16 @@ const getTypeClass = (type: IngredientLedgerEntry['type']) => {
 	height: 100vh;
 }
 
-/* [核心重构] 新的选择器按钮样式 */
-.ingredient-selector-btn {
+/* [核心新增] 与 personnel/list.vue 保持一致的筛选器容器样式 */
+.filter-container {
 	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	background-color: var(--card-bg);
-	padding: 0 20px;
-	height: 50px;
-	border-radius: 12px;
-	margin-bottom: 20px;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-
-	.selected-name {
-		font-size: 16px;
-		color: var(--text-primary);
-		font-weight: 500;
-	}
+	justify-content: flex-start;
+	padding: 10px 15px;
+	padding-bottom: 20px;
 }
 
 .procurement-list {
+	padding: 0 15px; // [核心修改] 为列表容器增加水平内边距
 	.list-header {
 		display: grid;
 		align-items: center;
