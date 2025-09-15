@@ -314,6 +314,11 @@ export interface ProductionTaskDto {
 	completedAt: string | null;
 	updatedAt: string; // [新增] 任务最后更新时间
 	notes: string | null;
+	// [核心新增] 创建任务的用户信息
+	createdBy: {
+		name: string | null;
+		phone: string;
+	};
 	items: {
 		id: string;
 		quantity: number;

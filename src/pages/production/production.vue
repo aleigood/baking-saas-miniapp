@@ -1,7 +1,7 @@
 <template>
 	<view class="full-height-container">
 		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll" class="full-height-wrapper">
-			<view class="page-content page-content-with-tabbar-fab">
+			<view class="page-content" :class="{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }">
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ dataStore.homeStats.pendingCount }}</view>
@@ -54,7 +54,7 @@
 			</view>
 		</RefreshableLayout>
 
-		<ExpandingFab @click="navigateToCreatePage" :visible="isFabVisible" />
+		<ExpandingFab @click="navigateToCreatePage" :visible="isFabVisible" :no-tab-bar="!hasTabBar" />
 
 		<CalendarModal :visible="isCalendarVisible" :task-dates="taskDates" @close="isCalendarVisible = false" @select="handleDateSelect" />
 
@@ -92,17 +92,14 @@
 				</view>
 				<view class="form-item">
 					<view class="form-label">环境温度 (°C)</view>
-					<!-- [核心修改] 移除 .number 修饰符 -->
 					<input class="input-field" type="number" v-model="tempSettings.envTemp" placeholder="输入温度" />
 				</view>
 				<view class="form-item">
 					<view class="form-label">面粉温度 (°C)</view>
-					<!-- [核心修改] 移除 .number 修饰符 -->
 					<input class="input-field" type="number" v-model="tempSettings.flourTemp" placeholder="输入温度" />
 				</view>
 				<view class="form-item">
 					<view class="form-label">水温 (°C)</view>
-					<!-- [核心修改] 移除 .number 修饰符 -->
 					<input class="input-field" type="number" v-model="tempSettings.waterTemp" placeholder="输入温度" />
 				</view>
 			</view>
@@ -132,6 +129,14 @@ import RefreshableLayout from '@/components/RefreshableLayout.vue';
 import type { ProductionTaskDto, PrepTask } from '@/types/api';
 import { updateTaskStatus, getTaskDates } from '@/api/tasks';
 import { formatChineseDate } from '@/utils/format';
+
+// [核心新增] 定义 props
+const props = defineProps({
+	hasTabBar: {
+		type: Boolean,
+		default: true
+	}
+});
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
@@ -275,9 +280,11 @@ const getTaskDetails = (task: any) => {
 	if (task.status === 'PREP') {
 		return task.details;
 	}
-	const formattedDate = formatChineseDate(task.startDate);
-	const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
-	const totalQuantity = getTotalQuantity(task);
+	// [核心修正] 从 task 对象中获取创建者信息
+	const regularTask = task as ProductionTaskDto;
+	const formattedDate = formatChineseDate(regularTask.startDate);
+	const creator = regularTask.createdBy?.name || regularTask.createdBy?.phone || '未知';
+	const totalQuantity = getTotalQuantity(regularTask);
 	return `${formattedDate} - by ${creator} | 计划总数: ${totalQuantity}`;
 };
 

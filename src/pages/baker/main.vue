@@ -3,9 +3,11 @@
 	<view class="baker-page-container">
 		<BakerHeader />
 
-		<view class="content-area">
-			<ProductionPage />
+		<view class="content-area" :style="{ paddingTop: systemStore.headerHeight + 'px' }">
+			<ProductionPage :has-tab-bar="false" />
 		</view>
+
+		<StoreSelectorModal />
 
 		<Toast />
 	</view>
@@ -15,12 +17,15 @@
 import { onShow } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
+import { useSystemStore } from '@/store/system';
 import BakerHeader from '@/components/BakerHeader.vue';
 import ProductionPage from '@/pages/production/production.vue';
 import Toast from '@/components/Toast.vue';
+import StoreSelectorModal from '@/components/StoreSelectorModal.vue'; // [核心新增] 导入组件
 
 const dataStore = useDataStore();
 const userStore = useUserStore();
+const systemStore = useSystemStore();
 
 // onShow 钩子用于确保页面显示时数据是最新的
 onShow(async () => {

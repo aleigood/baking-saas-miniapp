@@ -1,11 +1,5 @@
 <template>
 	<view>
-		<view class="personnel-header" :style="{ paddingTop: systemStore.statusBarHeight + 'px' }">
-			<view class="header-title-container" :style="{ height: systemStore.navBarHeight + 'px' }">
-				<text class="header-title">我的</text>
-			</view>
-		</view>
-
 		<view class="page-content page-content-with-tabbar">
 			<view class="profile-card" @click="navigateToCurrentUserDetail" :style="{ marginTop: systemStore.headerHeight + 'px' }">
 				<view class="avatar">
@@ -215,7 +209,7 @@ const handleLogout = () => {
 	align-items: center;
 	padding: 20px;
 	border-radius: 20px;
-	margin-bottom: 20px; /* [核心修改] 调整与下方卡片的间距 */
+	margin-bottom: 40px; /* [核心修改] 调整与下方卡片的间距 */
 	position: relative;
 }
 
@@ -262,7 +256,7 @@ const handleLogout = () => {
 
 /* [核心新增] 数据看板卡片样式 */
 .stats-card {
-	padding: 15px 0;
+	padding: 30px 0;
 	margin-bottom: 40px;
 }
 

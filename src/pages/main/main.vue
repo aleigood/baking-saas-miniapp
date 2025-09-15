@@ -12,18 +12,7 @@
 
 		<CustomTabBar />
 
-		<AppModal :visible="uiStore.showStoreModal" @update:visible="uiStore.closeModal(MODAL_KEYS.STORE)" title="选择门店" :no-header-line="true">
-			<view class="options-list">
-				<ListItem v-for="tenant in dataStore.tenants" :key="tenant.id" @click="handleSelectTenant(tenant.id)" class="option-item" :bleed="true">
-					<view class="main-info">
-						<view class="name">{{ tenant.name }}</view>
-					</view>
-					<view class="side-info" v-if="dataStore.currentTenant?.id === tenant.id">
-						<view class="value checkmark-icon">✓</view>
-					</view>
-				</ListItem>
-			</view>
-		</AppModal>
+		<StoreSelectorModal />
 
 		<Toast />
 	</view>
@@ -36,15 +25,20 @@ import { useUiStore } from '@/store/ui';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
-import { MODAL_KEYS } from '@/constants/modalKeys';
+// [核心删除] 不再需要导入 MODAL_KEYS 和 createInvitation
+// import { createInvitation } from '@/api/invitations';
+// import { MODAL_KEYS } from '@/constants/modalKeys';
 
 import CustomTabBar from '@/components/CustomTabBar.vue';
 import MainHeader from '@/components/MainHeader.vue';
-import AppModal from '@/components/AppModal.vue';
-import FormItem from '@/components/FormItem.vue';
-import ListItem from '@/components/ListItem.vue';
-import AppButton from '@/components/AppButton.vue';
 import Toast from '@/components/Toast.vue';
+// [核心新增] 导入新的全局模态框组件
+import StoreSelectorModal from '@/components/StoreSelectorModal.vue';
+// [核心删除] 不再需要这些组件
+// import AppModal from '@/components/AppModal.vue';
+// import FormItem from '@/components/FormItem.vue';
+// import ListItem from '@/components/ListItem.vue';
+// import AppButton from '@/components/AppButton.vue';
 
 // 引入四个页面级组件
 import ProductionPage from '@/pages/production/production.vue';
@@ -122,27 +116,14 @@ watch(
 	}
 );
 
-const handleSelectTenant = async (tenantId: string) => {
-	if (dataStore.currentTenantId === tenantId) {
-		uiStore.closeModal(MODAL_KEYS.STORE);
-		return;
-	}
-	try {
-		await dataStore.selectTenant(tenantId);
-		uiStore.closeModal(MODAL_KEYS.STORE);
-		// 切换店铺后，重新加载当前 Tab 的数据
-		loadDataForActiveTab(uiStore.activeTab);
-	} catch (error) {
-		console.error('Failed to select tenant:', error);
-	}
-};
+// [核心删除] handleSelectTenant 逻辑已移至 StoreSelectorModal 组件中
 </script>
 
 <style scoped lang="scss">
 @import '@/styles/common.scss';
-
-@include list-item-content-style;
-@include list-item-option-style;
+// [核心删除] 不再需要这两个 mixin
+// @include list-item-content-style;
+// @include list-item-option-style;
 
 .main-page-container {
 	display: flex;
@@ -167,44 +148,5 @@ const handleSelectTenant = async (tenantId: string) => {
 	min-height: 0;
 	width: 100%;
 	box-sizing: border-box;
-}
-
-.input-field {
-	width: 100%;
-	height: 44px;
-	line-height: 44px;
-	padding: 0 12px;
-	border: 1px solid var(--border-color);
-	border-radius: 10px;
-	font-size: 14px;
-	background-color: #f8f9fa;
-	box-sizing: border-box;
-}
-
-.modal-prompt-text {
-	font-size: 16px;
-	color: var(--text-primary);
-	text-align: center;
-	margin-bottom: 25px;
-}
-
-.options-list {
-	.option-item {
-		text-align: left;
-
-		:deep(.main-info) {
-			justify-content: flex-start;
-		}
-
-		:deep(.desc) {
-			display: block;
-		}
-
-		.checkmark-icon {
-			color: var(--primary-color);
-			font-weight: bold;
-			font-size: 18px;
-		}
-	}
 }
 </style>
