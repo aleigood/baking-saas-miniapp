@@ -650,28 +650,44 @@ const selectDough = (familyId: string) => {
 	}
 };
 
+// [核心改造] 重构 showExtraInfo 函数以解决点击交互问题
 const showExtraInfo = (info: string | null | undefined, ingredientId: string) => {
-	if (!info) return;
-	if (popover.visible && popover.content === info) {
-		popover.visible = false;
+	// 如果点击的行没有附加信息，则其行为应该是关闭任何已打开的弹窗
+	if (!info) {
+		hidePopover();
 		return;
 	}
-	const query = uni.createSelectorQuery().in(instance);
-	query
-		.select('#info-icon-' + ingredientId)
-		.boundingClientRect((rect: UniApp.NodeInfo) => {
-			if (rect) {
-				popover.content = info;
-				popover.targetRect = {
-					left: rect.left,
-					top: rect.top,
-					width: rect.width,
-					height: rect.height
-				};
-				popover.visible = true;
-			}
-		})
-		.exec();
+
+	// 判断当前是否正在显示“同一个”弹窗
+	const isTogglingOff = popover.visible && popover.content === info;
+
+	// 统一先执行关闭操作，这样可以处理点击不同行时关闭上一个弹窗的场景
+	hidePopover();
+
+	// 如果刚才的操作就是为了关闭当前弹窗，那么到此为止
+	if (isTogglingOff) {
+		return;
+	}
+
+	// 否则，在UI线程的下一个Tick（确保旧弹窗已完成关闭动画）中显示新弹窗
+	nextTick(() => {
+		const query = uni.createSelectorQuery().in(instance);
+		query
+			.select('#info-icon-' + ingredientId)
+			.boundingClientRect((rect: UniApp.NodeInfo) => {
+				if (rect) {
+					popover.content = info;
+					popover.targetRect = {
+						left: rect.left,
+						top: rect.top,
+						width: rect.width,
+						height: rect.height
+					};
+					popover.visible = true;
+				}
+			})
+			.exec();
+	});
 };
 
 const hidePopover = () => {

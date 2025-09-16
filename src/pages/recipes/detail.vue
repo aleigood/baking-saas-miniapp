@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, nextTick } from 'vue'; // [核心新增] 导入 nextTick
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
@@ -240,23 +240,38 @@ const navigateToEditPage = async (familyId: string | null, mode: 'edit' | 'newVe
 	}
 };
 
+// [核心改造] 重构 handleShowPopover 函数以解决点击交互问题
 const handleShowPopover = (payload: { info: string; rect: any }) => {
 	const { info, rect } = payload;
-	if (!info || !rect) return;
 
-	if (popover.visible && popover.content === info) {
-		popover.visible = false;
+	// 如果子组件传来的是无效信息（通常是点击了没有附加信息的行），则统一执行关闭操作
+	if (!info || !rect) {
+		hidePopover();
 		return;
 	}
 
-	popover.content = info;
-	popover.targetRect = {
-		left: rect.left,
-		top: rect.top,
-		width: rect.width,
-		height: rect.height
-	};
-	popover.visible = true;
+	// 判断当前是否正在显示“同一个”弹窗
+	const isTogglingOff = popover.visible && popover.content === info;
+
+	// 统一先执行关闭操作，这样可以处理点击不同行时关闭上一个弹窗的场景
+	hidePopover();
+
+	// 如果刚才的操作就是为了关闭当前弹窗，那么到此为止
+	if (isTogglingOff) {
+		return;
+	}
+
+	// 否则，在UI线程的下一个Tick（确保旧弹窗已完成关闭动画）中显示新弹窗
+	nextTick(() => {
+		popover.content = info;
+		popover.targetRect = {
+			left: rect.left,
+			top: rect.top,
+			width: rect.width,
+			height: rect.height
+		};
+		popover.visible = true;
+	});
 };
 
 const hidePopover = () => {

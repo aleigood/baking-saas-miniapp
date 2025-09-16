@@ -228,8 +228,13 @@ const hasOtherIngredients = computed(() => {
 	return (grouped['搅拌原料'] && grouped['搅拌原料'].length > 0) || (grouped['馅料'] && grouped['馅料'].length > 0) || (grouped['表面装饰'] && grouped['表面装饰'].length > 0);
 });
 
+// [核心改造] 修改函数，使其在没有info时也能触发emit事件
 const handleIconClick = (info: string | null | undefined, elementId: string) => {
-	if (!info) return;
+	// 如果没有信息，直接触发一个“空”事件，让父组件知道需要关闭弹窗
+	if (!info) {
+		emit('show-popover', { info: null, rect: null });
+		return;
+	}
 	const query = uni.createSelectorQuery().in(instance);
 	query
 		.select('#' + elementId)
