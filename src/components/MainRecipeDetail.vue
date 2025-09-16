@@ -33,10 +33,11 @@
 								@click.stop="handleIconClick(ing.extraInfo, 'main-ing-icon-' + ing.id + ingIndex)"
 							>
 								<view class="col-ingredient ingredient-name-cell">
-									<text>{{ ing.name }}</text>
-									<view v-if="ing.extraInfo" class="info-icon-button" :id="'main-ing-icon-' + ing.id + ingIndex">
+									<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="'main-ing-icon-' + ing.id + ingIndex">
+										<text>{{ ing.name }}</text>
 										<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 									</view>
+									<text v-else>{{ ing.name }}</text>
 								</view>
 								<text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
 								<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
@@ -313,26 +314,20 @@ watch(
 	max-height: 0;
 }
 
-.ingredient-name-cell {
-	display: flex;
-	align-items: center;
-	gap: 5px;
+/* [核心删除] 移除之前所有关于 ingredient-name-cell 和伪元素的样式 */
+
+/* [核心新增] 为包含图标和文本的新容器 view 添加样式 */
+.ingredient-with-icon {
+	display: inline-flex; /* 使用 inline-flex 使其表现像行内元素，但内部可以使用flex布局 */
+	align-items: center; /* 垂直居中对齐内部的文本和图标 */
+	gap: 5px; /* 在文本和图标之间创建间距 */
 }
 
-.info-icon-button {
-	display: inline-flex;
-	justify-content: center;
-	align-items: center;
-	vertical-align: middle;
-	margin-left: 4px;
-	width: 16px;
-	height: 16px;
-	padding: 0;
-}
-
+/* [核心新增] 恢复图标本身的样式 */
 .info-icon {
 	width: 16px;
 	height: 16px;
+	flex-shrink: 0; /* 防止图标在空间不足时被压缩 */
 }
 
 .group-title {

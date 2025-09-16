@@ -59,10 +59,11 @@
 										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedDoughDetails.familyId, ing.id)"
 									>
 										<view class="col-ingredient ingredient-name-cell">
-											<text>{{ ing.name }}</text>
-											<view v-if="ing.extraInfo" class="info-icon-button" :id="'info-icon-' + ing.id">
+											<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="'info-icon-' + ing.id">
+												<text>{{ ing.name }}</text>
 												<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 											</view>
+											<text v-else>{{ ing.name }}</text>
 										</view>
 										<text class="col-brand">{{ ing.isRecipe ? '自制' : ing.brand || '-' }}</text>
 										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
@@ -974,10 +975,13 @@ const productTabs = computed(() => {
 		vertical-align: middle;
 	}
 
+	/* [核心删除] 移除之前对单元格的 flex 布局，回归默认行为 */
+	/*
 	view.col-ingredient {
 		min-width: 60px;
 		word-break: break-word;
 	}
+	*/
 
 	.col-brand {
 		color: var(--text-secondary);
@@ -1004,12 +1008,8 @@ const productTabs = computed(() => {
 	}
 }
 
-.ingredient-name-cell {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-}
-
+/* [核心删除] 移除之前单独为图标按钮设置的样式 */
+/*
 .info-icon-button {
 	display: inline-flex;
 	justify-content: center;
@@ -1020,10 +1020,20 @@ const productTabs = computed(() => {
 	height: 16px;
 	padding: 0;
 }
+*/
 
+/* [核心新增] 为包含图标和文本的新容器 view 添加样式 */
+.ingredient-with-icon {
+	display: inline-flex; /* 使用 inline-flex 使其表现像行内元素，但内部可以使用flex布局 */
+	align-items: center; /* 垂直居中对齐内部的文本和图标 */
+	gap: 5px; /* 在文本和图标之间创建间距 */
+}
+
+/* [核心新增] 恢复图标本身的样式 */
 .info-icon {
 	width: 16px;
 	height: 16px;
+	flex-shrink: 0; /* 防止图标在空间不足时被压缩 */
 }
 
 .total-weight-summary {
