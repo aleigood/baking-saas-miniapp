@@ -359,6 +359,13 @@ export interface Member {
 	joinDate: string;
 }
 
+// [核心新增] 定义所有者获取全部成员列表的接口响应类型
+export interface TenantWithMembers {
+	tenantId: string;
+	tenantName: string;
+	members: Member[];
+}
+
 // --- 角色枚举 (与后端保持一致) ---
 export type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'SUPER_ADMIN';
 

@@ -3,7 +3,17 @@
  * 文件描述: (已更新) 封装所有与人员(Member)相关的API请求，包括更新和删除。
  */
 import { request } from '@/utils/request';
-import type { Member, Role } from '@/types/api';
+// [核心修改] 导入 TenantWithMembers 类型
+import type { Member, Role, TenantWithMembers } from '@/types/api';
+
+/**
+ * [核心修改] 获取当前所有者名下所有店铺的全部成员列表，并更新返回类型
+ */
+export function getAllMembersByOwner(): Promise<TenantWithMembers[]> {
+	return request<TenantWithMembers[]>({
+		url: '/members/all-by-owner'
+	});
+}
 
 /**
  * [核心新增] 直接创建一个新成员并将其添加到当前店铺

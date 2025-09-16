@@ -5,10 +5,35 @@
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content no-horizontal-padding page-content-with-fab">
 				<view v-if="isOwner" class="filter-container">
-					<DropdownPill :text="selectedTenantName" @click="showTenantSelector = true" />
+					<FilterTabs v-model="activeTenantFilter" :tabs="filterTabsData" />
 				</view>
 
-				<template v-if="membersToDisplay.length > 0">
+				<template v-if="isOwner && activeTenantFilter === 'all' && membersToDisplay.length > 0">
+					<view v-for="group in groupedMembers" :key="group.tenantId">
+						<view class="tenant-group-header">{{ group.tenantName }}</view>
+						<ListItem
+							v-for="(member, index) in group.members"
+							:key="member.id"
+							@click="navigateToDetail(member.id)"
+							:bleed="true"
+							:divider="index < group.members.length - 1"
+						>
+							<view class="member-details">
+								<view class="member-avatar">
+									{{ member.name?.[0] || '员' }}
+								</view>
+								<view class="main-info">
+									<view class="name">{{ member.name || member.phone }}</view>
+									<view class="desc">加入于: {{ formatChineseDate(member.joinDate) }}</view>
+								</view>
+							</view>
+							<view class="side-info">
+								<view class="value">{{ getRoleName(member.role) }}</view>
+							</view>
+						</ListItem>
+					</view>
+				</template>
+				<template v-else-if="membersToDisplay.length > 0">
 					<ListItem
 						v-for="(member, index) in membersToDisplay"
 						:key="member.id"
@@ -63,30 +88,17 @@
 				</AppButton>
 			</view>
 		</AppModal>
-
-		<AppModal v-model:visible="showTenantSelector" title="选择门店" mode="bottom-sheet" :no-header-line="true">
-			<view class="options-list">
-				<ListItem v-for="tenant in tenantsForPicker" :key="tenant.id" @click="handleTenantSelect(tenant)" class="option-item" :bleed="true">
-					<view class="main-info">
-						<view class="name">{{ tenant.name }}</view>
-					</view>
-					<view class="side-info" v-if="selectedTenantIdForOwner === tenant.id">
-						<view class="value checkmark-icon">✓</view>
-					</view>
-				</ListItem>
-			</view>
-		</AppModal>
 	</view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
-import { createMember, getMembers } from '@/api/members';
+import { createMember, getMembers, getAllMembersByOwner } from '@/api/members';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import ListItem from '@/components/ListItem.vue';
@@ -94,8 +106,9 @@ import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppModal from '@/components/AppModal.vue';
 import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
-import DropdownPill from '@/components/DropdownPill.vue';
-import type { Role, Member, Tenant } from '@/types/api';
+import FilterTabs from '@/components/FilterTabs.vue';
+// [核心修改] 导入 TenantWithMembers 类型
+import type { Role, Member, Tenant, TenantWithMembers } from '@/types/api';
 import { formatChineseDate } from '@/utils/format';
 
 defineOptions({
@@ -110,7 +123,6 @@ const uiStore = useUiStore();
 const isSubmitting = ref(false);
 const isNavigating = ref(false);
 const showCreateModal = ref(false);
-const showTenantSelector = ref(false);
 
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
@@ -123,9 +135,17 @@ const createForm = reactive<{ name: string; phone: string; password: string; rol
 	role: 'MEMBER'
 });
 
-const selectedTenantIdForOwner = ref<string>('');
-const ownerSelectedTenantMembers = ref<Member[]>([]);
+// [核心重构] allOwnerMembersData 用于存储从后端一次性获取的完整数据
+const allOwnerMembersData = ref<TenantWithMembers[]>([]);
 const isLoadingMembers = ref(false);
+const activeTenantFilter = ref<string>('all');
+
+watch(activeTenantFilter, (newFilter, oldFilter) => {
+	// [核心重构] 筛选逻辑现在在前端完成，不再需要重新请求数据
+	// if (newFilter !== oldFilter) {
+	// 	loadPersonnelData();
+	// }
+});
 
 onShow(async () => {
 	isNavigating.value = false;
@@ -135,12 +155,38 @@ onShow(async () => {
 	}
 
 	if (isOwner.value) {
-		selectedTenantIdForOwner.value = dataStore.currentTenantId;
-		await fetchMembersForSelectedTenant();
+		activeTenantFilter.value = dataStore.currentTenantId;
+	}
+
+	await loadPersonnelData();
+});
+
+const filterTabsData = computed(() => {
+	// [核心修改] 直接从 allOwnerMembersData 生成 tabs，确保与数据源一致
+	const tenantTabs = allOwnerMembersData.value.map((t) => ({
+		key: t.tenantId,
+		label: t.tenantName
+	}));
+	return [{ key: 'all', label: '全部' }, ...tenantTabs];
+});
+
+const loadPersonnelData = async () => {
+	if (isOwner.value) {
+		isLoadingMembers.value = true;
+		try {
+			// [核心重构] 一次性获取所有数据
+			allOwnerMembersData.value = await getAllMembersByOwner();
+		} catch (error) {
+			console.error('获取人员列表失败:', error);
+			toastStore.show({ message: '获取人员列表失败', type: 'error' });
+			allOwnerMembersData.value = [];
+		} finally {
+			isLoadingMembers.value = false;
+		}
 	} else if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
 		await dataStore.fetchMembersData();
 	}
-});
+};
 
 const handleScroll = (event?: any) => {
 	if (!event || !event.detail) {
@@ -169,15 +215,33 @@ const canManagePersonnel = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
 
-const membersToDisplay = computed(() => {
-	return isOwner.value ? ownerSelectedTenantMembers.value : dataStore.members;
+// [核心重构] groupedMembers 用于在“全部”视图下进行分组展示
+const groupedMembers = computed(() => {
+	return allOwnerMembersData.value;
 });
 
-const tenantsForPicker = computed(() => dataStore.tenants);
-
-const selectedTenantName = computed(() => {
-	const tenant = dataStore.tenants.find((t) => t.id === selectedTenantIdForOwner.value);
-	return tenant ? tenant.name : '选择店铺';
+const membersToDisplay = computed(() => {
+	if (isOwner.value) {
+		if (activeTenantFilter.value === 'all') {
+			// [核心重构] 将所有店铺的员工列表“扁平化”为一个数组
+			// 使用 Map 来去重，防止同一个人在不同店铺出现时重复显示
+			const memberMap = new Map<string, Member>();
+			allOwnerMembersData.value.forEach((group) => {
+				group.members.forEach((member) => {
+					if (!memberMap.has(member.id)) {
+						memberMap.set(member.id, member);
+					}
+				});
+			});
+			return Array.from(memberMap.values());
+		} else {
+			// [核心重构] 从已获取的数据中查找对应店铺的员工
+			const tenantData = allOwnerMembersData.value.find((t) => t.tenantId === activeTenantFilter.value);
+			return tenantData ? tenantData.members : [];
+		}
+	} else {
+		return dataStore.members;
+	}
 });
 
 const roleMap: Record<Role, string> = {
@@ -210,27 +274,6 @@ const onRoleChange = (e: any) => {
 	createForm.role = availableRolesForCreation.value[selectedIndex].value as Role;
 };
 
-const handleTenantSelect = async (tenant: Tenant) => {
-	if (selectedTenantIdForOwner.value !== tenant.id) {
-		selectedTenantIdForOwner.value = tenant.id;
-		await fetchMembersForSelectedTenant();
-	}
-	showTenantSelector.value = false;
-};
-
-const fetchMembersForSelectedTenant = async () => {
-	if (!selectedTenantIdForOwner.value || isLoadingMembers.value) return;
-	isLoadingMembers.value = true;
-	try {
-		ownerSelectedTenantMembers.value = await getMembers(selectedTenantIdForOwner.value);
-	} catch (error) {
-		console.error('获取指定店铺成员失败:', error);
-		toastStore.show({ message: '获取成员列表失败', type: 'error' });
-	} finally {
-		isLoadingMembers.value = false;
-	}
-};
-
 const navigateToDetail = (memberId: string) => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
@@ -259,12 +302,7 @@ const handleCreateMember = async () => {
 		toastStore.show({ message: '员工创建成功', type: 'success' });
 		showCreateModal.value = false;
 
-		if (isOwner.value) {
-			await fetchMembersForSelectedTenant();
-		} else {
-			dataStore.markMembersAsStale();
-			await dataStore.fetchMembersData();
-		}
+		await loadPersonnelData();
 	} catch (error: any) {
 		console.error('创建成员失败:', error);
 		if (error.statusCode !== 409) {
@@ -289,10 +327,20 @@ const handleCreateMember = async () => {
 }
 
 .filter-container {
-	display: flex;
-	justify-content: flex-start; /* [核心修改] flex-end 改为 flex-start 使其靠左 */
 	padding: 10px 15px;
 	padding-bottom: 20px;
+}
+
+/* [核心新增] “全部”视图下，用于展示门店名称的标题样式 */
+.tenant-group-header {
+	padding: 10px 20px;
+	background-color: #f8f4ef;
+	color: var(--text-secondary);
+	font-size: 14px;
+	font-weight: 500;
+	position: sticky;
+	top: 0;
+	z-index: 1;
 }
 
 .member-details {
@@ -326,11 +374,5 @@ const handleCreateMember = async () => {
 	font-size: 14px;
 	background-color: #f8f9fa;
 	box-sizing: border-box;
-}
-
-.checkmark-icon {
-	color: var(--primary-color);
-	font-weight: bold;
-	font-size: 18px;
 }
 </style>
