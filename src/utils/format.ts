@@ -143,11 +143,12 @@ export function formatWeight(grams: number | null | undefined): string {
 		return '0g';
 	}
 
-	if (absGrams < 1000) {
-		// 小于1kg时，显示g，移除不必要的小数
+	// [核心修改] 将单位切换的阈值从 1000g 改为 10000g
+	if (absGrams < 10000) {
+		// 小于10kg时，显示g，移除不必要的小数
 		return `${formatNumber(number)}g`;
 	} else {
-		// 大于等于1kg时，显示kg
+		// 大于等于10kg时，显示kg
 		const kg = number / 1000;
 		// 同样移除不必要的小数
 		return `${formatNumber(kg)}kg`;
