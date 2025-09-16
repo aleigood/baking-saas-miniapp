@@ -149,6 +149,9 @@ const filteredItems = computed(() => {
 });
 
 const toggleIngredientAdded = (itemId: string, ingredientName: string) => {
+	// [核心新增] 调用 uni-app 的 API 触发一次短暂的手机震动
+	uni.vibrateShort({});
+
 	if (!addedIngredientsMap[itemId]) {
 		addedIngredientsMap[itemId] = new Set<string>();
 	}
