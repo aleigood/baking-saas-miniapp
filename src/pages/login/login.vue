@@ -79,13 +79,21 @@ const handleLogin = async () => {
 	if (loginResult) {
 		try {
 			await userStore.fetchUserInfo();
-			await dataStore.fetchTenants();
+			await dataStore.fetchTenants(); // fetchTenants 内部会处理好 currentTenantId
 
-			// [核心改造] 根据登录结果进行重定向
+			// [核心改造] 登录成功后，复用启动页的角色判断逻辑进行精确跳转
 			if (loginResult.redirectTo) {
 				uni.reLaunch({ url: loginResult.redirectTo });
 			} else {
-				uni.reLaunch({ url: '/pages/main/main' });
+				// 如果后端没有指定跳转，前端进行角色判断
+				const currentTenantId = dataStore.currentTenantId;
+				const currentTenantInfo = userStore.userInfo?.tenants.find((t) => t.tenant.id === currentTenantId);
+
+				if (currentTenantInfo && currentTenantInfo.role === 'MEMBER') {
+					uni.reLaunch({ url: '/pages/baker/main' });
+				} else {
+					uni.reLaunch({ url: '/pages/main/main' });
+				}
 			}
 		} catch (error) {
 			loading.value = false;

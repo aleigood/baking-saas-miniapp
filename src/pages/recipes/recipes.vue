@@ -450,12 +450,6 @@ const confirmDeleteRecipe = async () => {
 	flex-shrink: 0;
 }
 
-.empty-state {
-	text-align: center;
-	padding: 50px 20px;
-	color: var(--text-secondary);
-}
-
 .status-tag {
 	font-size: 12px;
 	font-weight: 500;
