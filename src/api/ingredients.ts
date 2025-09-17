@@ -27,19 +27,25 @@ export function getIngredient(ingredientId: string): Promise<Ingredient> {
 }
 
 /**
- * [核心修改] 获取原料的库存流水（支持分页）
+ * [核心改造] 获取原料的库存流水（支持高级筛选和分页）
  * @param ingredientId 原料的ID
- * @param page 页码
- * @param limit 每页数量
+ * @param params 包含分页和筛选条件的对象
  */
-export function getIngredientLedger(ingredientId: string, page: number, limit: number): Promise<IngredientLedgerResponse> {
+export function getIngredientLedger(
+	ingredientId: string,
+	params: {
+		page: number;
+		limit: number;
+		type?: string;
+		userId?: string;
+		startDate?: string;
+		endDate?: string;
+		keyword?: string;
+	}
+): Promise<IngredientLedgerResponse> {
 	return request<IngredientLedgerResponse>({
 		url: `/ingredients/${ingredientId}/ledger`,
-		// [核心修改] 将分页参数作为查询字符串发送
-		data: {
-			page: String(page),
-			limit: String(limit)
-		}
+		data: params
 	});
 }
 
@@ -47,7 +53,7 @@ export function getIngredientLedger(ingredientId: string, page: number, limit: n
  * [新增] 创建一个新的原料品类
  * @param data 包含原料名称等信息
  */
-export function createIngredient(data: { name: string; type: 'STANDARD' | 'UNTRACKED' }): Promise<{ id: string }> {
+export function createIngredient(data: { name: string; type: 'STANDARD' | 'UNTRACKED'; isFlour: boolean; waterContent: number }): Promise<{ id: string }> {
 	return request({
 		url: '/ingredients',
 		method: 'POST',
@@ -60,7 +66,7 @@ export function createIngredient(data: { name: string; type: 'STANDARD' | 'UNTRA
  * @param ingredientId 原料的ID
  * @param data 要更新的数据
  */
-export function updateIngredient(ingredientId: string, data: { name?: string; isFlour?: boolean; waterContent?: number }): Promise<Ingredient> {
+export function updateIngredient(ingredientId: string, data: { name?: string; type?: 'STANDARD' | 'UNTRACKED'; isFlour?: boolean; waterContent?: number }): Promise<Ingredient> {
 	return request<Ingredient>({
 		url: `/ingredients/${ingredientId}`,
 		method: 'PATCH',
@@ -73,7 +79,7 @@ export function updateIngredient(ingredientId: string, data: { name?: string; is
  * @param ingredientId 原料的ID
  * @param data 包含库存变化量和原因的对象
  */
-export function adjustStock(ingredientId: string, data: { changeInGrams: number; reason?: string }): Promise<Ingredient> {
+export function adjustStock(ingredientId: string, data: { changeInGrams: number; reason?: string; initialCostPerKg?: number }): Promise<Ingredient> {
 	return request<Ingredient>({
 		url: `/ingredients/${ingredientId}/stock`,
 		method: 'PATCH',

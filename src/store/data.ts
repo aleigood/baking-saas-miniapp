@@ -12,7 +12,8 @@ import { switchTenant as switchTenantApi } from '@/api/auth';
 import { getTasks, getHistoryTasks } from '@/api/tasks';
 import { getRecipes, getProductsForTasks } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
-import { getMembers } from '@/api/members';
+// [核心修改] 导入 getAllMembersByOwner 接口
+import { getMembers, getAllMembersByOwner } from '@/api/members';
 import { getRecipeStats, getIngredientStats } from '@/api/stats';
 
 function getMonthDateRange() {
@@ -207,14 +208,30 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
+	// [核心重构] 重构 fetchMembersData 方法，增加基于角色的数据获取策略
 	async function fetchMembersData() {
 		if (!currentTenantId.value) return;
+		const userStore = useUserStore();
 		try {
-			members.value = await getMembers();
+			// 获取当前用户在当前店铺的角色
+			const currentUserRole = userStore.userInfo?.tenants.find((t) => t.tenant.id === currentTenantId.value)?.role;
+
+			// 如果是店主，调用能获取所有信息的接口
+			if (currentUserRole === 'OWNER') {
+				const allTenantsWithMembers = await getAllMembersByOwner();
+				const currentTenantMembers = allTenantsWithMembers.find((t) => t.tenantId === currentTenantId.value);
+				members.value = currentTenantMembers ? currentTenantMembers.members : [];
+			} else {
+				// 如果是其他角色，使用原有的通用接口
+				members.value = await getMembers();
+			}
+
 			dataLoaded.value.members = true;
 			dataStale.members = false;
 		} catch (error) {
 			console.error('Failed to fetch members data', error);
+			// 发生错误时清空列表，避免显示脏数据
+			members.value = [];
 		}
 	}
 
