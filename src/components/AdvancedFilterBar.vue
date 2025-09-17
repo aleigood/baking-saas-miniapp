@@ -1,23 +1,33 @@
 <template>
 	<view class="advanced-filter-bar-container">
-		<scroll-view class="pills-scroll-view" :scroll-x="true" :show-scrollbar="false">
-			<view class="pills-wrapper">
-				<view v-for="filter in filters" :key="filter.key" class="dropdown-pill-wrapper">
-					<view
-						class="dropdown-pill ripple-container"
-						:id="'pill-' + filter.key"
-						@touchstart="handleTouchStart($event, filter.key)"
-						@click="$emit('pill-click', filter.key)"
-					>
-						<span v-for="ripple in ripples[filter.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
-						<view class="pill-content">
-							<text class="pill-text">{{ getPillText(filter) }}</text>
-							<view class="arrow-down"></view>
+		<view
+			class="pills-container"
+			:class="{
+				'show-left-fade': showLeftFade,
+				'show-right-fade': showRightFade
+			}"
+		>
+			<scroll-view class="pills-scroll-view" :scroll-x="true" :show-scrollbar="false" @scroll="handleScroll">
+				<view class="pills-wrapper" id="pills-wrapper-adv">
+					<view v-for="filter in filters" :key="filter.key" class="dropdown-pill-wrapper">
+						<view
+							class="dropdown-pill ripple-container"
+							:id="'pill-' + filter.key"
+							@touchstart="handleTouchStart($event, filter.key)"
+							@click="$emit('pill-click', filter.key)"
+						>
+							<span v-for="ripple in ripples[filter.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
+							<view class="pill-content">
+								<text class="pill-text">{{ getPillText(filter) }}</text>
+								<view class="arrow-down"></view>
+							</view>
 						</view>
 					</view>
 				</view>
-			</view>
-		</scroll-view>
+			</scroll-view>
+			<view class="fade-edge left" v-if="showLeftFade"></view>
+			<view class="fade-edge right" v-if="showRightFade"></view>
+		</view>
 
 		<view v-if="showSearch" class="search-btn-wrapper ripple-container" id="search-btn-ripple" @click="onSearchClick" @touchstart="handleTouchStart($event, 'search')">
 			<span v-for="ripple in ripples['search']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
@@ -27,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, getCurrentInstance, type PropType } from 'vue';
+import { reactive, getCurrentInstance, type PropType, ref, onMounted, watch, nextTick } from 'vue';
 
 // --- 类型定义 ---
 interface FilterOption {
@@ -57,6 +67,10 @@ const props = defineProps({
 	showSearch: {
 		type: Boolean,
 		default: false
+	},
+	getPillText: {
+		type: Function as PropType<(filter: Filter) => string>,
+		required: false
 	}
 });
 
@@ -65,8 +79,52 @@ const emit = defineEmits(['pill-click', 'search-click']);
 const instance = getCurrentInstance();
 const ripples = reactive<Record<string, any[]>>({});
 
-// --- Methods ---
+const isScrollable = ref(false);
+const showLeftFade = ref(false);
+const showRightFade = ref(false);
+let containerInfo: UniApp.BoundingClientRect | null = null;
+let wrapperInfo: UniApp.BoundingClientRect | null = null;
+
+const getPillInfo = () => {
+	setTimeout(() => {
+		const query = uni.createSelectorQuery().in(instance);
+		query.select('.pills-scroll-view').boundingClientRect();
+		query.select('#pills-wrapper-adv').boundingClientRect();
+		query.exec((data) => {
+			if (data && data[0] && data[1]) {
+				containerInfo = data[0];
+				wrapperInfo = data[1];
+				isScrollable.value = wrapperInfo.width > containerInfo.width;
+				showLeftFade.value = false;
+				showRightFade.value = isScrollable.value;
+			}
+		});
+	}, 100);
+};
+
+onMounted(() => {
+	getPillInfo();
+});
+
+watch(
+	() => props.filters,
+	() => {
+		nextTick(() => getPillInfo());
+	},
+	{ deep: true }
+);
+
+const handleScroll = (event: any) => {
+	if (!isScrollable.value || !containerInfo || !wrapperInfo) return;
+	const scroll = event.detail.scrollLeft;
+	showLeftFade.value = scroll > 5;
+	showRightFade.value = scroll < wrapperInfo.width - containerInfo.width - 5;
+};
+
 const getPillText = (filter: Filter) => {
+	if (props.getPillText) {
+		return props.getPillText(filter);
+	}
 	const selectedValue = props.modelValue[filter.key];
 	if (selectedValue === null || selectedValue === undefined) {
 		return filter.label;
@@ -79,18 +137,16 @@ const onSearchClick = () => {
 	emit('search-click');
 };
 
-// --- Ripple Effect Logic ---
-// [核心修复] 恢复使用 uni.createSelectorQuery() 以兼容小程序环境
 const handleTouchStart = (event: any, key: string) => {
 	if (!ripples[key]) ripples[key] = [];
 	const touch = event.touches[0];
-	const targetId = event.currentTarget.id; // 从事件对象中获取当前元素的ID
+	const targetId = event.currentTarget.id;
 
-	if (!targetId) return; // 如果没有ID则不执行后续操作
+	if (!targetId) return;
 
 	const query = uni.createSelectorQuery().in(instance);
 	query
-		.select('#' + targetId) // 使用 ID 选择器精确定位元素
+		.select('#' + targetId)
 		.boundingClientRect((rect) => {
 			if (rect) {
 				const x = touch.clientX - rect.left;
@@ -124,17 +180,42 @@ const handleTouchStart = (event: any, key: string) => {
 	padding: 10px 15px;
 }
 
-.pills-scroll-view {
+.pills-container {
+	position: relative;
 	flex: 1;
 	min-width: 0;
+}
+
+.fade-edge {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 20px;
+	z-index: 2;
+	pointer-events: none;
+
+	&.left {
+		left: 0;
+		background: linear-gradient(to right, var(--bg-color, #fdf8f2), rgba(253, 248, 242, 0));
+	}
+
+	&.right {
+		right: 0;
+		background: linear-gradient(to left, var(--bg-color, #fdf8f2), rgba(253, 248, 242, 0));
+	}
+}
+
+.pills-scroll-view {
+	width: 100%;
 	white-space: nowrap;
+
 	&::-webkit-scrollbar {
 		display: none;
 	}
 }
 
 .pills-wrapper {
-	display: flex;
+	display: inline-flex;
 	gap: 10px;
 }
 
@@ -149,6 +230,8 @@ const handleTouchStart = (event: any, key: string) => {
 	padding: 6px 12px;
 	cursor: pointer;
 	-webkit-tap-highlight-color: transparent;
+	/* [核心修正] 强制胶囊内的内容不换行 */
+	white-space: nowrap;
 }
 
 .pill-content {
@@ -163,6 +246,8 @@ const handleTouchStart = (event: any, key: string) => {
 	font-size: 14px;
 	font-weight: 500;
 	color: var(--text-secondary);
+	/* 新增：确保文本在任何情况下都不换行，解决 H5 端的显示问题 */
+	white-space: nowrap;
 }
 
 .arrow-down {
@@ -177,7 +262,6 @@ const handleTouchStart = (event: any, key: string) => {
 	background-color: rgba(0, 0, 0, 0.1);
 }
 
-/* 搜索按钮样式 */
 .search-btn-wrapper {
 	flex-shrink: 0;
 	width: 34px;
@@ -201,7 +285,6 @@ const handleTouchStart = (event: any, key: string) => {
 	position: relative;
 	z-index: 1;
 
-	// 使用伪元素绘制搜索图标
 	&::before {
 		content: '';
 		position: absolute;
@@ -212,6 +295,7 @@ const handleTouchStart = (event: any, key: string) => {
 		border: 2px solid var(--text-secondary);
 		border-radius: 50%;
 	}
+
 	&::after {
 		content: '';
 		position: absolute;

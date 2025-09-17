@@ -1,11 +1,19 @@
 <template>
-	<scroll-view class="animated-tabs-container" :scroll-x="true" :show-scrollbar="false" scroll-with-animation :scroll-left="scrollLeft">
-		<view class="tabs-wrapper">
-			<view v-for="(tab, index) in tabs" :key="tab.key" :id="'tab-' + index" class="tab-item" :class="{ active: modelValue === tab.key }" @click="handleClick(tab.key)">
-				{{ tab.label }}
+	<view
+		class="tabs-outer-container"
+		:class="{
+			'show-left-fade': showLeftFade,
+			'show-right-fade': showRightFade
+		}"
+	>
+		<scroll-view class="animated-tabs-container" :scroll-x="true" :show-scrollbar="false" scroll-with-animation :scroll-left="scrollLeft" @scroll="handleScroll">
+			<view class="tabs-wrapper">
+				<view v-for="(tab, index) in tabs" :key="tab.key" :id="'tab-' + index" class="tab-item" :class="{ active: modelValue === tab.key }" @click="handleClick(tab.key)">
+					{{ tab.label }}
+				</view>
 			</view>
-		</view>
-	</scroll-view>
+		</scroll-view>
+	</view>
 </template>
 
 <script setup lang="ts">
@@ -22,17 +30,32 @@ const props = defineProps<{
 const emit = defineEmits(['update:modelValue']);
 
 const instance = getCurrentInstance();
-// 新增一个 ref 用于控制 scroll-view 的滚动位置
 const scrollLeft = ref(0);
+
+// [核心新增] 用于控制边缘淡化效果的状态
+const isScrollable = ref(false);
+const showLeftFade = ref(false);
+const showRightFade = ref(false);
+let containerInfo: UniApp.BoundingClientRect | null = null;
+let wrapperInfo: UniApp.BoundingClientRect | null = null;
 
 const handleClick = (key: string) => {
 	emit('update:modelValue', key);
 };
 
+// [核心新增] scroll-view 的滚动事件处理函数
+const handleScroll = (event: any) => {
+	if (!isScrollable.value || !containerInfo || !wrapperInfo) return;
+	const scroll = event.detail.scrollLeft;
+	// 当滚动超过5px时，显示左侧淡出
+	showLeftFade.value = scroll > 5;
+	// 当滚动位置距离右侧终点超过5px时，显示右侧淡出
+	showRightFade.value = scroll < wrapperInfo.width - containerInfo.width - 5;
+};
+
 watch(
 	() => props.modelValue,
 	(newValue) => {
-		// [Bug修复] 增加保护，确保 props.tabs 存在后再执行
 		if (!props.tabs || props.tabs.length === 0) {
 			return;
 		}
@@ -41,48 +64,36 @@ watch(
 			const activeIndex = props.tabs.findIndex((tab) => tab.key === newValue);
 			if (activeIndex === -1) return;
 
-			// 使用 uni.createSelectorQuery 获取 DOM 元素信息
 			const query = uni.createSelectorQuery().in(instance);
-			// 查询容器
 			query.select('.animated-tabs-container').boundingClientRect();
-			// 查询可滚动内容区域
 			query.select('.tabs-wrapper').boundingClientRect();
-			// 查询当前激活的tab
 			query.select(`#tab-${activeIndex}`).boundingClientRect();
 
 			query.exec((rects) => {
-				// 确保查询结果有效
 				if (rects && rects[0] && rects[1] && rects[2]) {
-					const containerRect = rects[0]; // 容器的尺寸和位置
-					const wrapperRect = rects[1]; // 整个可滚动区域的尺寸和位置
-					const tabRect = rects[2]; // 当前激活Tab的尺寸和位置
+					containerInfo = rects[0];
+					wrapperInfo = rects[1];
+					const tabRect = rects[2];
 
-					// 计算当前激活tab的中心点在可滚动区域中的精确位置
-					const tabCenterPosition = tabRect.left - wrapperRect.left + tabRect.width / 2;
+					// 更新滚动状态
+					isScrollable.value = wrapperInfo.width > containerInfo.width;
+					showRightFade.value = isScrollable.value;
 
-					// 计算容器的可视区域中心点位置
-					const containerCenterPosition = containerRect.width / 2;
+					const tabCenterPosition = tabRect.left - wrapperInfo.left + tabRect.width / 2;
+					const containerCenterPosition = containerInfo.width / 2;
 
-					// 计算要使tab居中，scroll-view需要滚动的目标距离
 					let targetScrollLeft = tabCenterPosition - containerCenterPosition;
 
-					// --- 边界检查，处理滚动到两端的情况 ---
+					const maxScrollLeft = wrapperInfo.width - containerInfo.width;
 
-					// 计算最大可滚动距离，需要减去容器的左右padding
-					const maxScrollLeft = wrapperRect.width - (containerRect.width - 30); // 减去容器左右各15px的内边距
-
-					// 如果可滚动内容未超出容器宽度，则不执行滚动
 					if (maxScrollLeft <= 0) {
 						scrollLeft.value = 0;
 						return;
 					}
 
-					// 保证滚动距离不小于0 (不能向左滚出边界)
 					targetScrollLeft = Math.max(0, targetScrollLeft);
-					// 保证滚动距离不超过最大值 (不能向右滚出边界)
 					targetScrollLeft = Math.min(targetScrollLeft, maxScrollLeft);
 
-					// 更新scroll-left属性，平滑地滚动到目标位置
 					scrollLeft.value = targetScrollLeft;
 				}
 			});
@@ -95,11 +106,48 @@ watch(
 </script>
 
 <style scoped lang="scss">
+.tabs-outer-container {
+	position: relative;
+	width: 100%;
+	padding: 5px 0;
+	margin-bottom: 20px;
+
+	&::before,
+	&::after {
+		content: '';
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 20px;
+		z-index: 2;
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 0.2s ease-in-out;
+	}
+
+	/* [核心修改] 将渐变色修改为白色 */
+	&::before {
+		left: 0;
+		background: linear-gradient(to right, white, rgba(255, 255, 255, 0));
+	}
+
+	/* [核心修改] 将渐变色修改为白色 */
+	&::after {
+		right: 0;
+		background: linear-gradient(to left, white, rgba(255, 255, 255, 0));
+	}
+
+	&.show-left-fade::before {
+		opacity: 1;
+	}
+	&.show-right-fade::after {
+		opacity: 1;
+	}
+}
+
 .animated-tabs-container {
 	width: 100%;
 	white-space: nowrap;
-	margin-bottom: 20px;
-	padding: 5px 15px;
 	box-sizing: border-box;
 
 	&::-webkit-scrollbar {
@@ -118,6 +166,8 @@ watch(
 	width: max-content;
 	gap: 20px;
 	position: relative;
+	padding: 0 15px;
+	box-sizing: border-box;
 }
 
 .tab-item {
