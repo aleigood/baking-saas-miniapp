@@ -8,6 +8,22 @@ import type { ProductionTaskDto, CreateTaskResponse, ProductionDataPayload, Prep
 import type { TemperatureSettings } from '@/store/temperature';
 
 /**
+ * [核心新增] 修改一个尚未开始的生产任务
+ * @param taskId 要修改的任务ID
+ * @param data 任务的最新信息
+ */
+export function updateTask(
+	taskId: string,
+	data: { startDate: string; endDate?: string; notes?: string; products: { productId: string; quantity: number }[] }
+): Promise<ProductionTaskDto> {
+	return request<ProductionTaskDto>({
+		url: `/production-tasks/${taskId}`,
+		method: 'PUT',
+		data
+	});
+}
+
+/**
  * [核心改造] API 指向新的 history 专用接口
  * @param page 页码
  * @param limit 每页数量

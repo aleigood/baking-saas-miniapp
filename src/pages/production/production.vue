@@ -60,6 +60,11 @@
 
 		<AppModal v-model:visible="showTaskActionsModal" title="制作任务" :no-header-line="true">
 			<view class="options-list">
+				<ListItem v-if="selectedTaskForAction?.status === 'PENDING'" class="option-item" @click="handleEditTask" :bleed="true">
+					<view class="main-info">
+						<view class="name">修改任务</view>
+					</view>
+				</ListItem>
 				<ListItem class="option-item" @click="handleOpenCancelConfirm" :bleed="true">
 					<view class="main-info">
 						<view class="name">取消任务</view>
@@ -331,6 +336,18 @@ const openTaskActions = (task: any) => {
 	if (task.status === 'PREP') return;
 	selectedTaskForAction.value = task as ProductionTaskDto;
 	showTaskActionsModal.value = true;
+};
+
+// [核心修改] 点击“修改任务”时，将任务数据存入缓存
+const handleEditTask = () => {
+	if (isNavigating.value || !selectedTaskForAction.value) return;
+	isNavigating.value = true;
+	showTaskActionsModal.value = false;
+	// 将任务数据转换为JSON字符串并存入storage
+	uni.setStorageSync('task_to_edit', JSON.stringify(selectedTaskForAction.value));
+	uni.navigateTo({
+		url: `/pages/production/create?taskId=${selectedTaskForAction.value.id}`
+	});
 };
 
 const handleOpenCancelConfirm = () => {
