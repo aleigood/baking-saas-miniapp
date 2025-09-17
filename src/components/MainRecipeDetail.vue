@@ -1,7 +1,7 @@
 <template>
 	<view>
 		<view class="product-tabs-wrapper">
-			<FilterTabs v-if="version && version.products.length > 0" :tabs="productTabsForFilter" v-model="selectedProductId" />
+			<FilterTabs v-if="version && version.products.length > 0" :tabs="productTabsForFilter" v-model="selectedProductId" align="center" />
 		</view>
 
 		<view class="card" v-if="selectedProduct && recipeDetails">

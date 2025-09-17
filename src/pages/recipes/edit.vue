@@ -84,7 +84,7 @@
 					</view>
 				</view>
 				<view class="product-tabs-wrapper">
-					<FilterTabs v-model="activeProductTab" :tabs="productTabs" class="product-tabs" editable @add="addProduct" />
+					<FilterTabs v-model="activeProductTab" :tabs="productTabs" class="product-tabs" editable @add="addProduct" align="center"/>
 				</view>
 
 				<view v-for="(product, prodIndex) in form.products" :key="prodIndex">
