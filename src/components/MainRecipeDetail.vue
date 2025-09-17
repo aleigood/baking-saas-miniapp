@@ -56,7 +56,7 @@
 
 			<view v-if="hasOtherIngredients || (selectedProduct && selectedProduct.procedure && selectedProduct.procedure.length > 0)" class="other-ingredients-section">
 				<view class="group-title" @click="toggleCollapse('otherIngredients')">
-					<span>其他原料</span>
+					<span>产品原料</span>
 					<span class="arrow" :class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
 				</view>
 				<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
@@ -112,7 +112,7 @@
 							</view>
 						</template>
 					</template>
-					<view v-else class="empty-state" style="padding: 20px 0">无其他原料</view>
+					<view v-else class="empty-state" style="padding: 20px 0">无产品原料</view>
 
 					<view v-if="selectedProduct && selectedProduct.procedure && selectedProduct.procedure.length > 0" class="procedure-notes">
 						<text class="notes-title">产品制作要点:</text>
@@ -439,6 +439,10 @@ watch(
 
 .data-analysis-section {
 	margin-bottom: 20px;
+}
+
+.empty-state {
+	margin-top: 20px;
 }
 
 .detail-table {
