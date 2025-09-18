@@ -40,7 +40,6 @@
 								@blur="handleIngredientBlur(ing)"
 							/>
 						</view>
-						<!-- [核心修改] 移除 .number 修饰符 -->
 						<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
 							<image class="remove-icon" src="/static/icons/trash.svg" />
@@ -81,7 +80,6 @@ import { onLoad, onUnload } from '@dcloudio/uni-app';
 import { createRecipe, createRecipeVersion, updateRecipeVersion } from '@/api/recipes';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
-// [核心新增] 导入 uiStore
 import { useUiStore } from '@/store/ui';
 import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
@@ -93,6 +91,7 @@ import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppModal from '@/components/AppModal.vue';
 import { toDecimal } from '@/utils/format';
+import { predefinedIngredients } from '@/utils/predefinedIngredients';
 
 defineOptions({
 	inheritAttrs: false
@@ -100,7 +99,6 @@ defineOptions({
 
 const dataStore = useDataStore();
 const toastStore = useToastStore();
-// [核心新增] 获取 uiStore 实例
 const uiStore = useUiStore();
 const isSubmitting = ref(false);
 
@@ -119,7 +117,7 @@ const form = reactive({
 	name: '',
 	type: 'PRE_DOUGH' as 'PRE_DOUGH' | 'EXTRA',
 	notes: '',
-	ingredients: [{ id: null as string | null, name: '', ratio: null as number | null }],
+	ingredients: [{ id: null as string | null, name: '', ratio: null as number | null, isFlour: false }],
 	procedure: ['']
 });
 
@@ -143,12 +141,27 @@ const currentTypeLabel = computed(() => {
 });
 
 const availableIngredients = computed(() => {
+	const ingredientMap = new Map<string, { id: string | null; name: string; isFlour: boolean }>();
+
+	predefinedIngredients.forEach((p) => {
+		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour });
+	});
+
 	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
-	const combined = [...dataStore.allIngredients.map((i) => ({ id: i.id, name: i.name })), ...extras.map((e) => ({ id: e.id, name: e.name }))];
-	return combined.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+	extras.forEach((e) => {
+		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false });
+	});
+
+	dataStore.allIngredients.forEach((i) => {
+		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour });
+	});
+
+	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-// [核心新增] 定义失焦事件处理函数
+// [核心删除] 不再需要此函数
+// const shouldShowFlourSwitch = ...
+
 const handleIngredientBlur = (ingredient: { id: string | null; name: string }) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableIngredients.value.find((item) => item.name === ingredient.name);
@@ -213,13 +226,17 @@ const onTypeChange = (e: any) => {
 	form.type = recipeTypes.value[e.detail.value].value as 'PRE_DOUGH' | 'EXTRA';
 };
 
-const onIngredientSelect = (item: { id: string | null; name: string }, ingIndex: number) => {
+const onIngredientSelect = (item: { id: string | null; name: string; isFlour?: boolean }, ingIndex: number) => {
 	form.ingredients[ingIndex].id = item.id;
 	form.ingredients[ingIndex].name = item.name;
+	form.ingredients[ingIndex].isFlour = item.isFlour || false;
 };
 
+// [核心删除] 不再需要此函数
+// const onIsFlourChange = ...
+
 const addIngredient = () => {
-	form.ingredients.push({ id: null, name: '', ratio: null });
+	form.ingredients.push({ id: null, name: '', ratio: null, isFlour: false });
 };
 
 const removeIngredient = (ingIndex: number) => {
@@ -247,9 +264,6 @@ const handleSubmit = async () => {
 	});
 
 	try {
-		const allAvailableItemsMap = new Map(availableIngredients.value.map((i) => [i.id, i]));
-		const allIngredientsMap = new Map(dataStore.allIngredients.map((i) => [i.id, i]));
-
 		const payload = {
 			name: form.name,
 			type: form.type,
@@ -257,12 +271,16 @@ const handleSubmit = async () => {
 			ingredients: form.ingredients
 				.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
 				.map((ing) => {
-					const ingredientDetails = allIngredientsMap.get(ing.id!);
+					const fullIngredientInfo = availableIngredients.value.find((item) => item.name === ing.name);
 					return {
 						ingredientId: ing.id || undefined,
 						name: ing.name,
 						ratio: toDecimal(Number(ing.ratio)),
-						isFlour: ingredientDetails ? ingredientDetails.isFlour : false
+						isFlour: ing.isFlour,
+						waterContent: fullIngredientInfo
+							? dataStore.allIngredients.find((i) => i.id === fullIngredientInfo.id)?.waterContent ??
+							  predefinedIngredients.find((p) => p.name === fullIngredientInfo.name)?.waterContent
+							: 0
 					};
 				}),
 			procedure: form.procedure.filter((p) => p && p.trim()),
@@ -285,8 +303,8 @@ const handleSubmit = async () => {
 
 		dataStore.markRecipesAsStale();
 		dataStore.markIngredientsAsStale();
-		dataStore.markProductionAsStale(); // [核心新增] 标记生产任务数据为脏数据
-		dataStore.markProductsForTaskCreationAsStale(); // [核心新增] 标记用于创建任务的产品列表为脏数据
+		dataStore.markProductionAsStale();
+		dataStore.markProductsForTaskCreationAsStale();
 		uni.navigateBack();
 	} catch (error) {
 		console.error('Failed to save recipe:', error);
@@ -332,10 +350,17 @@ const handleSubmit = async () => {
 
 .ingredient-row {
 	display: flex;
-	align-items: center;
+	align-items: center; /* [核心修改] 恢复垂直居中对齐 */
 	gap: 10px;
 	margin-bottom: 10px;
 }
+
+/* [核心删除] 移除不再需要的样式 */
+/*
+.ingredient-main-input { ... }
+.flour-switch-row { ... }
+.flour-switch-label { ... }
+*/
 
 .autocomplete-input-wrapper {
 	flex: 1;
