@@ -65,7 +65,7 @@
 											</view>
 											<text v-else>{{ ing.name }}</text>
 										</view>
-										<text class="col-brand">{{ ing.isRecipe ? '自制' : ing.brand || '-' }}</text>
+										<text class="col-brand">{{ ing.brand || '-' }}</text>
 										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 									</view>
 								</view>
@@ -125,7 +125,7 @@
 												</view>
 												<view v-for="ing in selectedProductDetails.mixIns" :key="ing.id" class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
-													<text class="col-brand">{{ ing.isRecipe ? '自制' : ing.brand || '-' }}</text>
+													<text class="col-brand">{{ ing.brand || '-' }}</text>
 													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
@@ -140,7 +140,7 @@
 												</view>
 												<view v-for="ing in selectedProductDetails.fillings" :key="ing.id" class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
-													<text class="col-brand">{{ ing.isRecipe ? '自制' : ing.brand || '-' }}</text>
+													<text class="col-brand">{{ ing.brand || '-' }}</text>
 													<text class="col-usage">{{ getFormattedFillingWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
@@ -155,7 +155,7 @@
 												</view>
 												<view v-for="ing in selectedProductDetails.toppings" :key="ing.id" class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
-													<text class="col-brand">{{ ing.isRecipe ? '自制' : ing.brand || '-' }}</text>
+													<text class="col-brand">{{ ing.brand || '-' }}</text>
 													<text class="col-usage">{{ getFormattedFillingWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
