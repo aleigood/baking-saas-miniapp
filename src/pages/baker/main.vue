@@ -39,13 +39,10 @@ onShow(async () => {
 		toastStore.show(toastMessage);
 	}
 
-	// 校验登录状态，如果未登录则返回登录页
-	if (!userStore.token) {
-		userStore.handleUnauthorized();
-		return;
-	}
+	// [核心改造] 移除 token 校验，因为 launch 页面已保证用户登录
+	// if (!userStore.token) { ... }
 
-	// 确保用户信息和店铺信息已加载
+	// 确保用户信息和店铺信息已加载 (仅在确实没有时才加载)
 	if (!userStore.userInfo) {
 		await userStore.fetchUserInfo();
 	}

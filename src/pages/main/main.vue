@@ -51,7 +51,7 @@ const dataStore = useDataStore();
 const userStore = useUserStore();
 const toastStore = useToastStore();
 
-// [核心重构] onShow 负责校验登录状态和加载基础数据
+// [核心重构] onShow 负责加载基础数据，移除不必要的验证
 onShow(async () => {
 	// [核心改造] 将消费Toast的逻辑移至main.vue的onShow顶部，并指定自己的地址
 	const toastMessage = uiStore.consumeNextPageToast('/pages/main/main');
@@ -59,27 +59,13 @@ onShow(async () => {
 		toastStore.show(toastMessage);
 	}
 
-	if (userStore.token) {
-		try {
-			// 验证token并获取用户信息
-			await userStore.fetchUserInfo();
-			if (userStore.userInfo) {
-				// token有效，获取店铺信息
-				await dataStore.fetchTenants();
-				// 主动加载默认标签页的数据
-				loadDataForActiveTab(uiStore.activeTab);
-			} else {
-				throw new Error('User info not found after fetch');
-			}
-		} catch (error) {
-			console.error('Token validation failed in main page, redirecting to login', error);
-			// [核心修复] 调用正确的函数名 handleUnauthorized
-			userStore.handleUnauthorized();
-		}
-	} else {
-		// [核心修复] 调用正确的函数名 handleUnauthorized
-		userStore.handleUnauthorized();
+	// launch.vue 已经确保了 token 和 userInfo 的有效性
+	// 我们只需要确保店铺信息被加载，然后按需加载当前标签页的数据
+	if (!dataStore.tenants || dataStore.tenants.length === 0) {
+		await dataStore.fetchTenants();
 	}
+	// 主动加载默认标签页的数据
+	loadDataForActiveTab(uiStore.activeTab);
 });
 
 // [核心新增] 创建一个函数，用于根据当前激活的 Tab 按需加载数据
