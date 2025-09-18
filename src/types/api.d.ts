@@ -203,6 +203,7 @@ export interface Product {
 	recipeVersionId: string;
 	name: string;
 	baseDoughWeight: number;
+	procedure: string[];
 }
 
 export interface ProductListItem {
@@ -241,6 +242,7 @@ export interface RecipeDetails {
 	doughGroups: CalculatedDoughGroup[];
 	extraIngredients: CalculatedExtraIngredientInfo[];
 	groupedExtraIngredients: Record<string, CalculatedExtraIngredientInfo[]>;
+	productProcedure: string[]; // [核心新增] 增加产品制作要点字段
 }
 
 // --- 原料与库存 ---

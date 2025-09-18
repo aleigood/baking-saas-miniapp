@@ -54,100 +54,85 @@
 			</view>
 			<view v-else class="empty-state" style="padding: 20px 0">暂无面团原料信息</view>
 
-			<view v-if="hasOtherIngredients || (selectedProduct && selectedProduct.procedure && selectedProduct.procedure.length > 0)" class="other-ingredients-section">
+			<view v-if="hasOtherIngredients" class="other-ingredients-section">
 				<view class="group-title" @click="toggleCollapse('otherIngredients')">
-					<span>产品原料</span>
+					<span>{{ selectedProduct.name }}</span>
 					<span class="arrow" :class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
 				</view>
 				<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
-					<template v-if="hasOtherIngredients">
-						<template v-if="recipeDetails.groupedExtraIngredients['搅拌原料'] && recipeDetails.groupedExtraIngredients['搅拌原料'].length > 0">
-							<view class="summary-table-wrapper">
-								<view class="recipe-table detail-table">
-									<view class="table-header summary-header">
-										<text class="col-ingredient">辅料</text>
-										<text class="col-usage">总用量</text>
-										<text class="col-total">成本</text>
-									</view>
-									<view v-for="ing in recipeDetails.groupedExtraIngredients['搅拌原料']" :key="ing.id" class="table-row">
-										<text class="col-ingredient">{{ ing.name }}</text>
-										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }} ({{ toPercentage(ing.ratio) }}%)</text>
-										<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
-									</view>
+					<template v-if="doughSummary">
+						<view class="summary-table-wrapper">
+							<view class="recipe-table detail-table">
+								<view class="table-header summary-header">
+									<text class="col-ingredient">面团</text>
+									<text class="col-usage">总用量</text>
+									<text class="col-total">成本</text>
+								</view>
+								<view class="table-row">
+									<text class="col-ingredient">{{ doughSummary.name }}</text>
+									<text class="col-usage">{{ formatWeight(doughSummary.weightInGrams) }}</text>
+									<text class="col-total">¥{{ formatNumber(doughSummary.cost) }}</text>
 								</view>
 							</view>
-						</template>
-
-						<template v-if="recipeDetails.groupedExtraIngredients['馅料'] && recipeDetails.groupedExtraIngredients['馅料'].length > 0">
-							<view class="summary-table-wrapper">
-								<view class="recipe-table detail-table">
-									<view class="table-header summary-header">
-										<text class="col-ingredient">馅料</text>
-										<text class="col-usage">用量/个</text>
-										<text class="col-total">成本</text>
-									</view>
-									<view v-for="ing in recipeDetails.groupedExtraIngredients['馅料']" :key="ing.id" class="table-row">
-										<text class="col-ingredient">{{ ing.name }}</text>
-										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-										<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
-									</view>
-								</view>
-							</view>
-						</template>
-
-						<template v-if="recipeDetails.groupedExtraIngredients['表面装饰'] && recipeDetails.groupedExtraIngredients['表面装饰'].length > 0">
-							<view class="summary-table-wrapper">
-								<view class="recipe-table detail-table">
-									<view class="table-header summary-header">
-										<text class="col-ingredient">表面装饰</text>
-										<text class="col-usage">用量/个</text>
-										<text class="col-total">成本</text>
-									</view>
-									<view v-for="ing in recipeDetails.groupedExtraIngredients['表面装饰']" :key="ing.id" class="table-row">
-										<text class="col-ingredient">{{ ing.name }}</text>
-										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-										<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
-									</view>
-								</view>
-							</view>
-						</template>
+						</view>
 					</template>
-					<view v-else class="empty-state" style="padding: 20px 0">无产品原料</view>
+					<template v-if="recipeDetails.groupedExtraIngredients['搅拌原料'] && recipeDetails.groupedExtraIngredients['搅拌原料'].length > 0">
+						<view class="summary-table-wrapper">
+							<view class="recipe-table detail-table">
+								<view class="table-header summary-header">
+									<text class="col-ingredient">辅料</text>
+									<text class="col-usage">总用量</text>
+									<text class="col-total">成本</text>
+								</view>
+								<view v-for="ing in recipeDetails.groupedExtraIngredients['搅拌原料']" :key="ing.id" class="table-row">
+									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }} ({{ toPercentage(ing.ratio) }}%)</text>
+									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+								</view>
+							</view>
+						</view>
+					</template>
 
-					<view v-if="selectedProduct && selectedProduct.procedure && selectedProduct.procedure.length > 0" class="procedure-notes">
-						<text class="notes-title">产品制作要点:</text>
-						<text v-for="(step, stepIndex) in selectedProduct.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
-					</view>
-				</view>
-			</view>
+					<template v-if="recipeDetails.groupedExtraIngredients['馅料'] && recipeDetails.groupedExtraIngredients['馅料'].length > 0">
+						<view class="summary-table-wrapper">
+							<view class="recipe-table detail-table">
+								<view class="table-header summary-header">
+									<text class="col-ingredient">馅料</text>
+									<text class="col-usage">用量/个</text>
+									<text class="col-total">成本</text>
+								</view>
+								<view v-for="ing in recipeDetails.groupedExtraIngredients['馅料']" :key="ing.id" class="table-row">
+									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+								</view>
+							</view>
+						</view>
+					</template>
 
-			<view class="cost-summary-section">
-				<view class="group-title" @click="toggleCollapse('costSummary')">
-					<span>成本汇总</span>
-					<span class="arrow" :class="{ collapsed: collapsedSections.has('costSummary') }">&#10095;</span>
-				</view>
-				<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('costSummary') }">
-					<view class="recipe-table detail-table summary-breakdown">
-						<view v-if="doughSummary" class="table-row">
-							<text class="col-ingredient">面团成本</text>
-							<text class="col-total">¥{{ formatNumber(doughSummary.cost) }}</text>
+					<template v-if="recipeDetails.groupedExtraIngredients['表面装饰'] && recipeDetails.groupedExtraIngredients['表面装饰'].length > 0">
+						<view class="summary-table-wrapper">
+							<view class="recipe-table detail-table">
+								<view class="table-header summary-header">
+									<text class="col-ingredient">表面装饰</text>
+									<text class="col-usage">用量/个</text>
+									<text class="col-total">成本</text>
+								</view>
+								<view v-for="ing in recipeDetails.groupedExtraIngredients['表面装饰']" :key="ing.id" class="table-row">
+									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+								</view>
+							</view>
 						</view>
-						<view v-if="recipeDetails.groupedExtraIngredients['搅拌原料'] && recipeDetails.groupedExtraIngredients['搅拌原料'].length > 0" class="table-row">
-							<text class="col-ingredient">辅料成本</text>
-							<text class="col-total">¥{{ formatNumber(recipeDetails.groupedExtraIngredients['搅拌原料'].reduce((sum, item) => sum + item.cost, 0)) }}</text>
-						</view>
-						<view v-if="recipeDetails.groupedExtraIngredients['馅料'] && recipeDetails.groupedExtraIngredients['馅料'].length > 0" class="table-row">
-							<text class="col-ingredient">馅料成本</text>
-							<text class="col-total">¥{{ formatNumber(recipeDetails.groupedExtraIngredients['馅料'].reduce((sum, item) => sum + item.cost, 0)) }}</text>
-						</view>
-						<view v-if="recipeDetails.groupedExtraIngredients['表面装饰'] && recipeDetails.groupedExtraIngredients['表面装饰'].length > 0" class="table-row">
-							<text class="col-ingredient">表面装饰成本</text>
-							<text class="col-total">¥{{ formatNumber(recipeDetails.groupedExtraIngredients['表面装饰'].reduce((sum, item) => sum + item.cost, 0)) }}</text>
-						</view>
-					</view>
+					</template>
 					<view class="total-cost-summary">
 						<view class="summary-divider"></view>
 						<view class="summary-text">成本总计: ¥{{ formatNumber(recipeDetails.totalCost) }}</view>
+					</view>
+					<view v-if="recipeDetails.productProcedure && recipeDetails.productProcedure.length > 0" class="procedure-notes">
+						<text class="notes-title">制作要点:</text>
+						<text v-for="(step, stepIndex) in recipeDetails.productProcedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 					</view>
 				</view>
 			</view>
@@ -227,10 +212,16 @@ const doughSummary = computed(() => {
 	return recipeDetails.value?.extraIngredients.find((item) => item.id === 'dough-summary');
 });
 
+// [核心修改] 更新 hasOtherIngredients 计算属性，增加对 doughSummary 的判断
 const hasOtherIngredients = computed(() => {
 	if (!recipeDetails.value) return false;
 	const grouped = recipeDetails.value.groupedExtraIngredients;
-	return (grouped['搅拌原料'] && grouped['搅拌原料'].length > 0) || (grouped['馅料'] && grouped['馅料'].length > 0) || (grouped['表面装饰'] && grouped['表面装饰'].length > 0);
+	return (
+		!!doughSummary.value || // 新增：检查面团汇总是否存在
+		(grouped['搅拌原料'] && grouped['搅拌原料'].length > 0) ||
+		(grouped['馅料'] && grouped['馅料'].length > 0) ||
+		(grouped['表面装饰'] && grouped['表面装饰'].length > 0)
+	);
 });
 
 // [核心改造] 修改函数，使其在没有info时也能触发emit事件
@@ -441,10 +432,6 @@ watch(
 	margin-bottom: 20px;
 }
 
-.empty-state {
-	margin-top: 20px;
-}
-
 .detail-table {
 	margin-top: 15px;
 	table-layout: fixed;
@@ -482,6 +469,7 @@ watch(
 }
 
 .total-cost-summary {
+	margin-top: 15px;
 	text-align: right;
 	font-size: 14px;
 	font-weight: 600;
@@ -492,7 +480,7 @@ watch(
 .summary-divider {
 	height: 1px;
 	background-color: var(--border-color);
-	margin-bottom: 15px;
+	margin-bottom: 10px;
 }
 
 .summary-text {
