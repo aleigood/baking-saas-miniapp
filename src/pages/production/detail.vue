@@ -51,10 +51,10 @@
 										<text class="col-usage">用量</text>
 									</view>
 									<view
-										v-for="ing in selectedDoughDetails.mainDoughIngredients"
-										:key="ing.id"
+										v-for="(ing, ingIndex) in selectedDoughDetails.mainDoughIngredients"
+										:key="ing.id + '-' + ingIndex"
 										class="table-row"
-										:class="{ 'is-added': addedIngredientsMap[selectedDoughDetails.familyId]?.has(ing.id) }"
+										:class="{ 'is-added': addedIngredientsMap.has(`${selectedDoughDetails.familyId}-${ing.id}`) }"
 										@click.stop="showExtraInfo(ing.extraInfo, ing.id)"
 										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedDoughDetails.familyId, ing.id)"
 									>
@@ -277,7 +277,8 @@ const showCompleteTaskModal = ref(false);
 const isStarted = ref(false);
 const isReadOnly = ref(false);
 const selectedDoughFamilyId = ref<string | null>(null);
-const addedIngredientsMap = reactive<Record<string, Set<string>>>({});
+// [核心改造] 使用 Set<string> 存储复合键
+const addedIngredientsMap = reactive(new Set<string>());
 const collapsedSections = ref(new Set<string>());
 const selectedProductId = ref<string>('');
 
@@ -608,18 +609,15 @@ const toggleCollapse = (sectionName: string) => {
 	collapsedSections.value = newSet;
 };
 
+// [核心改造] 更新 toggleIngredientAdded 函数以使用复合键
 const toggleIngredientAdded = (doughFamilyId: string, ingredientId: string) => {
 	if (isReadOnly.value) return;
 	uni.vibrateShort({});
-	if (!addedIngredientsMap[doughFamilyId]) {
-		addedIngredientsMap[doughFamilyId] = new Set<string>();
-	}
-
-	const addedSet = addedIngredientsMap[doughFamilyId];
-	if (addedSet.has(ingredientId)) {
-		addedSet.delete(ingredientId);
+	const compositeKey = `${doughFamilyId}-${ingredientId}`;
+	if (addedIngredientsMap.has(compositeKey)) {
+		addedIngredientsMap.delete(compositeKey);
 	} else {
-		addedSet.add(ingredientId);
+		addedIngredientsMap.add(compositeKey);
 	}
 };
 
@@ -651,26 +649,20 @@ const selectDough = (familyId: string) => {
 	}
 };
 
-// [核心改造] 重构 showExtraInfo 函数以解决点击交互问题
 const showExtraInfo = (info: string | null | undefined, ingredientId: string) => {
-	// 如果点击的行没有附加信息，则其行为应该是关闭任何已打开的弹窗
 	if (!info) {
 		hidePopover();
 		return;
 	}
 
-	// 判断当前是否正在显示“同一个”弹窗
 	const isTogglingOff = popover.visible && popover.content === info;
 
-	// 统一先执行关闭操作，这样可以处理点击不同行时关闭上一个弹窗的场景
 	hidePopover();
 
-	// 如果刚才的操作就是为了关闭当前弹窗，那么到此为止
 	if (isTogglingOff) {
 		return;
 	}
 
-	// 否则，在UI线程的下一个Tick（确保旧弹窗已完成关闭动画）中显示新弹窗
 	nextTick(() => {
 		const query = uni.createSelectorQuery().in(instance);
 		query
@@ -975,13 +967,17 @@ const productTabs = computed(() => {
 		vertical-align: middle;
 	}
 
-	/* [核心删除] 移除之前对单元格的 flex 布局，回归默认行为 */
-	/*
-	view.col-ingredient {
-		min-width: 60px;
-		word-break: break-word;
+	.ingredient-with-icon {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
 	}
-	*/
+
+	.info-icon {
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
+	}
 
 	.col-brand {
 		color: var(--text-secondary);
@@ -1006,34 +1002,6 @@ const productTabs = computed(() => {
 	.col-usage {
 		width: 30%;
 	}
-}
-
-/* [核心删除] 移除之前单独为图标按钮设置的样式 */
-/*
-.info-icon-button {
-	display: inline-flex;
-	justify-content: center;
-	align-items: center;
-	vertical-align: middle;
-	margin-left: 4px;
-	width: 16px;
-	height: 16px;
-	padding: 0;
-}
-*/
-
-/* [核心新增] 为包含图标和文本的新容器 view 添加样式 */
-.ingredient-with-icon {
-	display: inline-flex; /* 使用 inline-flex 使其表现像行内元素，但内部可以使用flex布局 */
-	align-items: center; /* 垂直居中对齐内部的文本和图标 */
-	gap: 5px; /* 在文本和图标之间创建间距 */
-}
-
-/* [核心新增] 恢复图标本身的样式 */
-.info-icon {
-	width: 16px;
-	height: 16px;
-	flex-shrink: 0; /* 防止图标在空间不足时被压缩 */
 }
 
 .total-weight-summary {

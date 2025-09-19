@@ -25,9 +25,9 @@
 									</view>
 									<view
 										v-for="(ing, index) in item.ingredients"
-										:key="index"
+										:key="item.id + '-' + ing.name + '-' + index"
 										class="table-row"
-										:class="{ 'is-added': addedIngredientsMap[item.id]?.has(ing.name) }"
+										:class="{ 'is-added': addedIngredientsMap.has(`${item.id}-${ing.name}`) }"
 										@longpress.prevent="toggleIngredientAdded(item.id, ing.name)"
 									>
 										<text class="col-ingredient">{{ ing.name }}</text>
@@ -86,7 +86,8 @@ defineOptions({
 const isLoading = ref(true);
 const task = ref<PrepTask | null>(null);
 
-const addedIngredientsMap = reactive<Record<string, Set<string>>>({});
+// [核心改造] 使用单一的 Set 存储复合键
+const addedIngredientsMap = reactive(new Set<string>());
 
 const activeTab = ref<'PRE_DOUGH' | 'OTHER'>('PRE_DOUGH');
 const filterTabs = ref([
@@ -148,18 +149,14 @@ const filteredItems = computed(() => {
 	return activeTab.value === 'PRE_DOUGH' ? preDoughItems.value : otherItems.value;
 });
 
+// [核心改造] 更新 toggleIngredientAdded 函数以使用复合键
 const toggleIngredientAdded = (itemId: string, ingredientName: string) => {
-	// [核心新增] 调用 uni-app 的 API 触发一次短暂的手机震动
 	uni.vibrateShort({});
-
-	if (!addedIngredientsMap[itemId]) {
-		addedIngredientsMap[itemId] = new Set<string>();
-	}
-	const addedSet = addedIngredientsMap[itemId];
-	if (addedSet.has(ingredientName)) {
-		addedSet.delete(ingredientName);
+	const compositeKey = `${itemId}-${ingredientName}`;
+	if (addedIngredientsMap.has(compositeKey)) {
+		addedIngredientsMap.delete(compositeKey);
 	} else {
-		addedSet.add(ingredientName);
+		addedIngredientsMap.add(compositeKey);
 	}
 };
 
