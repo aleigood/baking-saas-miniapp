@@ -37,6 +37,118 @@
 	}
 }
 
+/* [核心改造] 创建一个通用的、包含多种布局模式的表格 Mixin */
+@mixin table-layout {
+	/* 模式一：智能自适应表格 */
+	.smart-table {
+		display: table;
+		width: 100%;
+		border-collapse: collapse;
+		table-layout: auto; /* 关键：让浏览器根据内容自动调整列宽 */
+
+		.table-header,
+		.table-row,
+		.info-row {
+			display: table-row;
+		}
+
+		/* [核心修复] 将属性选择器替换为明确的类名列表，以符合小程序规范 */
+		.col-ingredient,
+		.col-ratio,
+		.col-usage,
+		.col-price,
+		.col-total,
+		.col-brand,
+		.col-product-name,
+		.col-quantity,
+		.col-dough-weight,
+		.col-division-weight,
+		.col-rank,
+		.col-name,
+		.col-count,
+		.col-percent,
+		.col-change,
+		.col-type,
+		.col-date-operator,
+		.col-details,
+		.col-date,
+		.col-action {
+			display: table-cell;
+			padding: 10px 4px;
+			vertical-align: middle;
+			word-break: break-word;
+			white-space: normal;
+		}
+
+		/* 定义不应该换行的列 */
+		.col-ratio,
+		.col-usage,
+		.col-price,
+		.col-total,
+		.col-quantity,
+		.col-division-weight,
+		.col-count,
+		.col-percent,
+		.col-rank,
+		.col-change,
+		.col-type,
+		.col-dough-weight {
+			white-space: nowrap;
+			text-align: right;
+		}
+
+		/* 对于品牌这类可能较短但也希望保持完整的列 */
+		.col-brand {
+			white-space: nowrap;
+			text-align: center;
+			color: var(--text-secondary);
+		}
+
+		/*
+		 * 策略: 如果希望多个可换行列（比如有两个长文本列）近似地平均分配空间，
+		 * 请不要添加 `width: 100%` 规则。在没有明确宽度指令的情况下，
+		 * `table-layout: auto` 会根据内容自然地进行分配，从而达到类似均分的效果。
+		 */
+	}
+
+	/* 模式二：三列固定比例表格 (用于任务详情页) */
+	.fixed-grid-table {
+		.table-header,
+		.table-row {
+			display: grid;
+			grid-template-columns: 40% 30% 30%; /* 定义三列的固定比例 */
+			align-items: center;
+			border-bottom: 1px solid var(--border-color);
+			padding: 2px 0;
+		}
+
+		.table-row:last-child {
+			border-bottom: none;
+		}
+
+		/* [核心修复] 将属性选择器替换为明确的类名列表 */
+		.col-ingredient,
+		.col-brand,
+		.col-usage {
+			padding: 8px 4px;
+		}
+
+		.col-ingredient {
+			text-align: left;
+			word-break: break-word; /* 允许长名称换行 */
+		}
+
+		.col-brand {
+			text-align: center;
+			color: var(--text-secondary);
+		}
+
+		.col-usage {
+			text-align: right;
+		}
+	}
+}
+
 /* Page layout */
 .page-container {
 }
@@ -81,7 +193,6 @@
 }
 .page-content {
 	padding: 15px;
-	/* [布局兼容性修复] 为所有独立页面的底部增加安全区域内边距 */
 	padding-bottom: calc(32px + constant(safe-area-inset-bottom));
 	padding-bottom: calc(32px + env(safe-area-inset-bottom));
 }
@@ -286,7 +397,6 @@
 		color: var(--text-primary);
 	}
 
-	// [核心修复] 移除属性选择器，只保留类选择器
 	.input-field.is-disabled,
 	.picker.is-disabled {
 		background-color: #e9ecef;

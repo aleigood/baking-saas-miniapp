@@ -44,7 +44,7 @@
 								<span class="arrow" :class="{ collapsed: collapsedSections.has(selectedDoughDetails.familyId) }">&#10095;</span>
 							</view>
 							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(selectedDoughDetails.familyId) }">
-								<view class="recipe-table">
+								<view class="fixed-grid-table">
 									<view class="table-header">
 										<text class="col-ingredient">原料</text>
 										<text class="col-brand">品牌</text>
@@ -84,7 +84,7 @@
 								<span class="arrow" :class="{ collapsed: collapsedSections.has('doughSummary') }">&#10095;</span>
 							</view>
 							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('doughSummary') }">
-								<view class="info-table summary-table">
+								<view class="smart-table">
 									<view class="table-header">
 										<text class="col-product-name">面包名称</text>
 										<text class="col-quantity">数量</text>
@@ -117,7 +117,7 @@
 										"
 									>
 										<template v-if="selectedProductDetails.mixIns.length > 0">
-											<view class="recipe-table detail-table">
+											<view class="fixed-grid-table detail-table">
 												<view class="table-header summary-header">
 													<text class="col-ingredient">辅料</text>
 													<text class="col-brand">品牌</text>
@@ -132,7 +132,7 @@
 										</template>
 
 										<template v-if="selectedProductDetails.fillings.length > 0">
-											<view class="recipe-table detail-table">
+											<view class="fixed-grid-table detail-table">
 												<view class="table-header summary-header">
 													<text class="col-ingredient">馅料</text>
 													<text class="col-brand">品牌</text>
@@ -147,7 +147,7 @@
 										</template>
 
 										<template v-if="selectedProductDetails.toppings && selectedProductDetails.toppings.length > 0">
-											<view class="recipe-table detail-table">
+											<view class="fixed-grid-table detail-table">
 												<view class="table-header summary-header">
 													<text class="col-ingredient">表面装饰</text>
 													<text class="col-brand">品牌</text>
@@ -244,7 +244,6 @@ import { ref, computed, reactive, watch, nextTick, getCurrentInstance } from 'vu
 import { onLoad } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
-// [核心新增] 导入 uiStore
 import { useUiStore } from '@/store/ui';
 import { useTemperatureStore } from '@/store/temperature';
 import type { ProductionTaskDetailDto } from '@/types/api';
@@ -264,7 +263,6 @@ defineOptions({
 
 const dataStore = useDataStore();
 const toastStore = useToastStore();
-// [核心新增] 获取 uiStore 实例
 const uiStore = useUiStore();
 const temperatureStore = useTemperatureStore();
 const instance = getCurrentInstance();
@@ -277,7 +275,6 @@ const showCompleteTaskModal = ref(false);
 const isStarted = ref(false);
 const isReadOnly = ref(false);
 const selectedDoughFamilyId = ref<string | null>(null);
-// [核心改造] 使用 Set<string> 存储复合键
 const addedIngredientsMap = reactive(new Set<string>());
 const collapsedSections = ref(new Set<string>());
 const selectedProductId = ref<string>('');
@@ -303,7 +300,6 @@ const spoilageStages = ref<
 const activeLossTab = ref('');
 const modalContentHeight = ref<number | string>('auto');
 
-// [核心新增] 用于记录页面来源
 const fromPage = ref('');
 
 const popover = reactive<{
@@ -398,7 +394,6 @@ const allProductsInTask = computed(() => {
 
 onLoad(async (options) => {
 	taskId.value = options?.taskId || null;
-	// [核心改造] 记录页面来源
 	fromPage.value = options?.from || '';
 	if (fromPage.value === 'history') {
 		isReadOnly.value = true;
@@ -574,7 +569,6 @@ const handleConfirmComplete = async () => {
 			completedItems
 		});
 
-		// [核心改造] 根据来源页面，定向发送Toast
 		const target = fromPage.value === 'history' ? '/pages/production/history' : '/pages/main/main';
 		uiStore.setNextPageToast(
 			{
@@ -584,12 +578,10 @@ const handleConfirmComplete = async () => {
 			target
 		);
 
-		// [核心改造] 任务完成后，标记相关数据为脏
 		dataStore.markProductionAsStale();
 		dataStore.markHistoricalTasksAsStale();
-		dataStore.markIngredientsAsStale(); // 因为消耗了原料
+		dataStore.markIngredientsAsStale();
 
-		// [核心修改] 移除 setTimeout，让 onShow 负责刷新
 		uni.navigateBack();
 	} catch (error) {
 		console.error('Failed to complete task:', error);
@@ -609,7 +601,6 @@ const toggleCollapse = (sectionName: string) => {
 	collapsedSections.value = newSet;
 };
 
-// [核心改造] 更新 toggleIngredientAdded 函数以使用复合键
 const toggleIngredientAdded = (doughFamilyId: string, ingredientId: string) => {
 	if (isReadOnly.value) return;
 	uni.vibrateShort({});
@@ -631,7 +622,6 @@ const handleStartTask = async () => {
 			message: '任务已开始',
 			type: 'success'
 		});
-		// [核心改造] 任务状态变更后，标记相关数据为脏
 		dataStore.markProductionAsStale();
 	} catch (error) {
 		console.error('Failed to start task:', error);
@@ -724,6 +714,8 @@ const productTabs = computed(() => {
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 @include list-item-content-style;
+/* [核心改造] 引入新的表格布局 Mixin */
+@include table-layout;
 
 .collapsible-content {
 	max-height: 1000px;
@@ -919,52 +911,22 @@ const productTabs = computed(() => {
 	padding: 0 5px;
 }
 
-.recipe-table,
-.info-table {
-	.table-header {
-		border-bottom: 1px solid var(--border-color);
-	}
-}
-
-.recipe-table {
-	display: table;
-	width: 100%;
+.fixed-grid-table {
 	font-size: 14px;
-	border-collapse: collapse;
 	margin-top: 25px;
-
-	.table-header,
-	.table-row {
-		display: table-row;
-	}
 
 	.table-header {
 		color: var(--text-secondary);
 		font-weight: 500;
 	}
 
-	.table-header.summary-header {
-		background-color: transparent;
-	}
-
 	.table-row {
 		color: var(--text-primary);
 		transition: background-color 0.3s ease;
-		border-bottom: 1px solid var(--border-color);
-	}
-
-	.table-row:last-child {
-		border-bottom: none;
 	}
 
 	.table-row.is-added {
 		background-color: #f0ebe5;
-	}
-
-	[class^='col-'] {
-		display: table-cell;
-		padding: 10px 4px;
-		vertical-align: middle;
 	}
 
 	.ingredient-with-icon {
@@ -978,29 +940,29 @@ const productTabs = computed(() => {
 		height: 16px;
 		flex-shrink: 0;
 	}
+}
 
-	.col-brand {
+.smart-table {
+	font-size: 14px;
+	color: var(--text-primary);
+	margin-top: 25px;
+
+	.table-header {
 		color: var(--text-secondary);
-		min-width: 60px;
-		white-space: nowrap;
-		text-align: center;
+		font-weight: 500;
+		border-bottom: 1px solid var(--border-color);
 	}
 
-	.col-usage {
-		text-align: right;
-		white-space: nowrap;
+	.info-row {
+		border-bottom: 1px solid var(--border-color);
+
+		&:last-child {
+			border-bottom: none;
+		}
 	}
 
-	.col-ingredient {
-		width: 40%;
-	}
-
-	.col-brand {
-		width: 30%;
-	}
-
-	.col-usage {
-		width: 30%;
+	.col-product-name {
+		text-align: left;
 	}
 }
 
@@ -1027,55 +989,6 @@ const productTabs = computed(() => {
 
 	.note-item {
 		display: block;
-	}
-}
-
-.info-table {
-	font-size: 14px;
-	color: var(--text-primary);
-	display: table;
-	width: 100%;
-	border-collapse: collapse;
-	margin-top: 25px;
-
-	.table-header,
-	.info-row {
-		display: table-row;
-	}
-
-	.table-header {
-		color: var(--text-secondary);
-		font-weight: 500;
-	}
-
-	.info-row {
-		border-bottom: 1px solid var(--border-color);
-
-		&:last-child {
-			border-bottom: none;
-		}
-	}
-
-	[class^='col-'] {
-		display: table-cell;
-		padding: 8px 4px;
-		vertical-align: middle;
-		text-align: right;
-		white-space: nowrap;
-	}
-
-	.col-product-name {
-		text-align: left;
-		width: 40%;
-	}
-
-	.col-quantity {
-		width: 15%;
-	}
-
-	.col-dough-weight,
-	.col-division-weight {
-		width: 22.5%;
 	}
 }
 

@@ -18,7 +18,7 @@
 						<span class="arrow" :class="{ collapsed: collapsedSections.has(dough.name) }">&#10095;</span>
 					</view>
 					<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(dough.name) }">
-						<view class="recipe-table">
+						<view class="smart-table">
 							<view class="table-header">
 								<text class="col-ingredient">原料</text>
 								<text class="col-ratio">比例</text>
@@ -62,7 +62,7 @@
 				<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
 					<template v-if="doughSummary">
 						<view class="summary-table-wrapper">
-							<view class="recipe-table detail-table">
+							<view class="smart-table detail-table">
 								<view class="table-header summary-header">
 									<text class="col-ingredient">面团</text>
 									<text class="col-usage">总用量</text>
@@ -78,7 +78,7 @@
 					</template>
 					<template v-if="recipeDetails.groupedExtraIngredients['搅拌原料'] && recipeDetails.groupedExtraIngredients['搅拌原料'].length > 0">
 						<view class="summary-table-wrapper">
-							<view class="recipe-table detail-table">
+							<view class="smart-table detail-table">
 								<view class="table-header summary-header">
 									<text class="col-ingredient">辅料</text>
 									<text class="col-usage">总用量</text>
@@ -95,7 +95,7 @@
 
 					<template v-if="recipeDetails.groupedExtraIngredients['馅料'] && recipeDetails.groupedExtraIngredients['馅料'].length > 0">
 						<view class="summary-table-wrapper">
-							<view class="recipe-table detail-table">
+							<view class="smart-table detail-table">
 								<view class="table-header summary-header">
 									<text class="col-ingredient">馅料</text>
 									<text class="col-usage">用量/个</text>
@@ -112,7 +112,7 @@
 
 					<template v-if="recipeDetails.groupedExtraIngredients['表面装饰'] && recipeDetails.groupedExtraIngredients['表面装饰'].length > 0">
 						<view class="summary-table-wrapper">
-							<view class="recipe-table detail-table">
+							<view class="smart-table detail-table">
 								<view class="table-header summary-header">
 									<text class="col-ingredient">表面装饰</text>
 									<text class="col-usage">用量/个</text>
@@ -212,21 +212,18 @@ const doughSummary = computed(() => {
 	return recipeDetails.value?.extraIngredients.find((item) => item.id === 'dough-summary');
 });
 
-// [核心修改] 更新 hasOtherIngredients 计算属性，增加对 doughSummary 的判断
 const hasOtherIngredients = computed(() => {
 	if (!recipeDetails.value) return false;
 	const grouped = recipeDetails.value.groupedExtraIngredients;
 	return (
-		!!doughSummary.value || // 新增：检查面团汇总是否存在
+		!!doughSummary.value ||
 		(grouped['搅拌原料'] && grouped['搅拌原料'].length > 0) ||
 		(grouped['馅料'] && grouped['馅料'].length > 0) ||
 		(grouped['表面装饰'] && grouped['表面装饰'].length > 0)
 	);
 });
 
-// [核心改造] 修改函数，使其在没有info时也能触发emit事件
 const handleIconClick = (info: string | null | undefined, elementId: string) => {
-	// 如果没有信息，直接触发一个“空”事件，让父组件知道需要关闭弹窗
 	if (!info) {
 		emit('show-popover', { info: null, rect: null });
 		return;
@@ -297,6 +294,8 @@ watch(
 
 <style scoped lang="scss">
 @import '@/styles/common.scss';
+/* [核心改造] 将 Mixin 应用到本组件 */
+@include table-layout;
 
 .collapsible-content {
 	max-height: 1000px;
@@ -309,20 +308,16 @@ watch(
 	max-height: 0;
 }
 
-/* [核心删除] 移除之前所有关于 ingredient-name-cell 和伪元素的样式 */
-
-/* [核心新增] 为包含图标和文本的新容器 view 添加样式 */
 .ingredient-with-icon {
-	display: inline-flex; /* 使用 inline-flex 使其表现像行内元素，但内部可以使用flex布局 */
-	align-items: center; /* 垂直居中对齐内部的文本和图标 */
-	gap: 5px; /* 在文本和图标之间创建间距 */
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
 }
 
-/* [核心新增] 恢复图标本身的样式 */
 .info-icon {
 	width: 16px;
 	height: 16px;
-	flex-shrink: 0; /* 防止图标在空间不足时被压缩 */
+	flex-shrink: 0;
 }
 
 .group-title {
@@ -351,17 +346,10 @@ watch(
 	transform: rotate(0deg);
 }
 
-.recipe-table {
-	display: table;
-	width: 100%;
+/* [核心改造] .smart-table 会通过 Mixin 获得基础样式，这里只保留组件特有的样式 */
+.smart-table {
 	font-size: 14px;
-	border-collapse: collapse;
 	margin-top: 25px;
-
-	.table-header,
-	.table-row {
-		display: table-row;
-	}
 
 	.table-header {
 		color: var(--text-secondary);
@@ -377,29 +365,6 @@ watch(
 		&:last-child {
 			border-bottom: none;
 		}
-	}
-
-	.col-ingredient,
-	.col-ratio,
-	.col-usage,
-	.col-price,
-	.col-total {
-		display: table-cell;
-		padding: 8px 4px;
-		vertical-align: middle;
-	}
-
-	.col-ratio,
-	.col-usage,
-	.col-price,
-	.col-total {
-		text-align: right;
-		white-space: nowrap;
-	}
-
-	.col-ingredient {
-		min-width: 80px;
-		word-break: break-word;
 	}
 
 	.col-total {
@@ -434,29 +399,6 @@ watch(
 
 .detail-table {
 	margin-top: 15px;
-	table-layout: fixed;
-
-	.col-ingredient {
-		width: 50%;
-	}
-
-	.col-usage {
-		width: 25%;
-	}
-
-	.col-total {
-		width: 25%;
-	}
-}
-
-.summary-breakdown {
-	.col-ingredient {
-		width: 75%;
-	}
-
-	.col-total {
-		width: 25%;
-	}
 }
 
 .summary-header {

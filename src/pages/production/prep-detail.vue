@@ -17,7 +17,7 @@
 							</view>
 
 							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(item.id) }">
-								<view class="recipe-table">
+								<view class="fixed-grid-table">
 									<view class="table-header">
 										<text class="col-ingredient">原料</text>
 										<text class="col-brand">品牌</text>
@@ -68,13 +68,11 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-// [核心修改] 从 api 类型中导入 CalculatedRecipeDetails
 import type { PrepTask, CalculatedRecipeDetails } from '@/types/api';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import { formatWeight } from '@/utils/format';
-// [核心新增] 导入新增的组件
 import AppModal from '@/components/AppModal.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
@@ -86,7 +84,6 @@ defineOptions({
 const isLoading = ref(true);
 const task = ref<PrepTask | null>(null);
 
-// [核心改造] 使用单一的 Set 存储复合键
 const addedIngredientsMap = reactive(new Set<string>());
 
 const activeTab = ref<'PRE_DOUGH' | 'OTHER'>('PRE_DOUGH');
@@ -97,7 +94,6 @@ const filterTabs = ref([
 
 const collapsedSections = ref(new Set<string>());
 
-// [核心新增] 控制计算器模态框和悬浮按钮的显示状态
 const showCalculatorModal = ref(false);
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
@@ -113,7 +109,6 @@ const toggleCollapse = (itemId: string) => {
 	collapsedSections.value = newSet;
 };
 
-// [核心新增] 滚动事件处理函数，用于控制悬浮按钮的显隐
 const handleScroll = (event?: any) => {
 	if (!event || !event.detail) {
 		return;
@@ -133,13 +128,11 @@ const handleScroll = (event?: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-// [核心修改] 使用新的 type 字段进行分类
 const preDoughItems = computed(() => {
 	if (!task.value) return [];
 	return task.value.items.filter((item) => item.type === 'PRE_DOUGH');
 });
 
-// [核心修改] 使用新的 type 字段进行分类
 const otherItems = computed(() => {
 	if (!task.value) return [];
 	return task.value.items.filter((item) => item.type !== 'PRE_DOUGH');
@@ -149,7 +142,6 @@ const filteredItems = computed(() => {
 	return activeTab.value === 'PRE_DOUGH' ? preDoughItems.value : otherItems.value;
 });
 
-// [核心改造] 更新 toggleIngredientAdded 函数以使用复合键
 const toggleIngredientAdded = (itemId: string, ingredientName: string) => {
 	uni.vibrateShort({});
 	const compositeKey = `${itemId}-${ingredientName}`;
@@ -175,8 +167,9 @@ onLoad(async (options) => {
 
 <style scoped lang="scss">
 @import '@/styles/common.scss';
+/* [核心改造] 引入新的表格布局 Mixin */
+@include table-layout;
 
-/* [新增] 定义折叠内容容器的动画 */
 .collapsible-content {
 	max-height: 1000px;
 	overflow: hidden;
@@ -184,7 +177,6 @@ onLoad(async (options) => {
 	box-sizing: border-box;
 }
 
-/* [新增] 定义折叠状态下的样式 */
 .collapsible-content.is-collapsed {
 	max-height: 0;
 }
@@ -219,18 +211,9 @@ onLoad(async (options) => {
 	transform: rotate(0deg);
 }
 
-.recipe-table {
-	display: table;
-	width: 100%;
+.fixed-grid-table {
 	font-size: 14px;
 	margin-top: 25px;
-	border-collapse: collapse;
-
-	.table-header,
-	.table-row {
-		display: table-row;
-		border-bottom: 1px solid var(--border-color);
-	}
 
 	.table-header {
 		color: var(--text-secondary);
@@ -240,50 +223,10 @@ onLoad(async (options) => {
 	.table-row {
 		color: var(--text-primary);
 		transition: background-color 0.3s ease;
-		border-bottom: 1px solid var(--border-color);
-	}
-
-	.table-row:last-child {
-		border-bottom: none;
 	}
 
 	.table-row.is-added {
 		background-color: #f0ebe5;
-	}
-
-	[class^='col-'] {
-		display: table-cell;
-		padding: 10px 4px;
-		vertical-align: middle;
-	}
-
-	.col-ingredient {
-		min-width: 60px;
-		word-break: break-word;
-	}
-
-	.col-brand {
-		color: var(--text-secondary);
-		min-width: 60px;
-		white-space: nowrap;
-		text-align: center;
-	}
-
-	.col-usage {
-		text-align: right;
-		white-space: nowrap;
-	}
-
-	.col-ingredient {
-		width: 40%;
-	}
-
-	.col-brand {
-		width: 30%;
-	}
-
-	.col-usage {
-		width: 30%;
 	}
 }
 
