@@ -180,6 +180,7 @@ const handleClose = () => {
 .day-cell {
 	cursor: pointer;
 	transition: background-color 0.2s ease;
+	-webkit-tap-highlight-color: transparent; /* [核心新增] 去除小程序中点击时产生的蓝色背景框 */
 }
 
 /* [新增] 非当前月份的日期样式 */
