@@ -1,10 +1,14 @@
 <template>
-	<view class="autocomplete-container" :style="{ zIndex: focused ? 99 : 1 }">
-		<input class="input-field" :value="modelValue" :placeholder="placeholder" @input="onInput" @focus="onFocus" @blur="handleInputBlur" />
+	<view class="autocomplete-container" :style="{ zIndex: focused ? 99 : 1 }" @click.stop>
+		<view class="input-wrapper">
+			<input class="input-field" :class="{ 'with-tag': showTag }" :value="modelValue" :placeholder="placeholder" @input="onInput" @focus="onFocus" @blur="handleInputBlur" />
+			<text v-if="showTag" class="recipe-tag-in-input">自制</text>
+		</view>
 		<view v-if="showSuggestions" class="suggestions-container" :style="suggestionsStyle">
 			<scroll-view :scroll-y="true" class="suggestions-scroll-view">
 				<view v-for="item in filteredItems" :key="item.id" class="suggestion-item" @click="selectItem(item)">
-					{{ item.name }}
+					<text class="suggestion-name">{{ item.name }}</text>
+					<text v-if="item.isRecipe" class="recipe-tag">自制</text>
 				</view>
 				<view v-if="canCreateNew" class="suggestion-item create-item" @click="createNewItem">
 					<text class="create-icon">+</text>
@@ -17,27 +21,45 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, getCurrentInstance, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, getCurrentInstance, onMounted, onUnmounted, nextTick } from 'vue';
 
 const props = withDefaults(
 	defineProps<{
 		modelValue: string;
-		items: { id: string | null; name: string }[];
+		items: { id: string | null; name: string; isRecipe?: boolean }[];
 		placeholder?: string;
+		showTag?: boolean; // 新增：用于控制输入框内标签的显示
 	}>(),
 	{
 		modelValue: '',
 		items: () => [],
-		placeholder: ''
+		placeholder: '',
+		showTag: false // 新增：默认不显示
 	}
 );
 
-// [核心修改] 增加 'blur' 事件
 const emit = defineEmits(['update:modelValue', 'select', 'blur']);
 
 const instance = getCurrentInstance();
 const focused = ref(false);
 const inputRect = ref<UniApp.NodeInfo | null>(null);
+
+// [核心新增] 定义一个用于处理全局点击的函数
+const handleGlobalClick = () => {
+	if (focused.value) {
+		focused.value = false;
+	}
+};
+
+// [核心新增] 在组件挂载时，监听全局事件
+onMounted(() => {
+	uni.$on('page-clicked', handleGlobalClick);
+});
+
+// [核心新增] 在组件卸载时，移除全局事件监听，防止内存泄漏
+onUnmounted(() => {
+	uni.$off('page-clicked', handleGlobalClick);
+});
 
 const filteredItems = computed(() => {
 	if (!props.modelValue) {
@@ -57,7 +79,6 @@ const suggestionsStyle = computed(() => {
 	if (!inputRect.value) {
 		return { display: 'none' };
 	}
-	// [核心修复] 使用 uni.getWindowInfo() 替代 uni.getSystemInfoSync()
 	const bottom = uni.getWindowInfo().windowHeight - (inputRect.value.top || 0);
 	return {
 		bottom: `${bottom}px`,
@@ -89,23 +110,20 @@ const onFocus = () => {
 	});
 };
 
-// [核心修改] 将原 onBlur 重命名并增加 emit('blur')
+// [核心修改] handleInputBlur 现在只负责发出 blur 事件，不再控制 focused 状态
 const handleInputBlur = () => {
-	setTimeout(() => {
-		focused.value = false;
-	}, 200);
 	emit('blur');
 };
 
 const selectItem = (item: { id: string | null; name: string }) => {
 	emit('update:modelValue', item.name);
 	emit('select', item);
-	focused.value = false;
+	focused.value = false; // 点击选项时主动关闭
 };
 
 const createNewItem = () => {
 	emit('select', { id: null, name: props.modelValue });
-	focused.value = false;
+	focused.value = false; // 点击“新建”时主动关闭
 };
 </script>
 
@@ -115,6 +133,32 @@ const createNewItem = () => {
 
 .autocomplete-container {
 	position: relative;
+}
+
+// [核心新增] 输入框包装器，用于相对定位
+.input-wrapper {
+	position: relative;
+	width: 100%;
+}
+
+// [核心新增] 当需要显示标签时，为输入框增加右内边距以腾出空间
+.input-field.with-tag {
+	padding-right: 50px; // 标签宽度 + 边距
+}
+
+// [核心新增] 输入框内标签的样式
+.recipe-tag-in-input {
+	position: absolute;
+	right: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	background-color: #faedcd;
+	color: var(--primary-color);
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	font-weight: 500;
+	pointer-events: none; // 确保标签不会捕获鼠标事件
 }
 
 .suggestions-container {
@@ -137,6 +181,9 @@ const createNewItem = () => {
 	font-size: 14px;
 	color: var(--text-primary);
 	border-bottom: 1px solid var(--border-color);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 
 	&:last-child {
 		border-bottom: none;
@@ -147,11 +194,23 @@ const createNewItem = () => {
 	}
 }
 
+// [核心新增] 自制标签样式
+.recipe-tag {
+	background-color: #faedcd;
+	color: var(--primary-color);
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	font-weight: 500;
+	flex-shrink: 0; // 防止标签被压缩
+}
+
 .create-item {
 	display: flex;
 	align-items: center;
 	color: var(--primary-color);
 	font-weight: 500;
+	justify-content: flex-start; // [核心修复] 覆盖父级的 space-between 样式
 }
 
 .create-icon {

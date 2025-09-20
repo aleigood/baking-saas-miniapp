@@ -1,6 +1,6 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
-	<view class="page-wrapper">
+	<view class="page-wrapper" @click="handlePageClick">
 		<DetailHeader :title="pageTitle" />
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab">
@@ -60,6 +60,7 @@
 								placeholder="输入或选择原料"
 								@select="onIngredientSelect($event, ingIndex)"
 								@blur="handleIngredientBlur(ing, availableMainDoughIngredients)"
+								:show-tag="ing.isRecipe"
 							/>
 						</view>
 						<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
@@ -111,6 +112,7 @@
 										placeholder="输入或选择原料/馅料"
 										@select="onSubIngredientSelect($event, prodIndex, 'mixIns', ingIndex)"
 										@blur="handleIngredientBlur(ing, availableSubIngredients)"
+										:show-tag="ing.isRecipe"
 									/>
 								</view>
 								<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
@@ -131,6 +133,7 @@
 										placeholder="输入或选择原料/馅料"
 										@select="onSubIngredientSelect($event, prodIndex, 'fillings', ingIndex)"
 										@blur="handleIngredientBlur(ing, availableSubIngredients)"
+										:show-tag="ing.isRecipe"
 									/>
 								</view>
 								<input class="input-field ratio-input" type="number" v-model="ing.weightInGrams" placeholder="g/个" />
@@ -151,6 +154,7 @@
 										placeholder="输入或选择原料/馅料"
 										@select="onSubIngredientSelect($event, prodIndex, 'toppings', ingIndex)"
 										@blur="handleIngredientBlur(ing, availableSubIngredients)"
+										:show-tag="ing.isRecipe"
 									/>
 								</view>
 								<input class="input-field ratio-input" type="number" v-model="ing.weightInGrams" placeholder="g/个" />
@@ -235,8 +239,8 @@ defineOptions({
 	inheritAttrs: false
 });
 
-type SubIngredientRatio = { id: string | null; name: string; ratio: number | null; weightInGrams?: number | null };
-type SubIngredientWeight = { id: string | null; name: string; ratio?: number | null; weightInGrams: number | null };
+type SubIngredientRatio = { id: string | null; name: string; ratio: number | null; weightInGrams?: number | null; isRecipe?: boolean };
+type SubIngredientWeight = { id: string | null; name: string; ratio?: number | null; weightInGrams: number | null; isRecipe?: boolean };
 
 const dataStore = useDataStore();
 const toastStore = useToastStore();
@@ -264,12 +268,16 @@ const form = ref<RecipeFormTemplate & { targetTemp?: number | null }>({
 			name: '主面团',
 			type: 'MAIN_DOUGH',
 			lossRatio: 0,
-			ingredients: [{ id: null, name: '', ratio: null, isFlour: false }],
+			ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false }],
 			procedure: ['']
 		}
 	],
 	products: []
 });
+
+const handlePageClick = () => {
+	uni.$emit('page-clicked');
+};
 
 const pageTitle = computed(() => {
 	if (pageMode.value === 'edit') {
@@ -300,19 +308,19 @@ const productTabs = computed(() => {
 const availablePreDoughs = computed(() => dataStore.recipes.otherRecipes.filter((r) => r.type === 'PRE_DOUGH' && !r.deletedAt));
 
 const availableMainDoughIngredients = computed(() => {
-	const ingredientMap = new Map<string, { id: string | null; name: string; isFlour: boolean }>();
+	const ingredientMap = new Map<string, { id: string | null; name: string; isFlour: boolean; isRecipe: boolean }>();
 
 	predefinedIngredients.forEach((p) => {
-		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour });
+		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false });
 	});
 
 	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false });
+		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true });
 	});
 
 	dataStore.allIngredients.forEach((i) => {
-		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour });
+		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false });
 	});
 
 	const combined = Array.from(ingredientMap.values());
@@ -322,29 +330,37 @@ const availableMainDoughIngredients = computed(() => {
 });
 
 const availableSubIngredients = computed(() => {
-	const ingredientMap = new Map<string, { id: string | null; name: string; isFlour: boolean }>();
+	const ingredientMap = new Map<string, { id: string | null; name: string; isFlour: boolean; isRecipe: boolean }>();
 
 	predefinedIngredients.forEach((p) => {
-		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour });
+		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false });
 	});
 
 	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false });
+		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true });
 	});
 
 	dataStore.allIngredients.forEach((i) => {
-		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour });
+		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false });
 	});
 
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-const handleIngredientBlur = (ingredient: { id: string | null; name: string }, availableList: { id: string | null; name: string }[]) => {
+const handleIngredientBlur = (ingredient: { id: string | null; name: string; isRecipe?: boolean }, availableList: { id: string | null; name: string; isRecipe: boolean }[]) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableList.find((item) => item.name === ingredient.name);
 		if (existing) {
 			ingredient.id = existing.id;
+			ingredient.isRecipe = existing.isRecipe;
+		} else {
+			ingredient.isRecipe = false;
+		}
+	} else if (ingredient.id) {
+		const existing = availableList.find((item) => item.id === ingredient.id);
+		if (existing) {
+			ingredient.isRecipe = existing.isRecipe;
 		}
 	}
 };
@@ -373,7 +389,6 @@ onLoad(async (options) => {
 		}
 	} else {
 		pageMode.value = 'create';
-		// [核心新增] 如果是新建模式，则自动添加一个产品
 		addProduct();
 	}
 });
@@ -401,14 +416,15 @@ const handleScroll = (event?: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-const onIngredientSelect = (item: { id: string | null; name: string; isFlour: boolean }, ingIndex: number) => {
+const onIngredientSelect = (item: { id: string | null; name: string; isFlour: boolean; isRecipe: boolean }, ingIndex: number) => {
 	mainDough.value.ingredients[ingIndex].id = item.id;
 	mainDough.value.ingredients[ingIndex].name = item.name;
 	mainDough.value.ingredients[ingIndex].isFlour = item.isFlour;
+	mainDough.value.ingredients[ingIndex].isRecipe = item.isRecipe;
 };
 
 const addIngredient = () => {
-	mainDough.value.ingredients.push({ id: null, name: '', ratio: null, isFlour: false });
+	mainDough.value.ingredients.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false });
 };
 
 const removeIngredient = (ingIndex: number) => {
@@ -459,7 +475,8 @@ const confirmAddPreDough = async () => {
 		const displayIngredients = ingredients.map((i) => ({
 			id: i.ingredient!.id,
 			name: i.ingredient!.name,
-			ratio: (i.ratio ?? 0) * scalingFactor * 100
+			ratio: (i.ratio ?? 0) * scalingFactor * 100,
+			isRecipe: false
 		}));
 
 		form.value.doughs!.push({
@@ -506,10 +523,10 @@ const addSubIngredient = (productIndex: number, type: 'mixIns' | 'fillings' | 't
 	const product = form.value.products![productIndex];
 	if (type === 'mixIns') {
 		if (!product.mixIns) product.mixIns = [];
-		product.mixIns.push({ id: null, name: '', ratio: null, weightInGrams: null });
+		product.mixIns.push({ id: null, name: '', ratio: null, weightInGrams: null, isRecipe: false });
 	} else {
 		if (!product[type]) product[type] = [];
-		product[type]!.push({ id: null, name: '', ratio: null, weightInGrams: null });
+		product[type]!.push({ id: null, name: '', ratio: null, weightInGrams: null, isRecipe: false });
 	}
 };
 
@@ -517,10 +534,11 @@ const removeSubIngredient = (productIndex: number, type: 'mixIns' | 'fillings' |
 	form.value.products![productIndex][type]!.splice(ingIndex, 1);
 };
 
-const onSubIngredientSelect = (item: { id: string | null; name: string }, productIndex: number, type: 'mixIns' | 'fillings' | 'toppings', ingIndex: number) => {
+const onSubIngredientSelect = (item: { id: string | null; name: string; isRecipe: boolean }, productIndex: number, type: 'mixIns' | 'fillings' | 'toppings', ingIndex: number) => {
 	const ingredient = form.value.products![productIndex][type]![ingIndex];
 	ingredient.id = item.id;
 	ingredient.name = item.name;
+	ingredient.isRecipe = item.isRecipe;
 };
 
 const addProcedureStep = (itemWithProcedure: { procedure?: string[] }) => {
@@ -546,11 +564,15 @@ const handleSubmit = async () => {
 
 	isSubmitting.value = true;
 
-	const checkAndLinkIngredient = (ingredient: { id: string | null; name: string }, availableList: { id: string | null; name: string }[]) => {
+	const checkAndLinkIngredient = (
+		ingredient: { id: string | null; name: string; isRecipe?: boolean },
+		availableList: { id: string | null; name: string; isRecipe: boolean }[]
+	) => {
 		if (!ingredient.id && ingredient.name) {
 			const existing = availableList.find((item) => item.name === ingredient.name);
 			if (existing) {
 				ingredient.id = existing.id;
+				ingredient.isRecipe = existing.isRecipe;
 			}
 		}
 	};
@@ -726,6 +748,7 @@ const handleSubmit = async () => {
 	margin-top: 30px;
 }
 
+/* [核心新增] 恢复被误删的样式 */
 .info-row {
 	display: flex;
 	justify-content: space-between;

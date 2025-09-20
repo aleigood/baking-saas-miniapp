@@ -1,6 +1,6 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
-	<view class="page-wrapper">
+	<view class="page-wrapper" @click="handlePageClick">
 		<DetailHeader :title="pageTitle" />
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab">
@@ -38,6 +38,7 @@
 								placeholder="输入或选择原料"
 								@select="onIngredientSelect($event, ingIndex)"
 								@blur="handleIngredientBlur(ing)"
+								:show-tag="ing.isRecipe"
 							/>
 						</view>
 						<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
@@ -117,9 +118,14 @@ const form = reactive({
 	name: '',
 	type: 'PRE_DOUGH' as 'PRE_DOUGH' | 'EXTRA',
 	notes: '',
-	ingredients: [{ id: null as string | null, name: '', ratio: null as number | null, isFlour: false }],
+	ingredients: [{ id: null as string | null, name: '', ratio: null as number | null, isFlour: false, isRecipe: false }],
 	procedure: ['']
 });
+
+// [核心新增] 定义一个用于触发全局关闭事件的函数
+const handlePageClick = () => {
+	uni.$emit('page-clicked');
+};
 
 const pageTitle = computed(() => {
 	if (pageMode.value === 'edit') {
@@ -141,32 +147,37 @@ const currentTypeLabel = computed(() => {
 });
 
 const availableIngredients = computed(() => {
-	const ingredientMap = new Map<string, { id: string | null; name: string; isFlour: boolean }>();
+	const ingredientMap = new Map<string, { id: string | null; name: string; isFlour: boolean; isRecipe: boolean }>();
 
 	predefinedIngredients.forEach((p) => {
-		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour });
+		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false });
 	});
 
 	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false });
+		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true });
 	});
 
 	dataStore.allIngredients.forEach((i) => {
-		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour });
+		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false });
 	});
 
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-// [核心删除] 不再需要此函数
-// const shouldShowFlourSwitch = ...
-
-const handleIngredientBlur = (ingredient: { id: string | null; name: string }) => {
+const handleIngredientBlur = (ingredient: { id: string | null; name: string; isRecipe?: boolean }) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableIngredients.value.find((item) => item.name === ingredient.name);
 		if (existing) {
 			ingredient.id = existing.id;
+			ingredient.isRecipe = existing.isRecipe;
+		} else {
+			ingredient.isRecipe = false;
+		}
+	} else if (ingredient.id) {
+		const existing = availableIngredients.value.find((item) => item.id === ingredient.id);
+		if (existing) {
+			ingredient.isRecipe = existing.isRecipe;
 		}
 	}
 };
@@ -226,17 +237,15 @@ const onTypeChange = (e: any) => {
 	form.type = recipeTypes.value[e.detail.value].value as 'PRE_DOUGH' | 'EXTRA';
 };
 
-const onIngredientSelect = (item: { id: string | null; name: string; isFlour?: boolean }, ingIndex: number) => {
+const onIngredientSelect = (item: { id: string | null; name: string; isFlour?: boolean; isRecipe?: boolean }, ingIndex: number) => {
 	form.ingredients[ingIndex].id = item.id;
 	form.ingredients[ingIndex].name = item.name;
 	form.ingredients[ingIndex].isFlour = item.isFlour || false;
+	form.ingredients[ingIndex].isRecipe = item.isRecipe || false;
 };
 
-// [核心删除] 不再需要此函数
-// const onIsFlourChange = ...
-
 const addIngredient = () => {
-	form.ingredients.push({ id: null, name: '', ratio: null, isFlour: false });
+	form.ingredients.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false });
 };
 
 const removeIngredient = (ingIndex: number) => {
@@ -350,17 +359,10 @@ const handleSubmit = async () => {
 
 .ingredient-row {
 	display: flex;
-	align-items: center; /* [核心修改] 恢复垂直居中对齐 */
+	align-items: center;
 	gap: 10px;
 	margin-bottom: 10px;
 }
-
-/* [核心删除] 移除不再需要的样式 */
-/*
-.ingredient-main-input { ... }
-.flour-switch-row { ... }
-.flour-switch-label { ... }
-*/
 
 .autocomplete-input-wrapper {
 	flex: 1;

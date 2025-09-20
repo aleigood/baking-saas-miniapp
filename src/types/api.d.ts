@@ -115,6 +115,7 @@ export interface RecipeFormTemplate {
 			id: string | null;
 			name: string;
 			ratio: number | null;
+			isRecipe?: boolean; // 新增：标识是否为自制配方
 		}[];
 		procedure: string[];
 	}[];
@@ -127,18 +128,21 @@ export interface RecipeFormTemplate {
 			name: string;
 			ratio: number | null;
 			weightInGrams?: number | null;
+			isRecipe?: boolean; // 新增：标识是否为自制配方
 		}[];
 		fillings: {
 			id: string | null;
 			name: string;
 			ratio: number | null;
 			weightInGrams?: number | null;
+			isRecipe?: boolean; // 新增：标识是否为自制配方
 		}[];
 		toppings: {
 			id: string | null;
 			name: string;
 			ratio: number | null;
 			weightInGrams?: number | null;
+			isRecipe?: boolean; // 新增：标识是否为自制配方
 		}[];
 		procedure: string[];
 	}[];
@@ -147,6 +151,7 @@ export interface RecipeFormTemplate {
 		id: string | null;
 		name: string;
 		ratio: number | null;
+		isRecipe?: boolean; // 新增：标识是否为自制配方
 	}[];
 	procedure?: string[]; // 其他配方使用
 }
