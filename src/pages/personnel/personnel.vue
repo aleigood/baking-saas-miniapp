@@ -209,7 +209,7 @@ const handleLogout = () => {
 	align-items: center;
 	padding: 20px;
 	border-radius: 20px;
-	margin-bottom: 40px; /* [核心修改] 调整与下方卡片的间距 */
+	margin-bottom: 30px; /* [核心修改] 调整与下方卡片的间距 */
 	position: relative;
 }
 

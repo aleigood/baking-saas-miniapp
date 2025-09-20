@@ -913,16 +913,24 @@ const productTabs = computed(() => {
 
 .smart-table {
 	font-size: 14px;
+	color: var(--text-primary);
 	margin-top: 25px;
 
 	.table-header {
 		color: var(--text-secondary);
 		font-weight: 500;
+		border-bottom: 1px solid var(--border-color);
 	}
 
 	.table-row {
 		color: var(--text-primary);
 		transition: background-color 0.3s ease;
+
+		border-bottom: 1px solid var(--border-color);
+
+		&:last-child {
+			border-bottom: none;
+		}
 	}
 
 	.table-row.is-added {
@@ -939,30 +947,6 @@ const productTabs = computed(() => {
 		width: 16px;
 		height: 16px;
 		flex-shrink: 0;
-	}
-}
-
-.smart-table {
-	font-size: 14px;
-	color: var(--text-primary);
-	margin-top: 25px;
-
-	.table-header {
-		color: var(--text-secondary);
-		font-weight: 500;
-		border-bottom: 1px solid var(--border-color);
-	}
-
-	.info-row {
-		border-bottom: 1px solid var(--border-color);
-
-		&:last-child {
-			border-bottom: none;
-		}
-	}
-
-	.col-product-name {
-		text-align: left;
 	}
 }
 
