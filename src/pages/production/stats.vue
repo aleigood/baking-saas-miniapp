@@ -69,7 +69,7 @@
 					</view>
 				</template>
 				<view v-else class="empty-state">
-					<text>选定时间范围内暂无已完成的生产数据</text>
+					<text>选定时间范围内暂无生产数据</text>
 				</view>
 			</view>
 		</DetailPageLayout>

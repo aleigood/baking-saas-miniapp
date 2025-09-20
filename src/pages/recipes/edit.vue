@@ -340,9 +340,6 @@ const availableSubIngredients = computed(() => {
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-// [核心删除] 不再需要此函数
-// const shouldShowFlourSwitch = ...
-
 const handleIngredientBlur = (ingredient: { id: string | null; name: string }, availableList: { id: string | null; name: string }[]) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableList.find((item) => item.name === ingredient.name);
@@ -376,6 +373,8 @@ onLoad(async (options) => {
 		}
 	} else {
 		pageMode.value = 'create';
+		// [核心新增] 如果是新建模式，则自动添加一个产品
+		addProduct();
 	}
 });
 
@@ -407,9 +406,6 @@ const onIngredientSelect = (item: { id: string | null; name: string; isFlour: bo
 	mainDough.value.ingredients[ingIndex].name = item.name;
 	mainDough.value.ingredients[ingIndex].isFlour = item.isFlour;
 };
-
-// [核心删除] 不再需要此函数
-// const onIsFlourChange = ...
 
 const addIngredient = () => {
 	mainDough.value.ingredients.push({ id: null, name: '', ratio: null, isFlour: false });
@@ -711,17 +707,10 @@ const handleSubmit = async () => {
 
 .ingredient-row {
 	display: flex;
-	align-items: center; /* [核心修改] 恢复垂直居中对齐 */
+	align-items: center;
 	gap: 10px;
 	margin-bottom: 10px;
 }
-
-/* [核心删除] 移除不再需要的样式 */
-/*
-.ingredient-main-input { ... }
-.flour-switch-row { ... }
-.flour-switch-label { ... }
-*/
 
 .autocomplete-input-wrapper {
 	flex: 1;

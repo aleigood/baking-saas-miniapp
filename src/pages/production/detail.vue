@@ -44,7 +44,7 @@
 								<span class="arrow" :class="{ collapsed: collapsedSections.has(selectedDoughDetails.familyId) }">&#10095;</span>
 							</view>
 							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(selectedDoughDetails.familyId) }">
-								<view class="fixed-grid-table">
+								<view class="smart-table">
 									<view class="table-header">
 										<text class="col-ingredient">原料</text>
 										<text class="col-brand">品牌</text>
@@ -117,7 +117,7 @@
 										"
 									>
 										<template v-if="selectedProductDetails.mixIns.length > 0">
-											<view class="fixed-grid-table detail-table">
+											<view class="smart-table detail-table">
 												<view class="table-header summary-header">
 													<text class="col-ingredient">辅料</text>
 													<text class="col-brand">品牌</text>
@@ -132,7 +132,7 @@
 										</template>
 
 										<template v-if="selectedProductDetails.fillings.length > 0">
-											<view class="fixed-grid-table detail-table">
+											<view class="smart-table detail-table">
 												<view class="table-header summary-header">
 													<text class="col-ingredient">馅料</text>
 													<text class="col-brand">品牌</text>
@@ -147,7 +147,7 @@
 										</template>
 
 										<template v-if="selectedProductDetails.toppings && selectedProductDetails.toppings.length > 0">
-											<view class="fixed-grid-table detail-table">
+											<view class="smart-table detail-table">
 												<view class="table-header summary-header">
 													<text class="col-ingredient">表面装饰</text>
 													<text class="col-brand">品牌</text>
@@ -162,7 +162,7 @@
 										</template>
 									</template>
 									<template v-else>
-										<view class="empty-state font-size-14" style="padding: 20px 0">无其他原料</view>
+										<view class="empty-state-sm" style="padding: 20px 0">无其他原料</view>
 									</template>
 
 									<view v-if="selectedProductDetails.procedure.length > 0" class="procedure-notes">
@@ -911,7 +911,7 @@ const productTabs = computed(() => {
 	padding: 0 5px;
 }
 
-.fixed-grid-table {
+.smart-table {
 	font-size: 14px;
 	margin-top: 25px;
 

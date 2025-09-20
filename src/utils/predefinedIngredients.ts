@@ -32,6 +32,7 @@ export const predefinedIngredients: PredefinedIngredient[] = [
 	{ name: '淡奶油', isFlour: false, waterContent: 0.6 },
 	{ name: '蜂蜜', isFlour: false, waterContent: 0.17 },
 	{ name: '炼乳', isFlour: false, waterContent: 0.27 },
+	{ name: '鸡蛋', isFlour: false, waterContent: 0.75 },
 	{ name: '全蛋', isFlour: false, waterContent: 0.75 },
 	{ name: '蛋黄', isFlour: false, waterContent: 0.5 },
 	{ name: '蛋清', isFlour: false, waterContent: 0.88 },

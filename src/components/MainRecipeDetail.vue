@@ -128,7 +128,7 @@
 					</template>
 					<view class="total-cost-summary">
 						<view class="summary-divider"></view>
-						<view class="summary-text">成本总计: ¥{{ formatNumber(recipeDetails.totalCost) }}</view>
+						<view class="summary-text">总成本: ¥{{ formatNumber(recipeDetails.totalCost) }}</view>
 					</view>
 					<view v-if="recipeDetails.productProcedure && recipeDetails.productProcedure.length > 0" class="procedure-notes">
 						<text class="notes-title">制作要点:</text>
