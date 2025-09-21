@@ -54,7 +54,7 @@
 			</view>
 		</RefreshableLayout>
 
-		<ExpandingFab @click="navigateToCreatePage" :visible="isFabVisible" :no-tab-bar="!hasTabBar" />
+		<ExpandingFab :actions="fabActions" :visible="isFabVisible" :no-tab-bar="!hasTabBar" />
 
 		<CalendarModal :visible="isCalendarVisible" :task-dates="taskDates" @close="isCalendarVisible = false" @select="handleDateSelect" />
 
@@ -131,7 +131,7 @@ import IconButton from '@/components/IconButton.vue';
 import AppButton from '@/components/AppButton.vue';
 import CalendarModal from '@/components/CalendarModal.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
-import type { ProductionTaskDto, PrepTask } from '@/types/api';
+import type { ProductionTaskDto, PrepTask, RecipeCategory } from '@/types/api'; // [核心修改] 导入 RecipeCategory
 import { updateTaskStatus, getTaskDates } from '@/api/tasks';
 import { formatChineseDate } from '@/utils/format';
 
@@ -148,6 +148,26 @@ const dataStore = useDataStore();
 const uiStore = useUiStore();
 const toastStore = useToastStore();
 const temperatureStore = useTemperatureStore();
+
+// [核心新增] 定义品类 key 到中文显示名的映射
+const categoryMap = {
+	BREAD: '面包任务',
+	PASTRY: '西点任务',
+	DESSERT: '甜品任务',
+	DRINK: '饮品任务'
+};
+
+// [核心改造] 动态生成悬浮菜单的动作列表
+const fabActions = computed(() => {
+	// 1. 获取所有可生产产品的品类 key
+	const categories = Object.keys(dataStore.productsForTaskCreation) as RecipeCategory[];
+	// 2. 将品类 key 映射为菜单项
+	return categories.map((category) => ({
+		icon: '/static/icons/add.svg',
+		text: `${categoryMap[category] || category}`, // 显示如“新建面包任务”
+		action: () => navigateToCreatePage(category) // 点击时传递品类参数
+	}));
+});
 
 const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 
@@ -215,6 +235,10 @@ onShow(async () => {
 
 	if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
 		try {
+			// [核心改造] 在获取生产任务前，先确保“可生产产品列表”已加载，以便动态生成 FAB 菜单
+			if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation) {
+				await dataStore.fetchProductsForTaskCreation();
+			}
 			await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 		} catch (error) {
 			console.error('Failed to load data on show:', error);
@@ -245,6 +269,8 @@ const handleScroll = (event: any) => {
 const handleRefresh = async () => {
 	try {
 		dataStore.markProductionAsStale();
+		dataStore.markProductsForTaskCreationAsStale(); // [核心新增] 刷新时也将产品列表标记为过期
+		await dataStore.fetchProductsForTaskCreation();
 		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} finally {
 		refreshableLayout.value?.finishRefresh();
@@ -373,10 +399,11 @@ const handleConfirmCancelTask = async () => {
 	}
 };
 
-const navigateToCreatePage = () => {
+// [核心改造] 更新新建任务的导航逻辑，增加 category 参数
+const navigateToCreatePage = (category: RecipeCategory) => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
-	uni.navigateTo({ url: '/pages/production/create' });
+	uni.navigateTo({ url: `/pages/production/create?category=${category}` });
 };
 
 const openTemperatureSettingsModal = () => {

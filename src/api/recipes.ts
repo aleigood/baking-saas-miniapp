@@ -3,8 +3,8 @@
  * 文件描述: (已更新) 封装所有与配方(Recipe)相关的API请求，新增版本管理接口。
  */
 import { request } from '@/utils/request';
-// [更新] 导入新增的类型
-import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductListItem, RecipeFormTemplate } from '@/types/api';
+// [核心改造] 导入新的 ProductsForTaskResponse 类型
+import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductsForTaskResponse, RecipeFormTemplate } from '@/types/api';
 
 /**
  * 获取当前店铺的配方/产品列表
@@ -17,10 +17,10 @@ export function getRecipes(): Promise<RecipesListResponse> {
 }
 
 /**
- * [核心新增] 获取用于创建生产任务的、按配方分组的产品列表
+ * [核心改造] 获取用于创建生产任务的、按品类分组的产品列表
  */
-export function getProductsForTasks(): Promise<Record<string, ProductListItem[]>> {
-	return request<Record<string, ProductListItem[]>>({
+export function getProductsForTasks(): Promise<ProductsForTaskResponse> {
+	return request<ProductsForTaskResponse>({
 		url: '/recipes/products-for-tasks'
 	});
 }

@@ -29,7 +29,7 @@
 					</FormItem>
 				</view>
 
-				<template v-if="form.category === 'BREAD'">
+				<template v-if="form.category === 'BREAD' || form.type === 'PRE_DOUGH'">
 					<template v-for="(dough, doughIndex) in form.doughs" :key="dough.id">
 						<view class="card" v-if="dough.type === 'PRE_DOUGH'">
 							<view class="card-title-wrapper">
@@ -59,7 +59,7 @@
 					<view class="card-title-wrapper">
 						<span class="card-title">{{ mainComponentTitle }}</span>
 					</view>
-					<FormItem v-if="form.category === 'BREAD'" label="面团出缸温度 (°C)">
+					<FormItem v-if="form.category === 'BREAD' || form.type === 'PRE_DOUGH'" label="面团出缸温度 (°C)">
 						<input class="input-field" type="number" v-model="form.targetTemp" placeholder="例如: 26" />
 					</FormItem>
 					<FormItem label="工艺损耗率 (%)">
@@ -254,7 +254,7 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import AutocompleteInput from '@/components/AutocompleteInput.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
-import type { RecipeFamily, RecipeFormTemplate, RecipeCategory } from '@/types/api'; // [核心修改] 导入 RecipeCategory
+import type { RecipeFamily, RecipeFormTemplate, RecipeCategory } from '@/types/api';
 import { formatNumber, toDecimal } from '@/utils/format';
 import { predefinedIngredients } from '@/utils/predefinedIngredients';
 
@@ -262,7 +262,6 @@ defineOptions({
 	inheritAttrs: false
 });
 
-// [核心修改] 更新 autocomplete 列表项的类型定义，确保包含 waterContent
 type AutocompleteItem = {
 	id: string | null;
 	name: string;
@@ -291,8 +290,8 @@ const scrollThreshold = 5;
 
 const form = ref<RecipeFormTemplate & { targetTemp?: number | null }>({
 	name: '',
-	type: 'MAIN', // [核心改造] 默认是 MAIN，但会根据导航参数变化
-	category: 'BREAD', // [核心新增] 默认为面包品类
+	type: 'MAIN',
+	category: 'BREAD',
 	notes: '',
 	targetTemp: null,
 	doughs: [
@@ -308,22 +307,19 @@ const form = ref<RecipeFormTemplate & { targetTemp?: number | null }>({
 	products: []
 });
 
-// [核心新增] 定义配方品类选项
 const recipeCategories = ref([
 	{ label: '面包', value: 'BREAD' },
 	{ label: '西点', value: 'PASTRY' },
 	{ label: '甜品', value: 'DESSERT' },
-	{ label: '饮品', value: 'DRINK' },
-	{ label: '其他', value: 'OTHER' }
+	{ label: '饮品', value: 'DRINK' }
 ]);
 
 // [核心新增] 定义组件配方类型选项
 const recipeTypes = ref([
 	{ label: '面种', value: 'PRE_DOUGH' },
-	{ label: '馅料/其他', value: 'EXTRA' }
+	{ label: '原料', value: 'EXTRA' }
 ]);
 
-// [核心新增] 计算当前品类的显示文本
 const currentCategoryLabel = computed(() => {
 	return recipeCategories.value.find((c) => c.value === form.value.category)?.label || '请选择';
 });
@@ -333,7 +329,6 @@ const currentTypeLabel = computed(() => {
 	return recipeTypes.value.find((t) => t.value === form.value.type)?.label || '请选择';
 });
 
-// [核心新增] 品类选择器变化事件
 const onCategoryChange = (e: any) => {
 	form.value.category = recipeCategories.value[e.detail.value].value as RecipeCategory;
 };
@@ -341,12 +336,6 @@ const onCategoryChange = (e: any) => {
 // [核心新增] 组件配方类型选择器变化事件
 const onTypeChange = (e: any) => {
 	form.value.type = recipeTypes.value[e.detail.value].value as 'PRE_DOUGH' | 'EXTRA';
-	// [核心逻辑] 联动设置默认品类
-	if (form.value.type === 'PRE_DOUGH') {
-		form.value.category = 'BREAD';
-	} else {
-		form.value.category = 'OTHER';
-	}
 };
 
 const handlePageClick = () => {
@@ -366,12 +355,12 @@ const pageTitle = computed(() => {
 	return '编辑配方';
 });
 
-// [核心改造] 新增计算属性，用于动态显示主组件的标题
 const mainComponentTitle = computed(() => {
+	// [核心修正] 仅当是面包主配方时才显示“主面团”
 	if (form.value.category === 'BREAD' && form.value.type === 'MAIN') {
 		return '主面团';
 	}
-	return form.value.name ? `${form.value.name}·原料` : '核心原料';
+	return form.value.name ? `${form.value.name}原料` : '基础原料';
 });
 
 const showAddPreDoughModal = ref(false);
@@ -392,7 +381,6 @@ const productTabs = computed(() => {
 
 const availablePreDoughs = computed(() => dataStore.recipes.otherRecipes.filter((r) => r.type === 'PRE_DOUGH' && !r.deletedAt));
 
-// [核心修改] 修改 available... computed 属性，使其返回的对象包含 waterContent
 const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
 
@@ -402,7 +390,7 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 
 	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 }); // EXTRA配方本身不计含水量
+		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
 	});
 
 	dataStore.allIngredients.forEach((i) => {
@@ -434,13 +422,11 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-// [核心修改] 计算总含水量的逻辑，现在直接从配方数据中获取 waterContent
 const totalCalculatedWaterRatio = computed(() => {
 	let totalWater = 0;
 	form.value.doughs?.forEach((dough) => {
 		dough.ingredients.forEach((ing) => {
 			if (ing.name && ing.ratio) {
-				// 直接使用 ing 对象自带的 waterContent，如果不存在则默认为 0
 				totalWater += Number(ing.ratio) * (ing.waterContent ?? 0);
 			}
 		});
@@ -453,9 +439,9 @@ const manualWaterRatio = computed(() => {
 	return Number(waterIngredient?.ratio || 0);
 });
 
-// [核心改造] 总水量提示仅在面包品类下显示
 const showTotalWaterTag = computed(() => {
-	if (form.value.category !== 'BREAD') {
+	// [核心修正] 仅当是面包品类或面种类型时才显示
+	if (form.value.category !== 'BREAD' && form.value.type !== 'PRE_DOUGH') {
 		return false;
 	}
 	if (manualWaterRatio.value === 0 && totalCalculatedWaterRatio.value === 0) {
@@ -469,7 +455,6 @@ const formatWaterRatio = (ratio: number): string => {
 	return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
 };
 
-// [核心修改] 更新 blur 处理器，以同步 waterContent
 const handleIngredientBlur = (ingredient: { id: string | null; name: string; isRecipe?: boolean; waterContent?: number; isFlour?: boolean }, availableList: AutocompleteItem[]) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableList.find((item) => item.name === ingredient.name);
@@ -493,9 +478,7 @@ onLoad(async (options) => {
 	if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
 	if (!dataStore.dataLoaded.recipes) await dataStore.fetchRecipesData();
 
-	// [核心改造] 根据导航参数初始化表单
 	if (options && options.familyId) {
-		// 修改或创建新版本
 		isEditing.value = true;
 		familyId.value = options.familyId;
 		versionId.value = options.versionId || null;
@@ -514,16 +497,14 @@ onLoad(async (options) => {
 			}
 		}
 	} else {
-		// 创建全新配方
 		pageMode.value = 'create';
-		// 根据 URL 参数决定是创建 MAIN 还是 EXTRA
 		if (options?.type === 'EXTRA') {
 			form.value.type = 'EXTRA';
-			form.value.products = []; // EXTRA 类型不应该有产品
-			form.value.category = 'OTHER'; // [核心改造] 组件配方默认品类为 OTHER
+			form.value.products = [];
+			form.value.category = 'OTHER';
 		} else {
 			form.value.type = 'MAIN';
-			addProduct(); // MAIN 类型默认有一个产品
+			addProduct();
 		}
 	}
 });
@@ -549,7 +530,6 @@ const handleScroll = (event?: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-// [核心修改] 更新 select 处理器，以同步 isFlour 和 waterContent
 const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
 	const ingredient = mainDough.value.ingredients[ingIndex];
 	ingredient.id = item.id;
@@ -613,7 +593,6 @@ const confirmAddPreDough = async () => {
 			name: i.ingredient!.name,
 			ratio: (i.ratio ?? 0) * scalingFactor * 100,
 			isRecipe: false,
-			// [核心修改] 从接口获取的数据中直接传递 waterContent
 			waterContent: i.ingredient!.waterContent
 		}));
 
@@ -704,8 +683,6 @@ const handleSubmit = async () => {
 
 	isSubmitting.value = true;
 
-	// [核心修改] checkAndLinkIngredient 已被 handleIngredientBlur 和 onIngredientSelect 替代，不再需要
-
 	try {
 		const mainDoughFromForm = form.value.doughs!.find((d) => d.type === 'MAIN_DOUGH');
 		if (!mainDoughFromForm) {
@@ -718,10 +695,9 @@ const handleSubmit = async () => {
 			...mainDoughFromForm.ingredients
 				.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
 				.map((ing) => {
-					// [核心修改] 此处发送给后端的数据，后端应只关心 id 和 ratio，其他信息后端应自行查找
 					return {
 						ingredientId: ing.id || undefined,
-						name: ing.name, // 传递 name 供后端在没有id时创建新原料
+						name: ing.name,
 						ratio: toDecimal(Number(ing.ratio)),
 						isFlour: ing.isFlour,
 						waterContent: ing.waterContent
@@ -761,7 +737,7 @@ const handleSubmit = async () => {
 		const payload = {
 			name: form.value.name,
 			type: form.value.type,
-			category: form.value.category, // [核心新增] 提交 category
+			category: form.value.category,
 			notes: form.value.notes,
 			targetTemp: form.value.targetTemp,
 			lossRatio: toDecimal(Number(mainDoughFromForm.lossRatio)),
@@ -803,6 +779,7 @@ const handleSubmit = async () => {
 	}
 };
 </script>
+
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 @include form-control-styles;

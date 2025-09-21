@@ -4,7 +4,8 @@
  */
 import { defineStore } from 'pinia';
 import { ref, computed, reactive } from 'vue';
-import type { Tenant, ProductListItem, RecipeFamily, Ingredient, Member, ProductionTaskDto, RecipeStatDto, IngredientStatDto, PrepTask } from '@/types/api';
+// [核心改造] 导入新的 ProductsForTaskResponse 类型
+import type { Tenant, ProductsForTaskResponse, RecipeFamily, Ingredient, Member, ProductionTaskDto, RecipeStatDto, IngredientStatDto, PrepTask } from '@/types/api';
 import { useUserStore } from './user';
 import { useToastStore } from './toast';
 import { getTenants as getTenantsApi } from '@/api/tenants';
@@ -39,7 +40,8 @@ export const useDataStore = defineStore('data', () => {
 		mainRecipes: [],
 		otherRecipes: []
 	});
-	const productsForTaskCreation = ref<Record<string, ProductListItem[]>>({});
+	// [核心改造] 更新 productsForTaskCreation 的类型
+	const productsForTaskCreation = ref<ProductsForTaskResponse>({});
 	const ingredients = ref<{ allIngredients: Ingredient[]; lowStockIngredients: Ingredient[] }>({
 		allIngredients: [],
 		lowStockIngredients: []

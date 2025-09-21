@@ -228,9 +228,10 @@ export interface Product {
 export interface ProductListItem {
 	id: string;
 	name: string;
-	type: string;
-	familyId: string;
 }
+
+// [核心改造] 为 getProductsForTasks 接口定义新的、按品类分组的返回类型
+export type ProductsForTaskResponse = Record<RecipeCategory, Record<string, ProductListItem[]>>;
 
 export interface CalculatedIngredientInfo {
 	id: string; // [核心新增] 为原料信息增加ID，用于DOM-key
@@ -412,6 +413,7 @@ export interface ProductionStatsResponse {
 export interface DashboardStats {
 	totalTenants?: number;
 	totalUsers: number;
+
 	totalRecipes: number;
 	totalTasks: number;
 }

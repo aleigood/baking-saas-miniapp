@@ -1,7 +1,7 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<DetailHeader :title="isEditMode ? '修改任务' : '新建任务'" />
+		<DetailHeader :title="pageTitle" />
 		<DetailPageLayout>
 			<view class="page-content">
 				<view class="card">
@@ -72,19 +72,17 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue';
-// [核心修改] 导入 onUnload
 import { onLoad, onUnload } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
 import { useUserStore } from '@/store/user';
-// [核心修改] 移除 getTaskDetail
 import { createTask, updateTask } from '@/api/tasks';
 import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import CssAnimatedTabs from '@/components/CssAnimatedTabs.vue';
-import type { ProductListItem, ProductionTaskDto } from '@/types/api'; // [核心新增] 导入 ProductionTaskDto
+import type { ProductionTaskDto, RecipeCategory } from '@/types/api';
 
 defineOptions({
 	inheritAttrs: false
@@ -100,6 +98,26 @@ const isCreating = ref(false);
 const isEditMode = ref(false);
 const editingTaskId = ref<string | null>(null);
 
+// [核心改造] selectedCategory 不再是用户手动选择，而是从页面加载参数中获取
+const selectedCategory = ref<RecipeCategory | null>(null);
+
+// [核心新增] 定义品类 key 到中文显示名的映射
+const categoryMap = {
+	BREAD: '面包',
+	PASTRY: '西点',
+	DESSERT: '甜品',
+	DRINK: '饮品'
+};
+
+// [核心改造] 页面标题根据 selectedCategory 动态生成
+const pageTitle = computed(() => {
+	if (isEditMode.value) return '修改任务';
+	if (selectedCategory.value) {
+		return `新建${categoryMap[selectedCategory.value] || ''}任务`;
+	}
+	return '新建任务';
+});
+
 const today = new Date().toISOString().split('T')[0];
 const taskForm = reactive({
 	startDate: today,
@@ -110,14 +128,29 @@ const taskQuantities = reactive<Record<string, number | null>>({});
 const summaryGroups = ref<{ name: string; items: string[] }[]>([]);
 const activeTab = ref('');
 
+// [核心改造] 产品 tab（即配方族）现在根据 selectedCategory 从 store 中获取
+const productTabs = computed(() => {
+	if (!selectedCategory.value) return [];
+	const productsInCategory = dataStore.productsForTaskCreation[selectedCategory.value];
+	return productsInCategory ? Object.keys(productsInCategory).map((name) => ({ key: name, label: name })) : [];
+});
+
+// [核心改造] 根据当前激活的 tab，获取该 tab 下的产品列表
+const productsInCurrentTab = computed(() => {
+	if (!selectedCategory.value || !activeTab.value) return [];
+	const productsInCategory = dataStore.productsForTaskCreation[selectedCategory.value];
+	return productsInCategory ? productsInCategory[activeTab.value] || [] : [];
+});
+
 onLoad(async (options) => {
 	isLoading.value = true;
-	await dataStore.fetchProductsForTaskCreation();
-
-	if (productTabs.value.length > 0) {
-		activeTab.value = productTabs.value[0].key;
+	// [核心改造] 确保在初始化本页面前，可生产产品列表已加载
+	if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation) {
+		await dataStore.fetchProductsForTaskCreation();
 	}
+
 	Object.values(dataStore.productsForTaskCreation)
+		.flatMap((group) => Object.values(group))
 		.flat()
 		.forEach((p) => {
 			taskQuantities[p.id] = null;
@@ -126,15 +159,26 @@ onLoad(async (options) => {
 	if (options && options.taskId) {
 		isEditMode.value = true;
 		editingTaskId.value = options.taskId;
-		// [核心改造] 从缓存中读取任务数据，而不是调用API
 		const taskJson = uni.getStorageSync('task_to_edit');
 		if (taskJson) {
 			try {
 				const taskToEdit: ProductionTaskDto = JSON.parse(taskJson);
+				// [核心改造] 修改任务时，需要找到第一个产品的品类来初始化 selectedCategory
+				if (taskToEdit.items.length > 0 && dataStore.allRecipes.length > 0) {
+					const firstProductId = taskToEdit.items[0].product.id;
+					// 在所有配方中查找这个产品属于哪个品类
+					for (const recipeFamily of dataStore.allRecipes) {
+						const hasProduct = recipeFamily.versions.some((v) => v.products.some((p) => p.id === firstProductId));
+						if (hasProduct) {
+							selectedCategory.value = recipeFamily.category;
+							break;
+						}
+					}
+				}
+
 				taskForm.startDate = new Date(taskToEdit.startDate).toISOString().split('T')[0];
 				taskForm.endDate = taskToEdit.endDate ? new Date(taskToEdit.endDate).toISOString().split('T')[0] : taskForm.startDate;
 
-				// [核心修复] 根据正确的 item 结构填充数量
 				taskToEdit.items.forEach((item) => {
 					taskQuantities[item.product.id] = item.quantity;
 				});
@@ -148,11 +192,22 @@ onLoad(async (options) => {
 			toastStore.show({ message: '找不到要编辑的任务信息', type: 'error' });
 			uni.navigateBack();
 		}
+	} else if (options && options.category) {
+		// [核心改造] 如果是新建任务，从 options 中获取品类
+		selectedCategory.value = options.category as RecipeCategory;
+	} else {
+		toastStore.show({ message: '未指定任务品类', type: 'error' });
+		uni.navigateBack();
 	}
+
+	// [核心改造] 初始化 activeTab
+	if (productTabs.value.length > 0) {
+		activeTab.value = productTabs.value[0].key;
+	}
+
 	isLoading.value = false;
 });
 
-// [核心新增] 页面卸载时清理缓存
 onUnload(() => {
 	uni.removeStorageSync('task_to_edit');
 });
@@ -162,14 +217,6 @@ const onQuantityInput = (productId: string, event: any) => {
 	taskQuantities[productId] = value === '' ? null : Number(value);
 	updateSummary();
 };
-
-const productTabs = computed(() => {
-	return Object.keys(dataStore.productsForTaskCreation).map((name) => ({ key: name, label: name }));
-});
-
-const productsInCurrentTab = computed(() => {
-	return dataStore.productsForTaskCreation[activeTab.value] || [];
-});
 
 const isCreatable = computed(() => {
 	return Object.values(taskQuantities).some((qty) => qty && qty > 0);
@@ -188,9 +235,15 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 };
 
 const updateSummary = () => {
+	if (!selectedCategory.value) {
+		summaryGroups.value = [];
+		return;
+	}
 	const groups: { name: string; items: string[] }[] = [];
-	for (const groupName in dataStore.productsForTaskCreation) {
-		const productsInGroup = dataStore.productsForTaskCreation[groupName];
+	const productsInCategory = dataStore.productsForTaskCreation[selectedCategory.value] || {};
+
+	for (const groupName in productsInCategory) {
+		const productsInGroup = productsInCategory[groupName];
 		const quantifiedProducts = productsInGroup.map((p) => ({ name: p.name, quantity: taskQuantities[p.id] || 0 })).filter((p) => p.quantity > 0);
 
 		if (quantifiedProducts.length > 0) {
@@ -358,5 +411,31 @@ const handleSubmit = async () => {
 	max-width: 120px;
 	flex-shrink: 0;
 	text-align: center;
+}
+
+// [核心新增] 品类选择样式
+.category-selection-wrapper {
+	padding: 20px 0;
+}
+
+.category-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 15px;
+	margin-top: 20px;
+}
+
+.category-item {
+	padding: 30px 15px;
+	text-align: center;
+	font-size: 16px;
+	font-weight: 500;
+	color: var(--text-primary);
+	transition: all 0.2s ease-in-out;
+
+	&:active {
+		transform: scale(0.95);
+		background-color: #f3e9e3;
+	}
 }
 </style>

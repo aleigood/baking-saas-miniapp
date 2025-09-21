@@ -201,10 +201,10 @@ const filterTabs = computed(() => {
 	if (categoryTabs.length === 0) {
 		return [
 			{ key: 'BREAD', label: '面包' },
-			{ key: 'OTHER', label: '其他配方' } // [核心用语] 组件配方 -> 其他配方
+			{ key: 'OTHER', label: '其他' } // [核心用语] 组件配方 -> 其他配方
 		];
 	}
-	return [...categoryTabs, { key: 'OTHER', label: '其他配方' }]; // [核心用语] 组件配方 -> 其他配方
+	return [...categoryTabs, { key: 'OTHER', label: '其他' }]; // [核心用语] 组件配方 -> 其他配方
 });
 
 // [核心改造] 根据当前激活的筛选器 (activeFilter) 来决定显示哪个列表
