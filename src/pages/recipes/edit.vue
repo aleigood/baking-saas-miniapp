@@ -241,6 +241,7 @@ defineOptions({
 	inheritAttrs: false
 });
 
+// [核心修改] 更新 autocomplete 列表项的类型定义，确保包含 waterContent
 type AutocompleteItem = {
 	id: string | null;
 	name: string;
@@ -248,10 +249,9 @@ type AutocompleteItem = {
 	isRecipe: boolean;
 	waterContent: number;
 };
-type DoughIngredientInForm = NonNullable<RecipeFormTemplate['doughs']>[0]['ingredients'][0];
-type ProductMixIn = NonNullable<RecipeFormTemplate['products']>[0]['mixIns'][0];
-type ProductFilling = NonNullable<RecipeFormTemplate['products']>[0]['fillings'][0];
-type ProductTopping = NonNullable<RecipeFormTemplate['products']>[0]['toppings'][0];
+
+type SubIngredientRatio = { id: string | null; name: string; ratio: number | null; weightInGrams?: number | null; isRecipe?: boolean; waterContent?: number; isFlour?: boolean };
+type SubIngredientWeight = { id: string | null; name: string; ratio?: number | null; weightInGrams: number | null; isRecipe?: boolean; waterContent?: number; isFlour?: boolean };
 
 const dataStore = useDataStore();
 const toastStore = useToastStore();
@@ -279,7 +279,7 @@ const form = ref<RecipeFormTemplate & { targetTemp?: number | null }>({
 			name: '主面团',
 			type: 'MAIN_DOUGH',
 			lossRatio: 0,
-			ingredients: [{ id: null, name: '', ratio: null, isRecipe: false, isFlour: false, waterContent: 0 }],
+			ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 }],
 			procedure: ['']
 		}
 	],
@@ -318,6 +318,7 @@ const productTabs = computed(() => {
 
 const availablePreDoughs = computed(() => dataStore.recipes.otherRecipes.filter((r) => r.type === 'PRE_DOUGH' && !r.deletedAt));
 
+// [核心修改] 修改 available... computed 属性，使其返回的对象包含 waterContent
 const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
 
@@ -327,7 +328,7 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 
 	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
+		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 }); // EXTRA配方本身不计含水量
 	});
 
 	dataStore.allIngredients.forEach((i) => {
@@ -359,11 +360,13 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
+// [核心修改] 计算总含水量的逻辑，现在直接从配方数据中获取 waterContent
 const totalCalculatedWaterRatio = computed(() => {
 	let totalWater = 0;
 	form.value.doughs?.forEach((dough) => {
 		dough.ingredients.forEach((ing) => {
 			if (ing.name && ing.ratio) {
+				// 直接使用 ing 对象自带的 waterContent，如果不存在则默认为 0
 				totalWater += Number(ing.ratio) * (ing.waterContent ?? 0);
 			}
 		});
@@ -388,7 +391,8 @@ const formatWaterRatio = (ratio: number): string => {
 	return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
 };
 
-const handleIngredientBlur = (ingredient: DoughIngredientInForm | ProductMixIn | ProductFilling | ProductTopping, availableList: AutocompleteItem[]) => {
+// [核心修改] 更新 blur 处理器，以同步 waterContent
+const handleIngredientBlur = (ingredient: { id: string | null; name: string; isRecipe?: boolean; waterContent?: number; isFlour?: boolean }, availableList: AutocompleteItem[]) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableList.find((item) => item.name === ingredient.name);
 		if (existing) {
@@ -456,6 +460,7 @@ const handleScroll = (event?: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
+// [核心修改] 更新 select 处理器，以同步 isFlour 和 waterContent
 const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
 	const ingredient = mainDough.value.ingredients[ingIndex];
 	ingredient.id = item.id;
@@ -519,7 +524,7 @@ const confirmAddPreDough = async () => {
 			name: i.ingredient!.name,
 			ratio: (i.ratio ?? 0) * scalingFactor * 100,
 			isRecipe: false,
-			isFlour: i.ingredient!.isFlour,
+			// [核心修改] 从接口获取的数据中直接传递 waterContent
 			waterContent: i.ingredient!.waterContent
 		}));
 
@@ -565,13 +570,12 @@ const removeProduct = (index: number) => {
 
 const addSubIngredient = (productIndex: number, type: 'mixIns' | 'fillings' | 'toppings') => {
 	const product = form.value.products![productIndex];
-	const newIngredient = { id: null, name: '', ratio: null, weightInGrams: null, isRecipe: false, waterContent: 0, isFlour: false };
 	if (type === 'mixIns') {
 		if (!product.mixIns) product.mixIns = [];
-		product.mixIns.push(newIngredient);
+		product.mixIns.push({ id: null, name: '', ratio: null, weightInGrams: null, isRecipe: false, waterContent: 0, isFlour: false });
 	} else {
 		if (!product[type]) product[type] = [];
-		product[type]!.push(newIngredient);
+		product[type]!.push({ id: null, name: '', ratio: null, weightInGrams: null, isRecipe: false, waterContent: 0, isFlour: false });
 	}
 };
 
@@ -599,7 +603,6 @@ const removeProcedureStep = (itemWithProcedure: { procedure: string[] }, index: 
 	itemWithProcedure.procedure.splice(index, 1);
 };
 
-// [核心修复] 重写 handleSubmit 函数以生成正确的后端数据格式
 const handleSubmit = async () => {
 	if (!form.value.name.trim()) {
 		toastStore.show({ message: '请输入配方名称', type: 'error' });
@@ -612,8 +615,9 @@ const handleSubmit = async () => {
 
 	isSubmitting.value = true;
 
+	// [核心修改] checkAndLinkIngredient 已被 handleIngredientBlur 和 onIngredientSelect 替代，不再需要
+
 	try {
-		// 1. 查找主面团
 		const mainDoughFromForm = form.value.doughs!.find((d) => d.type === 'MAIN_DOUGH');
 		if (!mainDoughFromForm) {
 			toastStore.show({ message: '主面团数据丢失，无法保存', type: 'error' });
@@ -621,67 +625,65 @@ const handleSubmit = async () => {
 			return;
 		}
 
-		// 2. 构建扁平化的 ingredients 数组
 		const ingredientsPayload = [
-			// A. 添加主面团中的普通原料
 			...mainDoughFromForm.ingredients
 				.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
-				.map((ing) => ({
-					ingredientId: ing.id || undefined,
-					name: ing.name,
-					ratio: toDecimal(Number(ing.ratio)),
-					isFlour: ing.isFlour,
-					waterContent: ing.waterContent
-				})),
-			// B. 添加面种类原料的概要信息
+				.map((ing) => {
+					// [核心修改] 此处发送给后端的数据，后端应只关心 id 和 ratio，其他信息后端应自行查找
+					return {
+						ingredientId: ing.id || undefined,
+						name: ing.name, // 传递 name 供后端在没有id时创建新原料
+						ratio: toDecimal(Number(ing.ratio)),
+						isFlour: ing.isFlour,
+						waterContent: ing.waterContent
+					};
+				}),
 			...form.value
 				.doughs!.filter((d) => d.type === 'PRE_DOUGH')
 				.map((d) => ({
 					name: d.name,
-					flourRatio: toDecimal(Number(d.flourRatioInMainDough)),
-					// 根据后端接口要求，补充固定的 isFlour 和 waterContent
-					isFlour: false,
-					waterContent: 0
+					flourRatio: toDecimal(Number(d.flourRatioInMainDough))
 				}))
 		];
 
-		// 3. 构建 products 数组，并转换辅料等的 ratio
-		const processSubIngredients = (subIngredients: (ProductMixIn | ProductFilling | ProductTopping)[]) => {
+		const processSubIngredients = (subIngredients: (SubIngredientWeight | SubIngredientRatio)[], type: 'MIX_IN' | 'FILLING' | 'TOPPING') => {
 			return subIngredients
-				.filter((i) => i.name && ((i.ratio !== null && Number(i.ratio) > 0) || (i.weightInGrams !== null && Number(i.weightInGrams) > 0)))
+				.filter(
+					(i) =>
+						i.name && (('ratio' in i && i.ratio !== null && Number(i.ratio) > 0) || ('weightInGrams' in i && i.weightInGrams !== null && Number(i.weightInGrams) > 0))
+				)
 				.map((i) => {
-					const base: any = {
-						ingredientId: i.id || undefined,
-						name: i.name,
-						isFlour: i.isFlour,
-						waterContent: i.waterContent
-					};
-					if (i.ratio !== null) {
+					const base: { name: string; type: string; ingredientId?: string; ratio?: number; weightInGrams?: number } = { name: i.name, type };
+					if (i.id) {
+						base.ingredientId = i.id;
+					}
+
+					if ('ratio' in i && i.ratio !== null) {
 						base.ratio = toDecimal(Number(i.ratio));
 					}
-					if (i.weightInGrams !== null) {
+					if ('weightInGrams' in i && i.weightInGrams !== null) {
 						base.weightInGrams = Number(i.weightInGrams);
 					}
 					return base;
-				});
+				})
+				.filter(Boolean);
 		};
 
-		// 4. 构建最终的 payload
 		const payload = {
 			name: form.value.name,
 			type: form.value.type,
 			notes: form.value.notes,
-			targetTemp: form.value.targetTemp ? Number(form.value.targetTemp) : undefined,
+			targetTemp: form.value.targetTemp,
 			lossRatio: toDecimal(Number(mainDoughFromForm.lossRatio)),
 			procedure: mainDoughFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
 			products: form.value.products!.map((p) => ({
 				name: p.name,
-				baseDoughWeight: Number(p.baseDoughWeight),
+				weight: Number(p.baseDoughWeight),
 				procedure: p.procedure.filter((step) => step && step.trim()),
-				mixIn: processSubIngredients(p.mixIns),
-				fillings: processSubIngredients(p.fillings),
-				toppings: processSubIngredients(p.toppings)
+				mixIn: processSubIngredients(p.mixIns, 'MIX_IN'),
+				fillings: processSubIngredients(p.fillings, 'FILLING'),
+				toppings: processSubIngredients(p.toppings, 'TOPPING')
 			}))
 		};
 

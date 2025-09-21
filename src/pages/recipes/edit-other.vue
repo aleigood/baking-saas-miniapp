@@ -91,7 +91,6 @@ import AutocompleteInput from '@/components/AutocompleteInput.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppModal from '@/components/AppModal.vue';
-import type { RecipeFormTemplate } from '@/types/api';
 import { toDecimal } from '@/utils/format';
 import { predefinedIngredients } from '@/utils/predefinedIngredients';
 
@@ -99,6 +98,7 @@ defineOptions({
 	inheritAttrs: false
 });
 
+// [核心修改] 更新 autocomplete 列表项的类型定义
 type AutocompleteItem = {
 	id: string | null;
 	name: string;
@@ -106,7 +106,16 @@ type AutocompleteItem = {
 	isRecipe: boolean;
 	waterContent: number;
 };
-type FormIngredient = NonNullable<RecipeFormTemplate['ingredients']>[0];
+
+// [核心修改] 更新 form 中 ingredients 数组的类型定义
+interface FormIngredient {
+	id: string | null;
+	name: string;
+	ratio: number | null;
+	isFlour: boolean;
+	isRecipe: boolean;
+	waterContent: number;
+}
 
 const dataStore = useDataStore();
 const toastStore = useToastStore();
@@ -124,11 +133,11 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const form = reactive<RecipeFormTemplate>({
+const form = reactive({
 	name: '',
-	type: 'PRE_DOUGH',
+	type: 'PRE_DOUGH' as 'PRE_DOUGH' | 'EXTRA',
 	notes: '',
-	ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 }],
+	ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 }] as FormIngredient[],
 	procedure: ['']
 });
 
@@ -155,6 +164,7 @@ const currentTypeLabel = computed(() => {
 	return recipeTypes.value.find((t) => t.value === form.type)?.label || '请选择';
 });
 
+// [核心修改] 确保 availableIngredients 返回的对象包含 waterContent
 const availableIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
 
@@ -164,7 +174,7 @@ const availableIngredients = computed((): AutocompleteItem[] => {
 
 	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
+		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 }); // EXTRA配方本身不计含水量
 	});
 
 	dataStore.allIngredients.forEach((i) => {
@@ -174,6 +184,7 @@ const availableIngredients = computed((): AutocompleteItem[] => {
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
+// [核心修改] 更新 blur 处理器，以同步 waterContent 和 isFlour
 const handleIngredientBlur = (ingredient: FormIngredient) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableIngredients.value.find((item) => item.name === ingredient.name);
@@ -231,7 +242,7 @@ const handleScroll = (event?: any) => {
 	}
 	const scrollTop = event.detail.scrollTop;
 
-	uni.$emit('page-clicked');
+	uni.$emit('page-clicked'); // [核心新增] 页面滚动时关闭所有建议框
 
 	if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
 		return;
@@ -250,8 +261,9 @@ const onTypeChange = (e: any) => {
 	form.type = recipeTypes.value[e.detail.value].value as 'PRE_DOUGH' | 'EXTRA';
 };
 
+// [核心修改] 更新 select 处理器，以同步所有相关属性
 const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
-	const ingredient = form.ingredients![ingIndex];
+	const ingredient = form.ingredients[ingIndex];
 	ingredient.id = item.id;
 	ingredient.name = item.name;
 	ingredient.isFlour = item.isFlour;
@@ -260,35 +272,33 @@ const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
 };
 
 const addIngredient = () => {
-	form.ingredients!.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 });
+	form.ingredients.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 });
 };
 
 const removeIngredient = (ingIndex: number) => {
-	form.ingredients!.splice(ingIndex, 1);
+	form.ingredients.splice(ingIndex, 1);
 };
 
 const addProcedureStep = () => {
-	if (!form.procedure) form.procedure = [];
 	form.procedure.push('');
 };
 
 const removeProcedureStep = (index: number) => {
-	form.procedure!.splice(index, 1);
+	form.procedure.splice(index, 1);
 };
 
-// [核心修复] 重新构建 handleSubmit 函数，确保 payload 结构和数据格式的正确性
 const handleSubmit = async () => {
 	isSubmitting.value = true;
 
+	// [核心修改] 提交前的检查已通过 blur 和 select 处理器完成，此处无需额外逻辑
+
 	try {
-		// 构造一个纯净的 payload 对象，只包含后端需要的字段
 		const payload = {
 			name: form.name,
 			type: form.type,
 			notes: form.notes,
-			// 转换 ingredients 数组，确保 ratio 是小数且只包含必要字段
 			ingredients: form.ingredients
-				?.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
+				.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
 				.map((ing) => ({
 					ingredientId: ing.id || undefined,
 					name: ing.name,
@@ -296,7 +306,8 @@ const handleSubmit = async () => {
 					isFlour: ing.isFlour,
 					waterContent: ing.waterContent
 				})),
-			procedure: form.procedure?.filter((p) => p && p.trim())
+			procedure: form.procedure.filter((p) => p && p.trim()),
+			products: []
 		};
 
 		if (pageMode.value === 'create') {
@@ -320,7 +331,6 @@ const handleSubmit = async () => {
 		uni.navigateBack();
 	} catch (error) {
 		console.error('Failed to save recipe:', error);
-		toastStore.show({ message: '保存失败，请检查数据', type: 'error' });
 	} finally {
 		isSubmitting.value = false;
 	}
