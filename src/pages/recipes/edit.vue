@@ -60,7 +60,9 @@
 								placeholder="输入或选择原料"
 								@select="onIngredientSelect($event, ingIndex)"
 								@blur="handleIngredientBlur(ing, availableMainDoughIngredients)"
-								:show-tag="ing.isRecipe"
+								:show-tag="ing.isRecipe || (ing.name === '水' && showTotalWaterTag)"
+								:tag-text="ing.name === '水' && showTotalWaterTag ? `总水: ${formatWaterRatio(totalCalculatedWaterRatio)}%` : '自制'"
+								:tag-style="ing.name === '水' && showTotalWaterTag ? { backgroundColor: '#e0efff', color: '#00529b' } : {}"
 							/>
 						</view>
 						<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
@@ -239,8 +241,17 @@ defineOptions({
 	inheritAttrs: false
 });
 
-type SubIngredientRatio = { id: string | null; name: string; ratio: number | null; weightInGrams?: number | null; isRecipe?: boolean };
-type SubIngredientWeight = { id: string | null; name: string; ratio?: number | null; weightInGrams: number | null; isRecipe?: boolean };
+type AutocompleteItem = {
+	id: string | null;
+	name: string;
+	isFlour: boolean;
+	isRecipe: boolean;
+	waterContent: number;
+};
+type DoughIngredientInForm = NonNullable<RecipeFormTemplate['doughs']>[0]['ingredients'][0];
+type ProductMixIn = NonNullable<RecipeFormTemplate['products']>[0]['mixIns'][0];
+type ProductFilling = NonNullable<RecipeFormTemplate['products']>[0]['fillings'][0];
+type ProductTopping = NonNullable<RecipeFormTemplate['products']>[0]['toppings'][0];
 
 const dataStore = useDataStore();
 const toastStore = useToastStore();
@@ -268,7 +279,7 @@ const form = ref<RecipeFormTemplate & { targetTemp?: number | null }>({
 			name: '主面团',
 			type: 'MAIN_DOUGH',
 			lossRatio: 0,
-			ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false }],
+			ingredients: [{ id: null, name: '', ratio: null, isRecipe: false, isFlour: false, waterContent: 0 }],
 			procedure: ['']
 		}
 	],
@@ -307,20 +318,20 @@ const productTabs = computed(() => {
 
 const availablePreDoughs = computed(() => dataStore.recipes.otherRecipes.filter((r) => r.type === 'PRE_DOUGH' && !r.deletedAt));
 
-const availableMainDoughIngredients = computed(() => {
-	const ingredientMap = new Map<string, { id: string | null; name: string; isFlour: boolean; isRecipe: boolean }>();
+const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
+	const ingredientMap = new Map<string, AutocompleteItem>();
 
 	predefinedIngredients.forEach((p) => {
-		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false });
+		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0 });
 	});
 
 	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true });
+		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
 	});
 
 	dataStore.allIngredients.forEach((i) => {
-		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false });
+		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0 });
 	});
 
 	const combined = Array.from(ingredientMap.values());
@@ -329,31 +340,62 @@ const availableMainDoughIngredients = computed(() => {
 	return combined.filter((item) => !preDoughNames.has(item.name)).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-const availableSubIngredients = computed(() => {
-	const ingredientMap = new Map<string, { id: string | null; name: string; isFlour: boolean; isRecipe: boolean }>();
+const availableSubIngredients = computed((): AutocompleteItem[] => {
+	const ingredientMap = new Map<string, AutocompleteItem>();
 
 	predefinedIngredients.forEach((p) => {
-		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false });
+		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0 });
 	});
 
 	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true });
+		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
 	});
 
 	dataStore.allIngredients.forEach((i) => {
-		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false });
+		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0 });
 	});
 
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-const handleIngredientBlur = (ingredient: { id: string | null; name: string; isRecipe?: boolean }, availableList: { id: string | null; name: string; isRecipe: boolean }[]) => {
+const totalCalculatedWaterRatio = computed(() => {
+	let totalWater = 0;
+	form.value.doughs?.forEach((dough) => {
+		dough.ingredients.forEach((ing) => {
+			if (ing.name && ing.ratio) {
+				totalWater += Number(ing.ratio) * (ing.waterContent ?? 0);
+			}
+		});
+	});
+	return totalWater;
+});
+
+const manualWaterRatio = computed(() => {
+	const waterIngredient = mainDough.value.ingredients.find((i) => i.name === '水');
+	return Number(waterIngredient?.ratio || 0);
+});
+
+const showTotalWaterTag = computed(() => {
+	if (manualWaterRatio.value === 0 && totalCalculatedWaterRatio.value === 0) {
+		return false;
+	}
+	return Math.abs(totalCalculatedWaterRatio.value - manualWaterRatio.value) > 0.01;
+});
+
+const formatWaterRatio = (ratio: number): string => {
+	const fixed = ratio.toFixed(1);
+	return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
+};
+
+const handleIngredientBlur = (ingredient: DoughIngredientInForm | ProductMixIn | ProductFilling | ProductTopping, availableList: AutocompleteItem[]) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableList.find((item) => item.name === ingredient.name);
 		if (existing) {
 			ingredient.id = existing.id;
 			ingredient.isRecipe = existing.isRecipe;
+			ingredient.isFlour = existing.isFlour;
+			ingredient.waterContent = existing.waterContent;
 		} else {
 			ingredient.isRecipe = false;
 		}
@@ -402,29 +444,29 @@ const handleScroll = (event?: any) => {
 		return;
 	}
 	const scrollTop = event.detail.scrollTop;
-
+	uni.$emit('page-clicked');
 	if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
 		return;
 	}
-
 	if (scrollTop > lastScrollTop.value && scrollTop > 50) {
 		isFabVisible.value = false;
 	} else {
 		isFabVisible.value = true;
 	}
-
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-const onIngredientSelect = (item: { id: string | null; name: string; isFlour: boolean; isRecipe: boolean }, ingIndex: number) => {
-	mainDough.value.ingredients[ingIndex].id = item.id;
-	mainDough.value.ingredients[ingIndex].name = item.name;
-	mainDough.value.ingredients[ingIndex].isFlour = item.isFlour;
-	mainDough.value.ingredients[ingIndex].isRecipe = item.isRecipe;
+const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
+	const ingredient = mainDough.value.ingredients[ingIndex];
+	ingredient.id = item.id;
+	ingredient.name = item.name;
+	ingredient.isFlour = item.isFlour;
+	ingredient.isRecipe = item.isRecipe;
+	ingredient.waterContent = item.waterContent;
 };
 
 const addIngredient = () => {
-	mainDough.value.ingredients.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false });
+	mainDough.value.ingredients.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 });
 };
 
 const removeIngredient = (ingIndex: number) => {
@@ -476,7 +518,9 @@ const confirmAddPreDough = async () => {
 			id: i.ingredient!.id,
 			name: i.ingredient!.name,
 			ratio: (i.ratio ?? 0) * scalingFactor * 100,
-			isRecipe: false
+			isRecipe: false,
+			isFlour: i.ingredient!.isFlour,
+			waterContent: i.ingredient!.waterContent
 		}));
 
 		form.value.doughs!.push({
@@ -521,12 +565,13 @@ const removeProduct = (index: number) => {
 
 const addSubIngredient = (productIndex: number, type: 'mixIns' | 'fillings' | 'toppings') => {
 	const product = form.value.products![productIndex];
+	const newIngredient = { id: null, name: '', ratio: null, weightInGrams: null, isRecipe: false, waterContent: 0, isFlour: false };
 	if (type === 'mixIns') {
 		if (!product.mixIns) product.mixIns = [];
-		product.mixIns.push({ id: null, name: '', ratio: null, weightInGrams: null, isRecipe: false });
+		product.mixIns.push(newIngredient);
 	} else {
 		if (!product[type]) product[type] = [];
-		product[type]!.push({ id: null, name: '', ratio: null, weightInGrams: null, isRecipe: false });
+		product[type]!.push(newIngredient);
 	}
 };
 
@@ -534,11 +579,13 @@ const removeSubIngredient = (productIndex: number, type: 'mixIns' | 'fillings' |
 	form.value.products![productIndex][type]!.splice(ingIndex, 1);
 };
 
-const onSubIngredientSelect = (item: { id: string | null; name: string; isRecipe: boolean }, productIndex: number, type: 'mixIns' | 'fillings' | 'toppings', ingIndex: number) => {
+const onSubIngredientSelect = (item: AutocompleteItem, productIndex: number, type: 'mixIns' | 'fillings' | 'toppings', ingIndex: number) => {
 	const ingredient = form.value.products![productIndex][type]![ingIndex];
 	ingredient.id = item.id;
 	ingredient.name = item.name;
 	ingredient.isRecipe = item.isRecipe;
+	ingredient.isFlour = item.isFlour;
+	ingredient.waterContent = item.waterContent;
 };
 
 const addProcedureStep = (itemWithProcedure: { procedure?: string[] }) => {
@@ -552,6 +599,7 @@ const removeProcedureStep = (itemWithProcedure: { procedure: string[] }, index: 
 	itemWithProcedure.procedure.splice(index, 1);
 };
 
+// [核心修复] 重写 handleSubmit 函数以生成正确的后端数据格式
 const handleSubmit = async () => {
 	if (!form.value.name.trim()) {
 		toastStore.show({ message: '请输入配方名称', type: 'error' });
@@ -564,27 +612,8 @@ const handleSubmit = async () => {
 
 	isSubmitting.value = true;
 
-	const checkAndLinkIngredient = (
-		ingredient: { id: string | null; name: string; isRecipe?: boolean },
-		availableList: { id: string | null; name: string; isRecipe: boolean }[]
-	) => {
-		if (!ingredient.id && ingredient.name) {
-			const existing = availableList.find((item) => item.name === ingredient.name);
-			if (existing) {
-				ingredient.id = existing.id;
-				ingredient.isRecipe = existing.isRecipe;
-			}
-		}
-	};
-
-	mainDough.value.ingredients.forEach((ing) => checkAndLinkIngredient(ing, availableMainDoughIngredients.value));
-	form.value.products?.forEach((p) => {
-		p.mixIns?.forEach((ing) => checkAndLinkIngredient(ing, availableSubIngredients.value));
-		p.fillings?.forEach((ing) => checkAndLinkIngredient(ing, availableSubIngredients.value));
-		p.toppings?.forEach((ing) => checkAndLinkIngredient(ing, availableSubIngredients.value));
-	});
-
 	try {
+		// 1. 查找主面团
 		const mainDoughFromForm = form.value.doughs!.find((d) => d.type === 'MAIN_DOUGH');
 		if (!mainDoughFromForm) {
 			toastStore.show({ message: '主面团数据丢失，无法保存', type: 'error' });
@@ -592,71 +621,67 @@ const handleSubmit = async () => {
 			return;
 		}
 
+		// 2. 构建扁平化的 ingredients 数组
 		const ingredientsPayload = [
+			// A. 添加主面团中的普通原料
 			...mainDoughFromForm.ingredients
 				.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
-				.map((ing) => {
-					const fullIngredientInfo = availableMainDoughIngredients.value.find((item) => item.name === ing.name);
-					return {
-						ingredientId: ing.id || undefined,
-						name: ing.name,
-						ratio: toDecimal(Number(ing.ratio)),
-						isFlour: ing.isFlour,
-						waterContent: fullIngredientInfo
-							? dataStore.allIngredients.find((i) => i.id === fullIngredientInfo.id)?.waterContent ??
-							  predefinedIngredients.find((p) => p.name === fullIngredientInfo.name)?.waterContent
-							: 0
-					};
-				}),
+				.map((ing) => ({
+					ingredientId: ing.id || undefined,
+					name: ing.name,
+					ratio: toDecimal(Number(ing.ratio)),
+					isFlour: ing.isFlour,
+					waterContent: ing.waterContent
+				})),
+			// B. 添加面种类原料的概要信息
 			...form.value
 				.doughs!.filter((d) => d.type === 'PRE_DOUGH')
 				.map((d) => ({
 					name: d.name,
-					flourRatio: toDecimal(Number(d.flourRatioInMainDough))
+					flourRatio: toDecimal(Number(d.flourRatioInMainDough)),
+					// 根据后端接口要求，补充固定的 isFlour 和 waterContent
+					isFlour: false,
+					waterContent: 0
 				}))
 		];
 
-		const processSubIngredients = (subIngredients: (SubIngredientWeight | SubIngredientRatio)[], type: 'MIX_IN' | 'FILLING' | 'TOPPING') => {
+		// 3. 构建 products 数组，并转换辅料等的 ratio
+		const processSubIngredients = (subIngredients: (ProductMixIn | ProductFilling | ProductTopping)[]) => {
 			return subIngredients
-				.filter(
-					(i) =>
-						i.name && (('ratio' in i && i.ratio !== null && Number(i.ratio) > 0) || ('weightInGrams' in i && i.weightInGrams !== null && Number(i.weightInGrams) > 0))
-				)
+				.filter((i) => i.name && ((i.ratio !== null && Number(i.ratio) > 0) || (i.weightInGrams !== null && Number(i.weightInGrams) > 0)))
 				.map((i) => {
-					const base: { name: string; type: string; ingredientId?: string; ratio?: number; weightInGrams?: number } = { name: i.name, type };
-					if (i.id) {
-						const ingredient = dataStore.allIngredients.find((ing) => ing.id === i.id);
-						if (ingredient) {
-							base.ingredientId = ingredient.id;
-						}
-					}
-
-					if ('ratio' in i && i.ratio !== null) {
+					const base: any = {
+						ingredientId: i.id || undefined,
+						name: i.name,
+						isFlour: i.isFlour,
+						waterContent: i.waterContent
+					};
+					if (i.ratio !== null) {
 						base.ratio = toDecimal(Number(i.ratio));
 					}
-					if ('weightInGrams' in i && i.weightInGrams !== null) {
+					if (i.weightInGrams !== null) {
 						base.weightInGrams = Number(i.weightInGrams);
 					}
 					return base;
-				})
-				.filter(Boolean);
+				});
 		};
 
+		// 4. 构建最终的 payload
 		const payload = {
 			name: form.value.name,
 			type: form.value.type,
 			notes: form.value.notes,
-			targetTemp: form.value.targetTemp,
+			targetTemp: form.value.targetTemp ? Number(form.value.targetTemp) : undefined,
 			lossRatio: toDecimal(Number(mainDoughFromForm.lossRatio)),
 			procedure: mainDoughFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
 			products: form.value.products!.map((p) => ({
 				name: p.name,
-				weight: Number(p.baseDoughWeight),
+				baseDoughWeight: Number(p.baseDoughWeight),
 				procedure: p.procedure.filter((step) => step && step.trim()),
-				mixIn: processSubIngredients(p.mixIns, 'MIX_IN'),
-				fillings: processSubIngredients(p.fillings, 'FILLING'),
-				toppings: processSubIngredients(p.toppings, 'TOPPING')
+				mixIn: processSubIngredients(p.mixIns),
+				fillings: processSubIngredients(p.fillings),
+				toppings: processSubIngredients(p.toppings)
 			}))
 		};
 
@@ -748,7 +773,6 @@ const handleSubmit = async () => {
 	margin-top: 30px;
 }
 
-/* [核心新增] 恢复被误删的样式 */
 .info-row {
 	display: flex;
 	justify-content: space-between;

@@ -91,12 +91,22 @@ import AutocompleteInput from '@/components/AutocompleteInput.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppModal from '@/components/AppModal.vue';
+import type { RecipeFormTemplate } from '@/types/api';
 import { toDecimal } from '@/utils/format';
 import { predefinedIngredients } from '@/utils/predefinedIngredients';
 
 defineOptions({
 	inheritAttrs: false
 });
+
+type AutocompleteItem = {
+	id: string | null;
+	name: string;
+	isFlour: boolean;
+	isRecipe: boolean;
+	waterContent: number;
+};
+type FormIngredient = NonNullable<RecipeFormTemplate['ingredients']>[0];
 
 const dataStore = useDataStore();
 const toastStore = useToastStore();
@@ -114,15 +124,14 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const form = reactive({
+const form = reactive<RecipeFormTemplate>({
 	name: '',
-	type: 'PRE_DOUGH' as 'PRE_DOUGH' | 'EXTRA',
+	type: 'PRE_DOUGH',
 	notes: '',
-	ingredients: [{ id: null as string | null, name: '', ratio: null as number | null, isFlour: false, isRecipe: false }],
+	ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 }],
 	procedure: ['']
 });
 
-// [核心新增] 定义一个用于触发全局关闭事件的函数
 const handlePageClick = () => {
 	uni.$emit('page-clicked');
 };
@@ -146,31 +155,33 @@ const currentTypeLabel = computed(() => {
 	return recipeTypes.value.find((t) => t.value === form.type)?.label || '请选择';
 });
 
-const availableIngredients = computed(() => {
-	const ingredientMap = new Map<string, { id: string | null; name: string; isFlour: boolean; isRecipe: boolean }>();
+const availableIngredients = computed((): AutocompleteItem[] => {
+	const ingredientMap = new Map<string, AutocompleteItem>();
 
 	predefinedIngredients.forEach((p) => {
-		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false });
+		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0 });
 	});
 
 	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true });
+		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
 	});
 
 	dataStore.allIngredients.forEach((i) => {
-		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false });
+		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0 });
 	});
 
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-const handleIngredientBlur = (ingredient: { id: string | null; name: string; isRecipe?: boolean }) => {
+const handleIngredientBlur = (ingredient: FormIngredient) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableIngredients.value.find((item) => item.name === ingredient.name);
 		if (existing) {
 			ingredient.id = existing.id;
 			ingredient.isRecipe = existing.isRecipe;
+			ingredient.isFlour = existing.isFlour;
+			ingredient.waterContent = existing.waterContent;
 		} else {
 			ingredient.isRecipe = false;
 		}
@@ -220,6 +231,8 @@ const handleScroll = (event?: any) => {
 	}
 	const scrollTop = event.detail.scrollTop;
 
+	uni.$emit('page-clicked');
+
 	if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
 		return;
 	}
@@ -237,63 +250,53 @@ const onTypeChange = (e: any) => {
 	form.type = recipeTypes.value[e.detail.value].value as 'PRE_DOUGH' | 'EXTRA';
 };
 
-const onIngredientSelect = (item: { id: string | null; name: string; isFlour?: boolean; isRecipe?: boolean }, ingIndex: number) => {
-	form.ingredients[ingIndex].id = item.id;
-	form.ingredients[ingIndex].name = item.name;
-	form.ingredients[ingIndex].isFlour = item.isFlour || false;
-	form.ingredients[ingIndex].isRecipe = item.isRecipe || false;
+const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
+	const ingredient = form.ingredients![ingIndex];
+	ingredient.id = item.id;
+	ingredient.name = item.name;
+	ingredient.isFlour = item.isFlour;
+	ingredient.isRecipe = item.isRecipe;
+	ingredient.waterContent = item.waterContent;
 };
 
 const addIngredient = () => {
-	form.ingredients.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false });
+	form.ingredients!.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 });
 };
 
 const removeIngredient = (ingIndex: number) => {
-	form.ingredients.splice(ingIndex, 1);
+	form.ingredients!.splice(ingIndex, 1);
 };
 
 const addProcedureStep = () => {
+	if (!form.procedure) form.procedure = [];
 	form.procedure.push('');
 };
 
 const removeProcedureStep = (index: number) => {
-	form.procedure.splice(index, 1);
+	form.procedure!.splice(index, 1);
 };
 
+// [核心修复] 重新构建 handleSubmit 函数，确保 payload 结构和数据格式的正确性
 const handleSubmit = async () => {
 	isSubmitting.value = true;
 
-	form.ingredients.forEach((ing) => {
-		if (!ing.id && ing.name) {
-			const existing = availableIngredients.value.find((item) => item.name === ing.name);
-			if (existing) {
-				ing.id = existing.id;
-			}
-		}
-	});
-
 	try {
+		// 构造一个纯净的 payload 对象，只包含后端需要的字段
 		const payload = {
 			name: form.name,
 			type: form.type,
 			notes: form.notes,
+			// 转换 ingredients 数组，确保 ratio 是小数且只包含必要字段
 			ingredients: form.ingredients
-				.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
-				.map((ing) => {
-					const fullIngredientInfo = availableIngredients.value.find((item) => item.name === ing.name);
-					return {
-						ingredientId: ing.id || undefined,
-						name: ing.name,
-						ratio: toDecimal(Number(ing.ratio)),
-						isFlour: ing.isFlour,
-						waterContent: fullIngredientInfo
-							? dataStore.allIngredients.find((i) => i.id === fullIngredientInfo.id)?.waterContent ??
-							  predefinedIngredients.find((p) => p.name === fullIngredientInfo.name)?.waterContent
-							: 0
-					};
-				}),
-			procedure: form.procedure.filter((p) => p && p.trim()),
-			products: []
+				?.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
+				.map((ing) => ({
+					ingredientId: ing.id || undefined,
+					name: ing.name,
+					ratio: toDecimal(Number(ing.ratio)),
+					isFlour: ing.isFlour,
+					waterContent: ing.waterContent
+				})),
+			procedure: form.procedure?.filter((p) => p && p.trim())
 		};
 
 		if (pageMode.value === 'create') {
@@ -317,6 +320,7 @@ const handleSubmit = async () => {
 		uni.navigateBack();
 	} catch (error) {
 		console.error('Failed to save recipe:', error);
+		toastStore.show({ message: '保存失败，请检查数据', type: 'error' });
 	} finally {
 		isSubmitting.value = false;
 	}

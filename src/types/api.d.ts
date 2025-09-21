@@ -115,7 +115,9 @@ export interface RecipeFormTemplate {
 			id: string | null;
 			name: string;
 			ratio: number | null;
-			isRecipe?: boolean; // 新增：标识是否为自制配方
+			isRecipe?: boolean;
+			isFlour?: boolean; // [核心新增] 增加 isFlour 字段
+			waterContent?: number; // [核心新增] 增加 waterContent 字段
 		}[];
 		procedure: string[];
 	}[];
@@ -128,21 +130,24 @@ export interface RecipeFormTemplate {
 			name: string;
 			ratio: number | null;
 			weightInGrams?: number | null;
-			isRecipe?: boolean; // 新增：标识是否为自制配方
+			isRecipe?: boolean;
+			waterContent?: number; // [核心新增] 增加 waterContent 字段
 		}[];
 		fillings: {
 			id: string | null;
 			name: string;
 			ratio: number | null;
 			weightInGrams?: number | null;
-			isRecipe?: boolean; // 新增：标识是否为自制配方
+			isRecipe?: boolean;
+			waterContent?: number; // [核心新增] 增加 waterContent 字段
 		}[];
 		toppings: {
 			id: string | null;
 			name: string;
 			ratio: number | null;
 			weightInGrams?: number | null;
-			isRecipe?: boolean; // 新增：标识是否为自制配方
+			isRecipe?: boolean;
+			waterContent?: number; // [核心新增] 增加 waterContent 字段
 		}[];
 		procedure: string[];
 	}[];
@@ -151,7 +156,9 @@ export interface RecipeFormTemplate {
 		id: string | null;
 		name: string;
 		ratio: number | null;
-		isRecipe?: boolean; // 新增：标识是否为自制配方
+		isRecipe?: boolean;
+		isFlour?: boolean; // [核心新增] 增加 isFlour 字段
+		waterContent?: number; // [核心新增] 增加 waterContent 字段
 	}[];
 	procedure?: string[]; // 其他配方使用
 }

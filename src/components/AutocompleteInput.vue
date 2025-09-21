@@ -2,7 +2,7 @@
 	<view class="autocomplete-container" :style="{ zIndex: focused ? 99 : 1 }" @click.stop>
 		<view class="input-wrapper">
 			<input class="input-field" :class="{ 'with-tag': showTag }" :value="modelValue" :placeholder="placeholder" @input="onInput" @focus="onFocus" @blur="handleInputBlur" />
-			<text v-if="showTag" class="recipe-tag-in-input">自制</text>
+			<text v-if="showTag" class="recipe-tag-in-input" :style="tagStyle">{{ tagText }}</text>
 		</view>
 		<view v-if="showSuggestions" class="suggestions-container" :style="suggestionsStyle">
 			<scroll-view :scroll-y="true" class="suggestions-scroll-view">
@@ -28,13 +28,17 @@ const props = withDefaults(
 		modelValue: string;
 		items: { id: string | null; name: string; isRecipe?: boolean }[];
 		placeholder?: string;
-		showTag?: boolean; // 新增：用于控制输入框内标签的显示
+		showTag?: boolean;
+		tagText?: string; // [核心新增] 自定义标签文本
+		tagStyle?: Record<string, string>; // [核心新增] 自定义标签样式
 	}>(),
 	{
 		modelValue: '',
 		items: () => [],
 		placeholder: '',
-		showTag: false // 新增：默认不显示
+		showTag: false,
+		tagText: '自制', // [核心新增] 默认标签文本
+		tagStyle: () => ({}) // [核心新增] 默认标签样式为空对象
 	}
 );
 
@@ -44,19 +48,19 @@ const instance = getCurrentInstance();
 const focused = ref(false);
 const inputRect = ref<UniApp.NodeInfo | null>(null);
 
-// [核心新增] 定义一个用于处理全局点击的函数
+// 定义一个用于处理全局点击的函数
 const handleGlobalClick = () => {
 	if (focused.value) {
 		focused.value = false;
 	}
 };
 
-// [核心新增] 在组件挂载时，监听全局事件
+// 在组件挂载时，监听全局事件
 onMounted(() => {
 	uni.$on('page-clicked', handleGlobalClick);
 });
 
-// [核心新增] 在组件卸载时，移除全局事件监听，防止内存泄漏
+// 在组件卸载时，移除全局事件监听，防止内存泄漏
 onUnmounted(() => {
 	uni.$off('page-clicked', handleGlobalClick);
 });
@@ -96,6 +100,7 @@ const onInput = (event: any) => {
 };
 
 const onFocus = () => {
+	uni.$emit('page-clicked'); // [核心修改] 触发全局点击事件，关闭其他已打开的建议框
 	focused.value = true;
 	nextTick(() => {
 		const query = uni.createSelectorQuery().in(instance);
@@ -110,7 +115,7 @@ const onFocus = () => {
 	});
 };
 
-// [核心修改] handleInputBlur 现在只负责发出 blur 事件，不再控制 focused 状态
+// handleInputBlur 现在只负责发出 blur 事件，不再控制 focused 状态
 const handleInputBlur = () => {
 	emit('blur');
 };
@@ -135,18 +140,15 @@ const createNewItem = () => {
 	position: relative;
 }
 
-// [核心新增] 输入框包装器，用于相对定位
 .input-wrapper {
 	position: relative;
 	width: 100%;
 }
 
-// [核心新增] 当需要显示标签时，为输入框增加右内边距以腾出空间
 .input-field.with-tag {
-	padding-right: 50px; // 标签宽度 + 边距
+	padding-right: 85px; // [核心修改] 增加了标签的宽度以适应更长的文本
 }
 
-// [核心新增] 输入框内标签的样式
 .recipe-tag-in-input {
 	position: absolute;
 	right: 12px;
@@ -159,6 +161,7 @@ const createNewItem = () => {
 	font-size: 12px;
 	font-weight: 500;
 	pointer-events: none; // 确保标签不会捕获鼠标事件
+	white-space: nowrap; // [核心新增] 防止标签文本换行
 }
 
 .suggestions-container {
@@ -194,7 +197,6 @@ const createNewItem = () => {
 	}
 }
 
-// [核心新增] 自制标签样式
 .recipe-tag {
 	background-color: #faedcd;
 	color: var(--primary-color);
@@ -210,7 +212,7 @@ const createNewItem = () => {
 	align-items: center;
 	color: var(--primary-color);
 	font-weight: 500;
-	justify-content: flex-start; // [核心修复] 覆盖父级的 space-between 样式
+	justify-content: flex-start;
 }
 
 .create-icon {
