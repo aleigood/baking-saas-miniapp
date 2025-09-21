@@ -3,6 +3,9 @@
  * 文件描述: (已更新) 使用 deletedAt 字段判断配方状态，并恢复 productionCount 字段。
  */
 
+// [核心新增] 新增配方品类枚举
+export type RecipeCategory = 'BREAD' | 'PASTRY' | 'DESSERT' | 'DRINK' | 'OTHER';
+
 // [核心修改] 为备料任务中的原料增加可选的 brand 和 isRecipe 字段
 export interface CalculatedRecipeIngredient {
 	name: string;
@@ -83,6 +86,7 @@ export interface RecipeFamily {
 	id: string;
 	name: string;
 	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
+	category: RecipeCategory; // [核心新增] 增加品类字段
 	deletedAt: string | null; // [修复] 使用 deletedAt 判断状态
 	versions: RecipeVersion[];
 	productionCount?: number; // [修复] 恢复误删除的字段
@@ -102,6 +106,7 @@ export interface RecipesListResponse {
 export interface RecipeFormTemplate {
 	name: string;
 	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
+	category?: RecipeCategory; // [核心新增] 增加可选的品类字段
 	notes: string;
 	targetTemp?: number;
 	doughs?: {
@@ -171,10 +176,11 @@ export interface RecipeVersion {
 	isActive: boolean;
 	createdAt: string;
 	products: Product[];
-	doughs: {
+	components: {
+		// [核心重命名] doughs -> components
 		id: string;
 		name: string;
-		ingredients: DoughIngredient[];
+		ingredients: ComponentIngredient[]; // [核心重命名]
 		procedure: string[];
 		_count: {
 			ingredients: number;
@@ -182,8 +188,8 @@ export interface RecipeVersion {
 	}[];
 }
 
-// [核心修改] 更新 DoughIngredient 类型以完全匹配后端返回的嵌套结构
-export interface DoughIngredient {
+// [核心重命名] DoughIngredient -> ComponentIngredient
+export interface ComponentIngredient {
 	id: string;
 	ratio: number | null;
 	flourRatio: number | null;
@@ -197,7 +203,8 @@ export interface DoughIngredient {
 		id: string;
 		name: string;
 		versions: {
-			doughs: {
+			components: {
+				// [核心重命名] doughs -> components
 				ingredients: {
 					ratio: number;
 					ingredient: {
@@ -345,10 +352,11 @@ export interface ProductionTaskDto {
 					id: string;
 					name: string;
 				};
-				doughs: {
+				components: {
+					// [核心重命名] doughs -> components
 					id: string;
 					name: string;
-					ingredients: DoughIngredient[];
+					ingredients: ComponentIngredient[];
 				}[];
 			};
 		};

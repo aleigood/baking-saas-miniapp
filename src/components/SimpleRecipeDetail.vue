@@ -37,21 +37,23 @@ const props = defineProps({
 const dataStore = useDataStore();
 
 const procedure = computed(() => {
-	if (!props.version || !props.version.doughs || props.version.doughs.length === 0) {
+	// [核心重命名] doughs -> components
+	if (!props.version || !props.version.components || props.version.components.length === 0) {
 		return [];
 	}
-	return props.version.doughs[0].procedure || [];
+	return props.version.components[0].procedure || [];
 });
 
 const nonMainRecipeIngredients = computed(() => {
 	if (!props.version) {
 		return [];
 	}
-	const dough = props.version.doughs[0];
-	if (!dough || !dough.ingredients) {
+	// [核心重命名] doughs -> components
+	const component = props.version.components[0];
+	if (!component || !component.ingredients) {
 		return [];
 	}
-	return dough.ingredients.map((ing) => {
+	return component.ingredients.map((ing) => {
 		const ingredientData = dataStore.allIngredients.find((i) => i.id === ing.ingredientId);
 
 		let pricePerKg = '¥0/kg';

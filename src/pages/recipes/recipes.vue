@@ -17,26 +17,26 @@
 						</view>
 					</view>
 					<view class="filter-wrapper">
-						<FilterTabs v-model="recipeFilter" :tabs="recipeFilterTabs" />
+						<FilterTabs v-model="activeFilter" :tabs="filterTabs" />
 					</view>
 				</view>
 
-				<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
-					<template v-if="recipeFilter === 'MAIN'">
-						<template v-if="dataStore.recipes.mainRecipes.length > 0">
+				<view class="list-wrapper">
+					<template v-if="activeFilter !== 'OTHER'">
+						<template v-if="filteredRecipes.length > 0">
 							<ListItem
-								v-for="(family, index) in dataStore.recipes.mainRecipes"
+								v-for="(family, index) in filteredRecipes"
 								:key="family.id"
 								@click="navigateToDetail(family.id)"
 								@longpress="openRecipeActions(family)"
 								:vibrate-on-long-press="canEditRecipe"
 								:bleed="true"
-								:divider="index < dataStore.recipes.mainRecipes.length - 1"
+								:divider="index < filteredRecipes.length - 1"
 							>
 								<view class="main-info">
 									<view>
 										<view class="name">{{ family.name }}</view>
-										<view class="desc">{{ family.productCount }} 种面包</view>
+										<view class="desc">{{ family.productCount }} 种产品</view>
 									</view>
 									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 								</view>
@@ -47,11 +47,11 @@
 							</ListItem>
 						</template>
 						<view v-else class="empty-state">
-							<text>暂无面团配方信息</text>
+							<text>该品类下暂无产品配方</text>
 						</view>
 					</template>
 
-					<template v-if="recipeFilter === 'OTHER'">
+					<template v-else>
 						<template v-if="dataStore.recipes.otherRecipes.length > 0">
 							<ListItem
 								v-for="(family, index) in dataStore.recipes.otherRecipes"
@@ -166,20 +166,53 @@ const toastStore = useToastStore();
 // [核心新增] 获取 uiStore 实例
 const uiStore = useUiStore();
 
-const recipeFilter = ref<'MAIN' | 'OTHER'>('MAIN');
+// [核心改造] 使用单一的 activeFilter 来控制当前筛选状态，默认为第一个品类
+const activeFilter = ref('BREAD');
+
 const isSubmitting = ref(false);
 const selectedRecipe = ref<RecipeFamily | null>(null);
-const touchStartX = ref(0);
-const touchStartY = ref(0);
+
 const recipeTypeMap = {
 	MAIN: '面团',
 	PRE_DOUGH: '面种',
 	EXTRA: '馅料'
 };
-const recipeFilterTabs = ref([
-	{ key: 'MAIN', label: '面团' },
-	{ key: 'OTHER', label: '其他' }
-]);
+
+// [核心新增] 定义品类 key 到中文显示名的映射
+const categoryMap = {
+	BREAD: '面包',
+	PASTRY: '西点',
+	DESSERT: '甜品',
+	DRINK: '饮品',
+	OTHER: '其他'
+};
+
+// [核心改造] 动态生成筛选标签，逻辑如下：
+// 1. 获取所有产品配方 (`mainRecipes`) 中出现过的品类。
+// 2. 为每个品类创建一个标签。
+// 3. 在最后固定加上一个“其他配方”标签。
+const filterTabs = computed(() => {
+	const categories = new Set(dataStore.recipes.mainRecipes.map((r) => r.category));
+	const categoryTabs = Array.from(categories).map((cat) => ({
+		key: cat,
+		label: categoryMap[cat] || cat
+	}));
+	// [核心修正] 如果没有任何产品配方，则默认显示面包品类，并添加一个其他配方标签
+	if (categoryTabs.length === 0) {
+		return [
+			{ key: 'BREAD', label: '面包' },
+			{ key: 'OTHER', label: '其他配方' } // [核心用语] 组件配方 -> 其他配方
+		];
+	}
+	return [...categoryTabs, { key: 'OTHER', label: '其他配方' }]; // [核心用语] 组件配方 -> 其他配方
+});
+
+// [核心改造] 根据当前激活的筛选器 (activeFilter) 来决定显示哪个列表
+const filteredRecipes = computed(() => {
+	// 如果筛选的不是 'OTHER'，就从主配方列表中筛选出对应品类的配方
+	return dataStore.recipes.mainRecipes.filter((r) => r.category === activeFilter.value);
+});
+
 const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 const isNavigating = ref(false);
 // [核心改造] 新增本地 ref 用于控制弹窗
@@ -197,13 +230,13 @@ const fabActions = computed(() => {
 	return [
 		{
 			icon: '/static/icons/add.svg',
-			text: '面团配方',
-			action: () => navigateToEditPage(null)
+			text: '产品配方',
+			action: () => navigateToEditPage('MAIN')
 		},
 		{
 			icon: '/static/icons/add.svg',
-			text: '其他配方',
-			action: navigateToOtherEditPage
+			text: '其他配方', // [核心用语] 组件配方 -> 其他配方
+			action: () => navigateToEditPage('EXTRA')
 		}
 	];
 });
@@ -213,6 +246,10 @@ onShow(async () => {
 	// [核心修改] 移除此处的 Toast 消费逻辑，统一由 main.vue 处理
 	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
 		await dataStore.fetchRecipesData();
+		// [核心新增] 数据加载后，如果当前激活的筛选器不存在，则重置为第一个
+		if (filterTabs.value.length > 0 && !filterTabs.value.some((t) => t.key === activeFilter.value)) {
+			activeFilter.value = filterTabs.value[0].key;
+		}
 	}
 });
 
@@ -242,26 +279,6 @@ const handleScroll = (event: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-const handleTouchStart = (e: TouchEvent) => {
-	touchStartX.value = e.touches[0].clientX;
-	touchStartY.value = e.touches[0].clientY;
-};
-
-const handleTouchEnd = (e: TouchEvent) => {
-	const touchEndX = e.changedTouches[0].clientX;
-	const touchEndY = e.changedTouches[0].clientY;
-	const deltaX = touchEndX - touchStartX.value;
-	const deltaY = touchEndY - touchStartY.value;
-
-	if (Math.abs(deltaX) > 50 && Math.abs(deltaY) < 50) {
-		if (deltaX < 0) {
-			recipeFilter.value = 'OTHER';
-		} else {
-			recipeFilter.value = 'MAIN';
-		}
-	}
-};
-
 const recipeStatsForChart = computed(() => {
 	return dataStore.recipeStats
 		.map((item) => ({
@@ -288,17 +305,12 @@ const canEditRecipe = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
 
-const navigateToEditPage = (familyId: string | null) => {
+// [核心改造] 更新导航函数，使其更通用
+const navigateToEditPage = (type: 'MAIN' | 'EXTRA') => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
-	const url = familyId ? `/pages/recipes/edit?familyId=${familyId}` : '/pages/recipes/edit';
+	const url = `/pages/recipes/edit?type=${type}`;
 	uni.navigateTo({ url });
-};
-
-const navigateToOtherEditPage = () => {
-	if (isNavigating.value) return;
-	isNavigating.value = true;
-	uni.navigateTo({ url: '/pages/recipes/edit-other' });
 };
 
 const navigateToDetail = (familyId: string) => {
@@ -467,5 +479,11 @@ const confirmDeleteRecipe = async () => {
 
 .filter-wrapper {
 	padding: 10px 0px;
+}
+
+// [核心新增] 品类筛选标签的样式
+.category-filter-wrapper {
+	padding: 0px 15px 15px;
+	border-bottom: 1px solid var(--border-color);
 }
 </style>

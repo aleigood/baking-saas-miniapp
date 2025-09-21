@@ -8,40 +8,58 @@
 					<FormItem label="配方名称">
 						<input class="input-field" v-model="form.name" placeholder="例如：法式长棍" :disabled="isEditing" :class="{ 'is-disabled': isEditing }" />
 					</FormItem>
+					<FormItem v-if="form.type === 'MAIN'" label="配方品类">
+						<picker mode="selector" :range="recipeCategories" range-key="label" @change="onCategoryChange" :disabled="isEditing">
+							<view class="picker" :class="{ 'is-disabled': isEditing }">
+								{{ currentCategoryLabel }}
+								<view class="arrow-down"></view>
+							</view>
+						</picker>
+					</FormItem>
+					<FormItem v-if="pageMode === 'create' && form.type !== 'MAIN'" label="配方类型">
+						<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange" :disabled="isEditing">
+							<view class="picker" :class="{ 'is-disabled': isEditing }">
+								{{ currentTypeLabel }}
+								<view class="arrow-down"></view>
+							</view>
+						</picker>
+					</FormItem>
 					<FormItem v-if="isEditing" label="版本说明">
 						<input class="input-field" v-model="form.notes" placeholder="例如：夏季版本，减少水量" />
 					</FormItem>
 				</view>
 
-				<template v-for="(dough, doughIndex) in form.doughs" :key="dough.id">
-					<view class="card" v-if="dough.type === 'PRE_DOUGH'">
-						<view class="card-title-wrapper">
-							<span class="card-title">{{ dough.name }}</span>
-							<view class="card-delete-btn-wrapper">
-								<IconButton @click="removeDough(doughIndex)">
-									<image class="remove-icon" src="/static/icons/close-x.svg" />
-								</IconButton>
+				<template v-if="form.category === 'BREAD'">
+					<template v-for="(dough, doughIndex) in form.doughs" :key="dough.id">
+						<view class="card" v-if="dough.type === 'PRE_DOUGH'">
+							<view class="card-title-wrapper">
+								<span class="card-title">{{ dough.name }}</span>
+								<view class="card-delete-btn-wrapper">
+									<IconButton @click="removeDough(doughIndex)">
+										<image class="remove-icon" src="/static/icons/close-x.svg" />
+									</IconButton>
+								</view>
+							</view>
+							<view v-for="ing in dough.ingredients" :key="ing.name" class="info-row">
+								<text class="info-label">{{ ing.name }}</text>
+								<text class="info-value">{{ formatNumber(ing.ratio) }}%</text>
+							</view>
+							<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes-read-only">
+								<text class="notes-title">制作要点:</text>
+								<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 							</view>
 						</view>
-						<view v-for="ing in dough.ingredients" :key="ing.name" class="info-row">
-							<text class="info-label">{{ ing.name }}</text>
-							<text class="info-value">{{ formatNumber(ing.ratio) }}%</text>
-						</view>
-						<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes-read-only">
-							<text class="notes-title">制作要点:</text>
-							<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
-						</view>
+					</template>
+					<view class="add-button-container">
+						<AppButton type="dashed" full-width size="md" @click="openAddPreDoughModal">+ 添加面种</AppButton>
 					</view>
 				</template>
-				<view class="add-button-container">
-					<AppButton type="dashed" full-width size="md" @click="openAddPreDoughModal">+ 添加面种</AppButton>
-				</view>
 
 				<view class="card">
 					<view class="card-title-wrapper">
-						<span class="card-title">主面团</span>
+						<span class="card-title">{{ mainComponentTitle }}</span>
 					</view>
-					<FormItem label="面团出缸温度 (°C)">
+					<FormItem v-if="form.category === 'BREAD'" label="面团出缸温度 (°C)">
 						<input class="input-field" type="number" v-model="form.targetTemp" placeholder="例如: 26" />
 					</FormItem>
 					<FormItem label="工艺损耗率 (%)">
@@ -83,102 +101,105 @@
 						<AppButton type="dashed" full-width size="md" @click="addProcedureStep(mainDough)">+ 添加要点</AppButton>
 					</view>
 				</view>
-				<view class="product-tabs-wrapper">
-					<FilterTabs v-model="activeProductTab" :tabs="productTabs" class="product-tabs" editable @add="addProduct" align="center" />
-				</view>
 
-				<view v-for="(product, prodIndex) in form.products" :key="prodIndex">
-					<view class="card" v-show="activeProductTab === prodIndex">
-						<view class="card-title-wrapper">
-							<span class="card-title">{{ product.name || `产品${prodIndex + 1}` }}</span>
-							<view class="card-delete-btn-wrapper">
-								<IconButton @click="removeProduct(prodIndex)">
-									<image class="remove-icon" src="/static/icons/close-x.svg" />
-								</IconButton>
-							</view>
-						</view>
-						<FormItem label="产品名称">
-							<input class="input-field" v-model="product.name" :placeholder="`产品${prodIndex + 1}`" />
-						</FormItem>
-						<FormItem label="基础面团克重 (g)">
-							<input class="input-field" type="number" v-model="product.baseDoughWeight" placeholder="例如: 100" />
-						</FormItem>
+				<template v-if="form.type === 'MAIN'">
+					<view class="product-tabs-wrapper">
+						<FilterTabs v-model="activeProductTab" :tabs="productTabs" class="product-tabs" editable @add="addProduct" align="center" />
+					</view>
 
-						<view class="sub-group">
-							<view class="sub-group-title">辅料 (Mix-ins)</view>
-							<view v-for="(ing, ingIndex) in product.mixIns" :key="ingIndex" class="ingredient-row">
-								<view class="autocomplete-input-wrapper">
-									<AutocompleteInput
-										v-model="ing.name"
-										:items="availableSubIngredients"
-										placeholder="输入或选择原料/馅料"
-										@select="onSubIngredientSelect($event, prodIndex, 'mixIns', ingIndex)"
-										@blur="handleIngredientBlur(ing, availableSubIngredients)"
-										:show-tag="ing.isRecipe"
-									/>
+					<view v-for="(product, prodIndex) in form.products" :key="prodIndex">
+						<view class="card" v-show="activeProductTab === prodIndex">
+							<view class="card-title-wrapper">
+								<span class="card-title">{{ product.name || `产品${prodIndex + 1}` }}</span>
+								<view class="card-delete-btn-wrapper">
+									<IconButton @click="removeProduct(prodIndex)">
+										<image class="remove-icon" src="/static/icons/close-x.svg" />
+									</IconButton>
 								</view>
-								<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
-								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
-									<image class="remove-icon" src="/static/icons/trash.svg" />
-								</IconButton>
 							</view>
-							<AppButton type="dashed" full-width size="md" @click="addSubIngredient(prodIndex, 'mixIns')">+ 添加辅料</AppButton>
-						</view>
+							<FormItem label="产品名称">
+								<input class="input-field" v-model="product.name" :placeholder="`产品${prodIndex + 1}`" />
+							</FormItem>
+							<FormItem label="基础面团克重 (g)">
+								<input class="input-field" type="number" v-model="product.baseDoughWeight" placeholder="例如: 100" />
+							</FormItem>
 
-						<view class="sub-group">
-							<view class="sub-group-title">馅料 (Fillings)</view>
-							<view v-for="(ing, ingIndex) in product.fillings" :key="ingIndex" class="ingredient-row">
-								<view class="autocomplete-input-wrapper">
-									<AutocompleteInput
-										v-model="ing.name"
-										:items="availableSubIngredients"
-										placeholder="输入或选择原料/馅料"
-										@select="onSubIngredientSelect($event, prodIndex, 'fillings', ingIndex)"
-										@blur="handleIngredientBlur(ing, availableSubIngredients)"
-										:show-tag="ing.isRecipe"
-									/>
+							<view class="sub-group">
+								<view class="sub-group-title">辅料 (Mix-ins)</view>
+								<view v-for="(ing, ingIndex) in product.mixIns" :key="ingIndex" class="ingredient-row">
+									<view class="autocomplete-input-wrapper">
+										<AutocompleteInput
+											v-model="ing.name"
+											:items="availableSubIngredients"
+											placeholder="输入或选择原料/馅料"
+											@select="onSubIngredientSelect($event, prodIndex, 'mixIns', ingIndex)"
+											@blur="handleIngredientBlur(ing, availableSubIngredients)"
+											:show-tag="ing.isRecipe"
+										/>
+									</view>
+									<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
+									<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
+										<image class="remove-icon" src="/static/icons/trash.svg" />
+									</IconButton>
 								</view>
-								<input class="input-field ratio-input" type="number" v-model="ing.weightInGrams" placeholder="g/个" />
-								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'fillings', ingIndex)">
-									<image class="remove-icon" src="/static/icons/trash.svg" />
-								</IconButton>
+								<AppButton type="dashed" full-width size="md" @click="addSubIngredient(prodIndex, 'mixIns')">+ 添加辅料</AppButton>
 							</view>
-							<AppButton type="dashed" full-width size="md" @click="addSubIngredient(prodIndex, 'fillings')">+ 添加馅料</AppButton>
-						</view>
 
-						<view class="sub-group">
-							<view class="sub-group-title">表面装饰 (Toppings)</view>
-							<view v-for="(ing, ingIndex) in product.toppings" :key="ingIndex" class="ingredient-row">
-								<view class="autocomplete-input-wrapper">
-									<AutocompleteInput
-										v-model="ing.name"
-										:items="availableSubIngredients"
-										placeholder="输入或选择原料/馅料"
-										@select="onSubIngredientSelect($event, prodIndex, 'toppings', ingIndex)"
-										@blur="handleIngredientBlur(ing, availableSubIngredients)"
-										:show-tag="ing.isRecipe"
-									/>
+							<view class="sub-group">
+								<view class="sub-group-title">馅料 (Fillings)</view>
+								<view v-for="(ing, ingIndex) in product.fillings" :key="ingIndex" class="ingredient-row">
+									<view class="autocomplete-input-wrapper">
+										<AutocompleteInput
+											v-model="ing.name"
+											:items="availableSubIngredients"
+											placeholder="输入或选择原料/馅料"
+											@select="onSubIngredientSelect($event, prodIndex, 'fillings', ingIndex)"
+											@blur="handleIngredientBlur(ing, availableSubIngredients)"
+											:show-tag="ing.isRecipe"
+										/>
+									</view>
+									<input class="input-field ratio-input" type="number" v-model="ing.weightInGrams" placeholder="g/个" />
+									<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'fillings', ingIndex)">
+										<image class="remove-icon" src="/static/icons/trash.svg" />
+									</IconButton>
 								</view>
-								<input class="input-field ratio-input" type="number" v-model="ing.weightInGrams" placeholder="g/个" />
-								<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'toppings', ingIndex)">
-									<image class="remove-icon" src="/static/icons/trash.svg" />
-								</IconButton>
+								<AppButton type="dashed" full-width size="md" @click="addSubIngredient(prodIndex, 'fillings')">+ 添加馅料</AppButton>
 							</view>
-							<AppButton type="dashed" full-width size="md" @click="addSubIngredient(prodIndex, 'toppings')">+ 添加表面装饰</AppButton>
-						</view>
 
-						<view class="procedure-notes">
-							<text class="notes-title">制作要点:</text>
-							<view v-for="(step, stepIndex) in product.procedure" :key="stepIndex" class="procedure-item">
-								<input class="input-field" v-model="product.procedure[stepIndex]" placeholder="输入制作步骤" />
-								<IconButton variant="field" @click="removeProcedureStep(product, stepIndex)">
-									<image class="remove-icon" src="/static/icons/trash.svg" />
-								</IconButton>
+							<view class="sub-group">
+								<view class="sub-group-title">表面装饰 (Toppings)</view>
+								<view v-for="(ing, ingIndex) in product.toppings" :key="ingIndex" class="ingredient-row">
+									<view class="autocomplete-input-wrapper">
+										<AutocompleteInput
+											v-model="ing.name"
+											:items="availableSubIngredients"
+											placeholder="输入或选择原料/馅料"
+											@select="onSubIngredientSelect($event, prodIndex, 'toppings', ingIndex)"
+											@blur="handleIngredientBlur(ing, availableSubIngredients)"
+											:show-tag="ing.isRecipe"
+										/>
+									</view>
+									<input class="input-field ratio-input" type="number" v-model="ing.weightInGrams" placeholder="g/个" />
+									<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'toppings', ingIndex)">
+										<image class="remove-icon" src="/static/icons/trash.svg" />
+									</IconButton>
+								</view>
+								<AppButton type="dashed" full-width size="md" @click="addSubIngredient(prodIndex, 'toppings')">+ 添加表面装饰</AppButton>
 							</view>
-							<AppButton type="dashed" full-width size="md" @click="addProcedureStep(product)">+ 添加要点</AppButton>
+
+							<view class="procedure-notes">
+								<text class="notes-title">制作要点:</text>
+								<view v-for="(step, stepIndex) in product.procedure" :key="stepIndex" class="procedure-item">
+									<input class="input-field" v-model="product.procedure[stepIndex]" placeholder="输入制作步骤" />
+									<IconButton variant="field" @click="removeProcedureStep(product, stepIndex)">
+										<image class="remove-icon" src="/static/icons/trash.svg" />
+									</IconButton>
+								</view>
+								<AppButton type="dashed" full-width size="md" @click="addProcedureStep(product)">+ 添加要点</AppButton>
+							</view>
 						</view>
 					</view>
-				</view>
+				</template>
 
 				<view class="bottom-actions-container">
 					<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting" class="save-button">
@@ -233,7 +254,7 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import AutocompleteInput from '@/components/AutocompleteInput.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
-import type { RecipeFamily, RecipeFormTemplate } from '@/types/api';
+import type { RecipeFamily, RecipeFormTemplate, RecipeCategory } from '@/types/api'; // [核心修改] 导入 RecipeCategory
 import { formatNumber, toDecimal } from '@/utils/format';
 import { predefinedIngredients } from '@/utils/predefinedIngredients';
 
@@ -270,7 +291,8 @@ const scrollThreshold = 5;
 
 const form = ref<RecipeFormTemplate & { targetTemp?: number | null }>({
 	name: '',
-	type: 'MAIN',
+	type: 'MAIN', // [核心改造] 默认是 MAIN，但会根据导航参数变化
+	category: 'BREAD', // [核心新增] 默认为面包品类
 	notes: '',
 	targetTemp: null,
 	doughs: [
@@ -286,18 +308,70 @@ const form = ref<RecipeFormTemplate & { targetTemp?: number | null }>({
 	products: []
 });
 
+// [核心新增] 定义配方品类选项
+const recipeCategories = ref([
+	{ label: '面包', value: 'BREAD' },
+	{ label: '西点', value: 'PASTRY' },
+	{ label: '甜品', value: 'DESSERT' },
+	{ label: '饮品', value: 'DRINK' },
+	{ label: '其他', value: 'OTHER' }
+]);
+
+// [核心新增] 定义组件配方类型选项
+const recipeTypes = ref([
+	{ label: '面种', value: 'PRE_DOUGH' },
+	{ label: '馅料/其他', value: 'EXTRA' }
+]);
+
+// [核心新增] 计算当前品类的显示文本
+const currentCategoryLabel = computed(() => {
+	return recipeCategories.value.find((c) => c.value === form.value.category)?.label || '请选择';
+});
+
+// [核心新增] 计算当前组件配方类型的显示文本
+const currentTypeLabel = computed(() => {
+	return recipeTypes.value.find((t) => t.value === form.value.type)?.label || '请选择';
+});
+
+// [核心新增] 品类选择器变化事件
+const onCategoryChange = (e: any) => {
+	form.value.category = recipeCategories.value[e.detail.value].value as RecipeCategory;
+};
+
+// [核心新增] 组件配方类型选择器变化事件
+const onTypeChange = (e: any) => {
+	form.value.type = recipeTypes.value[e.detail.value].value as 'PRE_DOUGH' | 'EXTRA';
+	// [核心逻辑] 联动设置默认品类
+	if (form.value.type === 'PRE_DOUGH') {
+		form.value.category = 'BREAD';
+	} else {
+		form.value.category = 'OTHER';
+	}
+};
+
 const handlePageClick = () => {
 	uni.$emit('page-clicked');
 };
 
 const pageTitle = computed(() => {
+	if (pageMode.value === 'create') {
+		return form.value.type === 'MAIN' ? '新建产品配方' : '新建其他配方';
+	}
 	if (pageMode.value === 'edit') {
 		return '修改配方';
 	}
 	if (pageMode.value === 'newVersion') {
 		return '创建新版本';
 	}
-	return '新建配方';
+	return '编辑配方';
+});
+
+// [核心改造] 新增计算属性，用于动态显示主组件的标题
+const mainComponentTitle = computed(() => {
+	if (form.value.category === 'BREAD' && form.value.type === 'MAIN') {
+		return '主面团';
+	}
+	return form.value.name ? `${form.value.name}·原料` : '核心原料';
 });
 
 const showAddPreDoughModal = ref(false);
@@ -379,7 +453,11 @@ const manualWaterRatio = computed(() => {
 	return Number(waterIngredient?.ratio || 0);
 });
 
+// [核心改造] 总水量提示仅在面包品类下显示
 const showTotalWaterTag = computed(() => {
+	if (form.value.category !== 'BREAD') {
+		return false;
+	}
 	if (manualWaterRatio.value === 0 && totalCalculatedWaterRatio.value === 0) {
 		return false;
 	}
@@ -415,7 +493,9 @@ onLoad(async (options) => {
 	if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
 	if (!dataStore.dataLoaded.recipes) await dataStore.fetchRecipesData();
 
+	// [核心改造] 根据导航参数初始化表单
 	if (options && options.familyId) {
+		// 修改或创建新版本
 		isEditing.value = true;
 		familyId.value = options.familyId;
 		versionId.value = options.versionId || null;
@@ -434,8 +514,17 @@ onLoad(async (options) => {
 			}
 		}
 	} else {
+		// 创建全新配方
 		pageMode.value = 'create';
-		addProduct();
+		// 根据 URL 参数决定是创建 MAIN 还是 EXTRA
+		if (options?.type === 'EXTRA') {
+			form.value.type = 'EXTRA';
+			form.value.products = []; // EXTRA 类型不应该有产品
+			form.value.category = 'OTHER'; // [核心改造] 组件配方默认品类为 OTHER
+		} else {
+			form.value.type = 'MAIN';
+			addProduct(); // MAIN 类型默认有一个产品
+		}
 	}
 });
 
@@ -502,11 +591,11 @@ const confirmAddPreDough = async () => {
 		const fullPreDoughData = await getRecipeFamily(selectedPreDough.value.id);
 		const activeVersion = fullPreDoughData.versions?.find((v) => v.isActive) || fullPreDoughData.versions?.sort((a, b) => b.version - a.version)[0];
 
-		if (!activeVersion || !activeVersion.doughs || activeVersion.doughs.length === 0) {
+		if (!activeVersion || !activeVersion.components || activeVersion.components.length === 0) {
 			toastStore.show({ message: '所选面种没有有效的配方版本', type: 'error' });
 			return;
 		}
-		const preDoughRecipe = activeVersion.doughs[0];
+		const preDoughRecipe = activeVersion.components[0];
 		const ingredients = preDoughRecipe.ingredients;
 
 		const preDoughInternalFlourRatio = ingredients.filter((i) => i.ingredient?.isFlour).reduce((sum, i) => sum + (i.ratio ?? 0), 0);
@@ -672,6 +761,7 @@ const handleSubmit = async () => {
 		const payload = {
 			name: form.value.name,
 			type: form.value.type,
+			category: form.value.category, // [核心新增] 提交 category
 			notes: form.value.notes,
 			targetTemp: form.value.targetTemp,
 			lossRatio: toDecimal(Number(mainDoughFromForm.lossRatio)),
@@ -713,7 +803,6 @@ const handleSubmit = async () => {
 	}
 };
 </script>
-
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 @include form-control-styles;
