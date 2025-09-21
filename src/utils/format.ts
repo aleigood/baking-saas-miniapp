@@ -17,6 +17,7 @@ export const multiply = (a: number, b: number): number => {
 	// 计算放大倍数
 	const multiplier = Math.pow(10, lenA + lenB);
 	// 将浮点数转换为整数进行计算
+	// [核心修复] 增加 Math.round 来处理类似 0.7 * 10 = 7.000000000000001 的情况
 	const intA = Math.round(a * Math.pow(10, lenA));
 	const intB = Math.round(b * Math.pow(10, lenB));
 	// 计算结果并还原小数位数
@@ -200,8 +201,6 @@ export const toDecimal = (percentageValue: number | null | undefined) => {
 	if (percentageValue === null || percentageValue === undefined) {
 		return 0;
 	}
-	return percentageValue / 100;
+	// [核心修改] 使用高精度乘法代替除法，彻底避免浮点数精度问题，无需四舍五入
+	return multiply(percentageValue, 0.01);
 };
-
-// [核心修改] 移除此函数，将其逻辑分散到各自的组件中
-// export const formatPricePerKg = (ing : any) => { ... };
