@@ -386,7 +386,11 @@ const productTabs = computed(() => {
 	}));
 });
 
-const availablePreDoughs = computed(() => dataStore.recipes.otherRecipes.filter((r) => r.type === 'PRE_DOUGH' && !r.deletedAt));
+const availablePreDoughs = computed(() => {
+	// [核心改造] 过滤掉已添加的面种
+	const existingPreDoughIds = new Set(form.value.components?.filter((c) => c.type === 'PRE_DOUGH').map((c) => c.id));
+	return dataStore.recipes.otherRecipes.filter((r) => r.type === 'PRE_DOUGH' && !r.deletedAt && !existingPreDoughIds.has(r.id));
+});
 
 const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
@@ -406,7 +410,7 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 
 	const combined = Array.from(ingredientMap.values());
 
-	const preDoughNames = new Set(availablePreDoughs.value.map((r) => r.name));
+	const preDoughNames = new Set(dataStore.recipes.otherRecipes.filter((r) => r.type === 'PRE_DOUGH' && !r.deletedAt).map((r) => r.name));
 	return combined.filter((item) => !preDoughNames.has(item.name)).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
