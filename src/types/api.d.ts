@@ -1,25 +1,23 @@
 /**
  * 文件路径: src/types/api.d.ts
- * 文件描述: (已更新) 使用 deletedAt 字段判断配方状态，并恢复 productionCount 字段。
+ * 文件描述: (已更新) 生产任务详情 DTO 全面升级为通用“组件”模型
  */
 
-// [核心新增] 新增配方品类枚举
+// ... (文件顶部其他类型保持不变) ...
+
 export type RecipeCategory = 'BREAD' | 'PASTRY' | 'DESSERT' | 'DRINK' | 'OTHER';
 
-// [核心修改] 为备料任务中的原料增加可选的 brand 和 isRecipe 字段
 export interface CalculatedRecipeIngredient {
 	name: string;
 	weightInGrams: number;
 	brand?: string | null;
-	isRecipe: boolean; // 新增字段，用于标识该原料是否为另一个配方
-	// [核心新增] 增加一个可选的 extraInfo 字段
+	isRecipe: boolean;
 	extraInfo?: string;
 }
-// [核心修改] 为备料详情增加 type 字段
 export interface CalculatedRecipeDetails {
 	id: string;
 	name: string;
-	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA'; // 新增字段，用于明确备料类型
+	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	totalWeight: number;
 	procedure: string[];
 	ingredients: CalculatedRecipeIngredient[];
@@ -31,20 +29,16 @@ export interface PrepTask {
 	items: CalculatedRecipeDetails[];
 	status?: 'PREP';
 }
-// [核心改造] 更新 ProductionDataPayload 类型，以反映后端返回的统一任务列表
 export interface ProductionDataPayload {
 	stats?: {
-		// [核心改造] 将 todayPendingCount 重命名为 pendingCount
 		pendingCount: number;
 	};
-	// tasks 现在是一个包含常规任务和备料任务的联合类型数组
 	tasks: (
 		| ProductionTaskDto
 		| (PrepTask & {
 				status: 'PREP';
 		  })
 	)[];
-	// prepTask 不再由该接口单独返回
 	prepTask: null;
 }
 
@@ -418,7 +412,7 @@ export interface DashboardStats {
 	totalTasks: number;
 }
 
-// [核心修改] 为任务详情页增加一个类型，与后端的 TaskDetailResponseDto 对应
+// [核心重构] 为任务详情页增加一个类型，与后端的 TaskDetailResponseDto 对应
 // 定义原料详情的数据结构
 export interface TaskIngredientDetail {
 	id: string;
@@ -429,12 +423,13 @@ export interface TaskIngredientDetail {
 	extraInfo?: string | null;
 }
 
-// 定义面团汇总中每个产品的数据结构
-export interface DoughProductSummary {
+// [核心重命名] DoughProductSummary -> ProductComponentSummary
+// 定义组件汇总中每个产品的数据结构
+export interface ProductComponentSummary {
 	id: string;
 	name: string;
 	quantity: number;
-	totalBaseDoughWeight: number;
+	totalBaseComponentWeight: number; // [核心重命名]
 	divisionWeight: number;
 }
 
@@ -448,15 +443,17 @@ export interface ProductDetails {
 	procedure: string[];
 }
 
-// 定义按面团类型分组的数据结构
-export interface DoughGroup {
+// [核心重命名] DoughGroup -> ComponentGroup
+// 定义按组件类型分组的数据结构
+export interface ComponentGroup {
 	familyId: string;
 	familyName: string;
+	category: RecipeCategory; // [核心新增]
 	productsDescription: string;
-	totalDoughWeight: number;
-	mainDoughIngredients: TaskIngredientDetail[];
-	mainDoughProcedure: string[];
-	products: DoughProductSummary[];
+	totalComponentWeight: number; // [核心重命名]
+	baseComponentIngredients: TaskIngredientDetail[]; // [核心重命名]
+	baseComponentProcedure: string[]; // [核心重命名]
+	products: ProductComponentSummary[];
 	productDetails: ProductDetails[];
 }
 
@@ -474,6 +471,6 @@ export interface ProductionTaskDetailDto {
 	notes: string | null;
 	stockWarning: string | null;
 	prepTask: PrepTask | null;
-	doughGroups: DoughGroup[];
+	componentGroups: ComponentGroup[]; // [核心重命名]
 	items: TaskCompletionItem[];
 }

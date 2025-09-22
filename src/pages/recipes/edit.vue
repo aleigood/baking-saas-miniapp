@@ -29,24 +29,24 @@
 					</FormItem>
 				</view>
 
-				<template v-if="form.category === 'BREAD' || form.type === 'PRE_DOUGH'">
-					<template v-for="(dough, doughIndex) in form.doughs" :key="dough.id">
-						<view class="card" v-if="dough.type === 'PRE_DOUGH'">
+				<template v-if="form.category === 'BREAD'">
+					<template v-for="(component, componentIndex) in form.components" :key="component.id">
+						<view class="card" v-if="component.type === 'PRE_DOUGH'">
 							<view class="card-title-wrapper">
-								<span class="card-title">{{ dough.name }}</span>
+								<span class="card-title">{{ component.name }}</span>
 								<view class="card-delete-btn-wrapper">
-									<IconButton @click="removeDough(doughIndex)">
+									<IconButton @click="removeComponent(componentIndex)">
 										<image class="remove-icon" src="/static/icons/close-x.svg" />
 									</IconButton>
 								</view>
 							</view>
-							<view v-for="ing in dough.ingredients" :key="ing.name" class="info-row">
+							<view v-for="ing in component.ingredients" :key="ing.name" class="info-row">
 								<text class="info-label">{{ ing.name }}</text>
 								<text class="info-value">{{ formatNumber(ing.ratio) }}%</text>
 							</view>
-							<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes-read-only">
+							<view v-if="component.procedure && component.procedure.length > 0" class="procedure-notes-read-only">
 								<text class="notes-title">制作要点:</text>
-								<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+								<text v-for="(step, stepIndex) in component.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 							</view>
 						</view>
 					</template>
@@ -59,18 +59,18 @@
 					<view class="card-title-wrapper">
 						<span class="card-title">{{ mainComponentTitle }}</span>
 					</view>
-					<FormItem v-if="form.category === 'BREAD' || form.type === 'PRE_DOUGH'" label="面团出缸温度 (°C)">
+					<FormItem v-if="form.category === 'BREAD'" label="面团出缸温度 (°C)">
 						<input class="input-field" type="number" v-model="form.targetTemp" placeholder="例如: 26" />
 					</FormItem>
 					<FormItem label="工艺损耗率 (%)">
-						<input class="input-field" type="number" v-model="mainDough.lossRatio" placeholder="例如: 2" />
+						<input class="input-field" type="number" v-model="mainComponent.lossRatio" placeholder="例如: 2" />
 					</FormItem>
 					<view class="ingredient-header">
 						<text class="col-name">原料名称</text>
 						<text class="col-ratio">比例%</text>
 						<text class="col-action"></text>
 					</view>
-					<view v-for="(ing, ingIndex) in mainDough.ingredients" :key="ingIndex" class="ingredient-row">
+					<view v-for="(ing, ingIndex) in mainComponent.ingredients" :key="ingIndex" class="ingredient-row">
 						<view class="autocomplete-input-wrapper">
 							<AutocompleteInput
 								v-model="ing.name"
@@ -92,13 +92,13 @@
 
 					<view class="procedure-notes">
 						<text class="notes-title">制作要点:</text>
-						<view v-for="(step, stepIndex) in mainDough.procedure" :key="stepIndex" class="procedure-item">
-							<input class="input-field" v-model="mainDough.procedure[stepIndex]" placeholder="输入制作步骤" />
-							<IconButton variant="field" @click="removeProcedureStep(mainDough, stepIndex)">
+						<view v-for="(step, stepIndex) in mainComponent.procedure" :key="stepIndex" class="procedure-item">
+							<input class="input-field" v-model="mainComponent.procedure[stepIndex]" placeholder="输入制作步骤" />
+							<IconButton variant="field" @click="removeProcedureStep(mainComponent, stepIndex)">
 								<image class="remove-icon" src="/static/icons/trash.svg" />
 							</IconButton>
 						</view>
-						<AppButton type="dashed" full-width size="md" @click="addProcedureStep(mainDough)">+ 添加要点</AppButton>
+						<AppButton type="dashed" full-width size="md" @click="addProcedureStep(mainComponent)">+ 添加要点</AppButton>
 					</view>
 				</view>
 
@@ -288,13 +288,14 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const form = ref<RecipeFormTemplate & { targetTemp?: number | null }>({
+// [核心重命名] form.doughs -> form.components
+const form = ref<Omit<RecipeFormTemplate, 'ingredients' | 'procedure'> & { targetTemp?: number | null }>({
 	name: '',
 	type: 'MAIN',
 	category: 'BREAD',
 	notes: '',
 	targetTemp: null,
-	doughs: [
+	components: [
 		{
 			id: `main_${Date.now()}`,
 			name: '主面团',
@@ -314,7 +315,6 @@ const recipeCategories = ref([
 	{ label: '饮品', value: 'DRINK' }
 ]);
 
-// [核心新增] 定义组件配方类型选项
 const recipeTypes = ref([
 	{ label: '面种', value: 'PRE_DOUGH' },
 	{ label: '原料', value: 'EXTRA' }
@@ -324,7 +324,6 @@ const currentCategoryLabel = computed(() => {
 	return recipeCategories.value.find((c) => c.value === form.value.category)?.label || '请选择';
 });
 
-// [核心新增] 计算当前组件配方类型的显示文本
 const currentTypeLabel = computed(() => {
 	return recipeTypes.value.find((t) => t.value === form.value.type)?.label || '请选择';
 });
@@ -333,7 +332,6 @@ const onCategoryChange = (e: any) => {
 	form.value.category = recipeCategories.value[e.detail.value].value as RecipeCategory;
 };
 
-// [核心新增] 组件配方类型选择器变化事件
 const onTypeChange = (e: any) => {
 	form.value.type = recipeTypes.value[e.detail.value].value as 'PRE_DOUGH' | 'EXTRA';
 };
@@ -356,7 +354,6 @@ const pageTitle = computed(() => {
 });
 
 const mainComponentTitle = computed(() => {
-	// [核心修正] 仅当是面包主配方时才显示“主面团”
 	if (form.value.category === 'BREAD' && form.value.type === 'MAIN') {
 		return '主面团';
 	}
@@ -370,7 +367,8 @@ const isAddingPreDough = ref(false);
 
 const activeProductTab = ref(0);
 
-const mainDough = computed(() => form.value.doughs!.find((d) => d.type === 'MAIN_DOUGH')!);
+// [核心重命名] mainDough -> mainComponent
+const mainComponent = computed(() => form.value.components!.find((c) => c.type === 'MAIN_DOUGH' || c.type === 'BASE_COMPONENT')!);
 
 const productTabs = computed(() => {
 	return form.value.products!.map((p, index) => ({
@@ -424,8 +422,8 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 
 const totalCalculatedWaterRatio = computed(() => {
 	let totalWater = 0;
-	form.value.doughs?.forEach((dough) => {
-		dough.ingredients.forEach((ing) => {
+	form.value.components?.forEach((component) => {
+		component.ingredients.forEach((ing) => {
 			if (ing.name && ing.ratio) {
 				totalWater += Number(ing.ratio) * (ing.waterContent ?? 0);
 			}
@@ -435,12 +433,11 @@ const totalCalculatedWaterRatio = computed(() => {
 });
 
 const manualWaterRatio = computed(() => {
-	const waterIngredient = mainDough.value.ingredients.find((i) => i.name === '水');
+	const waterIngredient = mainComponent.value.ingredients.find((i) => i.name === '水');
 	return Number(waterIngredient?.ratio || 0);
 });
 
 const showTotalWaterTag = computed(() => {
-	// [核心修正] 仅当是面包品类或面种类型时才显示
 	if (form.value.category !== 'BREAD' && form.value.type !== 'PRE_DOUGH') {
 		return false;
 	}
@@ -487,12 +484,14 @@ onLoad(async (options) => {
 		const sourceFormJson = uni.getStorageSync('source_recipe_version_form');
 		if (sourceFormJson) {
 			try {
-				const sourceForm = JSON.parse(sourceFormJson) as RecipeFormTemplate;
-				form.value = sourceForm;
+				// [核心改造] 直接将后端返回的统一结构赋值给 form.value
+				form.value = JSON.parse(sourceFormJson);
+
 				if (form.value.products && form.value.products.length > 0) {
 					activeProductTab.value = 0;
 				}
 			} catch (e) {
+				console.error('解析或处理配方模板数据失败:', e);
 				toastStore.show({ message: '加载配方模板失败', type: 'error' });
 			}
 		}
@@ -502,6 +501,17 @@ onLoad(async (options) => {
 			form.value.type = 'EXTRA';
 			form.value.products = [];
 			form.value.category = 'OTHER';
+			// [核心新增] 为新建的其他配方初始化一个基础的 component 结构
+			form.value.components = [
+				{
+					id: `main_${Date.now()}`,
+					name: '',
+					type: 'BASE_COMPONENT',
+					lossRatio: 0,
+					ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 }],
+					procedure: ['']
+				}
+			];
 		} else {
 			form.value.type = 'MAIN';
 			addProduct();
@@ -531,7 +541,7 @@ const handleScroll = (event?: any) => {
 };
 
 const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
-	const ingredient = mainDough.value.ingredients[ingIndex];
+	const ingredient = mainComponent.value.ingredients[ingIndex];
 	ingredient.id = item.id;
 	ingredient.name = item.name;
 	ingredient.isFlour = item.isFlour;
@@ -540,15 +550,16 @@ const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
 };
 
 const addIngredient = () => {
-	mainDough.value.ingredients.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 });
+	mainComponent.value.ingredients.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 });
 };
 
 const removeIngredient = (ingIndex: number) => {
-	mainDough.value.ingredients.splice(ingIndex, 1);
+	mainComponent.value.ingredients.splice(ingIndex, 1);
 };
 
-const removeDough = (doughIndex: number) => {
-	form.value.doughs!.splice(doughIndex, 1);
+// [核心重命名] removeDough -> removeComponent
+const removeComponent = (componentIndex: number) => {
+	form.value.components!.splice(componentIndex, 1);
 };
 
 const openAddPreDoughModal = () => {
@@ -596,7 +607,7 @@ const confirmAddPreDough = async () => {
 			waterContent: i.ingredient!.waterContent
 		}));
 
-		form.value.doughs!.push({
+		form.value.components!.push({
 			id: activeVersion.familyId,
 			name: fullPreDoughData.name,
 			type: 'PRE_DOUGH',
@@ -684,15 +695,16 @@ const handleSubmit = async () => {
 	isSubmitting.value = true;
 
 	try {
-		const mainDoughFromForm = form.value.doughs!.find((d) => d.type === 'MAIN_DOUGH');
-		if (!mainDoughFromForm) {
-			toastStore.show({ message: '主面团数据丢失，无法保存', type: 'error' });
+		// [核心重命名] mainDough -> mainComponentFromForm
+		const mainComponentFromForm = form.value.components!.find((c) => c.type === 'MAIN_DOUGH' || c.type === 'BASE_COMPONENT');
+		if (!mainComponentFromForm) {
+			toastStore.show({ message: '主组件数据丢失，无法保存', type: 'error' });
 			isSubmitting.value = false;
 			return;
 		}
 
 		const ingredientsPayload = [
-			...mainDoughFromForm.ingredients
+			...mainComponentFromForm.ingredients
 				.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
 				.map((ing) => {
 					return {
@@ -704,10 +716,10 @@ const handleSubmit = async () => {
 					};
 				}),
 			...form.value
-				.doughs!.filter((d) => d.type === 'PRE_DOUGH')
-				.map((d) => ({
-					name: d.name,
-					flourRatio: toDecimal(Number(d.flourRatioInMainDough))
+				.components!.filter((c) => c.type === 'PRE_DOUGH')
+				.map((c) => ({
+					name: c.name,
+					flourRatio: toDecimal(Number(c.flourRatioInMainDough))
 				}))
 		];
 
@@ -740,8 +752,8 @@ const handleSubmit = async () => {
 			category: form.value.category,
 			notes: form.value.notes,
 			targetTemp: form.value.targetTemp,
-			lossRatio: toDecimal(Number(mainDoughFromForm.lossRatio)),
-			procedure: mainDoughFromForm.procedure.filter((p) => p && p.trim()),
+			lossRatio: toDecimal(Number(mainComponentFromForm.lossRatio)),
+			procedure: mainComponentFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
 			products: form.value.products!.map((p) => ({
 				name: p.name,

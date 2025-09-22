@@ -14,20 +14,20 @@
 					<view :class="{ 'disabled-list': !isStarted && !isReadOnly }">
 						<view class="card-full-bleed-list">
 							<view class="card-title-wrapper">
-								<span class="card-title">面团列表</span>
+								<span class="card-title">{{ task.componentGroups[0]?.category === 'BREAD' ? '面团列表' : '组件列表' }}</span>
 							</view>
 							<ListItem
-								v-for="(dough, index) in task.doughGroups"
-								:key="dough.familyId"
+								v-for="(component, index) in task.componentGroups"
+								:key="component.familyId"
 								class="product-list-item"
-								:selected="selectedDoughFamilyId === dough.familyId"
-								@click="selectDough(dough.familyId)"
+								:selected="selectedComponentFamilyId === component.familyId"
+								@click="selectComponent(component.familyId)"
 								:bleed="true"
-								:divider="index < task.doughGroups.length - 1"
+								:divider="index < task.componentGroups.length - 1"
 							>
 								<view class="main-info">
-									<view class="name">{{ dough.familyName }}</view>
-									<view class="desc">{{ dough.productsDescription }}</view>
+									<view class="name">{{ component.familyName }}</view>
+									<view class="desc">{{ component.productsDescription }}</view>
 								</view>
 							</ListItem>
 						</view>
@@ -37,13 +37,13 @@
 						<AppButton type="primary" full-width @click="handleStartTask">开始制作</AppButton>
 					</view>
 
-					<template v-if="isStarted && selectedDoughDetails">
+					<template v-if="isStarted && selectedComponentDetails">
 						<view class="card">
-							<view class="group-title" @click="toggleCollapse(selectedDoughDetails.familyId)">
-								<span>{{ selectedDoughDetails.familyName }}</span>
-								<span class="arrow" :class="{ collapsed: collapsedSections.has(selectedDoughDetails.familyId) }">&#10095;</span>
+							<view class="group-title" @click="toggleCollapse(selectedComponentDetails.familyId)">
+								<span>{{ selectedComponentDetails.familyName }}</span>
+								<span class="arrow" :class="{ collapsed: collapsedSections.has(selectedComponentDetails.familyId) }">&#10095;</span>
 							</view>
-							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(selectedDoughDetails.familyId) }">
+							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(selectedComponentDetails.familyId) }">
 								<view class="smart-table">
 									<view class="table-header">
 										<text class="col-ingredient">原料</text>
@@ -51,12 +51,12 @@
 										<text class="col-usage">用量</text>
 									</view>
 									<view
-										v-for="(ing, ingIndex) in selectedDoughDetails.mainDoughIngredients"
+										v-for="(ing, ingIndex) in selectedComponentDetails.baseComponentIngredients"
 										:key="ing.id + '-' + ingIndex"
 										class="table-row"
-										:class="{ 'is-added': addedIngredientsMap.has(`${selectedDoughDetails.familyId}-${ing.id}`) }"
+										:class="{ 'is-added': addedIngredientsMap.has(`${selectedComponentDetails.familyId}-${ing.id}`) }"
 										@click.stop="showExtraInfo(ing.extraInfo, ing.id)"
-										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedDoughDetails.familyId, ing.id)"
+										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedComponentDetails.familyId, ing.id)"
 									>
 										<view class="col-ingredient ingredient-name-cell">
 											<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="'info-icon-' + ing.id">
@@ -70,31 +70,34 @@
 									</view>
 								</view>
 								<view class="total-weight-summary">
-									<text>面团总重: {{ formatWeight(selectedDoughDetails.totalDoughWeight) }}</text>
+									<text>
+										{{ selectedComponentDetails.category === 'BREAD' ? '面团总重' : '组件总重' }}:
+										{{ formatWeight(selectedComponentDetails.totalComponentWeight) }}
+									</text>
 								</view>
-								<view v-if="selectedDoughDetails.mainDoughProcedure.length > 0" class="procedure-notes">
+								<view v-if="selectedComponentDetails.baseComponentProcedure.length > 0" class="procedure-notes">
 									<text class="notes-title">制作要点:</text>
-									<text v-for="(step, stepIndex) in selectedDoughDetails.mainDoughProcedure" :key="stepIndex" class="note-item">
+									<text v-for="(step, stepIndex) in selectedComponentDetails.baseComponentProcedure" :key="stepIndex" class="note-item">
 										{{ stepIndex + 1 }}. {{ step }}
 									</text>
 								</view>
 							</view>
-							<view class="group-title" @click="toggleCollapse('doughSummary')">
-								<span>面团汇总</span>
-								<span class="arrow" :class="{ collapsed: collapsedSections.has('doughSummary') }">&#10095;</span>
+							<view class="group-title" @click="toggleCollapse('componentSummary')">
+								<span>{{ selectedComponentDetails.category === 'BREAD' ? '面团汇总' : '组件汇总' }}</span>
+								<span class="arrow" :class="{ collapsed: collapsedSections.has('componentSummary') }">&#10095;</span>
 							</view>
-							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('doughSummary') }">
+							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('componentSummary') }">
 								<view class="smart-table">
 									<view class="table-header">
-										<text class="col-product-name">面包名称</text>
+										<text class="col-product-name">产品名称</text>
 										<text class="col-quantity">数量</text>
-										<text class="col-dough-weight">面团总重</text>
+										<text class="col-dough-weight">{{ selectedComponentDetails.category === 'BREAD' ? '面团总重' : '组件总重' }}</text>
 										<text class="col-division-weight">分割重量</text>
 									</view>
-									<view v-for="product in selectedDoughDetails.products" :key="product.id" class="info-row">
+									<view v-for="product in selectedComponentDetails.products" :key="product.id" class="info-row">
 										<text class="col-product-name">{{ product.name }}</text>
 										<text class="col-quantity">{{ product.quantity }}</text>
-										<text class="col-dough-weight">{{ formatWeight(product.totalBaseDoughWeight) }}</text>
+										<text class="col-dough-weight">{{ formatWeight(product.totalBaseComponentWeight) }}</text>
 										<text class="col-division-weight">{{ formatWeight(product.divisionWeight) }}</text>
 									</view>
 								</view>
@@ -274,7 +277,7 @@ const taskId = ref<string | null>(null);
 const showCompleteTaskModal = ref(false);
 const isStarted = ref(false);
 const isReadOnly = ref(false);
-const selectedDoughFamilyId = ref<string | null>(null);
+const selectedComponentFamilyId = ref<string | null>(null); // [核心重命名]
 const addedIngredientsMap = reactive(new Set<string>());
 const collapsedSections = ref(new Set<string>());
 const selectedProductId = ref<string>('');
@@ -421,11 +424,12 @@ const loadTaskData = async (id: string) => {
 
 		if (task.value.status === 'IN_PROGRESS' || task.value.status === 'COMPLETED' || task.value.status === 'CANCELLED') {
 			isStarted.value = true;
-			if (task.value.doughGroups.length > 0) {
-				const firstDough = task.value.doughGroups[0];
-				selectedDoughFamilyId.value = firstDough.familyId;
-				if (firstDough.productDetails.length > 0) {
-					selectedProductId.value = firstDough.productDetails[0].id;
+			if (task.value.componentGroups.length > 0) {
+				// [核心重命名]
+				const firstComponent = task.value.componentGroups[0];
+				selectedComponentFamilyId.value = firstComponent.familyId; // [核心重命名]
+				if (firstComponent.productDetails.length > 0) {
+					selectedProductId.value = firstComponent.productDetails[0].id;
 				}
 			}
 		}
@@ -601,10 +605,11 @@ const toggleCollapse = (sectionName: string) => {
 	collapsedSections.value = newSet;
 };
 
-const toggleIngredientAdded = (doughFamilyId: string, ingredientId: string) => {
+const toggleIngredientAdded = (componentFamilyId: string, ingredientId: string) => {
+	// [核心重命名]
 	if (isReadOnly.value) return;
 	uni.vibrateShort({});
-	const compositeKey = `${doughFamilyId}-${ingredientId}`;
+	const compositeKey = `${componentFamilyId}-${ingredientId}`;
 	if (addedIngredientsMap.has(compositeKey)) {
 		addedIngredientsMap.delete(compositeKey);
 	} else {
@@ -628,12 +633,13 @@ const handleStartTask = async () => {
 	}
 };
 
-const selectDough = (familyId: string) => {
+// [核心重命名] selectDough -> selectComponent
+const selectComponent = (familyId: string) => {
 	if (!isStarted.value && !isReadOnly.value) return;
-	selectedDoughFamilyId.value = familyId;
-	const doughDetails = selectedDoughDetails.value;
-	if (doughDetails && doughDetails.productDetails.length > 0) {
-		selectedProductId.value = doughDetails.productDetails[0].id;
+	selectedComponentFamilyId.value = familyId;
+	const componentDetails = selectedComponentDetails.value;
+	if (componentDetails && componentDetails.productDetails.length > 0) {
+		selectedProductId.value = componentDetails.productDetails[0].id;
 	} else {
 		selectedProductId.value = '';
 	}
@@ -678,10 +684,10 @@ const hidePopover = () => {
 };
 
 const getFormattedFillingWeight = (totalWeight: number) => {
-	if (!selectedDoughDetails.value || !selectedProductId.value) {
+	if (!selectedComponentDetails.value || !selectedProductId.value) {
 		return formatWeight(totalWeight);
 	}
-	const productSummary = selectedDoughDetails.value.products.find((p) => p.id === selectedProductId.value);
+	const productSummary = selectedComponentDetails.value.products.find((p) => p.id === selectedProductId.value);
 	const quantity = productSummary ? productSummary.quantity : 1;
 
 	if (quantity > 0 && totalWeight > 0) {
@@ -692,19 +698,20 @@ const getFormattedFillingWeight = (totalWeight: number) => {
 	return formatWeight(totalWeight);
 };
 
-const selectedDoughDetails = computed(() => {
-	if (!task.value || !selectedDoughFamilyId.value) return null;
-	return task.value.doughGroups.find((d) => d.familyId === selectedDoughFamilyId.value) || null;
+// [核心重命名] selectedDoughDetails -> selectedComponentDetails
+const selectedComponentDetails = computed(() => {
+	if (!task.value || !selectedComponentFamilyId.value) return null;
+	return task.value.componentGroups.find((d) => d.familyId === selectedComponentFamilyId.value) || null;
 });
 
 const selectedProductDetails = computed(() => {
-	if (!selectedDoughDetails.value || !selectedProductId.value) return null;
-	return selectedDoughDetails.value.productDetails.find((p) => p.id === selectedProductId.value);
+	if (!selectedComponentDetails.value || !selectedProductId.value) return null;
+	return selectedComponentDetails.value.productDetails.find((p) => p.id === selectedProductId.value);
 });
 
 const productTabs = computed(() => {
-	if (!selectedDoughDetails.value) return [];
-	return selectedDoughDetails.value.productDetails.map((p) => ({
+	if (!selectedComponentDetails.value) return [];
+	return selectedComponentDetails.value.productDetails.map((p) => ({
 		key: p.id,
 		label: p.name
 	}));

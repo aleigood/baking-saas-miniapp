@@ -224,7 +224,8 @@ const navigateToEditPage = async (familyId: string | null, mode: 'edit' | 'newVe
 		const formTemplate = await getRecipeVersionFormTemplate(familyId, sourceVersionId);
 		uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
 
-		const baseUrl = recipeFamily.value.type === 'MAIN' ? '/pages/recipes/edit' : '/pages/recipes/edit-other';
+		// [核心修复] 移除三元运算符，统一导航至 /pages/recipes/edit
+		const baseUrl = '/pages/recipes/edit';
 		let url = `${baseUrl}?familyId=${familyId}&mode=${mode}`;
 		if (versionId) {
 			url += `&versionId=${versionId}`;

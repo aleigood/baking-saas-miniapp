@@ -11,13 +11,13 @@
 				<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
 			</view>
 
-			<view v-if="recipeDetails.doughGroups.length > 0">
-				<view v-for="(dough, index) in recipeDetails.doughGroups" :key="dough.name + index" class="dough-section">
-					<view class="group-title" @click="toggleCollapse(dough.name)">
-						<span>{{ dough.name }}</span>
-						<span class="arrow" :class="{ collapsed: collapsedSections.has(dough.name) }">&#10095;</span>
+			<view v-if="recipeDetails.componentGroups.length > 0">
+				<view v-for="(component, index) in recipeDetails.componentGroups" :key="component.name + index" class="dough-section">
+					<view class="group-title" @click="toggleCollapse(component.name)">
+						<span>{{ component.name }}</span>
+						<span class="arrow" :class="{ collapsed: collapsedSections.has(component.name) }">&#10095;</span>
 					</view>
-					<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(dough.name) }">
+					<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(component.name) }">
 						<view class="smart-table">
 							<view class="table-header">
 								<text class="col-ingredient">原料</text>
@@ -27,13 +27,13 @@
 								<text class="col-total">成本</text>
 							</view>
 							<view
-								v-for="(ing, ingIndex) in dough.ingredients"
+								v-for="(ing, ingIndex) in component.ingredients"
 								:key="ingIndex"
 								class="table-row"
-								@click.stop="handleIconClick(ing.extraInfo, 'main-ing-icon-' + ing.id + ingIndex)"
+								@click.stop="handleIconClick(ing.extraInfo, 'main-ing-icon-' + ing.name + ingIndex)"
 							>
 								<view class="col-ingredient ingredient-name-cell">
-									<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="'main-ing-icon-' + ing.id + ingIndex">
+									<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="'main-ing-icon-' + ing.name + ingIndex">
 										<text>{{ ing.name }}</text>
 										<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 									</view>
@@ -45,14 +45,14 @@
 								<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
 							</view>
 						</view>
-						<view v-if="dough.procedure && dough.procedure.length > 0" class="procedure-notes">
+						<view v-if="component.procedure && component.procedure.length > 0" class="procedure-notes">
 							<text class="notes-title">制作要点:</text>
-							<text v-for="(step, stepIndex) in dough.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+							<text v-for="(step, stepIndex) in component.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 						</view>
 					</view>
 				</view>
 			</view>
-			<view v-else class="empty-state" style="padding: 20px 0">暂无面团原料信息</view>
+			<view v-else class="empty-state" style="padding: 20px 0">暂无基础组件原料信息</view>
 
 			<view v-if="hasOtherIngredients" class="other-ingredients-section">
 				<view class="group-title" @click="toggleCollapse('otherIngredients')">
@@ -60,18 +60,18 @@
 					<span class="arrow" :class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
 				</view>
 				<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
-					<template v-if="doughSummary">
+					<template v-if="componentSummary">
 						<view class="summary-table-wrapper">
 							<view class="smart-table detail-table">
 								<view class="table-header summary-header">
-									<text class="col-ingredient">面团</text>
+									<text class="col-ingredient">{{ componentSummary.name }}</text>
 									<text class="col-usage">总用量</text>
 									<text class="col-total">成本</text>
 								</view>
 								<view class="table-row">
-									<text class="col-ingredient">{{ doughSummary.name }}</text>
-									<text class="col-usage">{{ formatWeight(doughSummary.weightInGrams) }}</text>
-									<text class="col-total">¥{{ formatNumber(doughSummary.cost) }}</text>
+									<text class="col-ingredient">{{ componentSummary.name }}</text>
+									<text class="col-usage">{{ formatWeight(componentSummary.weightInGrams) }}</text>
+									<text class="col-total">¥{{ formatNumber(componentSummary.cost) }}</text>
 								</view>
 							</view>
 						</view>
@@ -208,15 +208,16 @@ const selectedProduct = computed(() => {
 	return props.version.products.find((p) => p.id === selectedProductId.value);
 });
 
-const doughSummary = computed(() => {
-	return recipeDetails.value?.extraIngredients.find((item) => item.id === 'dough-summary');
+// [核心重命名] doughSummary -> componentSummary
+const componentSummary = computed(() => {
+	return recipeDetails.value?.extraIngredients.find((item) => item.id === 'component-summary');
 });
 
 const hasOtherIngredients = computed(() => {
 	if (!recipeDetails.value) return false;
 	const grouped = recipeDetails.value.groupedExtraIngredients;
 	return (
-		!!doughSummary.value ||
+		!!componentSummary.value ||
 		(grouped['搅拌原料'] && grouped['搅拌原料'].length > 0) ||
 		(grouped['馅料'] && grouped['馅料'].length > 0) ||
 		(grouped['表面装饰'] && grouped['表面装饰'].length > 0)
@@ -294,7 +295,6 @@ watch(
 
 <style scoped lang="scss">
 @import '@/styles/common.scss';
-/* [核心改造] 将 Mixin 应用到本组件 */
 @include table-layout;
 
 .collapsible-content {
@@ -346,7 +346,6 @@ watch(
 	transform: rotate(0deg);
 }
 
-/* [核心改造] .smart-table 会通过 Mixin 获得基础样式，这里只保留组件特有的样式 */
 .smart-table {
 	font-size: 14px;
 	margin-top: 25px;
