@@ -14,7 +14,7 @@
 					<view :class="{ 'disabled-list': !isStarted && !isReadOnly }">
 						<view class="card-full-bleed-list">
 							<view class="card-title-wrapper">
-								<span class="card-title">{{ task.componentGroups[0]?.category === 'BREAD' ? '面团列表' : '组件列表' }}</span>
+								<span class="card-title">配方列表</span>
 							</view>
 							<ListItem
 								v-for="(component, index) in task.componentGroups"
@@ -71,7 +71,7 @@
 								</view>
 								<view class="total-weight-summary">
 									<text>
-										{{ selectedComponentDetails.category === 'BREAD' ? '面团总重' : '组件总重' }}:
+										{{ selectedComponentDetails.category === 'BREAD' ? '面团总重' : '原料总重' }}:
 										{{ formatWeight(selectedComponentDetails.totalComponentWeight) }}
 									</text>
 								</view>
@@ -83,7 +83,7 @@
 								</view>
 							</view>
 							<view class="group-title" @click="toggleCollapse('componentSummary')">
-								<span>{{ selectedComponentDetails.category === 'BREAD' ? '面团汇总' : '组件汇总' }}</span>
+								<span>{{ selectedComponentDetails.category === 'BREAD' ? '面团汇总' : '原料汇总' }}</span>
 								<span class="arrow" :class="{ collapsed: collapsedSections.has('componentSummary') }">&#10095;</span>
 							</view>
 							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('componentSummary') }">
@@ -91,7 +91,7 @@
 									<view class="table-header">
 										<text class="col-product-name">产品名称</text>
 										<text class="col-quantity">数量</text>
-										<text class="col-dough-weight">{{ selectedComponentDetails.category === 'BREAD' ? '面团总重' : '组件总重' }}</text>
+										<text class="col-dough-weight">{{ selectedComponentDetails.category === 'BREAD' ? '产品面团' : '产品原料' }}</text>
 										<text class="col-division-weight">分割重量</text>
 									</view>
 									<view v-for="product in selectedComponentDetails.products" :key="product.id" class="info-row">

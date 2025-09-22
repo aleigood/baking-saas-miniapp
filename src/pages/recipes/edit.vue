@@ -233,7 +233,7 @@
 			<FermentationCalculator @close="showCalculatorModal = false" />
 		</AppModal>
 
-		<ExpandingFab :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true" :visible="isFabVisible" />
+		<ExpandingFab :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true" :visible="isFabVisible && showFermentationCalculator" />
 	</view>
 </template>
 
@@ -254,7 +254,7 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import AutocompleteInput from '@/components/AutocompleteInput.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
-import type { RecipeFamily, RecipeFormTemplate, RecipeCategory } from '@/types/api';
+import type { RecipeFamily, RecipeFormTemplate, RecipeCategory, ComponentTemplate } from '@/types/api'; // [核心重命名]
 import { formatNumber, toDecimal } from '@/utils/format';
 import { predefinedIngredients } from '@/utils/predefinedIngredients';
 
@@ -288,7 +288,6 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-// [核心重命名] form.doughs -> form.components
 const form = ref<Omit<RecipeFormTemplate, 'ingredients' | 'procedure'> & { targetTemp?: number | null }>({
 	name: '',
 	type: 'MAIN',
@@ -306,6 +305,17 @@ const form = ref<Omit<RecipeFormTemplate, 'ingredients' | 'procedure'> & { targe
 		}
 	],
 	products: []
+});
+
+// [核心新增] 新增计算属性，判断是否应该显示发酵计算器
+const showFermentationCalculator = computed(() => {
+	if (!form.value) return false;
+	// 规则1: 如果是产品配方(MAIN)，则必须是面包品类(BREAD)
+	const isBreadProduct = form.value.type === 'MAIN' && form.value.category === 'BREAD';
+	// 规则2: 如果是其他配方，则必须是面种类型(PRE_DOUGH)
+	const isPreDough = form.value.type === 'PRE_DOUGH';
+	// 满足任意一个条件即可显示
+	return isBreadProduct || isPreDough;
 });
 
 const recipeCategories = ref([
@@ -367,7 +377,6 @@ const isAddingPreDough = ref(false);
 
 const activeProductTab = ref(0);
 
-// [核心重命名] mainDough -> mainComponent
 const mainComponent = computed(() => form.value.components!.find((c) => c.type === 'MAIN_DOUGH' || c.type === 'BASE_COMPONENT')!);
 
 const productTabs = computed(() => {
@@ -484,7 +493,6 @@ onLoad(async (options) => {
 		const sourceFormJson = uni.getStorageSync('source_recipe_version_form');
 		if (sourceFormJson) {
 			try {
-				// [核心改造] 直接将后端返回的统一结构赋值给 form.value
 				form.value = JSON.parse(sourceFormJson);
 
 				if (form.value.products && form.value.products.length > 0) {
@@ -501,7 +509,6 @@ onLoad(async (options) => {
 			form.value.type = 'EXTRA';
 			form.value.products = [];
 			form.value.category = 'OTHER';
-			// [核心新增] 为新建的其他配方初始化一个基础的 component 结构
 			form.value.components = [
 				{
 					id: `main_${Date.now()}`,
@@ -557,7 +564,6 @@ const removeIngredient = (ingIndex: number) => {
 	mainComponent.value.ingredients.splice(ingIndex, 1);
 };
 
-// [核心重命名] removeDough -> removeComponent
 const removeComponent = (componentIndex: number) => {
 	form.value.components!.splice(componentIndex, 1);
 };
@@ -695,7 +701,6 @@ const handleSubmit = async () => {
 	isSubmitting.value = true;
 
 	try {
-		// [核心重命名] mainDough -> mainComponentFromForm
 		const mainComponentFromForm = form.value.components!.find((c) => c.type === 'MAIN_DOUGH' || c.type === 'BASE_COMPONENT');
 		if (!mainComponentFromForm) {
 			toastStore.show({ message: '主组件数据丢失，无法保存', type: 'error' });
