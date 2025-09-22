@@ -175,6 +175,10 @@ onLoad(async (options) => {
 	overflow: hidden;
 	transition: max-height 0.3s ease-in-out;
 	box-sizing: border-box;
+
+	&:last-child {
+		padding-bottom: 10px;
+	}
 }
 
 .collapsible-content.is-collapsed {

@@ -729,6 +729,10 @@ const productTabs = computed(() => {
 	overflow: hidden;
 	transition: max-height 0.3s ease;
 	box-sizing: border-box;
+
+	&:last-child {
+		padding-bottom: 10px;
+	}
 }
 
 .collapsible-content.is-collapsed {

@@ -60,67 +60,17 @@
 					<span class="arrow" :class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
 				</view>
 				<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
-					<template v-if="componentSummary">
-						<view class="summary-table-wrapper">
+					<template v-for="(ingredients, groupName) in recipeDetails.groupedExtraIngredients" :key="groupName">
+						<view v-if="ingredients.length > 0" class="summary-table-wrapper">
 							<view class="smart-table detail-table">
 								<view class="table-header summary-header">
-									<text class="col-ingredient">{{ componentSummary.name }}</text>
-									<text class="col-usage">总用量</text>
+									<text class="col-ingredient">{{ groupName }}</text>
+									<text class="col-usage">{{ getUsageColumnHeader(groupName as string) }}</text>
 									<text class="col-total">成本</text>
 								</view>
-								<view class="table-row">
-									<text class="col-ingredient">{{ componentSummary.name }}</text>
-									<text class="col-usage">{{ formatWeight(componentSummary.weightInGrams) }}</text>
-									<text class="col-total">¥{{ formatNumber(componentSummary.cost) }}</text>
-								</view>
-							</view>
-						</view>
-					</template>
-					<template v-if="recipeDetails.groupedExtraIngredients['搅拌原料'] && recipeDetails.groupedExtraIngredients['搅拌原料'].length > 0">
-						<view class="summary-table-wrapper">
-							<view class="smart-table detail-table">
-								<view class="table-header summary-header">
-									<text class="col-ingredient">辅料</text>
-									<text class="col-usage">总用量</text>
-									<text class="col-total">成本</text>
-								</view>
-								<view v-for="ing in recipeDetails.groupedExtraIngredients['搅拌原料']" :key="ing.id" class="table-row">
+								<view v-for="ing in ingredients" :key="ing.id" class="table-row">
 									<text class="col-ingredient">{{ ing.name }}</text>
-									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }} ({{ toPercentage(ing.ratio) }}%)</text>
-									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
-								</view>
-							</view>
-						</view>
-					</template>
-
-					<template v-if="recipeDetails.groupedExtraIngredients['馅料'] && recipeDetails.groupedExtraIngredients['馅料'].length > 0">
-						<view class="summary-table-wrapper">
-							<view class="smart-table detail-table">
-								<view class="table-header summary-header">
-									<text class="col-ingredient">馅料</text>
-									<text class="col-usage">用量/个</text>
-									<text class="col-total">成本</text>
-								</view>
-								<view v-for="ing in recipeDetails.groupedExtraIngredients['馅料']" :key="ing.id" class="table-row">
-									<text class="col-ingredient">{{ ing.name }}</text>
-									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
-								</view>
-							</view>
-						</view>
-					</template>
-
-					<template v-if="recipeDetails.groupedExtraIngredients['表面装饰'] && recipeDetails.groupedExtraIngredients['表面装饰'].length > 0">
-						<view class="summary-table-wrapper">
-							<view class="smart-table detail-table">
-								<view class="table-header summary-header">
-									<text class="col-ingredient">表面装饰</text>
-									<text class="col-usage">用量/个</text>
-									<text class="col-total">成本</text>
-								</view>
-								<view v-for="ing in recipeDetails.groupedExtraIngredients['表面装饰']" :key="ing.id" class="table-row">
-									<text class="col-ingredient">{{ ing.name }}</text>
-									<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+									<text class="col-usage">{{ getUsageDisplay(ing) }}</text>
 									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
 								</view>
 							</view>
@@ -144,7 +94,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, getCurrentInstance } from 'vue';
 import type { PropType } from 'vue';
-import type { RecipeVersion, RecipeDetails } from '@/types/api';
+// [核心修改] 导入新的类型
+import type { RecipeVersion, RecipeDetails, CalculatedExtraIngredientInfo } from '@/types/api';
 import { getProductCostHistory, getProductCostBreakdown, getRecipeDetails } from '@/api/costing';
 import { useDataStore } from '@/store/data';
 import LineChart from '@/components/LineChart.vue';
@@ -208,20 +159,15 @@ const selectedProduct = computed(() => {
 	return props.version.products.find((p) => p.id === selectedProductId.value);
 });
 
-// [核心重命名] doughSummary -> componentSummary
-const componentSummary = computed(() => {
-	return recipeDetails.value?.extraIngredients.find((item) => item.id === 'component-summary');
-});
+// [核心改造] 不再需要 componentSummary，此逻辑已合并到动态循环中
+// const componentSummary = computed(() => {
+// 	return recipeDetails.value?.extraIngredients.find((item) => item.id === 'component-summary');
+// });
 
 const hasOtherIngredients = computed(() => {
 	if (!recipeDetails.value) return false;
-	const grouped = recipeDetails.value.groupedExtraIngredients;
-	return (
-		!!componentSummary.value ||
-		(grouped['搅拌原料'] && grouped['搅拌原料'].length > 0) ||
-		(grouped['馅料'] && grouped['馅料'].length > 0) ||
-		(grouped['表面装饰'] && grouped['表面装饰'].length > 0)
-	);
+	// [核心改造] 检查 groupedExtraIngredients 是否有任何一个分组包含数据
+	return Object.values(recipeDetails.value.groupedExtraIngredients).some((group) => group.length > 0);
 });
 
 const handleIconClick = (info: string | null | undefined, elementId: string) => {
@@ -273,6 +219,22 @@ const toggleCollapse = (sectionName: string) => {
 	collapsedSections.value = newSet;
 };
 
+// [核心新增] 根据分组名决定“用量”列的标题
+const getUsageColumnHeader = (groupName: string): string => {
+	if (groupName === '馅料' || groupName === '表面装饰') {
+		return '用量/个';
+	}
+	return '总用量';
+};
+
+// [核心新增] 根据原料类型动态生成用量显示文本
+const getUsageDisplay = (ingredient: CalculatedExtraIngredientInfo): string => {
+	if (ingredient.type === '搅拌原料' && ingredient.ratio) {
+		return `${formatWeight(ingredient.weightInGrams)} (${toPercentage(ingredient.ratio)}%)`;
+	}
+	return formatWeight(ingredient.weightInGrams);
+};
+
 watch(selectedProductId, (newProductId) => {
 	fetchCostData(newProductId);
 });
@@ -302,6 +264,10 @@ watch(
 	overflow: hidden;
 	transition: max-height 0.3s ease-in-out;
 	box-sizing: border-box;
+
+	&:last-child {
+		padding-bottom: 10px;
+	}
 }
 
 .collapsible-content.is-collapsed {
@@ -415,7 +381,6 @@ watch(
 	font-size: 14px;
 	font-weight: 600;
 	color: var(--text-primary);
-	margin-bottom: 15px;
 }
 
 .summary-divider {
