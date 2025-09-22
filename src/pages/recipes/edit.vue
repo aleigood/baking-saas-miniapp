@@ -16,7 +16,7 @@
 							</view>
 						</picker>
 					</FormItem>
-					<FormItem v-if="pageMode === 'create' && form.type !== 'MAIN'" label="配方类型">
+					<FormItem v-if="form.type !== 'MAIN'" label="配方类型">
 						<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange" :disabled="isEditing">
 							<view class="picker" :class="{ 'is-disabled': isEditing }">
 								{{ currentTypeLabel }}
