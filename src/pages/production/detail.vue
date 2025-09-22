@@ -55,11 +55,11 @@
 										:key="ing.id + '-' + ingIndex"
 										class="table-row"
 										:class="{ 'is-added': addedIngredientsMap.has(`${selectedComponentDetails.familyId}-${ing.id}`) }"
-										@click.stop="showExtraInfo(ing.extraInfo, ing.id)"
+										@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${selectedComponentDetails.familyId}-${ing.id}`)"
 										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedComponentDetails.familyId, ing.id)"
 									>
 										<view class="col-ingredient ingredient-name-cell">
-											<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="'info-icon-' + ing.id">
+											<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${selectedComponentDetails.familyId}-${ing.id}`">
 												<text>{{ ing.name }}</text>
 												<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 											</view>
@@ -645,7 +645,7 @@ const selectComponent = (familyId: string) => {
 	}
 };
 
-const showExtraInfo = (info: string | null | undefined, ingredientId: string) => {
+const showExtraInfo = (info: string | null | undefined, elementId: string) => {
 	if (!info) {
 		hidePopover();
 		return;
@@ -662,7 +662,7 @@ const showExtraInfo = (info: string | null | undefined, ingredientId: string) =>
 	nextTick(() => {
 		const query = uni.createSelectorQuery().in(instance);
 		query
-			.select('#info-icon-' + ingredientId)
+			.select('#' + elementId)
 			.boundingClientRect((rect: UniApp.NodeInfo) => {
 				if (rect) {
 					popover.content = info;

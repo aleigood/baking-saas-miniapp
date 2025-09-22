@@ -30,10 +30,10 @@
 								v-for="(ing, ingIndex) in component.ingredients"
 								:key="ingIndex"
 								class="table-row"
-								@click.stop="handleIconClick(ing.extraInfo, 'main-ing-icon-' + ing.name + ingIndex)"
+								@click.stop="handleIconClick(ing.extraInfo, 'main-ing-icon-' + index + '-' + ingIndex)"
 							>
 								<view class="col-ingredient ingredient-name-cell">
-									<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="'main-ing-icon-' + ing.name + ingIndex">
+									<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="'main-ing-icon-' + index + '-' + ingIndex">
 										<text>{{ ing.name }}</text>
 										<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 									</view>
@@ -51,41 +51,40 @@
 						</view>
 					</view>
 				</view>
-			</view>
-			<view v-else class="empty-state" style="padding: 20px 0">暂无基础组件原料信息</view>
-
-			<view v-if="hasOtherIngredients" class="other-ingredients-section">
-				<view class="group-title" @click="toggleCollapse('otherIngredients')">
-					<span>{{ selectedProduct.name }}</span>
-					<span class="arrow" :class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
-				</view>
-				<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
-					<template v-for="(ingredients, groupName) in recipeDetails.groupedExtraIngredients" :key="groupName">
-						<view v-if="ingredients.length > 0" class="summary-table-wrapper">
-							<view class="smart-table detail-table">
-								<view class="table-header summary-header">
-									<text class="col-ingredient">{{ groupName }}</text>
-									<text class="col-usage">{{ getUsageColumnHeader(groupName as string) }}</text>
-									<text class="col-total">成本</text>
-								</view>
-								<view v-for="ing in ingredients" :key="ing.id" class="table-row">
-									<text class="col-ingredient">{{ ing.name }}</text>
-									<text class="col-usage">{{ getUsageDisplay(ing) }}</text>
-									<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+				<view v-if="hasOtherIngredients" class="other-ingredients-section">
+					<view class="group-title" @click="toggleCollapse('otherIngredients')">
+						<span>{{ selectedProduct.name }}</span>
+						<span class="arrow" :class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
+					</view>
+					<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
+						<template v-for="(ingredients, groupName) in recipeDetails.groupedExtraIngredients" :key="groupName">
+							<view v-if="ingredients.length > 0" class="summary-table-wrapper">
+								<view class="smart-table detail-table">
+									<view class="table-header summary-header">
+										<text class="col-ingredient">{{ groupName }}</text>
+										<text class="col-usage">{{ getUsageColumnHeader(groupName as string) }}</text>
+										<text class="col-total">成本</text>
+									</view>
+									<view v-for="ing in ingredients" :key="ing.id" class="table-row">
+										<text class="col-ingredient">{{ ing.name }}</text>
+										<text class="col-usage">{{ getUsageDisplay(ing) }}</text>
+										<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+									</view>
 								</view>
 							</view>
+						</template>
+						<view class="total-cost-summary">
+							<view class="summary-divider"></view>
+							<view class="summary-text">总成本: ¥{{ formatNumber(recipeDetails.totalCost) }}</view>
 						</view>
-					</template>
-					<view class="total-cost-summary">
-						<view class="summary-divider"></view>
-						<view class="summary-text">总成本: ¥{{ formatNumber(recipeDetails.totalCost) }}</view>
-					</view>
-					<view v-if="recipeDetails.productProcedure && recipeDetails.productProcedure.length > 0" class="procedure-notes">
-						<text class="notes-title">制作要点:</text>
-						<text v-for="(step, stepIndex) in recipeDetails.productProcedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+						<view v-if="recipeDetails.productProcedure && recipeDetails.productProcedure.length > 0" class="procedure-notes">
+							<text class="notes-title">制作要点:</text>
+							<text v-for="(step, stepIndex) in recipeDetails.productProcedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+						</view>
 					</view>
 				</view>
 			</view>
+			<view v-else class="empty-state" style="padding: 20px 0">暂无基础组件原料信息</view>
 		</view>
 		<view v-else-if="version && version.products.length === 0" class="empty-state">当前版本暂无产品</view>
 	</view>
@@ -264,10 +263,10 @@ watch(
 	overflow: hidden;
 	transition: max-height 0.3s ease-in-out;
 	box-sizing: border-box;
+}
 
-	&:last-child {
-		padding-bottom: 10px;
-	}
+.other-ingredients-section {
+	padding-bottom: 10px;
 }
 
 .collapsible-content.is-collapsed {

@@ -54,7 +54,7 @@
 			</view>
 		</RefreshableLayout>
 
-		<ExpandingFab :actions="fabActions" :visible="isFabVisible" :no-tab-bar="!hasTabBar" />
+		<ExpandingFab :actions="isSingleCategory ? [] : fabActions" :visible="isFabVisible" :no-tab-bar="!hasTabBar" @click="handleFabClick" />
 
 		<CalendarModal :visible="isCalendarVisible" :task-dates="taskDates" @close="isCalendarVisible = false" @select="handleDateSelect" />
 
@@ -156,6 +156,17 @@ const categoryMap = {
 	DESSERT: '甜品任务',
 	DRINK: '饮品任务'
 };
+
+// [核心新增] 计算可创建任务的品类数量是否为1
+const isSingleCategory = computed(() => {
+	return Object.keys(dataStore.productsForTaskCreation).length === 1;
+});
+
+// [核心新增] 获取唯一的品类键名
+const singleCategoryKey = computed(() => {
+	if (!isSingleCategory.value) return null;
+	return Object.keys(dataStore.productsForTaskCreation)[0] as RecipeCategory;
+});
 
 // [核心改造] 动态生成悬浮菜单的动作列表
 const fabActions = computed(() => {
@@ -404,6 +415,15 @@ const navigateToCreatePage = (category: RecipeCategory) => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
 	uni.navigateTo({ url: `/pages/production/create?category=${category}` });
+};
+
+// [核心新增] FAB 按钮的统一点击处理函数
+const handleFabClick = () => {
+	// 如果只有一个品类，直接导航
+	if (isSingleCategory.value && singleCategoryKey.value) {
+		navigateToCreatePage(singleCategoryKey.value);
+	}
+	// 如果有多个品类，ExpandingFab 组件会自动处理菜单展开，无需额外操作
 };
 
 const openTemperatureSettingsModal = () => {
