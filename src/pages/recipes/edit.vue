@@ -120,7 +120,7 @@
 							<FormItem label="产品名称">
 								<input class="input-field" v-model="product.name" :placeholder="`产品${prodIndex + 1}`" />
 							</FormItem>
-							<FormItem label="基础面团克重 (g)">
+							<FormItem label="基础原料克重 (g)">
 								<input class="input-field" type="number" v-model="product.baseDoughWeight" placeholder="例如: 100" />
 							</FormItem>
 
