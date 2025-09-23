@@ -66,12 +66,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, nextTick } from 'vue'; // [核心新增] 导入 nextTick
+import { ref, computed, reactive } from 'vue'; // [核心移除] 不再需要 nextTick
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
-import { useUiStore } from '@/store/ui'; // [核心新增] 导入uiStore
+import { useUiStore } from '@/store/ui';
 import type { RecipeFamily, RecipeVersion } from '@/types/api';
 import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion, getRecipeVersionFormTemplate } from '@/api/recipes';
 
@@ -93,7 +93,7 @@ defineOptions({
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
-const uiStore = useUiStore(); // [核心新增] 获取uiStore实例
+const uiStore = useUiStore();
 const isLoading = ref(true);
 const isSubmitting = ref(false);
 const recipeFamily = ref<RecipeFamily | null>(null);
@@ -132,11 +132,8 @@ onLoad(async (options) => {
 	}
 });
 
-// [核心修改] onShow 逻辑调整
 onShow(async () => {
-	// [核心改造] 拼接自己的完整地址来消费消息
 	if (familyId.value) {
-		// 构造当前页面的唯一路由地址
 		const currentPageRoute = `/pages/recipes/detail?familyId=${familyId.value}`;
 		const toastMessage = uiStore.consumeNextPageToast(currentPageRoute);
 		if (toastMessage) {
@@ -144,7 +141,6 @@ onShow(async () => {
 		}
 	}
 
-	// 检查 familyId 是否存在，并且数据是否为“脏”数据
 	if (familyId.value && dataStore.dataStale.recipes) {
 		await loadRecipeData(familyId.value);
 	}
@@ -191,9 +187,6 @@ const loadRecipeData = async (id: string) => {
 		} else {
 			displayedVersionId.value = null;
 		}
-		// [核心修改] 数据加载成功后，将 recipes 的脏标记重置为 false
-		// 注意：这里我们借用全局的 recipes 脏标记。
-		// 如果未来有更精细的需求（比如只标记单个配方详情为脏），可以扩展 dataStore。
 		dataStore.dataStale.recipes = false;
 	} catch (error) {
 		console.error('Failed to fetch recipe details:', error);
@@ -224,7 +217,6 @@ const navigateToEditPage = async (familyId: string | null, mode: 'edit' | 'newVe
 		const formTemplate = await getRecipeVersionFormTemplate(familyId, sourceVersionId);
 		uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
 
-		// [核心修复] 移除三元运算符，统一导航至 /pages/recipes/edit
 		const baseUrl = '/pages/recipes/edit';
 		let url = `${baseUrl}?familyId=${familyId}&mode=${mode}`;
 		if (versionId) {
@@ -241,38 +233,30 @@ const navigateToEditPage = async (familyId: string | null, mode: 'edit' | 'newVe
 	}
 };
 
-// [核心改造] 重构 handleShowPopover 函数以解决点击交互问题
+// [核心改造] 优化 handleShowPopover 函数以解决闪烁问题
 const handleShowPopover = (payload: { info: string; rect: any }) => {
 	const { info, rect } = payload;
 
-	// 如果子组件传来的是无效信息（通常是点击了没有附加信息的行），则统一执行关闭操作
 	if (!info || !rect) {
 		hidePopover();
 		return;
 	}
 
-	// 判断当前是否正在显示“同一个”弹窗
-	const isTogglingOff = popover.visible && popover.content === info;
-
-	// 统一先执行关闭操作，这样可以处理点击不同行时关闭上一个弹窗的场景
-	hidePopover();
-
-	// 如果刚才的操作就是为了关闭当前弹窗，那么到此为止
-	if (isTogglingOff) {
+	// 如果点击的是同一个已经显示的弹窗，则关闭它
+	if (popover.visible && popover.content === info) {
+		hidePopover();
 		return;
 	}
 
-	// 否则，在UI线程的下一个Tick（确保旧弹窗已完成关闭动画）中显示新弹窗
-	nextTick(() => {
-		popover.content = info;
-		popover.targetRect = {
-			left: rect.left,
-			top: rect.top,
-			width: rect.width,
-			height: rect.height
-		};
-		popover.visible = true;
-	});
+	// 否则，直接更新内容和位置并显示。Vue 的响应式系统会处理更新，无需先关闭再打开
+	popover.content = info;
+	popover.targetRect = {
+		left: rect.left,
+		top: rect.top,
+		width: rect.width,
+		height: rect.height
+	};
+	popover.visible = true;
 };
 
 const hidePopover = () => {
@@ -322,7 +306,7 @@ const activateVersionAction = async (versionToActivate: RecipeVersion) => {
 			message: '设置成功',
 			type: 'success'
 		});
-		dataStore.markRecipesAsStale(); // 标记为脏数据
+		dataStore.markRecipesAsStale();
 		await loadRecipeData(recipeFamily.value.id);
 	} catch (error) {
 		console.error('Failed to activate version:', error);
@@ -343,7 +327,7 @@ const handleConfirmDeleteVersion = async () => {
 		});
 		showDeleteVersionConfirmModal.value = false;
 		selectedVersionForAction.value = null;
-		dataStore.markRecipesAsStale(); // 标记为脏数据
+		dataStore.markRecipesAsStale();
 		await loadRecipeData(familyId.value);
 	} catch (error) {
 		showDeleteVersionConfirmModal.value = false;

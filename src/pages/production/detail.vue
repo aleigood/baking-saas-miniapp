@@ -645,38 +645,36 @@ const selectComponent = (familyId: string) => {
 	}
 };
 
+// [核心改造] 优化 showExtraInfo 函数以解决闪烁问题
 const showExtraInfo = (info: string | null | undefined, elementId: string) => {
 	if (!info) {
 		hidePopover();
 		return;
 	}
 
-	const isTogglingOff = popover.visible && popover.content === info;
-
-	hidePopover();
-
-	if (isTogglingOff) {
+	if (popover.visible && popover.content === info) {
+		hidePopover();
 		return;
 	}
 
-	nextTick(() => {
-		const query = uni.createSelectorQuery().in(instance);
-		query
-			.select('#' + elementId)
-			.boundingClientRect((rect: UniApp.NodeInfo) => {
-				if (rect) {
-					popover.content = info;
-					popover.targetRect = {
-						left: rect.left,
-						top: rect.top,
-						width: rect.width,
-						height: rect.height
-					};
-					popover.visible = true;
-				}
-			})
-			.exec();
-	});
+	const query = uni.createSelectorQuery().in(instance);
+	query
+		.select('#' + elementId)
+		.boundingClientRect((rect: UniApp.NodeInfo) => {
+			if (rect) {
+				popover.content = info;
+				popover.targetRect = {
+					left: rect.left,
+					top: rect.top,
+					width: rect.width,
+					height: rect.height
+				};
+				popover.visible = true;
+			} else {
+				hidePopover();
+			}
+		})
+		.exec();
 };
 
 const hidePopover = () => {
