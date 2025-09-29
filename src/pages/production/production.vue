@@ -37,14 +37,14 @@
 						@longpress="openTaskActions(task)"
 						:vibrate-on-long-press="true"
 						card-mode
-						:style="getTaskCardStyle(task)"
+						:style="{ '--card-border-color': (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).color }"
 					>
 						<view class="task-info">
 							<view class="title">{{ getTaskTitle(task) }}</view>
 							<view class="details">{{ getTaskDetails(task) }}</view>
 						</view>
-						<view class="status-tag" :class="getStatusClass(task.status)">
-							{{ getStatusText(task.status) }}
+						<view class="status-tag" :class="(STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).className">
+							{{ (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).text }}
 						</view>
 					</ListItem>
 				</view>
@@ -125,17 +125,41 @@ import { useUiStore } from '@/store/ui';
 import { useToastStore } from '@/store/toast';
 import { useTemperatureStore } from '@/store/temperature';
 import AppModal from '@/components/AppModal.vue';
-import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
+import ExpandingFab from '@/components/ExpandingFab.vue';
 import ListItem from '@/components/ListItem.vue';
 import IconButton from '@/components/IconButton.vue';
 import AppButton from '@/components/AppButton.vue';
 import CalendarModal from '@/components/CalendarModal.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
-import type { ProductionTaskDto, PrepTask, RecipeCategory } from '@/types/api'; // [核心修改] 导入 RecipeCategory
+import type { ProductionTaskDto, PrepTask, RecipeCategory } from '@/types/api';
 import { updateTaskStatus, getTaskDates } from '@/api/tasks';
 import { formatChineseDate } from '@/utils/format';
 
-// [核心新增] 定义 props
+// [核心改造] 定义一个统一的状态信息对象，只包含此页面需要的状态
+const STATUS_MAP = {
+	PENDING: {
+		text: '待开始',
+		className: 'status-pending',
+		color: '#d4a373'
+	},
+	IN_PROGRESS: {
+		text: '进行中',
+		className: 'status-inprogress',
+		color: '#27ae60'
+	},
+	PREP: {
+		text: '待准备',
+		className: 'status-prep',
+		color: '#8e44ad'
+	},
+	DEFAULT: {
+		// 保留一个默认值以防万一
+		text: '未知',
+		className: '',
+		color: 'transparent'
+	}
+};
+
 const props = defineProps({
 	hasTabBar: {
 		type: Boolean,
@@ -149,7 +173,6 @@ const uiStore = useUiStore();
 const toastStore = useToastStore();
 const temperatureStore = useTemperatureStore();
 
-// [核心新增] 定义品类 key 到中文显示名的映射
 const categoryMap = {
 	BREAD: '面包任务',
 	PASTRY: '西点任务',
@@ -157,26 +180,21 @@ const categoryMap = {
 	DRINK: '饮品任务'
 };
 
-// [核心新增] 计算可创建任务的品类数量是否为1
 const isSingleCategory = computed(() => {
 	return Object.keys(dataStore.productsForTaskCreation).length === 1;
 });
 
-// [核心新增] 获取唯一的品类键名
 const singleCategoryKey = computed(() => {
 	if (!isSingleCategory.value) return null;
 	return Object.keys(dataStore.productsForTaskCreation)[0] as RecipeCategory;
 });
 
-// [核心改造] 动态生成悬浮菜单的动作列表
 const fabActions = computed(() => {
-	// 1. 获取所有可生产产品的品类 key
 	const categories = Object.keys(dataStore.productsForTaskCreation) as RecipeCategory[];
-	// 2. 将品类 key 映射为菜单项
 	return categories.map((category) => ({
 		icon: '/static/icons/add.svg',
-		text: `${categoryMap[category] || category}`, // 显示如“新建面包任务”
-		action: () => navigateToCreatePage(category) // 点击时传递品类参数
+		text: `${categoryMap[category] || category}`,
+		action: () => navigateToCreatePage(category)
 	}));
 });
 
@@ -195,16 +213,15 @@ const taskDates = ref<string[]>([]);
 
 const isNavigating = ref(false);
 
-// [核心新增] FAB 按钮可见性控制
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
 const tempSettings = reactive<{
 	mixerType: number;
-	envTemp: number | null; // [核心修改] 允许为 null
-	flourTemp: number | null; // [核心修改] 允许为 null
-	waterTemp: number | null; // [核心修改] 允许为 null
+	envTemp: number | null;
+	flourTemp: number | null;
+	waterTemp: number | null;
 }>({
 	mixerType: 9,
 	envTemp: 25,
@@ -216,7 +233,6 @@ const currentMixerIndex = computed(() => {
 	return temperatureStore.mixerTypes.findIndex((m) => m.value === tempSettings.mixerType);
 });
 
-// [核心改造] 新增计算属性，用于动态生成待完成数量的标签
 const pendingCountLabel = computed(() => {
 	const todayDate = new Date();
 	const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
@@ -246,7 +262,6 @@ onShow(async () => {
 
 	if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
 		try {
-			// [核心改造] 在获取生产任务前，先确保“可生产产品列表”已加载，以便动态生成 FAB 菜单
 			if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation) {
 				await dataStore.fetchProductsForTaskCreation();
 			}
@@ -257,20 +272,16 @@ onShow(async () => {
 	}
 });
 
-// [核心新增] 滚动事件处理函数
 const handleScroll = (event: any) => {
 	const scrollTop = event.detail.scrollTop;
 
-	// 防止因微小滚动导致的按钮闪烁
 	if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
 		return;
 	}
 
 	if (scrollTop > lastScrollTop.value && scrollTop > 50) {
-		// 向下滚动，隐藏按钮
 		isFabVisible.value = false;
 	} else {
-		// 向上滚动，显示按钮
 		isFabVisible.value = true;
 	}
 
@@ -280,7 +291,7 @@ const handleScroll = (event: any) => {
 const handleRefresh = async () => {
 	try {
 		dataStore.markProductionAsStale();
-		dataStore.markProductsForTaskCreationAsStale(); // [核心新增] 刷新时也将产品列表标记为过期
+		dataStore.markProductsForTaskCreationAsStale();
 		await dataStore.fetchProductsForTaskCreation();
 		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} finally {
@@ -303,16 +314,6 @@ const getTaskTitle = (task: ProductionTaskDto | PrepTask) => {
 	return regularTask.items.map((item) => `${item.product.name} x${item.quantity}`).join('、');
 };
 
-const getTaskCardStyle = (task: any) => {
-	const colorMap: Record<string, string> = {
-		PENDING: '#d4a373',
-		IN_PROGRESS: '#27ae60',
-		PREP: '#8e44ad'
-	};
-	const color = colorMap[task.status] || 'transparent';
-	return { '--card-border-color': color };
-};
-
 const getTotalQuantity = (task: ProductionTaskDto) => {
 	if (!task.items) return 0;
 	return task.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -322,32 +323,11 @@ const getTaskDetails = (task: any) => {
 	if (task.status === 'PREP') {
 		return task.details;
 	}
-	// [核心修正] 从 task 对象中获取创建者信息
 	const regularTask = task as ProductionTaskDto;
 	const formattedDate = formatChineseDate(regularTask.startDate);
 	const creator = regularTask.createdBy?.name || regularTask.createdBy?.phone || '未知';
 	const totalQuantity = getTotalQuantity(regularTask);
 	return `${formattedDate} - by ${creator} | 计划总数: ${totalQuantity}`;
-};
-
-const getStatusText = (status: any) => {
-	const map: Record<string, string> = {
-		PENDING: '待开始',
-		IN_PROGRESS: '进行中',
-		COMPLETED: '已完成',
-		CANCELLED: '已取消',
-		PREP: '去准备'
-	};
-	return map[status] || '未知';
-};
-
-const getStatusClass = (status: any) => {
-	const map: Record<string, string> = {
-		PENDING: 'status-pending',
-		IN_PROGRESS: 'status-inprogress',
-		PREP: 'status-prep'
-	};
-	return map[status] || '';
 };
 
 const navigateToDetail = (task: any) => {
@@ -375,12 +355,10 @@ const openTaskActions = (task: any) => {
 	showTaskActionsModal.value = true;
 };
 
-// [核心修改] 点击“修改任务”时，将任务数据存入缓存
 const handleEditTask = () => {
 	if (isNavigating.value || !selectedTaskForAction.value) return;
 	isNavigating.value = true;
 	showTaskActionsModal.value = false;
-	// 将任务数据转换为JSON字符串并存入storage
 	uni.setStorageSync('task_to_edit', JSON.stringify(selectedTaskForAction.value));
 	uni.navigateTo({
 		url: `/pages/production/create?taskId=${selectedTaskForAction.value.id}`
@@ -410,20 +388,16 @@ const handleConfirmCancelTask = async () => {
 	}
 };
 
-// [核心改造] 更新新建任务的导航逻辑，增加 category 参数
 const navigateToCreatePage = (category: RecipeCategory) => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
 	uni.navigateTo({ url: `/pages/production/create?category=${category}` });
 };
 
-// [核心新增] FAB 按钮的统一点击处理函数
 const handleFabClick = () => {
-	// 如果只有一个品类，直接导航
 	if (isSingleCategory.value && singleCategoryKey.value) {
 		navigateToCreatePage(singleCategoryKey.value);
 	}
-	// 如果有多个品类，ExpandingFab 组件会自动处理菜单展开，无需额外操作
 };
 
 const openTemperatureSettingsModal = () => {
@@ -439,7 +413,6 @@ const handleMixerChange = (e: any) => {
 const handleSaveTemperatureSettings = () => {
 	temperatureStore.saveTemperatureSettings({
 		mixerType: tempSettings.mixerType,
-		// [核心修改] 保存时, 将 null 值转换回 store 中的默认值
 		envTemp: Number(tempSettings.envTemp) || temperatureStore.settings.envTemp,
 		flourTemp: Number(tempSettings.flourTemp) || temperatureStore.settings.flourTemp,
 		waterTemp: Number(tempSettings.waterTemp) || temperatureStore.settings.waterTemp
@@ -557,6 +530,7 @@ const handleSaveTemperatureSettings = () => {
 	white-space: nowrap;
 }
 
+/* 样式与 STATUS_MAP 中的 className 对应 */
 .status-tag.status-pending {
 	background-color: #d4a373;
 }
