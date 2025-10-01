@@ -37,7 +37,12 @@
 								</view>
 
 								<view class="total-weight-summary">
-									<text>重量总计: {{ formatWeight(item.totalWeight) }}</text>
+									<template v-if="item.targetWeight">
+										<text>重量总计：{{ formatWeight(item.totalWeight) }}（目标重量：{{ formatWeight(item.targetWeight) }}）</text>
+									</template>
+									<template v-else>
+										<text>重量总计：{{ formatWeight(item.totalWeight) }}</text>
+									</template>
 								</view>
 
 								<view v-if="item.procedure && item.procedure.length > 0" class="procedure-notes">
@@ -68,6 +73,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
+// [核心修改] 导入 CalculatedRecipeDetails 类型时，需要确保它包含可选的 targetWeight 字段
 import type { PrepTask, CalculatedRecipeDetails } from '@/types/api';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
@@ -89,7 +95,7 @@ const addedIngredientsMap = reactive(new Set<string>());
 const activeTab = ref<'PRE_DOUGH' | 'OTHER'>('PRE_DOUGH');
 const filterTabs = ref([
 	{ key: 'PRE_DOUGH', label: '面种' },
-	{ key: 'OTHER', label: '其他' }
+	{ key: 'OTHER', label: '馅料' }
 ]);
 
 const collapsedSections = ref(new Set<string>());
