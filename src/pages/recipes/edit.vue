@@ -386,12 +386,14 @@ const productTabs = computed(() => {
 	}));
 });
 
+// 修改: 更新 availablePreDoughs 以使用新的数据源
 const availablePreDoughs = computed(() => {
-	// [核心改造] 过滤掉已添加的面种
 	const existingPreDoughIds = new Set(form.value.components?.filter((c) => c.type === 'PRE_DOUGH').map((c) => c.id));
-	return dataStore.recipes.otherRecipes.filter((r) => r.type === 'PRE_DOUGH' && !r.deletedAt && !existingPreDoughIds.has(r.id));
+	// 直接使用 dataStore.recipes.preDoughs
+	return (dataStore.recipes.preDoughs || []).filter((r) => !r.deletedAt && !existingPreDoughIds.has(r.id));
 });
 
+// 修改: 更新 availableMainDoughIngredients 以使用新的数据源
 const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
 
@@ -399,9 +401,12 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0 });
 	});
 
-	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
+	// 直接使用 dataStore.recipes.extras
+	const extras = dataStore.recipes.extras || [];
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
+		if (!e.deletedAt) {
+			ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
+		}
 	});
 
 	dataStore.allIngredients.forEach((i) => {
@@ -410,10 +415,12 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 
 	const combined = Array.from(ingredientMap.values());
 
-	const preDoughNames = new Set(dataStore.recipes.otherRecipes.filter((r) => r.type === 'PRE_DOUGH' && !r.deletedAt).map((r) => r.name));
+	// 直接使用 dataStore.recipes.preDoughs
+	const preDoughNames = new Set((dataStore.recipes.preDoughs || []).filter((r) => !r.deletedAt).map((r) => r.name));
 	return combined.filter((item) => !preDoughNames.has(item.name)).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
+// 修改: 更新 availableSubIngredients 以使用新的数据源
 const availableSubIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
 
@@ -421,9 +428,12 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0 });
 	});
 
-	const extras = dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA' && !r.deletedAt);
+	// 直接使用 dataStore.recipes.extras
+	const extras = dataStore.recipes.extras || [];
 	extras.forEach((e) => {
-		ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
+		if (!e.deletedAt) {
+			ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
+		}
 	});
 
 	dataStore.allIngredients.forEach((i) => {
