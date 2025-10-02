@@ -22,17 +22,17 @@
 				</view>
 
 				<view class="list-wrapper">
-					<template v-if="!isOtherCategoryActive">
-						<template v-if="recipesToDisplay.length > 0">
-							<ListItem
-								v-for="(family, index) in recipesToDisplay"
-								:key="family.id"
-								@click="navigateToDetail(family.id)"
-								@longpress="openRecipeActions(family)"
-								:vibrate-on-long-press="canEditRecipe"
-								:bleed="true"
-								:divider="index < recipesToDisplay.length - 1"
-							>
+					<template v-if="filteredRecipes.length > 0">
+						<ListItem
+							v-for="(family, index) in filteredRecipes"
+							:key="family.id"
+							@click="navigateToDetail(family.id)"
+							@longpress="openRecipeActions(family)"
+							:vibrate-on-long-press="canEditRecipe"
+							:bleed="true"
+							:divider="index < filteredRecipes.length - 1"
+						>
+							<template v-if="family.type === 'MAIN'">
 								<view class="main-info">
 									<view>
 										<view class="name">{{ family.name }}</view>
@@ -44,40 +44,24 @@
 									<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
 									<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
 								</view>
-							</ListItem>
-						</template>
-						<view v-else class="empty-state">
-							<text>该品类下暂无产品配方</text>
-						</view>
-					</template>
-
-					<template v-else>
-						<template v-if="recipesToDisplay.length > 0">
-							<ListItem
-								v-for="(family, index) in recipesToDisplay"
-								:key="family.id"
-								@click="navigateToDetail(family.id)"
-								@longpress="openRecipeActions(family)"
-								:vibrate-on-long-press="canEditRecipe"
-								:bleed="true"
-								:divider="index < recipesToDisplay.length - 1"
-							>
+							</template>
+							<template v-else>
 								<view class="main-info">
 									<view>
 										<view class="name">{{ family.name }}</view>
-										<view class="desc">类型: {{ getRecipeTypeDisplay(family.type) }}</view>
+										<view class="desc">{{ family.ingredientCount }} 种原料</view>
 									</view>
 									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 								</view>
 								<view class="side-info">
-									<view class="desc">{{ family.ingredientCount }} 种原料</view>
+									<view class="desc">{{ family.usageCount || 0 }} 次引用</view>
 								</view>
-							</ListItem>
-						</template>
-						<view v-else class="empty-state">
-							<text>{{ emptyStateMessage }}</text>
-						</view>
+							</template>
+						</ListItem>
 					</template>
+					<view v-else class="empty-state">
+						<text>该分类下暂无配方</text>
+					</view>
 				</view>
 			</view>
 		</RefreshableLayout>
@@ -149,6 +133,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
+// [核心新增] 导入 uiStore
 import { useUiStore } from '@/store/ui';
 import { discontinueRecipe, restoreRecipe, deleteRecipe } from '@/api/recipes';
 import type { RecipeFamily } from '@/types/api';
@@ -162,8 +147,10 @@ import RefreshableLayout from '@/components/RefreshableLayout.vue';
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
+// [核心新增] 获取 uiStore 实例
 const uiStore = useUiStore();
 
+// [核心改造] 使用单一的 activeFilter 来控制当前筛选状态，默认为第一个品类
 const activeFilter = ref('BREAD');
 
 const isSubmitting = ref(false);
@@ -175,85 +162,67 @@ const recipeTypeMap = {
 	EXTRA: '馅料'
 };
 
-// [核心改造] categoryMap 不再包含 'OTHER'，因为它将被动态拆分为 "面种" 和 "馅料"
+// [核心新增] 定义品类 key 到中文显示名的映射
 const categoryMap = {
 	BREAD: '面包',
 	PASTRY: '西点',
 	DESSERT: '甜品',
 	DRINK: '饮品'
+	// 'OTHER' is no longer needed here
 };
 
-// [核心改造] 动态生成筛选标签，逻辑如下：
-// 1. 获取所有产品配方 (`mainRecipes`) 中除 'OTHER' 外的所有品类。
-// 2. 检查其他配方 (`otherRecipes`) 中是否存在 'PRE_DOUGH' (面种) 和 'EXTRA' (馅料) 类型。
-// 3. 根据检查结果动态添加 "面种" 和 "馅料" 标签。
+// 修改: 动态生成筛选标签，现在包含面种和馅料
 const filterTabs = computed(() => {
-	// 获取主配方中除 'OTHER' 以外的所有品类
-	const categories = new Set(dataStore.recipes.mainRecipes.map((r) => r.category).filter((c) => c !== 'OTHER'));
+	// 1. 从主配方中提取产品品类
+	const categories = new Set(dataStore.recipes.mainRecipes.map((r) => r.category));
 	const categoryTabs = Array.from(categories).map((cat) => ({
 		key: cat,
 		label: categoryMap[cat] || cat
 	}));
 
-	// 检查 '其他配方' 中是否存在 '面种' 和 '馅料' 类型的配方
+	// 2. 检查是否存在面种和馅料配方，如果存在则添加对应标签
 	const otherTabs = [];
-	if (dataStore.recipes.otherRecipes.some((r) => r.type === 'PRE_DOUGH')) {
-		// 使用 recipeTypeMap 中定义好的显示名
-		otherTabs.push({ key: 'PRE_DOUGH', label: recipeTypeMap['PRE_DOUGH'] });
+	if (dataStore.recipes.preDoughs && dataStore.recipes.preDoughs.length > 0) {
+		otherTabs.push({ key: 'PRE_DOUGH', label: '面种' });
 	}
-	if (dataStore.recipes.otherRecipes.some((r) => r.type === 'EXTRA')) {
-		otherTabs.push({ key: 'EXTRA', label: recipeTypeMap['EXTRA'] });
+	if (dataStore.recipes.extras && dataStore.recipes.extras.length > 0) {
+		otherTabs.push({ key: 'EXTRA', label: '馅料' });
 	}
 
-	const allTabs = [...categoryTabs, ...otherTabs];
-
-	// 如果没有任何配方数据，提供一个默认的品类 tab，避免界面空白
-	if (allTabs.length === 0) {
+	// 3. 处理没有任何配方时的默认情况
+	if (categoryTabs.length === 0 && otherTabs.length === 0) {
 		return [{ key: 'BREAD', label: '面包' }];
 	}
 
-	return allTabs;
+	// 4. 合并所有标签并返回
+	return [...categoryTabs, ...otherTabs];
 });
 
-// [核心新增] 新增计算属性，判断当前激活的筛选器是否为“其他配方”类型（面种或馅料）
-const isOtherCategoryActive = computed(() => {
-	return activeFilter.value === 'PRE_DOUGH' || activeFilter.value === 'EXTRA';
-});
+// 修改: 根据当前激活的筛选器 (activeFilter) 来决定显示哪个列表
+const filteredRecipes = computed(() => {
+	const filterKey = activeFilter.value;
 
-// [核心改造] 将原来的 filteredRecipes 替换为 recipesToDisplay，统一处理所有筛选逻辑
-const recipesToDisplay = computed(() => {
-	const filter = activeFilter.value;
-	if (filter === 'PRE_DOUGH') {
-		// 筛选出类型为 '面种' 的其他配方
-		return dataStore.recipes.otherRecipes.filter((r) => r.type === 'PRE_DOUGH');
+	// 根据 filterKey 返回不同的配方列表
+	if (filterKey === 'PRE_DOUGH') {
+		return dataStore.recipes.preDoughs || [];
 	}
-	if (filter === 'EXTRA') {
-		// 筛选出类型为 '馅料' 的其他配方
-		return dataStore.recipes.otherRecipes.filter((r) => r.type === 'EXTRA');
+	if (filterKey === 'EXTRA') {
+		return dataStore.recipes.extras || [];
 	}
-	// 否则，从主配方列表中筛选出对应品类的产品配方
-	return dataStore.recipes.mainRecipes.filter((r) => r.category === filter);
-});
 
-// [核心新增] 为“其他配方”的空状态提供更具体的提示信息
-const emptyStateMessage = computed(() => {
-	if (activeFilter.value === 'PRE_DOUGH') {
-		return '暂无面种配方信息';
-	}
-	if (activeFilter.value === 'EXTRA') {
-		return '暂无馅料配方信息';
-	}
-	// 默认的提示，虽然在当前逻辑下基本不会被用到
-	return '暂无相关配方信息';
+	// 默认行为：根据品类筛选主配方列表
+	return dataStore.recipes.mainRecipes.filter((r) => r.category === filterKey);
 });
 
 const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 const isNavigating = ref(false);
+// [核心改造] 新增本地 ref 用于控制弹窗
 const showRecipeActionsModal = ref(false);
 const showDeleteRecipeConfirmModal = ref(false);
 const showDiscontinueRecipeConfirmModal = ref(false);
 const showRestoreRecipeConfirmModal = ref(false);
 
+// [核心新增] FAB 按钮可见性控制
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
@@ -267,7 +236,7 @@ const fabActions = computed(() => {
 		},
 		{
 			icon: '/static/icons/add.svg',
-			text: '其他配方',
+			text: '其他配方', // [核心用语] 组件配方 -> 其他配方
 			action: () => navigateToEditPage('EXTRA')
 		}
 	];
@@ -275,9 +244,10 @@ const fabActions = computed(() => {
 
 onShow(async () => {
 	isNavigating.value = false;
+	// [核心修改] 移除此处的 Toast 消费逻辑，统一由 main.vue 处理
 	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
 		await dataStore.fetchRecipesData();
-		// 数据加载后，如果当前激活的筛选器不存在于新的标签列表中，则重置为第一个
+		// [核心新增] 数据加载后，如果当前激活的筛选器不存在，则重置为第一个
 		if (filterTabs.value.length > 0 && !filterTabs.value.some((t) => t.key === activeFilter.value)) {
 			activeFilter.value = filterTabs.value[0].key;
 		}
@@ -293,6 +263,7 @@ const handleRefresh = async () => {
 	}
 };
 
+// [核心新增] 滚动事件处理函数
 const handleScroll = (event: any) => {
 	const scrollTop = event.detail.scrollTop;
 
@@ -335,6 +306,7 @@ const canEditRecipe = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
 
+// [核心改造] 更新导航函数，使其更通用
 const navigateToEditPage = (type: 'MAIN' | 'EXTRA') => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
@@ -510,6 +482,7 @@ const confirmDeleteRecipe = async () => {
 	padding: 10px 0px;
 }
 
+// [核心新增] 品类筛选标签的样式
 .category-filter-wrapper {
 	padding: 0px 15px 15px;
 	border-bottom: 1px solid var(--border-color);

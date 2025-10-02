@@ -88,12 +88,14 @@ export interface RecipeFamily {
 	// [核心新增] 新增由后端计算好的聚合字段
 	productCount?: number;
 	ingredientCount?: number;
+	usageCount?: number; // 新增: 配方被引用的次数
 }
 
 // [核心新增] 定义配方列表接口的返回类型
 export interface RecipesListResponse {
 	mainRecipes: RecipeFamily[];
-	otherRecipes: RecipeFamily[];
+	preDoughs: RecipeFamily[]; // 修改: otherRecipes -> preDoughs
+	extras: RecipeFamily[]; // 新增: extras
 }
 
 // [核心修改] 更新表单模板类型以匹配后端
