@@ -394,10 +394,26 @@ const navigateToCreatePage = (category: RecipeCategory) => {
 	uni.navigateTo({ url: `/pages/production/create?category=${category}` });
 };
 
+// [核心修改] 增加边界处理逻辑
 const handleFabClick = () => {
-	if (isSingleCategory.value && singleCategoryKey.value) {
-		navigateToCreatePage(singleCategoryKey.value);
+	// 获取所有可用于创建任务的产品品类
+	const categories = Object.keys(dataStore.productsForTaskCreation);
+
+	// 情况一：没有任何可用的产品/配方
+	if (categories.length === 0) {
+		toastStore.show({
+			message: '请先创建配方才能添加生产任务',
+			type: 'info'
+		});
+		return; // 终止执行
 	}
+
+	// 情况二：只有一个产品品类，直接跳转
+	if (categories.length === 1) {
+		navigateToCreatePage(categories[0] as RecipeCategory);
+	}
+
+	// 情况三（categories.length > 1）：不执行任何操作，此时 ExpandingFab 组件会自动展开为菜单
 };
 
 const openTemperatureSettingsModal = () => {

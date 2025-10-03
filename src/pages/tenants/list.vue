@@ -56,8 +56,9 @@
 				</picker>
 			</FormItem>
 			<FormItem label="选择配方文件">
+				<view class="import-instructions">请先将 .json 配方文件发送到微信任意聊天窗口（例如发送给自己或文件传输助手），然后点击下方按钮从聊天记录中选择。</view>
 				<view class="file-picker-wrapper" @click="handleChooseFile">
-					<view class="file-picker-placeholder" v-if="!selectedFile">点击选择 .json 文件</view>
+					<view class="file-picker-placeholder" v-if="!selectedFile">点击从聊天记录中选择 .json 文件</view>
 					<view class="file-picker-info" v-else>
 						<image class="file-icon" src="/static/icons/file.svg" />
 						<text class="file-name">{{ selectedFile.name }}</text>
@@ -92,10 +93,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useToastStore } from '@/store/toast';
-import { useUserStore } from '@/store/user'; // [新增]
+import { useUserStore } from '@/store/user';
 import { getTenants, createTenant, updateTenant } from '@/api/tenants';
-import { batchImportRecipes } from '@/api/recipes'; // [新增]
-import type { Tenant, BatchImportResult } from '@/types/api'; // [新增]
+import { batchImportRecipes } from '@/api/recipes';
+import type { Tenant, BatchImportResult } from '@/types/api';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import ListItem from '@/components/ListItem.vue';
@@ -109,7 +110,7 @@ defineOptions({
 });
 
 const toastStore = useToastStore();
-const userStore = useUserStore(); // [新增]
+const userStore = useUserStore();
 
 const tenants = ref<Tenant[]>([]);
 const isLoading = ref(false);
@@ -123,7 +124,6 @@ const editableTenant = ref<Partial<Tenant>>({
 	status: 'ACTIVE'
 });
 
-// --- [新增] 批量导入相关状态 ---
 const showImportModal = ref(false);
 const isImporting = ref(false);
 const selectedTenantIds = ref<string[]>([]);
@@ -131,7 +131,6 @@ const selectedFile = ref<{ name: string; path: string } | null>(null);
 const importResult = ref<BatchImportResult | null>(null);
 const tenantPickerIndex = ref(0);
 
-// --- [修改] FAB 按钮改为多操作 ---
 const fabActions = computed(() => {
 	const actions = [
 		{
@@ -140,7 +139,6 @@ const fabActions = computed(() => {
 			action: openAddModal
 		}
 	];
-	// 只有店主才显示导入按钮
 	if (userStore.userInfo?.role === 'OWNER') {
 		actions.push({
 			icon: '/static/icons/upload.svg',
@@ -160,7 +158,6 @@ const selectedStatusText = computed(() => {
 	return editableTenant.value.status === 'ACTIVE' ? '营业中' : '已停用';
 });
 
-// [新增] 店铺选择器选项
 const tenantPickerOptions = computed(() => {
 	return [{ id: 'all', name: '全部店铺' }, ...tenants.value];
 });
@@ -227,9 +224,8 @@ const handleSaveTenant = async () => {
 	}
 };
 
-// --- [新增] 批量导入相关方法 ---
 const openImportModal = () => {
-	closeImportModal(); // 先重置状态
+	closeImportModal();
 	showImportModal.value = true;
 };
 
@@ -253,12 +249,31 @@ const onTenantSelect = (e: any) => {
 };
 
 const handleChooseFile = () => {
+	// #ifdef MP-WEIXIN
+	wx.chooseMessageFile({
+		count: 1,
+		type: 'file',
+		// [修复] 将 extension 的值从字符串 'json' 修改为数组 ['json']
+		extension: ['json'],
+		success: (res) => {
+			const file = res.tempFiles[0];
+			selectedFile.value = { name: file.name, path: file.path };
+		},
+		fail: (err) => {
+			if (err.errMsg !== 'chooseMessageFile:fail cancel') {
+				toastStore.show({ message: '选择文件失败', type: 'error' });
+			}
+		}
+	});
+	// #endif
+
+	// #ifndef MP-WEIXIN
 	uni.chooseFile({
 		count: 1,
 		type: 'all',
 		extension: ['json'],
 		success: (res) => {
-			const file = res.tempFiles[0];
+			const file = res.tempFiles[0] as unknown as UniApp.ChooseFileSuccessCallbackResultFile;
 			selectedFile.value = { name: file.name, path: file.path };
 		},
 		fail: (err) => {
@@ -267,6 +282,7 @@ const handleChooseFile = () => {
 			}
 		}
 	});
+	// #endif
 };
 
 const handleConfirmImport = async () => {
@@ -278,19 +294,16 @@ const handleConfirmImport = async () => {
 	isImporting.value = true;
 	importResult.value = null;
 
-	// 如果用户没有手动选择，默认导入所有店铺
 	const finalTenantIds = selectedTenantIds.value.length > 0 ? selectedTenantIds.value : tenants.value.map((t) => t.id);
 
 	try {
 		const result = await batchImportRecipes(selectedFile.value.path, finalTenantIds);
 		importResult.value = result;
-		// 导入成功后，标记数据为脏数据，以便下次进入相关页面时刷新
 		const dataStore = (await import('@/store/data')).useDataStore();
 		dataStore.markRecipesAsStale();
 		dataStore.markIngredientsAsStale();
 	} catch (error) {
 		console.error('导入失败:', error);
-		// 错误信息已在 request.ts 中统一处理并 toast
 	} finally {
 		isImporting.value = false;
 	}
@@ -323,6 +336,16 @@ const handleConfirmImport = async () => {
 }
 
 // --- [新增] 导入模态框样式 ---
+.import-instructions {
+	font-size: 12px;
+	color: var(--text-secondary);
+	background-color: #f7f7f7;
+	padding: 8px 12px;
+	border-radius: 6px;
+	line-height: 1.6;
+	margin-bottom: 10px;
+}
+
 .file-picker-wrapper {
 	width: 100%;
 	height: 80px;
@@ -332,7 +355,6 @@ const handleConfirmImport = async () => {
 	justify-content: center;
 	align-items: center;
 	background-color: #fcfcfc;
-	margin-top: 10px;
 }
 
 .file-picker-placeholder {

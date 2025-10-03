@@ -2,8 +2,7 @@
  * 文件路径: src/api/recipes.ts
  * 文件描述: (已更新) 封装所有与配方(Recipe)相关的API请求，新增版本管理接口。
  */
-import { request, uploadFile } from '@/utils/request'; // [修改] 导入 uploadFile
-// [核心改造] 导入新的 ProductsForTaskResponse 类型
+import { request, uploadFile } from '@/utils/request';
 import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductsForTaskResponse, RecipeFormTemplate, BatchImportResult } from '@/types/api';
 
 /**
@@ -17,9 +16,9 @@ export function batchImportRecipes(filePath: string, tenantIds?: string[]): Prom
 		url: '/recipes/batch-import',
 		filePath: filePath,
 		name: 'file',
-		// [修改] 将 tenantIds 作为 formData 发送
 		formData: {
-			tenantIds: tenantIds
+			// [修复] 显式地将 tenantIds 数组转换为逗号分隔的字符串
+			tenantIds: tenantIds ? tenantIds.join(',') : ''
 		}
 	});
 }
