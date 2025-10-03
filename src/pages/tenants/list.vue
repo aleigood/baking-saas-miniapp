@@ -24,7 +24,7 @@
 			</view>
 		</DetailPageLayout>
 
-		<ExpandingFab @click="openAddModal" :no-tab-bar="true" />
+		<ExpandingFab :actions="fabActions" :no-tab-bar="true" />
 
 		<AppModal v-model:visible="showEditModal" :title="isEditing ? '修改店铺' : '新增店铺'">
 			<FormItem label="店铺名称">
@@ -45,14 +45,57 @@
 				</AppButton>
 			</view>
 		</AppModal>
+
+		<AppModal v-model:visible="showImportModal" title="批量导入配方">
+			<FormItem label="选择店铺">
+				<picker mode="selector" :range="tenantPickerOptions" range-key="name" @change="onTenantSelect">
+					<view class="picker">
+						{{ selectedTenantOption.name }}
+						<view class="arrow-down"></view>
+					</view>
+				</picker>
+			</FormItem>
+			<FormItem label="选择配方文件">
+				<view class="file-picker-wrapper" @click="handleChooseFile">
+					<view class="file-picker-placeholder" v-if="!selectedFile">点击选择 .json 文件</view>
+					<view class="file-picker-info" v-else>
+						<image class="file-icon" src="/static/icons/file.svg" />
+						<text class="file-name">{{ selectedFile.name }}</text>
+					</view>
+				</view>
+			</FormItem>
+			<view v-if="importResult" class="import-result-wrapper">
+				<view class="result-title">导入结果</view>
+				<view class="result-item">
+					<text>成功导入：</text>
+					<text class="result-value success">{{ importResult.importedCount }} / {{ importResult.totalCount }}</text>
+				</view>
+				<view class="result-item">
+					<text>跳过 (已存在或失败)：</text>
+					<text class="result-value skipped">{{ importResult.skippedCount }}</text>
+				</view>
+				<view v-if="importResult.skippedCount > 0 && importResult.skippedRecipes.length > 0" class="skipped-list">
+					<view class="skipped-title">跳过详情:</view>
+					<view v-for="(name, index) in importResult.skippedRecipes" :key="index" class="skipped-item">{{ name }}</view>
+				</view>
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="closeImportModal">取消</AppButton>
+				<AppButton type="primary" @click="handleConfirmImport" :disabled="isImporting" :loading="isImporting">
+					{{ isImporting ? '导入中...' : '开始导入' }}
+				</AppButton>
+			</view>
+		</AppModal>
 	</view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useToastStore } from '@/store/toast';
+import { useUserStore } from '@/store/user'; // [新增]
 import { getTenants, createTenant, updateTenant } from '@/api/tenants';
-import type { Tenant } from '@/types/api';
+import { batchImportRecipes } from '@/api/recipes'; // [新增]
+import type { Tenant, BatchImportResult } from '@/types/api'; // [新增]
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import ListItem from '@/components/ListItem.vue';
@@ -66,6 +109,7 @@ defineOptions({
 });
 
 const toastStore = useToastStore();
+const userStore = useUserStore(); // [新增]
 
 const tenants = ref<Tenant[]>([]);
 const isLoading = ref(false);
@@ -79,6 +123,34 @@ const editableTenant = ref<Partial<Tenant>>({
 	status: 'ACTIVE'
 });
 
+// --- [新增] 批量导入相关状态 ---
+const showImportModal = ref(false);
+const isImporting = ref(false);
+const selectedTenantIds = ref<string[]>([]);
+const selectedFile = ref<{ name: string; path: string } | null>(null);
+const importResult = ref<BatchImportResult | null>(null);
+const tenantPickerIndex = ref(0);
+
+// --- [修改] FAB 按钮改为多操作 ---
+const fabActions = computed(() => {
+	const actions = [
+		{
+			icon: '/static/icons/add.svg',
+			text: '新增店铺',
+			action: openAddModal
+		}
+	];
+	// 只有店主才显示导入按钮
+	if (userStore.userInfo?.role === 'OWNER') {
+		actions.push({
+			icon: '/static/icons/upload.svg',
+			text: '批量导入配方',
+			action: openImportModal
+		});
+	}
+	return actions;
+});
+
 const statusOptions = ref([
 	{ text: '营业中', value: 'ACTIVE' },
 	{ text: '已停用', value: 'INACTIVE' }
@@ -86,6 +158,15 @@ const statusOptions = ref([
 
 const selectedStatusText = computed(() => {
 	return editableTenant.value.status === 'ACTIVE' ? '营业中' : '已停用';
+});
+
+// [新增] 店铺选择器选项
+const tenantPickerOptions = computed(() => {
+	return [{ id: 'all', name: '全部店铺' }, ...tenants.value];
+});
+
+const selectedTenantOption = computed(() => {
+	return tenantPickerOptions.value[tenantPickerIndex.value];
 });
 
 onMounted(() => {
@@ -145,6 +226,75 @@ const handleSaveTenant = async () => {
 		isSubmitting.value = false;
 	}
 };
+
+// --- [新增] 批量导入相关方法 ---
+const openImportModal = () => {
+	closeImportModal(); // 先重置状态
+	showImportModal.value = true;
+};
+
+const closeImportModal = () => {
+	showImportModal.value = false;
+	isImporting.value = false;
+	selectedFile.value = null;
+	importResult.value = null;
+	tenantPickerIndex.value = 0;
+	selectedTenantIds.value = [];
+};
+
+const onTenantSelect = (e: any) => {
+	tenantPickerIndex.value = e.detail.value;
+	const selection = tenantPickerOptions.value[e.detail.value];
+	if (selection.id === 'all') {
+		selectedTenantIds.value = tenants.value.map((t) => t.id);
+	} else {
+		selectedTenantIds.value = [selection.id];
+	}
+};
+
+const handleChooseFile = () => {
+	uni.chooseFile({
+		count: 1,
+		type: 'all',
+		extension: ['json'],
+		success: (res) => {
+			const file = res.tempFiles[0];
+			selectedFile.value = { name: file.name, path: file.path };
+		},
+		fail: (err) => {
+			if (err.errMsg !== 'chooseFile:fail cancel') {
+				toastStore.show({ message: '选择文件失败', type: 'error' });
+			}
+		}
+	});
+};
+
+const handleConfirmImport = async () => {
+	if (!selectedFile.value) {
+		toastStore.show({ message: '请选择要导入的配方文件', type: 'error' });
+		return;
+	}
+
+	isImporting.value = true;
+	importResult.value = null;
+
+	// 如果用户没有手动选择，默认导入所有店铺
+	const finalTenantIds = selectedTenantIds.value.length > 0 ? selectedTenantIds.value : tenants.value.map((t) => t.id);
+
+	try {
+		const result = await batchImportRecipes(selectedFile.value.path, finalTenantIds);
+		importResult.value = result;
+		// 导入成功后，标记数据为脏数据，以便下次进入相关页面时刷新
+		const dataStore = (await import('@/store/data')).useDataStore();
+		dataStore.markRecipesAsStale();
+		dataStore.markIngredientsAsStale();
+	} catch (error) {
+		console.error('导入失败:', error);
+		// 错误信息已在 request.ts 中统一处理并 toast
+	} finally {
+		isImporting.value = false;
+	}
+};
 </script>
 
 <style scoped lang="scss">
@@ -170,5 +320,95 @@ const handleSaveTenant = async () => {
 
 .status-inactive {
 	color: #dc3545;
+}
+
+// --- [新增] 导入模态框样式 ---
+.file-picker-wrapper {
+	width: 100%;
+	height: 80px;
+	border: 1px dashed var(--border-color);
+	border-radius: 8px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background-color: #fcfcfc;
+	margin-top: 10px;
+}
+
+.file-picker-placeholder {
+	color: var(--text-secondary);
+	font-size: 14px;
+}
+
+.file-picker-info {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+}
+
+.file-icon {
+	width: 24px;
+	height: 24px;
+}
+
+.file-name {
+	font-size: 13px;
+	color: var(--text-primary);
+	max-width: 200px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.import-result-wrapper {
+	margin-top: 20px;
+	padding-top: 15px;
+	border-top: 1px solid var(--border-color);
+}
+
+.result-title {
+	font-size: 15px;
+	font-weight: 500;
+	margin-bottom: 10px;
+	color: var(--text-primary);
+}
+
+.result-item {
+	display: flex;
+	justify-content: space-between;
+	font-size: 14px;
+	color: var(--text-secondary);
+	margin-bottom: 5px;
+}
+
+.result-value {
+	font-weight: 500;
+	&.success {
+		color: #28a745;
+	}
+	&.skipped {
+		color: #ffc107;
+	}
+}
+
+.skipped-list {
+	margin-top: 10px;
+	font-size: 12px;
+	color: var(--text-secondary);
+	max-height: 100px;
+	overflow-y: auto;
+	background-color: #f7f7f7;
+	border-radius: 4px;
+	padding: 8px;
+}
+
+.skipped-title {
+	font-weight: 500;
+	margin-bottom: 5px;
+}
+
+.skipped-item {
+	line-height: 1.5;
 }
 </style>

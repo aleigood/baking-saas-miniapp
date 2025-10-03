@@ -2,9 +2,27 @@
  * 文件路径: src/api/recipes.ts
  * 文件描述: (已更新) 封装所有与配方(Recipe)相关的API请求，新增版本管理接口。
  */
-import { request } from '@/utils/request';
+import { request, uploadFile } from '@/utils/request'; // [修改] 导入 uploadFile
 // [核心改造] 导入新的 ProductsForTaskResponse 类型
-import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductsForTaskResponse, RecipeFormTemplate } from '@/types/api';
+import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductsForTaskResponse, RecipeFormTemplate, BatchImportResult } from '@/types/api';
+
+/**
+ * [修改] 批量导入配方，增加 tenantIds 参数
+ * @param filePath 临时文件路径
+ * @param tenantIds 要导入的店铺ID列表
+ * @returns 导入结果
+ */
+export function batchImportRecipes(filePath: string, tenantIds?: string[]): Promise<BatchImportResult> {
+	return uploadFile<BatchImportResult>({
+		url: '/recipes/batch-import',
+		filePath: filePath,
+		name: 'file',
+		// [修改] 将 tenantIds 作为 formData 发送
+		formData: {
+			tenantIds: tenantIds
+		}
+	});
+}
 
 /**
  * 获取当前店铺的配方/产品列表

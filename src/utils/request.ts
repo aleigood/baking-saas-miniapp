@@ -112,3 +112,77 @@ export const request = <T = any>(options: RequestOptions): Promise<T> => {
 		});
 	});
 };
+
+/**
+ * [新增] 封装 uni.uploadFile 的函数
+ * @param options 上传配置
+ */
+interface UploadFileOptions {
+	url: string;
+	filePath: string;
+	name: string;
+	formData?: any;
+	header?: any;
+}
+
+export function uploadFile<T>(options: UploadFileOptions): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const userStore = useUserStore();
+		const toastStore = useToastStore();
+		const uiStore = useUiStore();
+
+		uni.uploadFile({
+			url: BASE_URL + options.url,
+			filePath: options.filePath,
+			name: options.name,
+			formData: options.formData,
+			header: {
+				...options.header,
+				Authorization: `Bearer ${userStore.token || ''}`
+			},
+			success: (res) => {
+				if (res.statusCode === 401 && options.url !== '/auth/login') {
+					uiStore.setNextPageToast(
+						{
+							message: '登录已过期，请重新登录',
+							type: 'error'
+						},
+						'/pages/login/login'
+					);
+					userStore.handleUnauthorized();
+					return reject(new Error('Unauthorized'));
+				}
+
+				if (res.statusCode >= 200 && res.statusCode < 300) {
+					try {
+						const parsedData = JSON.parse(res.data);
+						resolve(parsedData as T);
+					} catch (e) {
+						toastStore.show({ message: '服务器返回数据格式错误', type: 'error' });
+						reject(new Error('Failed to parse server response'));
+					}
+				} else {
+					try {
+						const errorData = JSON.parse(res.data);
+						const errorMessage = (errorData as any)?.message || '上传失败，请稍后再试';
+						toastStore.show({
+							message: Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage,
+							type: 'error'
+						});
+						reject(errorData);
+					} catch (e) {
+						toastStore.show({ message: `上传失败: ${res.statusCode}`, type: 'error' });
+						reject(new Error(`Upload failed with status ${res.statusCode}`));
+					}
+				}
+			},
+			fail: (err) => {
+				if (userStore.isRedirecting) {
+					return reject(err);
+				}
+				toastStore.show({ message: '网络连接错误，上传失败', type: 'error' });
+				reject(err);
+			}
+		});
+	});
+}

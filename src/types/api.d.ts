@@ -5,6 +5,14 @@
 
 // ... (文件顶部其他类型保持不变) ...
 
+// [核心新增] 定义批量导入结果的类型
+export interface BatchImportResult {
+	totalCount: number;
+	importedCount: number;
+	skippedCount: number;
+	skippedRecipes: string[];
+}
+
 export type RecipeCategory = 'BREAD' | 'PASTRY' | 'DESSERT' | 'DRINK' | 'OTHER';
 
 export interface CalculatedRecipeIngredient {
