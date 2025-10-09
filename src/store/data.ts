@@ -4,8 +4,19 @@
  */
 import { defineStore } from 'pinia';
 import { ref, computed, reactive } from 'vue';
-// [核心改造] 导入新的 ProductsForTaskResponse 类型
-import type { Tenant, ProductsForTaskResponse, RecipeFamily, Ingredient, Member, ProductionTaskDto, RecipeStatDto, IngredientStatDto, PrepTask } from '@/types/api';
+// [核心改造] 导入新的 ProductsForTaskResponse 和 RecipesListResponse 类型
+import type {
+	Tenant,
+	ProductsForTaskResponse,
+	RecipesListResponse,
+	RecipeFamily,
+	Ingredient,
+	Member,
+	ProductionTaskDto,
+	RecipeStatDto,
+	IngredientStatDto,
+	PrepTask
+} from '@/types/api';
 import { useUserStore } from './user';
 import { useToastStore } from './toast';
 import { getTenants as getTenantsApi } from '@/api/tenants';
@@ -13,7 +24,6 @@ import { switchTenant as switchTenantApi } from '@/api/auth';
 import { getTasks, getHistoryTasks } from '@/api/tasks';
 import { getRecipes, getProductsForTasks } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
-// [核心修改] 导入 getAllMembersByOwner 接口
 import { getMembers, getAllMembersByOwner } from '@/api/members';
 import { getRecipeStats, getIngredientStats } from '@/api/stats';
 
@@ -28,7 +38,6 @@ export const useDataStore = defineStore('data', () => {
 	const tenants = ref<Tenant[]>([]);
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
 	const production = ref<(ProductionTaskDto | (PrepTask & { status: 'PREP' }))[]>([]);
-	// [核心改造] 将 todayPendingCount 重命名为 pendingCount
 	const homeStats = ref({ pendingCount: 0 });
 	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
 	const historicalTasksMeta = ref({
@@ -36,11 +45,12 @@ export const useDataStore = defineStore('data', () => {
 		limit: 10,
 		hasMore: true
 	});
-	const recipes = ref<{ mainRecipes: RecipeFamily[]; otherRecipes: RecipeFamily[] }>({
+	// [核心修改] 更新 recipes 状态的类型定义以匹配 RecipesListResponse
+	const recipes = ref<RecipesListResponse>({
 		mainRecipes: [],
-		otherRecipes: []
+		preDoughs: [],
+		extras: []
 	});
-	// [核心改造] 更新 productsForTaskCreation 的类型
 	const productsForTaskCreation = ref<ProductsForTaskResponse>({});
 	const ingredients = ref<{ allIngredients: Ingredient[]; lowStockIngredients: Ingredient[] }>({
 		allIngredients: [],
@@ -59,7 +69,6 @@ export const useDataStore = defineStore('data', () => {
 		historicalTasks: false
 	});
 
-	// [核心修改] 新增 productsForTaskCreation 脏数据标记
 	const dataStale = reactive({
 		production: true,
 		recipes: true,
@@ -71,7 +80,13 @@ export const useDataStore = defineStore('data', () => {
 
 	const currentTenant = computed(() => tenants.value.find((t) => t.id === currentTenantId.value));
 
-	const allRecipes = computed(() => [...recipes.value.mainRecipes, ...recipes.value.otherRecipes]);
+	// [核心修改] 更新 allRecipes 计算属性，正确合并所有配方类型
+	const allRecipes = computed(() => {
+		const main = recipes.value.mainRecipes || [];
+		const preDoughs = recipes.value.preDoughs || [];
+		const extras = recipes.value.extras || [];
+		return [...main, ...preDoughs, ...extras];
+	});
 
 	const allIngredients = computed(() => ingredients.value.allIngredients);
 
@@ -124,7 +139,6 @@ export const useDataStore = defineStore('data', () => {
 			const payload = await getTasks(date);
 			production.value = payload.tasks;
 			if (payload.stats) {
-				// [核心改造] 使用新的字段名 pendingCount
 				homeStats.value.pendingCount = payload.stats.pendingCount;
 			}
 			dataLoaded.value.production = true;
@@ -210,21 +224,17 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	// [核心重构] 重构 fetchMembersData 方法，增加基于角色的数据获取策略
 	async function fetchMembersData() {
 		if (!currentTenantId.value) return;
 		const userStore = useUserStore();
 		try {
-			// 获取当前用户在当前店铺的角色
 			const currentUserRole = userStore.userInfo?.tenants.find((t) => t.tenant.id === currentTenantId.value)?.role;
 
-			// 如果是店主，调用能获取所有信息的接口
 			if (currentUserRole === 'OWNER') {
 				const allTenantsWithMembers = await getAllMembersByOwner();
 				const currentTenantMembers = allTenantsWithMembers.find((t) => t.tenantId === currentTenantId.value);
 				members.value = currentTenantMembers ? currentTenantMembers.members : [];
 			} else {
-				// 如果是其他角色，使用原有的通用接口
 				members.value = await getMembers();
 			}
 
@@ -232,7 +242,6 @@ export const useDataStore = defineStore('data', () => {
 			dataStale.members = false;
 		} catch (error) {
 			console.error('Failed to fetch members data', error);
-			// 发生错误时清空列表，避免显示脏数据
 			members.value = [];
 		}
 	}
@@ -262,7 +271,8 @@ export const useDataStore = defineStore('data', () => {
 	function resetData() {
 		production.value = [];
 		homeStats.value = { pendingCount: 0 };
-		recipes.value = { mainRecipes: [], otherRecipes: [] };
+		// [核心修改] 重置 recipes 状态时，使用新的结构
+		recipes.value = { mainRecipes: [], preDoughs: [], extras: [] };
 		productsForTaskCreation.value = {};
 		ingredients.value = { allIngredients: [], lowStockIngredients: [] };
 		members.value = [];

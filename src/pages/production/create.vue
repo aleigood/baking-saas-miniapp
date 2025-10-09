@@ -98,10 +98,8 @@ const isCreating = ref(false);
 const isEditMode = ref(false);
 const editingTaskId = ref<string | null>(null);
 
-// [核心改造] selectedCategory 不再是用户手动选择，而是从页面加载参数中获取
 const selectedCategory = ref<RecipeCategory | null>(null);
 
-// [核心新增] 定义品类 key 到中文显示名的映射
 const categoryMap = {
 	BREAD: '面包',
 	PASTRY: '西点',
@@ -109,7 +107,6 @@ const categoryMap = {
 	DRINK: '饮品'
 };
 
-// [核心改造] 页面标题根据 selectedCategory 动态生成
 const pageTitle = computed(() => {
 	if (isEditMode.value) return '修改任务';
 	if (selectedCategory.value) {
@@ -128,14 +125,12 @@ const taskQuantities = reactive<Record<string, number | null>>({});
 const summaryGroups = ref<{ name: string; items: string[] }[]>([]);
 const activeTab = ref('');
 
-// [核心改造] 产品 tab（即配方族）现在根据 selectedCategory 从 store 中获取
 const productTabs = computed(() => {
 	if (!selectedCategory.value) return [];
 	const productsInCategory = dataStore.productsForTaskCreation[selectedCategory.value];
 	return productsInCategory ? Object.keys(productsInCategory).map((name) => ({ key: name, label: name })) : [];
 });
 
-// [核心改造] 根据当前激活的 tab，获取该 tab 下的产品列表
 const productsInCurrentTab = computed(() => {
 	if (!selectedCategory.value || !activeTab.value) return [];
 	const productsInCategory = dataStore.productsForTaskCreation[selectedCategory.value];
@@ -144,9 +139,15 @@ const productsInCurrentTab = computed(() => {
 
 onLoad(async (options) => {
 	isLoading.value = true;
-	// [核心改造] 确保在初始化本页面前，可生产产品列表已加载
 	if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation) {
 		await dataStore.fetchProductsForTaskCreation();
+	}
+	// [核心修改] 修复数据加载的判断条件和方法调用
+	if (options && options.taskId) {
+		// 在修改模式下，需要所有配方数据来反查品类，因此需要确保该数据已加载
+		if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
+			await dataStore.fetchRecipesData();
+		}
 	}
 
 	Object.values(dataStore.productsForTaskCreation)
@@ -163,12 +164,13 @@ onLoad(async (options) => {
 		if (taskJson) {
 			try {
 				const taskToEdit: ProductionTaskDto = JSON.parse(taskJson);
-				// [核心改造] 修改任务时，需要找到第一个产品的品类来初始化 selectedCategory
-				if (taskToEdit.items.length > 0 && dataStore.allRecipes.length > 0) {
+				// [核心修改] 确保在查找前 dataStore.allRecipes 是可用的
+				if (taskToEdit.items.length > 0 && dataStore.allRecipes && dataStore.allRecipes.length > 0) {
 					const firstProductId = taskToEdit.items[0].product.id;
 					// 在所有配方中查找这个产品属于哪个品类
 					for (const recipeFamily of dataStore.allRecipes) {
-						const hasProduct = recipeFamily.versions.some((v) => v.products.some((p) => p.id === firstProductId));
+						// 增加 versions 存在的判断
+						const hasProduct = recipeFamily.versions?.some((v) => v.products.some((p) => p.id === firstProductId));
 						if (hasProduct) {
 							selectedCategory.value = recipeFamily.category;
 							break;
@@ -193,14 +195,12 @@ onLoad(async (options) => {
 			uni.navigateBack();
 		}
 	} else if (options && options.category) {
-		// [核心改造] 如果是新建任务，从 options 中获取品类
 		selectedCategory.value = options.category as RecipeCategory;
 	} else {
 		toastStore.show({ message: '未指定任务品类', type: 'error' });
 		uni.navigateBack();
 	}
 
-	// [核心改造] 初始化 activeTab
 	if (productTabs.value.length > 0) {
 		activeTab.value = productTabs.value[0].key;
 	}
@@ -413,7 +413,6 @@ const handleSubmit = async () => {
 	text-align: center;
 }
 
-// [核心新增] 品类选择样式
 .category-selection-wrapper {
 	padding: 20px 0;
 }
