@@ -26,7 +26,7 @@
 								:divider="index < task.componentGroups.length - 1"
 							>
 								<view class="main-info">
-									<view class="name">{{ component.familyName }}</view>
+									<view class="name">{{ component.familyName }}{{ component.note ? ` (${component.note})` : '' }}</view>
 									<view class="desc">{{ component.productsDescription }}</view>
 								</view>
 							</ListItem>

@@ -458,6 +458,7 @@ export interface ProductDetails {
 export interface ComponentGroup {
 	familyId: string;
 	familyName: string;
+	note: string | null;
 	category: RecipeCategory; // [核心新增]
 	productsDescription: string;
 	totalComponentWeight: number; // [核心重命名]
