@@ -9,14 +9,12 @@ export function createApp() {
 	// 使用 Pinia
 	app.use(Pinia.createPinia());
 
-	// --- 核心新增代码 开始 ---
-
 	// 2. 在 Pinia 初始化后，获取 store 实例
 	// 注意：必须在 app.use(Pinia.createPinia()) 之后才能调用 useToastStore
 	const toastStore = useToastStore();
 
 	// 3. 定义需要拦截的 uni-app 页面跳转 API
-	const methods = ['navigateTo', 'redirectTo', 'reLaunch', 'switchTab'];
+	const methods = ['navigateTo', 'redirectTo', 'reLaunch', 'switchTab', 'navigateBack'];
 
 	// 4. 循环添加拦截器
 	methods.forEach((method) => {
@@ -32,8 +30,6 @@ export function createApp() {
 			}
 		});
 	});
-
-	// --- 核心新增代码 结束 ---
 
 	return {
 		app,
