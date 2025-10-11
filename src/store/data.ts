@@ -26,12 +26,18 @@ import { getRecipes, getProductsForTasks } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
 import { getMembers, getAllMembersByOwner } from '@/api/members';
 import { getRecipeStats, getIngredientStats } from '@/api/stats';
+// [中文注释] 核心修正：从公共文件导入 getLocalDate
+import { getLocalDate } from '@/utils/format';
 
 function getMonthDateRange() {
 	const now = new Date();
-	const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-	const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-	return { startDate, endDate };
+	const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+	const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+	// [中文注释] 核心修正：使用新的 getLocalDate 函数来格式化日期，避免时区问题
+	return {
+		startDate: getLocalDate(startDate),
+		endDate: getLocalDate(endDate)
+	};
 }
 
 export const useDataStore = defineStore('data', () => {

@@ -78,6 +78,7 @@ import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
 import { useUserStore } from '@/store/user';
 import { createTask, updateTask } from '@/api/tasks';
+import { getLocalDate } from '@/utils/format';
 import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
@@ -115,7 +116,7 @@ const pageTitle = computed(() => {
 	return '新建任务';
 });
 
-const today = new Date().toISOString().split('T')[0];
+const today = getLocalDate();
 const taskForm = reactive({
 	startDate: today,
 	endDate: today
@@ -178,8 +179,9 @@ onLoad(async (options) => {
 					}
 				}
 
-				taskForm.startDate = new Date(taskToEdit.startDate).toISOString().split('T')[0];
-				taskForm.endDate = taskToEdit.endDate ? new Date(taskToEdit.endDate).toISOString().split('T')[0] : taskForm.startDate;
+				// [中文注释] 核心修正：使用 getLocalDate 函数来格式化日期，避免时区问题
+				taskForm.startDate = getLocalDate(new Date(taskToEdit.startDate));
+				taskForm.endDate = taskToEdit.endDate ? getLocalDate(new Date(taskToEdit.endDate)) : taskForm.startDate;
 
 				taskToEdit.items.forEach((item) => {
 					taskQuantities[item.product.id] = item.quantity;

@@ -10,7 +10,6 @@
 
 				<view v-if="activeDateRange === 'custom'" class="custom-date-picker card">
 					<picker mode="date" :value="customDate.start" @change="handleCustomDateChange($event, 'start')">
-						<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
 						<view class="picker">
 							{{ customDate.start }}
 							<view class="arrow-down"></view>
@@ -18,7 +17,6 @@
 					</picker>
 					<view class="date-separator">至</view>
 					<picker mode="date" :value="customDate.end" @change="handleCustomDateChange($event, 'end')">
-						<!-- [核心修改] 统一使用 .picker class 并添加 .arrow-down 元素 -->
 						<view class="picker">
 							{{ customDate.end }}
 							<view class="arrow-down"></view>
@@ -80,6 +78,8 @@
 import { ref, computed, onMounted, reactive, watch } from 'vue';
 import { useToastStore } from '@/store/toast';
 import { getProductionStats } from '@/api/stats';
+// [中文注释] 核心修正：从公共文件导入 getLocalDate
+import { getLocalDate } from '@/utils/format';
 import FilterTabs from '@/components/FilterTabs.vue';
 import BarChart from '@/components/BarChart.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
@@ -104,9 +104,10 @@ const dateRangeTabs = ref([
 	{ key: 'custom', label: '自定义' }
 ]);
 
+const today = getLocalDate();
 const customDate = reactive({
-	start: new Date().toISOString().split('T')[0],
-	end: new Date().toISOString().split('T')[0]
+	start: today,
+	end: today
 });
 
 const getDateRange = (rangeType: typeof activeDateRange.value) => {
@@ -118,7 +119,7 @@ const getDateRange = (rangeType: typeof activeDateRange.value) => {
 	switch (rangeType) {
 		case 'week':
 			const day = start.getDay() || 7;
-			if (day !== 1) start.setHours(-24 * (day - 1));
+			if (day !== 1) start.setDate(start.getDate() - day + 1);
 			start.setHours(0, 0, 0, 0);
 			break;
 		case 'month':
@@ -135,8 +136,8 @@ const getDateRange = (rangeType: typeof activeDateRange.value) => {
 			break;
 	}
 	return {
-		startDate: start.toISOString().split('T')[0],
-		endDate: end.toISOString().split('T')[0]
+		startDate: getLocalDate(start),
+		endDate: getLocalDate(end)
 	};
 };
 

@@ -197,6 +197,8 @@ import { useToastStore } from '@/store/toast';
 import type { Ingredient, IngredientSKU, ProcurementRecord, IngredientLedgerEntry } from '@/types/api';
 import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteSku, updateProcurement, adjustStock, getIngredientLedger } from '@/api/ingredients';
 import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
+// [中文注释] 核心修正：从公共文件导入 getLocalDate
+import { getLocalDate } from '@/utils/format';
 import AppModal from '@/components/AppModal.vue';
 import FormItem from '@/components/FormItem.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
@@ -630,7 +632,8 @@ const handleEditProcurementOption = () => {
 		editProcurementForm.id = record.id;
 		editProcurementForm.packagesPurchased = record.packagesPurchased;
 		editProcurementForm.totalPrice = Number(record.pricePerPackage) * record.packagesPurchased;
-		editProcurementForm.purchaseDate = new Date(record.purchaseDate).toISOString().split('T')[0];
+		// [中文注释] 核心修正：使用 getLocalDate 来格式化本地日期，避免时区问题
+		editProcurementForm.purchaseDate = getLocalDate(new Date(record.purchaseDate));
 		showEditProcurementModal.value = true;
 	}
 };

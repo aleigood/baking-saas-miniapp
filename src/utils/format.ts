@@ -25,6 +25,18 @@ export const multiply = (a: number, b: number): number => {
 };
 
 /**
+ * [核心新增] 获取 YYYY-MM-DD 格式的本地日期字符串
+ * @param date - 可选的Date对象，默认为当前日期
+ * @returns 格式化后的日期字符串
+ */
+export const getLocalDate = (date = new Date()): string => {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+};
+
+/**
  * 格式化日期为 "YYYY/M/D" 的格式
  * @param dateInput - 可以是日期字符串或Date对象
  * @returns 格式化后的中文字符串，如果输入无效则返回空字符串
