@@ -350,6 +350,8 @@ const confirmDiscontinueRecipe = async () => {
 		await discontinueRecipe(selectedRecipe.value.id);
 		toastStore.show({ message: '配方已停用', type: 'success' });
 		dataStore.markRecipesAsStale();
+		// [核心修正] 增加这一行，标记用于创建任务的产品列表数据为过期
+		dataStore.markProductsForTaskCreationAsStale();
 		await dataStore.fetchRecipesData();
 	} catch (error) {
 		console.error('Failed to discontinue recipe:', error);
@@ -367,6 +369,8 @@ const confirmRestoreRecipe = async () => {
 		await restoreRecipe(selectedRecipe.value.id);
 		toastStore.show({ message: '配方已恢复', type: 'success' });
 		dataStore.markRecipesAsStale();
+		// [核心修正] 增加这一行，标记用于创建任务的产品列表数据为过期
+		dataStore.markProductsForTaskCreationAsStale();
 		await dataStore.fetchRecipesData();
 	} catch (error) {
 		console.error('Failed to restore recipe:', error);
