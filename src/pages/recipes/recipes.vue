@@ -31,14 +31,17 @@
 							:vibrate-on-long-press="canEditRecipe"
 							:bleed="true"
 							:divider="index < filteredRecipes.length - 1"
+							:discontinued="!!family.deletedAt"
 						>
 							<template v-if="family.type === 'MAIN'">
 								<view class="main-info">
 									<view>
-										<view class="name">{{ family.name }}</view>
+										<view class="name">
+											<text class="name-text">{{ family.name }}</text>
+											<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+										</view>
 										<view class="desc">{{ family.productCount }} 种产品</view>
 									</view>
-									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 								</view>
 								<view class="side-info">
 									<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
@@ -48,10 +51,12 @@
 							<template v-else>
 								<view class="main-info">
 									<view>
-										<view class="name">{{ family.name }}</view>
+										<view class="name">
+											<text class="name-text">{{ family.name }}</text>
+											<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+										</view>
 										<view class="desc">{{ family.ingredientCount }} 种原料</view>
 									</view>
-									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 								</view>
 								<view class="side-info">
 									<view class="desc">{{ family.usageCount || 0 }} 次引用</view>
@@ -416,11 +421,9 @@ const confirmDeleteRecipe = async () => {
 	flex-direction: column;
 }
 
-:deep(.main-info) {
-	display: flex;
-	align-items: center;
-	gap: 10px;
+.main-info {
 	flex: 1;
+	min-width: 0;
 }
 
 .content-padding {
@@ -454,6 +457,20 @@ const confirmDeleteRecipe = async () => {
 	}
 }
 
+.name {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.name-text {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex-shrink: 1;
+	min-width: 0;
+}
+
 .rank {
 	font-style: italic;
 	font-weight: bold;
@@ -468,9 +485,9 @@ const confirmDeleteRecipe = async () => {
 }
 
 .status-tag {
-	font-size: 12px;
+	font-size: 11px;
 	font-weight: 500;
-	padding: 3px 8px;
+	padding: 2px 6px;
 	border-radius: 6px;
 	display: inline-block;
 	vertical-align: middle;

@@ -1,7 +1,7 @@
 <template>
 	<view
 		class="list-item ripple-container"
-		:class="{ 'card-mode': cardMode, 'is-selected': selected, 'bleed-mode': bleed }"
+		:class="{ 'card-mode': cardMode, 'is-selected': selected, 'bleed-mode': bleed, 'is-discontinued': discontinued }"
 		@touchstart="handleTouchStart"
 		@click="handleClick"
 		@longpress="handleLongPress"
@@ -34,13 +34,16 @@ const props = defineProps({
 		type: Boolean,
 		default: false
 	},
-	// [兼容性修复] 新增 selected 属性，用于控制选中状态
 	selected: {
 		type: Boolean,
 		default: false
 	},
-	// [兼容性修复] 新增 divider 属性，用于控制分隔线的显示
 	divider: {
+		type: Boolean,
+		default: false
+	},
+	// [中文注释] 新增 discontinued prop，用于接收停用状态
+	discontinued: {
 		type: Boolean,
 		default: false
 	}
@@ -79,14 +82,12 @@ const handleTouchStart = (event: TouchEvent) => {
 };
 
 const handleClick = (event: Event) => {
-	// [体验优化] 增加 300ms 延迟，确保水波纹动画可见后再执行点击操作
 	setTimeout(() => {
 		emit('click', event);
 	}, 300);
 };
 
 const handleLongPress = (event: Event) => {
-	// [逻辑优化] 只有在允许长按操作时（即 vibrateOnLongPress 为 true），才触发振动和 longpress 事件
 	if (props.vibrateOnLongPress) {
 		uni.vibrateShort({});
 		emit('longpress', event);
@@ -106,13 +107,18 @@ const handleLongPress = (event: Event) => {
 	/* 新增flex布局以确保内容撑满 */
 	justify-content: space-between;
 	align-items: center;
-	transition: transform 0.15s ease-out;
+	transition: transform 0.15s ease-out, opacity 0.2s ease-in-out; // [中文注释] 为 opacity 增加过渡效果
 	/* [优化] 为点击反馈增加过渡动画 */
 
 	/* [优化] 新增触摸状态下的微交互，轻微缩小，提升物理反馈感 */
 	&:active {
 		transform: scale(0.98);
 	}
+}
+
+// [中文注释] 新增停用状态的样式，直接在组件内部定义
+.list-item.is-discontinued {
+	opacity: 0.6;
 }
 
 .list-item-content {
