@@ -359,6 +359,10 @@ const handleEditTask = () => {
 	if (isNavigating.value || !selectedTaskForAction.value) return;
 	isNavigating.value = true;
 	showTaskActionsModal.value = false;
+
+	// [中文注释] 核心重构：调用 dataStore 的方法来清理缓存
+	dataStore.clearTaskProgress(selectedTaskForAction.value.id);
+
 	uni.setStorageSync('task_to_edit', JSON.stringify(selectedTaskForAction.value));
 	uni.navigateTo({
 		url: `/pages/production/create?taskId=${selectedTaskForAction.value.id}`
@@ -375,6 +379,10 @@ const handleConfirmCancelTask = async () => {
 	isSubmitting.value = true;
 	try {
 		await updateTaskStatus(selectedTaskForAction.value.id, 'CANCELLED');
+
+		// [中文注释] 核心重构：调用 dataStore 的方法来清理缓存
+		dataStore.clearTaskProgress(selectedTaskForAction.value.id);
+
 		toastStore.show({ message: '任务已取消', type: 'success' });
 		dataStore.markProductionAsStale();
 		dataStore.markHistoricalTasksAsStale();

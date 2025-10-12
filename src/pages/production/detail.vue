@@ -277,7 +277,7 @@ const taskId = ref<string | null>(null);
 const showCompleteTaskModal = ref(false);
 const isStarted = ref(false);
 const isReadOnly = ref(false);
-const selectedComponentFamilyId = ref<string | null>(null); // [核心重命名]
+const selectedComponentFamilyId = ref<string | null>(null);
 const addedIngredientsMap = reactive(new Set<string>());
 const collapsedSections = ref(new Set<string>());
 const selectedProductId = ref<string>('');
@@ -422,12 +422,18 @@ const loadTaskData = async (id: string) => {
 		const response = await getTaskDetail(id, temperatureStore.settings);
 		task.value = response;
 
+		// [中文注释] 核心重构：调用 dataStore 的方法来加载任务进度
+		addedIngredientsMap.clear();
+		if (task.value.status === 'IN_PROGRESS') {
+			const savedProgress = dataStore.loadTaskProgress(id);
+			savedProgress.forEach((key) => addedIngredientsMap.add(key));
+		}
+
 		if (task.value.status === 'IN_PROGRESS' || task.value.status === 'COMPLETED' || task.value.status === 'CANCELLED') {
 			isStarted.value = true;
 			if (task.value.componentGroups.length > 0) {
-				// [核心重命名]
 				const firstComponent = task.value.componentGroups[0];
-				selectedComponentFamilyId.value = firstComponent.familyId; // [核心重命名]
+				selectedComponentFamilyId.value = firstComponent.familyId;
 				if (firstComponent.productDetails.length > 0) {
 					selectedProductId.value = firstComponent.productDetails[0].id;
 				}
@@ -573,6 +579,9 @@ const handleConfirmComplete = async () => {
 			completedItems
 		});
 
+		// [中文注释] 核心重构：调用 dataStore 的方法来清理缓存
+		dataStore.clearTaskProgress(task.value.id);
+
 		const target = fromPage.value === 'history' ? '/pages/production/history' : '/pages/main/main';
 		uiStore.setNextPageToast(
 			{
@@ -605,16 +614,22 @@ const toggleCollapse = (sectionName: string) => {
 	collapsedSections.value = newSet;
 };
 
+// [中文注释] 核心重构：调用 dataStore 的方法来保存任务进度
 const toggleIngredientAdded = (componentFamilyId: string, ingredientId: string) => {
-	// [核心重命名]
-	if (isReadOnly.value) return;
+	if (isReadOnly.value || !taskId.value) return;
 	uni.vibrateShort({});
+
 	const compositeKey = `${componentFamilyId}-${ingredientId}`;
+
+	// 步骤 1: 更新UI
 	if (addedIngredientsMap.has(compositeKey)) {
 		addedIngredientsMap.delete(compositeKey);
 	} else {
 		addedIngredientsMap.add(compositeKey);
 	}
+
+	// 步骤 2: 调用 dataStore 保存状态
+	dataStore.saveTaskProgress(taskId.value, addedIngredientsMap);
 };
 
 const handleStartTask = async () => {
@@ -633,7 +648,6 @@ const handleStartTask = async () => {
 	}
 };
 
-// [核心重命名] selectDough -> selectComponent
 const selectComponent = (familyId: string) => {
 	if (!isStarted.value && !isReadOnly.value) return;
 	selectedComponentFamilyId.value = familyId;
@@ -645,7 +659,6 @@ const selectComponent = (familyId: string) => {
 	}
 };
 
-// [核心改造] 优化 showExtraInfo 函数以解决闪烁问题
 const showExtraInfo = (info: string | null | undefined, elementId: string) => {
 	if (!info) {
 		hidePopover();
@@ -696,7 +709,6 @@ const getFormattedFillingWeight = (totalWeight: number) => {
 	return formatWeight(totalWeight);
 };
 
-// [核心重命名] selectedDoughDetails -> selectedComponentDetails
 const selectedComponentDetails = computed(() => {
 	if (!task.value || !selectedComponentFamilyId.value) return null;
 	return task.value.componentGroups.find((d) => d.familyId === selectedComponentFamilyId.value) || null;

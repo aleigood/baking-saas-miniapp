@@ -40,6 +40,9 @@ function getMonthDateRange() {
 	};
 }
 
+// [中文注释] 核心重构：将任务进度缓存的 key 生成逻辑集中管理
+const getTaskProgressStorageKey = (taskId: string) => `task-progress-${taskId}`;
+
 export const useDataStore = defineStore('data', () => {
 	const tenants = ref<Tenant[]>([]);
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
@@ -95,6 +98,37 @@ export const useDataStore = defineStore('data', () => {
 	});
 
 	const allIngredients = computed(() => ingredients.value.allIngredients);
+
+	// --- 任务进度缓存管理 ---
+	// [中文注释] 核心重构：加载指定任务的进度
+	const loadTaskProgress = (taskId: string): Set<string> => {
+		const storageKey = getTaskProgressStorageKey(taskId);
+		const savedKeys = uni.getStorageSync(storageKey);
+		if (savedKeys && Array.isArray(savedKeys)) {
+			return new Set(savedKeys);
+		}
+		return new Set();
+	};
+
+	// [中文注释] 核心重构：保存指定任务的进度
+	const saveTaskProgress = (taskId: string, addedIngredients: Set<string>) => {
+		try {
+			const storageKey = getTaskProgressStorageKey(taskId);
+			const keysToSave = Array.from(addedIngredients);
+			uni.setStorageSync(storageKey, keysToSave);
+		} catch (e) {
+			const toastStore = useToastStore();
+			toastStore.show({ message: '保存进度失败', type: 'error' });
+			console.error('Failed to save task progress to storage:', e);
+		}
+	};
+
+	// [中文注释] 核心重构：清除指定任务的进度缓存
+	const clearTaskProgress = (taskId: string) => {
+		const storageKey = getTaskProgressStorageKey(taskId);
+		uni.removeStorageSync(storageKey);
+	};
+	// --- End of 任务进度缓存管理 ---
 
 	const markProductionAsStale = () => {
 		dataStale.production = true;
@@ -320,6 +354,10 @@ export const useDataStore = defineStore('data', () => {
 		ingredientStats,
 		dataLoaded,
 		dataStale,
+		// [中文注释] 核心重构：导出新的缓存管理方法
+		loadTaskProgress,
+		saveTaskProgress,
+		clearTaskProgress,
 		fetchTenants,
 		selectTenant,
 		reset,
