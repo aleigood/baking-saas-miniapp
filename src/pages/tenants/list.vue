@@ -6,9 +6,13 @@
 			<view class="page-content no-horizontal-padding page-content-with-fab">
 				<template v-if="tenants.length > 0">
 					<ListItem v-for="(tenant, index) in tenants" :key="tenant.id" @click="openEditModal(tenant)" :bleed="true" :divider="index < tenants.length - 1">
+						<view class="store-icon-wrapper">
+							<image class="store-icon" src="/static/icons/store.svg" />
+						</view>
 						<view class="tenant-details">
 							<view class="main-info">
 								<view class="name">{{ tenant.name }}</view>
+								<view class="creation-date">创立于: {{ getLocalDate(new Date(tenant.createdAt)) }}</view>
 							</view>
 						</view>
 						<view class="side-info">
@@ -81,7 +85,7 @@
 				</view>
 			</view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="closeImportModal">取消</AppButton>
+				<AppButton type="secondary" @click="closeImportModal">返回</AppButton>
 				<AppButton type="primary" @click="handleConfirmImport" :disabled="isImporting" :loading="isImporting">
 					{{ isImporting ? '导入中...' : '开始导入' }}
 				</AppButton>
@@ -94,8 +98,11 @@
 import { ref, computed, onMounted } from 'vue';
 import { useToastStore } from '@/store/toast';
 import { useUserStore } from '@/store/user';
+import { useDataStore } from '@/store/data';
 import { getTenants, createTenant, updateTenant } from '@/api/tenants';
 import { batchImportRecipes } from '@/api/recipes';
+// [代码重构] 导入公共日期格式化函数
+import { getLocalDate } from '@/utils/format';
 import type { Tenant, BatchImportResult } from '@/types/api';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
@@ -111,6 +118,7 @@ defineOptions({
 
 const toastStore = useToastStore();
 const userStore = useUserStore();
+const dataStore = useDataStore();
 
 const tenants = ref<Tenant[]>([]);
 const isLoading = ref(false);
@@ -299,7 +307,6 @@ const handleConfirmImport = async () => {
 	try {
 		const result = await batchImportRecipes(selectedFile.value.path, finalTenantIds);
 		importResult.value = result;
-		const dataStore = (await import('@/store/data')).useDataStore();
 		dataStore.markRecipesAsStale();
 		dataStore.markIngredientsAsStale();
 	} catch (error) {
@@ -321,10 +328,39 @@ const handleConfirmImport = async () => {
 	height: 100vh;
 }
 
+// [UI改进] 新增店铺图标容器样式
+.store-icon-wrapper {
+	width: 40px;
+	height: 40px;
+	border-radius: 50%; // 圆形背景
+	background-color: #f5efe6; // 与应用色系匹配的浅色背景
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-right: 12px;
+	flex-shrink: 0;
+}
+
+// [UI改进] 调整图标本身的大小
+.store-icon {
+	width: 22px;
+	height: 22px;
+}
+
 .tenant-details {
 	display: flex;
 	align-items: center;
 	flex: 1;
+	.main-info {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+}
+
+.creation-date {
+	font-size: 12px;
+	color: var(--text-secondary);
 }
 
 .status-active {
@@ -335,7 +371,7 @@ const handleConfirmImport = async () => {
 	color: #dc3545;
 }
 
-// --- [新增] 导入模态框样式 ---
+// --- 导入模态框样式 ---
 .import-instructions {
 	font-size: 12px;
 	color: var(--text-secondary);
