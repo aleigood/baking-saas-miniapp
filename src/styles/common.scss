@@ -72,6 +72,8 @@
 		.col-date-operator,
 		.col-details,
 		.col-date,
+		.col-stock,
+		.col-purchase,
 		.col-action {
 			display: table-cell;
 			padding: 10px 4px;
@@ -92,6 +94,8 @@
 		.col-rank,
 		.col-change,
 		.col-type,
+		.col-stock,
+		.col-purchase,
 		.col-dough-weight {
 			white-space: nowrap;
 			text-align: right;

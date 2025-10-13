@@ -23,14 +23,19 @@
 							>
 								<view class="main-info">
 									<view class="name">{{ ing.name }}</view>
-									<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
+									<view class="desc">
+										<template v-if="ing.type === 'STANDARD'">品牌: {{ ing.activeSku?.brand || '未设置' }}</template>
+										<template v-else>{{ getIngredientTypeLabel(ing.type) }}</template>
+									</view>
 								</view>
 								<view class="side-info">
 									<view class="value">
-										<template v-if="ing.type === 'UNTRACKED'">∞</template>
-										<template v-else>{{ formatWeight(ing.currentStockInGrams) }}</template>
+										<template v-if="ing.type === 'STANDARD'">{{ formatWeight(ing.currentStockInGrams) }}</template>
+										<template v-else>∞</template>
 									</view>
-									<view v-if="ing.totalConsumptionInGrams > 0" class="desc consumption">已消耗: {{ formatWeight(ing.totalConsumptionInGrams) }}</view>
+									<view v-if="ing.totalConsumptionInGrams > 0 && ing.type !== 'UNTRACKED'" class="desc consumption">
+										已消耗: {{ formatWeight(ing.totalConsumptionInGrams) }}
+									</view>
 								</view>
 							</ListItem>
 						</template>
@@ -111,7 +116,6 @@
 			</view>
 			<view class="form-row">
 				<label class="form-row-label">含水量 (%)</label>
-				<!-- [核心修改] 移除 .number 修饰符 -->
 				<input class="input-field" type="number" v-model="newIngredientForm.waterContent" placeholder="例如: 75" />
 			</view>
 			<view class="modal-actions">
@@ -140,7 +144,7 @@ import AppButton from '@/components/AppButton.vue';
 import IconButton from '@/components/IconButton.vue';
 import FormItem from '@/components/FormItem.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
-import { formatWeight } from '@/utils/format';
+import { formatWeight, formatNumber } from '@/utils/format';
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
@@ -160,16 +164,15 @@ const showDeleteIngredientConfirmModal = ref(false);
 const showCreateIngredientModal = ref(false);
 const isNavigating = ref(false);
 
-// [核心新增] FAB 按钮可见性控制
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
 const newIngredientForm = reactive<{
 	name: string;
-	type: 'STANDARD' | 'UNTRACKED';
+	type: 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
 	isFlour: boolean;
-	waterContent: number | null; // [核心修改] 允许为 null
+	waterContent: number | null;
 }>({
 	name: '',
 	type: 'STANDARD',
@@ -178,8 +181,9 @@ const newIngredientForm = reactive<{
 });
 
 const availableTypes = ref([
-	{ label: '标准原料 (追踪库存)', value: 'STANDARD' },
-	{ label: '非追踪原料 (不计库存)', value: 'UNTRACKED' }
+	{ label: '标准原料 (追踪库存和成本)', value: 'STANDARD' },
+	{ label: '即时采购 (仅追踪成本)', value: 'NON_INVENTORIED' },
+	{ label: '非追踪原料 (水/冰等)', value: 'UNTRACKED' }
 ]);
 
 const currentTypeLabel = computed(() => {
@@ -202,7 +206,6 @@ const handleRefresh = async () => {
 	}
 };
 
-// [核心新增] 滚动事件处理函数
 const handleScroll = (event: any) => {
 	const scrollTop = event.detail.scrollTop;
 
@@ -244,6 +247,18 @@ const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find(
 const canEdit = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
+
+// [核心新增] 新增一个辅助函数，用于将原料类型映射为简短的中文标签
+const getIngredientTypeLabel = (type: Ingredient['type']) => {
+	switch (type) {
+		case 'UNTRACKED':
+			return '非追踪原料';
+		case 'NON_INVENTORIED':
+			return '即时采购';
+		default:
+			return '标准原料'; // 作为备用
+	}
+};
 
 const getDaysOfSupplyText = (days: number) => {
 	if (!isFinite(days) || days > 365) return '充足';
@@ -311,7 +326,7 @@ const openCreateIngredientModal = () => {
 };
 
 const onTypeChange = (e: any) => {
-	newIngredientForm.type = availableTypes.value[e.detail.value].value as 'STANDARD' | 'UNTRACKED';
+	newIngredientForm.type = availableTypes.value[e.detail.value].value as 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
 };
 
 const onIsFlourChange = (e: any) => {

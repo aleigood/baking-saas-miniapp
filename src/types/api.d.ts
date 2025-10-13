@@ -1,16 +1,23 @@
-/**
- * 文件路径: src/types/api.d.ts
- * 文件描述: (已更新) 生产任务详情 DTO 全面升级为通用“组件”模型
- */
-
-// ... (文件顶部其他类型保持不变) ...
-
 // [核心新增] 定义批量导入结果的类型
 export interface BatchImportResult {
 	totalCount: number;
 	importedCount: number;
 	skippedCount: number;
 	skippedRecipes: string[];
+}
+
+// [核心新增] 定义备料清单接口的响应类型
+export interface BillOfMaterialsItem {
+	ingredientId: string;
+	ingredientName: string;
+	totalRequired: number; // 总需求量 (g)
+	currentStock?: number; // 当前库存 (g)，仅标准原料有
+	suggestedPurchase: number; // 建议采购量 (g)
+}
+
+export interface BillOfMaterialsResponseDto {
+	standardItems: BillOfMaterialsItem[];
+	nonInventoriedItems: BillOfMaterialsItem[];
 }
 
 export type RecipeCategory = 'BREAD' | 'PASTRY' | 'DESSERT' | 'DRINK' | 'OTHER';
@@ -27,16 +34,21 @@ export interface CalculatedRecipeDetails {
 	name: string;
 	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	totalWeight: number;
+	targetWeight?: number; // [核心修改] 增加可选的目标重量字段
 	procedure: string[];
 	ingredients: CalculatedRecipeIngredient[];
 }
+
+// [核心修改] 将备料清单 (billOfMaterials) 整合进 PrepTask 接口
 export interface PrepTask {
 	id: string;
 	title: string;
 	details: string;
 	items: CalculatedRecipeDetails[];
 	status?: 'PREP';
+	billOfMaterials?: BillOfMaterialsResponseDto;
 }
+
 export interface ProductionDataPayload {
 	stats?: {
 		pendingCount: number;
@@ -273,7 +285,7 @@ export interface RecipeDetails {
 export interface Ingredient {
 	id: string;
 	name: string;
-	type: 'STANDARD' | 'UNTRACKED';
+	type: 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
 	isFlour: boolean;
 	waterContent: number;
 	activeSku: IngredientSKU | null;

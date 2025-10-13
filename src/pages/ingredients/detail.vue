@@ -5,29 +5,30 @@
 
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
-				<view class="top-info-bar">
+				<view class="top-info-bar" v-if="ingredient.type !== 'UNTRACKED'">
 					<view class="tag-group">
 						<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
 						<span class="tag">单价: {{ ingredientPricePerKg }}</span>
-						<span class="tag">库存: {{ formatWeight(ingredient.currentStockInGrams) }}</span>
+						<span class="tag" v-if="ingredient.type === 'STANDARD'">库存: {{ formatWeight(ingredient.currentStockInGrams) }}</span>
 					</view>
 				</view>
 
 				<view class="card">
-					<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
+					<AnimatedTabs v-model="detailChartTab" :tabs="visibleChartTabs" />
 					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
 					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix="" unit-suffix="kg" />
 				</view>
 
-				<IngredientSkuList
-					:ingredient="ingredient"
-					:selected-sku-id="selectedSkuId"
-					@select="handleSkuClick"
-					@longpress-sku="handleSkuLongPressAction"
-					@add="openAddSkuModal"
-				/>
-
-				<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
+				<template v-if="ingredient.type !== 'UNTRACKED'">
+					<IngredientSkuList
+						:ingredient="ingredient"
+						:selected-sku-id="selectedSkuId"
+						@select="handleSkuClick"
+						@longpress-sku="handleSkuLongPressAction"
+						@add="openAddSkuModal"
+					/>
+					<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
+				</template>
 			</view>
 			<view class="loading-spinner" v-else>
 				<text>加载中...</text>
@@ -212,7 +213,8 @@ import IngredientProcurementList from '@/components/IngredientProcurementList.vu
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
-import { formatChineseDate, formatDateTime, formatNumber, formatWeight } from '@/utils/format';
+// [修改] 导入 multiply 函数
+import { formatChineseDate, formatDateTime, formatNumber, formatWeight, multiply } from '@/utils/format';
 
 defineOptions({
 	inheritAttrs: false
@@ -270,9 +272,9 @@ const scrollThreshold = 5;
 
 const ingredientForm = reactive<{
 	name: string;
-	type: 'STANDARD' | 'UNTRACKED';
+	type: 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED'; // [修改]
 	isFlour: boolean;
-	waterContent: number | null; // [核心修改] 允许为 null
+	waterContent: number | null;
 }>({
 	name: '',
 	type: 'STANDARD',
@@ -286,7 +288,7 @@ const editProcurementForm = reactive<{
 	packagesPurchased: number;
 	pricePerPackage: number;
 	purchaseDate: string;
-	totalPrice: number | null; // [核心修改] 允许为 null
+	totalPrice: number | null;
 }>({
 	id: '',
 	packagesPurchased: 0,
@@ -313,19 +315,35 @@ const presetReasonTabs = computed(() => {
 	}));
 });
 
+// [新增] 动态计算可见的图表标签
+const visibleChartTabs = computed(() => {
+	if (ingredient.value?.type === 'UNTRACKED') {
+		return [{ key: 'usage', label: '用量走势' }];
+	}
+	return chartTabs.value;
+});
+
 const isInitialStockEntry = computed(() => {
 	return ingredient.value?.currentStockInGrams === 0 && (stockAdjustment.changeInKg || 0) > 0;
 });
 
+// [修改] 动态生成 FAB 按钮
 const fabActions = computed(() => {
+	if (!ingredient.value) return [];
 	const currentUserRole = userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role;
-	const actions = [
-		{ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() },
-		{ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() }
-	];
+	const actions = [];
 
-	if (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') {
-		actions.splice(2, 0, { icon: '/static/icons/adjust.svg', text: '库存调整', action: () => openUpdateStockModal() });
+	// 增加采购：适用于追踪成本的原料
+	if (ingredient.value.type === 'STANDARD' || ingredient.value.type === 'NON_INVENTORIED') {
+		actions.push({ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() });
+	}
+
+	// 编辑属性：所有类型都可用
+	actions.push({ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() });
+
+	// 库存调整：仅适用于追踪库存的原料，并且需要权限
+	if (ingredient.value.type === 'STANDARD' && (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN')) {
+		actions.push({ icon: '/static/icons/adjust.svg', text: '库存调整', action: () => openUpdateStockModal() });
 	}
 
 	return actions;
@@ -341,7 +359,6 @@ onLoad(async (options) => {
 	}
 });
 
-// [核心修改] onShow 逻辑调整
 onShow(async () => {
 	if (ingredientId.value && dataStore.dataStale.ingredients) {
 		await loadIngredientData(ingredientId.value);
@@ -384,6 +401,11 @@ const loadIngredientData = async (id: string) => {
 		ingredientForm.isFlour = ingredientData.isFlour;
 		ingredientForm.waterContent = ingredientData.waterContent * 100;
 
+		// [修改] 如果是非追踪原料，默认tab为用量
+		if (ingredientData.type === 'UNTRACKED') {
+			detailChartTab.value = 'usage';
+		}
+
 		if (ingredientData.activeSku?.id) {
 			const currentSelectionIsValid = ingredientData.skus.some((sku) => sku.id === selectedSkuId.value);
 			if (!currentSelectionIsValid) {
@@ -394,9 +416,6 @@ const loadIngredientData = async (id: string) => {
 		} else {
 			selectedSkuId.value = null;
 		}
-
-		// [核心修复] 移除错误的脏标记重置操作
-		// dataStore.dataStale.ingredients = false;
 	} catch (error) {
 		console.error('Failed to load ingredient data:', error);
 	} finally {
@@ -414,9 +433,11 @@ const openEditModal = () => {
 	showEditModal.value = true;
 };
 
+// [修改] 更新原料类型选项
 const availableTypes = ref([
-	{ label: '标准原料 (追踪库存)', value: 'STANDARD' },
-	{ label: '非追踪原料 (不计库存)', value: 'UNTRACKED' }
+	{ label: '标准原料 (追踪库存和成本)', value: 'STANDARD' },
+	{ label: '即时采购 (仅追踪成本)', value: 'NON_INVENTORIED' },
+	{ label: '非追踪原料 (水/冰等)', value: 'UNTRACKED' }
 ]);
 
 const currentTypeLabel = computed(() => {
@@ -424,15 +445,17 @@ const currentTypeLabel = computed(() => {
 });
 
 const onTypeChange = (e: any) => {
-	ingredientForm.type = availableTypes.value[e.detail.value].value as 'STANDARD' | 'UNTRACKED';
+	ingredientForm.type = availableTypes.value[e.detail.value].value as 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
 };
 
+// [修改] 使用公共的 multiply 函数进行精确计算
 const ingredientPricePerKg = computed(() => {
 	const ing = ingredient.value;
 	if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
 		return '¥0/kg';
 	}
-	const price = (Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams) * 1000;
+	const pricePerGram = Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams;
+	const price = multiply(pricePerGram, 1000);
 	return `¥${formatNumber(price)}/kg`;
 });
 
@@ -632,7 +655,6 @@ const handleEditProcurementOption = () => {
 		editProcurementForm.id = record.id;
 		editProcurementForm.packagesPurchased = record.packagesPurchased;
 		editProcurementForm.totalPrice = Number(record.pricePerPackage) * record.packagesPurchased;
-		// [中文注释] 核心修正：使用 getLocalDate 来格式化本地日期，避免时区问题
 		editProcurementForm.purchaseDate = getLocalDate(new Date(record.purchaseDate));
 		showEditProcurementModal.value = true;
 	}
