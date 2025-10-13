@@ -1,6 +1,6 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
-	<view class="page-wrapper">
+	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader title="前置任务" />
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab">
@@ -75,12 +75,19 @@
 										</view>
 										<view
 											v-for="(ing, index) in item.ingredients"
-											:key="item.id + '-' + ing.name + '-' + index"
+											:key="item.id + '-' + ing.id"
 											class="table-row"
-											:class="{ 'is-added': addedIngredientsMap.has(`${item.id}-${ing.name}`) }"
-											@longpress.prevent="toggleIngredientAdded(item.id, ing.name)"
+											:class="{ 'is-added': addedIngredientsMap.has(`${item.id}-${ing.id}`) }"
+											@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${item.id}-${ing.id}`)"
+											@longpress.prevent="toggleIngredientAdded(item.id, ing.id)"
 										>
-											<text class="col-ingredient">{{ ing.name }}</text>
+											<view class="col-ingredient ingredient-name-cell">
+												<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${item.id}-${ing.id}`">
+													<text>{{ ing.name }}</text>
+													<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
+												</view>
+												<text v-else>{{ ing.name }}</text>
+											</view>
 											<text class="col-brand">{{ ing.isRecipe ? '自制' : ing.brand || '-' }}</text>
 											<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 										</view>
@@ -118,13 +125,17 @@
 		</AppModal>
 
 		<ExpandingFab v-if="preDoughItems.length > 0" :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true" :visible="isFabVisible" />
+
+		<AppPopover :visible="popover.visible" :content="popover.content" :targetRect="popover.targetRect" placement="right" :offsetY="0" />
 	</view>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+// [核心修改] 导入 getCurrentInstance
+import { ref, reactive, computed, getCurrentInstance } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import type { PrepTask, CalculatedRecipeDetails, BillOfMaterialsResponseDto } from '@/types/api';
+// [核心修改] 修正类型导入路径，确保 TaskIngredientDetail 被正确识别（假设它在 @/types/api 中）
+import type { PrepTask, CalculatedRecipeDetails, BillOfMaterialsResponseDto, TaskIngredientDetail } from '@/types/api';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
@@ -132,10 +143,15 @@ import { formatWeight } from '@/utils/format';
 import AppModal from '@/components/AppModal.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
+// [核心新增] 导入 AppPopover 组件
+import AppPopover from '@/components/AppPopover.vue';
 
 defineOptions({
 	inheritAttrs: false
 });
+
+// [核心新增] 获取当前组件实例，用于后续的 DOM 查询
+const instance = getCurrentInstance();
 
 const isLoading = ref(true);
 const task = ref<PrepTask | null>(null);
@@ -149,6 +165,22 @@ const showCalculatorModal = ref(false);
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
+
+// [核心新增] 定义 popover 的状态
+const popover = reactive<{
+	visible: boolean;
+	content: string;
+	targetRect: {
+		left: number;
+		top: number;
+		width: number;
+		height: number;
+	} | null;
+}>({
+	visible: false,
+	content: '',
+	targetRect: null
+});
 
 const filterTabs = computed(() => {
 	const tabs = [{ key: 'BILL_OF_MATERIALS', label: '备料清单' }];
@@ -195,7 +227,48 @@ const toggleCollapse = (itemId: string) => {
 	collapsedSections.value = newSet;
 };
 
+// [核心新增] 定义显示和隐藏 popover 的方法
+const showExtraInfo = (info: string | null | undefined, elementId: string) => {
+	if (!info) {
+		hidePopover();
+		return;
+	}
+
+	if (popover.visible && popover.content === info) {
+		hidePopover();
+		return;
+	}
+
+	const query = uni.createSelectorQuery().in(instance);
+	query
+		.select('#' + elementId)
+		.boundingClientRect((rect: UniApp.NodeInfo) => {
+			if (rect) {
+				popover.content = info;
+				popover.targetRect = {
+					left: rect.left,
+					top: rect.top,
+					width: rect.width,
+					height: rect.height
+				};
+				popover.visible = true;
+			} else {
+				hidePopover();
+			}
+		})
+		.exec();
+};
+
+const hidePopover = () => {
+	popover.visible = false;
+};
+
 const handleScroll = (event?: any) => {
+	// [核心修改] 滚动时自动隐藏 popover
+	if (popover.visible) {
+		hidePopover();
+	}
+
 	if (!event || !event.detail) {
 		return;
 	}
@@ -214,9 +287,11 @@ const handleScroll = (event?: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-const toggleIngredientAdded = (itemId: string, ingredientName: string) => {
+// [核心修改] 更新函数签名，使用 ingredientId 替代 ingredientName
+const toggleIngredientAdded = (itemId: string, ingredientId: string) => {
 	uni.vibrateShort({});
-	const compositeKey = `${itemId}-${ingredientName}`;
+	// [核心修改] 使用 ingredientId 构建唯一的 key
+	const compositeKey = `${itemId}-${ingredientId}`;
 	if (addedIngredientsMap.has(compositeKey)) {
 		addedIngredientsMap.delete(compositeKey);
 	} else {
@@ -331,6 +406,19 @@ onLoad(async (options) => {
 
 	.table-row.is-added {
 		background-color: #f0ebe5;
+	}
+
+	/* [核心新增] 为带图标的原料名称和图标本身添加样式 */
+	.ingredient-with-icon {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+	}
+
+	.info-icon {
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
 	}
 }
 
