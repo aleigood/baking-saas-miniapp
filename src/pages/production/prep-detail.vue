@@ -13,7 +13,7 @@
 						<template v-if="hasMaterials">
 							<view v-if="billOfMaterials.standardItems.length > 0" class="card">
 								<view class="card-title-wrapper" @click="toggleCollapse('standardItems')">
-									<span class="card-title">标准原料 (需核对库存)</span>
+									<span class="card-title">标准原料</span>
 									<span class="arrow" :class="{ collapsed: collapsedSections.has('standardItems') }">&#10095;</span>
 								</view>
 								<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('standardItems') }">
