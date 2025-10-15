@@ -75,14 +75,14 @@
 										</view>
 										<view
 											v-for="(ing, index) in item.ingredients"
-											:key="item.id + '-' + ing.id"
+											:key="item.id + '-' + index"
 											class="table-row"
-											:class="{ 'is-added': addedIngredientsMap.has(`${item.id}-${ing.id}`) }"
-											@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${item.id}-${ing.id}`)"
-											@longpress.prevent="toggleIngredientAdded(item.id, ing.id)"
+											:class="{ 'is-added': addedIngredientsMap.has(`${item.id}-${index}`) }"
+											@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${item.id}-${index}`)"
+											@longpress.prevent="toggleIngredientAdded(item.id, index)"
 										>
 											<view class="col-ingredient ingredient-name-cell">
-												<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${item.id}-${ing.id}`">
+												<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${item.id}-${index}`">
 													<text>{{ ing.name }}</text>
 													<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 												</view>
@@ -287,11 +287,11 @@ const handleScroll = (event?: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-// [核心修改] 更新函数签名，使用 ingredientId 替代 ingredientName
-const toggleIngredientAdded = (itemId: string, ingredientId: string) => {
+// [中文注释] 核心修改：函数参数使用 ingredientIndex (数字类型)
+const toggleIngredientAdded = (itemId: string, ingredientIndex: number) => {
 	uni.vibrateShort({});
-	// [核心修改] 使用 ingredientId 构建唯一的 key
-	const compositeKey = `${itemId}-${ingredientId}`;
+	// [中文注释] 核心修改：使用 ingredientIndex 构建绝对唯一的 key
+	const compositeKey = `${itemId}-${ingredientIndex}`;
 	if (addedIngredientsMap.has(compositeKey)) {
 		addedIngredientsMap.delete(compositeKey);
 	} else {
