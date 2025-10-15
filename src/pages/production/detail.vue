@@ -139,12 +139,14 @@
 												<view class="table-header summary-header">
 													<text class="col-ingredient">馅料</text>
 													<text class="col-brand">品牌</text>
-													<text class="col-usage">用量</text>
+													<text class="col-per-unit">单个用量</text>
+													<text class="col-usage">总用量</text>
 												</view>
 												<view v-for="ing in selectedProductDetails.fillings" :key="ing.id" class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
 													<text class="col-brand">{{ ing.brand || '-' }}</text>
-													<text class="col-usage">{{ getFormattedFillingWeight(ing.weightInGrams) }}</text>
+													<text class="col-per-unit">{{ formatWeight(ing.weightPerUnit) }}</text>
+													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
 										</template>
@@ -154,12 +156,14 @@
 												<view class="table-header summary-header">
 													<text class="col-ingredient">表面装饰</text>
 													<text class="col-brand">品牌</text>
-													<text class="col-usage">用量</text>
+													<text class="col-per-unit">单个用量</text>
+													<text class="col-usage">总用量</text>
 												</view>
 												<view v-for="ing in selectedProductDetails.toppings" :key="ing.id" class="table-row">
 													<text class="col-ingredient">{{ ing.name }}</text>
 													<text class="col-brand">{{ ing.brand || '-' }}</text>
-													<text class="col-usage">{{ getFormattedFillingWeight(ing.weightInGrams) }}</text>
+													<text class="col-per-unit">{{ formatWeight(ing.weightPerUnit) }}</text>
+													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 												</view>
 											</view>
 										</template>
@@ -694,21 +698,6 @@ const hidePopover = () => {
 	popover.visible = false;
 };
 
-const getFormattedFillingWeight = (totalWeight: number) => {
-	if (!selectedComponentDetails.value || !selectedProductId.value) {
-		return formatWeight(totalWeight);
-	}
-	const productSummary = selectedComponentDetails.value.products.find((p) => p.id === selectedProductId.value);
-	const quantity = productSummary ? productSummary.quantity : 1;
-
-	if (quantity > 0 && totalWeight > 0) {
-		const perItemWeight = totalWeight / quantity;
-		return `${formatWeight(totalWeight)} (${formatWeight(perItemWeight)}/个)`;
-	}
-
-	return formatWeight(totalWeight);
-};
-
 const selectedComponentDetails = computed(() => {
 	if (!task.value || !selectedComponentFamilyId.value) return null;
 	return task.value.componentGroups.find((d) => d.familyId === selectedComponentFamilyId.value) || null;
@@ -994,6 +983,21 @@ const productTabs = computed(() => {
 
 	.note-item {
 		display: block;
+	}
+}
+
+/* [中文注释] 为有4列的详情表格重新分配列宽，以适应新增的“单个用量”列 */
+.detail-table .table-header,
+.detail-table .table-row {
+	.col-ingredient {
+		flex: 2.5;
+	}
+	.col-brand {
+		flex: 2;
+	}
+	.col-per-unit,
+	.col-usage {
+		flex: 1.5;
 	}
 }
 

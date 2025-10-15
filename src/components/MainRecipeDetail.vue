@@ -58,15 +58,17 @@
 					</view>
 					<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
 						<template v-for="(ingredients, groupName) in recipeDetails.groupedExtraIngredients" :key="groupName">
-							<view v-if="ingredients.length > 0" class="summary-table-wrapper">
+							<view v-if="ingredients.length > 0" class="summary-table-wrapper" :class="{ 'mix-in-table': groupName === '搅拌原料' }">
 								<view class="smart-table detail-table">
 									<view class="table-header summary-header">
-										<text class="col-ingredient">{{ groupName }}</text>
+										<text class="col-ingredient">{{ groupName === '搅拌原料' ? '辅料' : groupName }}</text>
+										<text v-if="groupName === '搅拌原料'" class="col-ratio">配方占比</text>
 										<text class="col-usage">{{ getUsageColumnHeader(groupName as string) }}</text>
 										<text class="col-total">成本</text>
 									</view>
 									<view v-for="ing in ingredients" :key="ing.id" class="table-row">
 										<text class="col-ingredient">{{ ing.name }}</text>
+										<text v-if="groupName === '搅拌原料'" class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
 										<text class="col-usage">{{ getUsageDisplay(ing) }}</text>
 										<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
 									</view>
@@ -221,16 +223,15 @@ const toggleCollapse = (sectionName: string) => {
 // [核心新增] 根据分组名决定“用量”列的标题
 const getUsageColumnHeader = (groupName: string): string => {
 	if (groupName === '馅料' || groupName === '表面装饰') {
-		return '用量/个';
+		// [中文注释] 修改标题为“单个用量”
+		return '单个用量';
 	}
 	return '总用量';
 };
 
 // [核心新增] 根据原料类型动态生成用量显示文本
 const getUsageDisplay = (ingredient: CalculatedExtraIngredientInfo): string => {
-	if (ingredient.type === '搅拌原料' && ingredient.ratio) {
-		return `${formatWeight(ingredient.weightInGrams)} (${toPercentage(ingredient.ratio)}%)`;
-	}
+	// [中文注释] 配方占比已移至单独的列，这里只返回重量
 	return formatWeight(ingredient.weightInGrams);
 };
 
@@ -333,6 +334,19 @@ watch(
 
 	.col-total {
 		font-weight: 400;
+	}
+}
+
+/* [中文注释] 为辅料表格（4列表格）定义列宽 */
+.summary-table-wrapper.mix-in-table .smart-table {
+	.col-ingredient {
+		flex: 2.5;
+	}
+	.col-ratio,
+	.col-usage,
+	.col-total {
+		flex: 1.5;
+		text-align: right;
 	}
 }
 

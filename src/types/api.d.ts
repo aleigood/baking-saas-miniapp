@@ -441,6 +441,8 @@ export interface TaskIngredientDetail {
 	name: string;
 	brand: string | null;
 	weightInGrams: number;
+	// [中文注释] 新增：单个产品的用量，由服务端直接提供
+	weightPerUnit?: number;
 	isRecipe: boolean;
 	extraInfo?: string | null;
 }
