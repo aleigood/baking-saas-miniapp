@@ -10,6 +10,8 @@ export interface BatchImportResult {
 export interface BillOfMaterialsItem {
 	ingredientId: string;
 	ingredientName: string;
+	// [中文注释] 核心修改：为备料清单增加品牌字段
+	brand?: string | null;
 	totalRequired: number; // 总需求量 (g)
 	currentStock?: number; // 当前库存 (g)，仅标准原料有
 	suggestedPurchase: number; // 建议采购量 (g)

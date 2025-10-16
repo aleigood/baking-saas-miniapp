@@ -20,15 +20,15 @@
 									<view class="smart-table">
 										<view class="table-header">
 											<text class="col-ingredient">原料</text>
-											<text class="col-usage">需求量</text>
+											<text class="col-brand">品牌</text>
 											<text class="col-stock">库存</text>
-											<text class="col-purchase">采购量</text>
+											<text class="col-usage">需求量</text>
 										</view>
 										<view v-for="item in billOfMaterials.standardItems" :key="item.ingredientId" class="table-row">
 											<text class="col-ingredient">{{ item.ingredientName }}</text>
-											<text class="col-usage">{{ formatWeight(item.totalRequired) }}</text>
+											<text class="col-brand">{{ item.brand || '-' }}</text>
 											<text class="col-stock">{{ formatWeight(item.currentStock) }}</text>
-											<text class="col-purchase" :class="{ highlight: item.suggestedPurchase > 0 }">{{ formatWeight(item.suggestedPurchase) }}</text>
+											<text class="col-usage" :class="{ highlight: item.currentStock < item.totalRequired }">{{ formatWeight(item.totalRequired) }}</text>
 										</view>
 									</view>
 								</view>
@@ -43,11 +43,13 @@
 									<view class="smart-table">
 										<view class="table-header">
 											<text class="col-ingredient">原料</text>
-											<text class="col-purchase">采购量</text>
+											<text class="col-brand">品牌</text>
+											<text class="col-usage">需求量</text>
 										</view>
 										<view v-for="item in billOfMaterials.nonInventoriedItems" :key="item.ingredientId" class="table-row">
 											<text class="col-ingredient">{{ item.ingredientName }}</text>
-											<text class="col-purchase highlight">{{ formatWeight(item.suggestedPurchase) }}</text>
+											<text class="col-brand">{{ item.brand || '-' }}</text>
+											<text class="col-usage highlight">{{ formatWeight(item.totalRequired) }}</text>
 										</view>
 									</view>
 								</view>
@@ -188,7 +190,7 @@ const filterTabs = computed(() => {
 		tabs.push({ key: 'PRE_DOUGH', label: '面种' });
 	}
 	if (extraItems.value.length > 0) {
-		tabs.push({ key: 'EXTRA', label: '馅料/其他' });
+		tabs.push({ key: 'EXTRA', label: '馅料' });
 	}
 	return tabs;
 });
