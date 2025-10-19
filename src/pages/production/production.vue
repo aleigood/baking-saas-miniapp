@@ -257,18 +257,22 @@ onLoad(() => {
 	temperatureStore.initTemperatureSettings();
 });
 
+// [核心修改] 重构 onShow 逻辑
 onShow(async () => {
 	isNavigating.value = false;
 
-	if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
-		try {
-			if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation) {
-				await dataStore.fetchProductsForTaskCreation();
-			}
-			await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
-		} catch (error) {
-			console.error('Failed to load data on show:', error);
+	try {
+		// [核心修正] 检查 recipes 数据是否过时，如果过时，则同样需要刷新 productsForTaskCreation
+		if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation || dataStore.dataStale.recipes) {
+			await dataStore.fetchProductsForTaskCreation();
 		}
+		// 检查当天的生产任务列表是否需要更新
+		if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
+			// 同时获取任务列表和有任务的日期，并行执行以提高效率
+			await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
+		}
+	} catch (error) {
+		console.error('Failed to load data on show:', error);
 	}
 });
 
@@ -288,13 +292,16 @@ const handleScroll = (event: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
+// [核心修改] 重构 handleRefresh 逻辑
 const handleRefresh = async () => {
 	try {
+		// 标记所有相关数据为“过时”，强制重新获取
 		dataStore.markProductionAsStale();
 		dataStore.markProductsForTaskCreationAsStale();
-		await dataStore.fetchProductsForTaskCreation();
-		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
+		// 重新获取所有数据
+		await Promise.all([dataStore.fetchProductsForTaskCreation(), dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} finally {
+		// 结束下拉刷新动画
 		refreshableLayout.value?.finishRefresh();
 	}
 };

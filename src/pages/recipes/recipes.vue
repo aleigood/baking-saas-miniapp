@@ -16,56 +16,61 @@
 							<text>暂无排行信息</text>
 						</view>
 					</view>
-					<view class="filter-wrapper">
+					<view v-if="filterTabs.length > 0" class="filter-wrapper">
 						<FilterTabs v-model="activeFilter" :tabs="filterTabs" />
 					</view>
 				</view>
 
 				<view class="list-wrapper">
-					<template v-if="filteredRecipes.length > 0">
-						<ListItem
-							v-for="(family, index) in filteredRecipes"
-							:key="family.id"
-							@click="navigateToDetail(family.id)"
-							@longpress="openRecipeActions(family)"
-							:vibrate-on-long-press="canEditRecipe"
-							:bleed="true"
-							:divider="index < filteredRecipes.length - 1"
-							:discontinued="!!family.deletedAt"
-						>
-							<template v-if="family.type === 'MAIN'">
-								<view class="main-info">
-									<view>
-										<view class="name">
-											<text class="name-text">{{ family.name }}</text>
-											<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+					<template v-if="hasAnyRecipe">
+						<template v-if="filteredRecipes.length > 0">
+							<ListItem
+								v-for="(family, index) in filteredRecipes"
+								:key="family.id"
+								@click="navigateToDetail(family.id)"
+								@longpress="openRecipeActions(family)"
+								:vibrate-on-long-press="canEditRecipe"
+								:bleed="true"
+								:divider="index < filteredRecipes.length - 1"
+								:discontinued="!!family.deletedAt"
+							>
+								<template v-if="family.type === 'MAIN'">
+									<view class="main-info">
+										<view>
+											<view class="name">
+												<text class="name-text">{{ family.name }}</text>
+												<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+											</view>
+											<view class="desc">{{ family.productCount }} 种产品</view>
 										</view>
-										<view class="desc">{{ family.productCount }} 种产品</view>
 									</view>
-								</view>
-								<view class="side-info">
-									<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
-									<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
-								</view>
-							</template>
-							<template v-else>
-								<view class="main-info">
-									<view>
-										<view class="name">
-											<text class="name-text">{{ family.name }}</text>
-											<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+									<view class="side-info">
+										<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
+										<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
+									</view>
+								</template>
+								<template v-else>
+									<view class="main-info">
+										<view>
+											<view class="name">
+												<text class="name-text">{{ family.name }}</text>
+												<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+											</view>
+											<view class="desc">{{ family.ingredientCount }} 种原料</view>
 										</view>
-										<view class="desc">{{ family.ingredientCount }} 种原料</view>
 									</view>
-								</view>
-								<view class="side-info">
-									<view class="desc">{{ family.usageCount || 0 }} 次引用</view>
-								</view>
-							</template>
-						</ListItem>
+									<view class="side-info">
+										<view class="desc">{{ family.usageCount || 0 }} 次引用</view>
+									</view>
+								</template>
+							</ListItem>
+						</template>
+						<view v-else class="empty-state">
+							<text>该分类下暂无配方</text>
+						</view>
 					</template>
 					<view v-else class="empty-state">
-						<text>该分类下暂无配方</text>
+						<text>暂无配方，快去创建吧！</text>
 					</view>
 				</view>
 			</view>
@@ -196,11 +201,17 @@ const filterTabs = computed(() => {
 
 	// 3. 处理没有任何配方时的默认情况
 	if (categoryTabs.length === 0 && otherTabs.length === 0) {
-		return [{ key: 'BREAD', label: '面包' }];
+		// [核心修改] 当没有任何配方时，返回空数组
+		return [];
 	}
 
 	// 4. 合并所有标签并返回
 	return [...categoryTabs, ...otherTabs];
+});
+
+// [核心新增] 计算属性，判断是否存在任何配方
+const hasAnyRecipe = computed(() => {
+	return dataStore.recipes.mainRecipes.length > 0 || dataStore.recipes.preDoughs.length > 0 || dataStore.recipes.extras.length > 0;
 });
 
 // 修改: 根据当前激活的筛选器 (activeFilter) 来决定显示哪个列表
