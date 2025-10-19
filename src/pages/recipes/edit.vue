@@ -65,7 +65,8 @@
 					<FormItem label="工艺损耗率 (%)">
 						<input class="input-field" type="number" v-model="mainComponent.lossRatio" placeholder="例如: 1" />
 					</FormItem>
-					<FormItem label="分割定额损耗 (g)">
+					<!-- [核心修改] 增加 v-if="form.type === 'MAIN'" 条件判断，确保只在主配方时显示 -->
+					<FormItem v-if="form.type === 'MAIN'" label="分割定额损耗 (g)">
 						<input class="input-field" type="number" v-model="mainComponent.divisionLoss" placeholder="例如: 2" />
 					</FormItem>
 					<view class="ingredient-header">

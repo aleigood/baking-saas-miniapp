@@ -96,11 +96,13 @@
 									</view>
 
 									<view class="total-weight-summary">
-										<template v-if="item.targetWeight">
-											<text>重量总计：{{ formatWeight(item.totalWeight) }}（目标重量：{{ formatWeight(item.targetWeight) }}）</text>
+										<template v-if="item.targetWeight != null">
+											<!-- [核心修改] 此处 item.totalWeight 使用了 formatWeight 进行格式化 -->
+											<text>制作总量：{{ formatWeight(item.totalWeight) }} (需求量：{{ formatWeight(item.targetWeight) }})</text>
 										</template>
 										<template v-else>
-											<text>重量总计：{{ formatWeight(item.totalWeight) }}</text>
+											<!-- [核心修改] 此处 item.totalWeight 使用了 formatWeight 进行格式化 -->
+											<text>制作总量：{{ formatWeight(item.totalWeight) }}</text>
 										</template>
 									</view>
 
