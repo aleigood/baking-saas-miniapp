@@ -406,7 +406,7 @@ const handleConfirmCancelTask = async () => {
 const navigateToCreatePage = (category: RecipeCategory) => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
-	uni.navigateTo({ url: `/pages/production/create?category=${category}` });
+	uni.navigateTo({ url: `/pages/production/create?category=${category}&date=${selectedDate.value}` });
 };
 
 // [核心修改] 增加边界处理逻辑

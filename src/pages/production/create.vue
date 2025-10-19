@@ -203,6 +203,13 @@ onLoad(async (options) => {
 		uni.navigateBack();
 	}
 
+	// [核心修改] 如果不是编辑模式，则根据 URL 传入的 date 参数或当天日期来设置默认生产日期
+	if (!isEditMode.value) {
+		const initialDate = options?.date || getLocalDate();
+		taskForm.startDate = initialDate;
+		taskForm.endDate = initialDate;
+	}
+
 	if (productTabs.value.length > 0) {
 		activeTab.value = productTabs.value[0].key;
 	}
