@@ -63,7 +63,10 @@
 						<input class="input-field" type="number" v-model="form.targetTemp" placeholder="例如: 26" />
 					</FormItem>
 					<FormItem label="工艺损耗率 (%)">
-						<input class="input-field" type="number" v-model="mainComponent.lossRatio" placeholder="例如: 2" />
+						<input class="input-field" type="number" v-model="mainComponent.lossRatio" placeholder="例如: 1" />
+					</FormItem>
+					<FormItem label="分割定额损耗 (g)">
+						<input class="input-field" type="number" v-model="mainComponent.divisionLoss" placeholder="例如: 2" />
 					</FormItem>
 					<view class="ingredient-header">
 						<text class="col-name">原料名称</text>
@@ -299,7 +302,8 @@ const form = ref<Omit<RecipeFormTemplate, 'ingredients' | 'procedure'> & { targe
 			id: `main_${Date.now()}`,
 			name: '主面团',
 			type: 'MAIN_DOUGH',
-			lossRatio: 0,
+			lossRatio: 1, // [核心修改] 新建时 lossRatio 默认为 1%
+			divisionLoss: 2, // [核心修改] 新建时 divisionLoss 默认为 2g
 			ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 }],
 			procedure: ['']
 		}
@@ -528,7 +532,8 @@ onLoad(async (options) => {
 					id: `main_${Date.now()}`,
 					name: '',
 					type: 'BASE_COMPONENT',
-					lossRatio: 0,
+					lossRatio: 1, // [核心修改] 新建时 lossRatio 默认为 1%
+					divisionLoss: 0, // [核心修改] EXTRA 类型 divisionLoss 默认为 0
 					ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 }],
 					procedure: ['']
 				}
@@ -771,7 +776,9 @@ const handleSubmit = async () => {
 			category: form.value.category,
 			notes: form.value.notes,
 			targetTemp: form.value.targetTemp,
-			lossRatio: toDecimal(Number(mainComponentFromForm.lossRatio)),
+			lossRatio: toDecimal(Number(mainComponentFromForm.lossRatio || 0)),
+			// [核心修改] 提交时包含主组件的 divisionLoss
+			divisionLoss: Number(mainComponentFromForm.divisionLoss || 0),
 			procedure: mainComponentFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
 			products: form.value.products!.map((p) => ({

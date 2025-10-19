@@ -127,12 +127,13 @@ export interface RecipeFormTemplate {
 	category?: RecipeCategory; // [核心新增] 增加可选的品类字段
 	notes: string;
 	targetTemp?: number;
-	doughs?: {
-		// 主配方使用
+	// [核心修改] `doughs` 重命名为 `components` 以匹配前端实现
+	components?: {
 		id: string;
 		name: string;
-		type: 'MAIN_DOUGH' | 'PRE_DOUGH';
+		type: 'MAIN_DOUGH' | 'PRE_DOUGH' | 'BASE_COMPONENT';
 		lossRatio?: number;
+		divisionLoss?: number; // [核心新增] 新增分割定额损耗字段
 		flourRatioInMainDough?: number;
 		ingredients: {
 			id: string | null;
