@@ -393,7 +393,9 @@ const handleConfirmCancelTask = async () => {
 		toastStore.show({ message: '任务已取消', type: 'success' });
 		dataStore.markProductionAsStale();
 		dataStore.markHistoricalTasksAsStale();
-		await dataStore.fetchProductionData(selectedDate.value);
+
+		// [核心修正] 并行刷新任务列表和日历圆点
+		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} catch (error) {
 		console.error('Failed to cancel task:', error);
 	} finally {
