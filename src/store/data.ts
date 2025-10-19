@@ -178,11 +178,6 @@ export const useDataStore = defineStore('data', () => {
 	}
 
 	async function fetchProductionData(date?: string) {
-		// [核心修正] 增加一道防卫门，如果日期无效 (比如 undefined)，则直接阻止本次请求
-		if (!currentTenantId.value || !date) {
-			return;
-		}
-
 		try {
 			const payload = await getTasks(date);
 			production.value = payload.tasks;
