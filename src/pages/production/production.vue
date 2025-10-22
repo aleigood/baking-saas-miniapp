@@ -135,7 +135,6 @@ import type { ProductionTaskDto, PrepTask, RecipeCategory } from '@/types/api';
 import { updateTaskStatus, getTaskDates } from '@/api/tasks';
 import { formatChineseDate } from '@/utils/format';
 
-// [核心改造] 定义一个统一的状态信息对象，只包含此页面需要的状态
 const STATUS_MAP = {
 	PENDING: {
 		text: '待开始',
@@ -153,7 +152,6 @@ const STATUS_MAP = {
 		color: '#8e44ad'
 	},
 	DEFAULT: {
-		// 保留一个默认值以防万一
 		text: '未知',
 		className: '',
 		color: 'transparent'
@@ -257,18 +255,14 @@ onLoad(() => {
 	temperatureStore.initTemperatureSettings();
 });
 
-// [核心修改] 重构 onShow 逻辑
 onShow(async () => {
 	isNavigating.value = false;
 
 	try {
-		// [核心修正] 检查 recipes 数据是否过时，如果过时，则同样需要刷新 productsForTaskCreation
 		if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation || dataStore.dataStale.recipes) {
 			await dataStore.fetchProductsForTaskCreation();
 		}
-		// 检查当天的生产任务列表是否需要更新
 		if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
-			// 同时获取任务列表和有任务的日期，并行执行以提高效率
 			await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 		}
 	} catch (error) {
@@ -292,16 +286,12 @@ const handleScroll = (event: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-// [核心修改] 重构 handleRefresh 逻辑
 const handleRefresh = async () => {
 	try {
-		// 标记所有相关数据为“过时”，强制重新获取
 		dataStore.markProductionAsStale();
 		dataStore.markProductsForTaskCreationAsStale();
-		// 重新获取所有数据
 		await Promise.all([dataStore.fetchProductsForTaskCreation(), dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} finally {
-		// 结束下拉刷新动画
 		refreshableLayout.value?.finishRefresh();
 	}
 };
@@ -342,9 +332,10 @@ const navigateToDetail = (task: any) => {
 	isNavigating.value = true;
 
 	const isPrepTask = task.status === 'PREP';
+	// [核心修改] 改造导航逻辑
 	if (isPrepTask) {
-		const prepTaskData = encodeURIComponent(JSON.stringify(task));
-		uni.navigateTo({ url: `/pages/production/prep-detail?taskData=${prepTaskData}` });
+		// [修改] 不再传递庞大的 taskData 对象，只传递当前选择的日期
+		uni.navigateTo({ url: `/pages/production/prep-detail?date=${selectedDate.value}` });
 	} else {
 		uni.navigateTo({ url: `/pages/production/detail?taskId=${task.id}` });
 	}
@@ -367,7 +358,6 @@ const handleEditTask = () => {
 	isNavigating.value = true;
 	showTaskActionsModal.value = false;
 
-	// [中文注释] 核心重构：调用 dataStore 的方法来清理缓存
 	dataStore.clearTaskProgress(selectedTaskForAction.value.id);
 
 	uni.setStorageSync('task_to_edit', JSON.stringify(selectedTaskForAction.value));
@@ -387,14 +377,12 @@ const handleConfirmCancelTask = async () => {
 	try {
 		await updateTaskStatus(selectedTaskForAction.value.id, 'CANCELLED');
 
-		// [中文注释] 核心重构：调用 dataStore 的方法来清理缓存
 		dataStore.clearTaskProgress(selectedTaskForAction.value.id);
 
 		toastStore.show({ message: '任务已取消', type: 'success' });
 		dataStore.markProductionAsStale();
 		dataStore.markHistoricalTasksAsStale();
 
-		// [核心修正] 并行刷新任务列表和日历圆点
 		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} catch (error) {
 		console.error('Failed to cancel task:', error);
@@ -411,26 +399,20 @@ const navigateToCreatePage = (category: RecipeCategory) => {
 	uni.navigateTo({ url: `/pages/production/create?category=${category}&date=${selectedDate.value}` });
 };
 
-// [核心修改] 增加边界处理逻辑
 const handleFabClick = () => {
-	// 获取所有可用于创建任务的产品品类
 	const categories = Object.keys(dataStore.productsForTaskCreation);
 
-	// 情况一：没有任何可用的产品/配方
 	if (categories.length === 0) {
 		toastStore.show({
 			message: '请先创建配方才能添加生产任务',
 			type: 'info'
 		});
-		return; // 终止执行
+		return;
 	}
 
-	// 情况二：只有一个产品品类，直接跳转
 	if (categories.length === 1) {
 		navigateToCreatePage(categories[0] as RecipeCategory);
 	}
-
-	// 情况三（categories.length > 1）：不执行任何操作，此时 ExpandingFab 组件会自动展开为菜单
 };
 
 const openTemperatureSettingsModal = () => {
@@ -563,7 +545,6 @@ const handleSaveTemperatureSettings = () => {
 	white-space: nowrap;
 }
 
-/* 样式与 STATUS_MAP 中的 className 对应 */
 .status-tag.status-pending {
 	background-color: #d4a373;
 }

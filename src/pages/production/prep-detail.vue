@@ -97,11 +97,9 @@
 
 									<view class="total-weight-summary">
 										<template v-if="item.targetWeight != null">
-											<!-- [核心修改] 此处 item.totalWeight 使用了 formatWeight 进行格式化 -->
 											<text>制作总量：{{ formatWeight(item.totalWeight) }} (需求量：{{ formatWeight(item.targetWeight) }})</text>
 										</template>
 										<template v-else>
-											<!-- [核心修改] 此处 item.totalWeight 使用了 formatWeight 进行格式化 -->
 											<text>制作总量：{{ formatWeight(item.totalWeight) }}</text>
 										</template>
 									</view>
@@ -135,11 +133,11 @@
 </template>
 
 <script setup lang="ts">
-// [核心修改] 导入 getCurrentInstance
 import { ref, reactive, computed, getCurrentInstance } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-// [核心修改] 修正类型导入路径，确保 TaskIngredientDetail 被正确识别（假设它在 @/types/api 中）
 import type { PrepTask, CalculatedRecipeDetails, BillOfMaterialsResponseDto, TaskIngredientDetail } from '@/types/api';
+// [新增] 导入获取前置任务详情的 API 方法
+import { getPrepTaskDetails } from '@/api/tasks';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
@@ -147,14 +145,12 @@ import { formatWeight } from '@/utils/format';
 import AppModal from '@/components/AppModal.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
-// [核心新增] 导入 AppPopover 组件
 import AppPopover from '@/components/AppPopover.vue';
 
 defineOptions({
 	inheritAttrs: false
 });
 
-// [核心新增] 获取当前组件实例，用于后续的 DOM 查询
 const instance = getCurrentInstance();
 
 const isLoading = ref(true);
@@ -170,7 +166,6 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-// [核心新增] 定义 popover 的状态
 const popover = reactive<{
 	visible: boolean;
 	content: string;
@@ -231,7 +226,6 @@ const toggleCollapse = (itemId: string) => {
 	collapsedSections.value = newSet;
 };
 
-// [核心新增] 定义显示和隐藏 popover 的方法
 const showExtraInfo = (info: string | null | undefined, elementId: string) => {
 	if (!info) {
 		hidePopover();
@@ -268,7 +262,6 @@ const hidePopover = () => {
 };
 
 const handleScroll = (event?: any) => {
-	// [核心修改] 滚动时自动隐藏 popover
 	if (popover.visible) {
 		hidePopover();
 	}
@@ -291,10 +284,8 @@ const handleScroll = (event?: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-// [中文注释] 核心修改：函数参数使用 ingredientIndex (数字类型)
 const toggleIngredientAdded = (itemId: string, ingredientIndex: number) => {
 	uni.vibrateShort({});
-	// [中文注释] 核心修改：使用 ingredientIndex 构建绝对唯一的 key
 	const compositeKey = `${itemId}-${ingredientIndex}`;
 	if (addedIngredientsMap.has(compositeKey)) {
 		addedIngredientsMap.delete(compositeKey);
@@ -303,19 +294,26 @@ const toggleIngredientAdded = (itemId: string, ingredientIndex: number) => {
 	}
 };
 
+// [核心修改] 重构 onLoad 逻辑，让页面自己请求数据
 onLoad(async (options) => {
-	if (options && options.taskData) {
+	isLoading.value = true;
+	if (options && options.date) {
 		try {
-			const taskData = JSON.parse(decodeURIComponent(options.taskData));
-			task.value = taskData as PrepTask;
+			// 调用新的 API 方法获取数据
+			const taskData = await getPrepTaskDetails(options.date);
+			task.value = taskData;
+			// 设置默认显示的 Tab
 			if (!hasMaterials.value && preDoughItems.value.length > 0) {
 				activeTab.value = 'PRE_DOUGH';
 			} else if (!hasMaterials.value && extraItems.value.length > 0) {
 				activeTab.value = 'EXTRA';
 			}
 		} catch (error) {
-			console.error('解析前置任务数据失败:', error);
+			console.error('获取前置任务详情失败:', error);
+			// 你可以在这里添加一个错误提示
 		}
+	} else {
+		console.error('缺少 date 参数，无法加载前置任务');
 	}
 	isLoading.value = false;
 });
@@ -323,7 +321,6 @@ onLoad(async (options) => {
 
 <style scoped lang="scss">
 @import '@/styles/common.scss';
-// 引入项目通用的表格布局
 @include table-layout;
 
 .collapsible-content {
@@ -412,7 +409,6 @@ onLoad(async (options) => {
 		background-color: #f0ebe5;
 	}
 
-	/* [核心新增] 为带图标的原料名称和图标本身添加样式 */
 	.ingredient-with-icon {
 		display: inline-flex;
 		align-items: center;

@@ -10,7 +10,6 @@ export interface BatchImportResult {
 export interface BillOfMaterialsItem {
 	ingredientId: string;
 	ingredientName: string;
-	// [中文注释] 核心修改：为备料清单增加品牌字段
 	brand?: string | null;
 	totalRequired: number; // 总需求量 (g)
 	currentStock?: number; // 当前库存 (g)，仅标准原料有
@@ -36,12 +35,11 @@ export interface CalculatedRecipeDetails {
 	name: string;
 	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	totalWeight: number;
-	targetWeight?: number; // [核心修改] 增加可选的目标重量字段
+	targetWeight?: number;
 	procedure: string[];
 	ingredients: CalculatedRecipeIngredient[];
 }
 
-// [核心修改] 将备料清单 (billOfMaterials) 整合进 PrepTask 接口
 export interface PrepTask {
 	id: string;
 	title: string;
@@ -51,13 +49,36 @@ export interface PrepTask {
 	billOfMaterials?: BillOfMaterialsResponseDto;
 }
 
+// [新增] 为任务列表创建的“前置任务摘要”类型，不包含 items 和 billOfMaterials
+export type PrepTaskSummary = Omit<PrepTask, 'items' | 'billOfMaterials'>;
+
+// [新增] 为任务列表创建的“普通任务摘要”类型，只包含列表展示所需的最少信息
+export interface ProductionTaskSummaryDto {
+	id: string;
+	status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+	startDate: string;
+	endDate: string | null;
+	updatedAt: string;
+	createdBy: {
+		name: string | null;
+		phone: string;
+	};
+	items: {
+		quantity: number;
+		product: {
+			name: string;
+		};
+	}[];
+}
+
 export interface ProductionDataPayload {
 	stats?: {
 		pendingCount: number;
 	};
+	// [修改] tasks 数组现在是两种“摘要”类型的联合
 	tasks: (
-		| ProductionTaskDto
-		| (PrepTask & {
+		| ProductionTaskSummaryDto
+		| (PrepTaskSummary & {
 				status: 'PREP';
 		  })
 	)[];
@@ -67,14 +88,14 @@ export interface ProductionDataPayload {
 // --- 认证与用户 ---
 export interface LoginRes {
 	accessToken: string;
-	redirectTo?: string; // [核心新增] 新增可选的重定向路径
+	redirectTo?: string;
 }
 
 export interface UserInfo {
 	id: string;
 	phone: string;
 	name: string | null;
-	avatarUrl: string | null; // [核心新增] 新增用户头像URL
+	avatarUrl: string | null;
 	role: Role;
 	status: string;
 	createdAt: string;
@@ -88,7 +109,7 @@ export interface UserInfo {
 export interface Tenant {
 	id: string;
 	name: string;
-	status: 'ACTIVE' | 'INACTIVE'; // [核心新增] 店铺状态
+	status: 'ACTIVE' | 'INACTIVE';
 }
 
 // --- 邀请 ---
@@ -102,51 +123,46 @@ export interface RecipeFamily {
 	id: string;
 	name: string;
 	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
-	category: RecipeCategory; // [核心新增] 增加品类字段
-	deletedAt: string | null; // [修复] 使用 deletedAt 判断状态
+	category: RecipeCategory;
+	deletedAt: string | null;
 	versions: RecipeVersion[];
-	productionCount?: number; // [修复] 恢复误删除的字段
+	productionCount?: number;
 	productionTaskCount?: number;
-	// [核心新增] 新增由后端计算好的聚合字段
 	productCount?: number;
 	ingredientCount?: number;
-	usageCount?: number; // 新增: 配方被引用的次数
+	usageCount?: number;
 }
 
-// [核心新增] 定义配方列表接口的返回类型
 export interface RecipesListResponse {
 	mainRecipes: RecipeFamily[];
-	preDoughs: RecipeFamily[]; // 修改: otherRecipes -> preDoughs
-	extras: RecipeFamily[]; // 新增: extras
+	preDoughs: RecipeFamily[];
+	extras: RecipeFamily[];
 }
 
-// [核心修改] 更新表单模板类型以匹配后端
 export interface RecipeFormTemplate {
 	name: string;
 	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
-	category?: RecipeCategory; // [核心新增] 增加可选的品类字段
+	category?: RecipeCategory;
 	notes: string;
 	targetTemp?: number;
-	// [核心修改] `doughs` 重命名为 `components` 以匹配前端实现
 	components?: {
 		id: string;
 		name: string;
 		type: 'MAIN_DOUGH' | 'PRE_DOUGH' | 'BASE_COMPONENT';
 		lossRatio?: number;
-		divisionLoss?: number; // [核心新增] 新增分割定额损耗字段
+		divisionLoss?: number;
 		flourRatioInMainDough?: number;
 		ingredients: {
 			id: string | null;
 			name: string;
 			ratio: number | null;
 			isRecipe?: boolean;
-			isFlour?: boolean; // [核心新增] 增加 isFlour 字段
-			waterContent?: number; // [核心新增] 增加 waterContent 字段
+			isFlour?: boolean;
+			waterContent?: number;
 		}[];
 		procedure: string[];
 	}[];
 	products?: {
-		// 主配方使用
 		name: string;
 		baseDoughWeight: number;
 		mixIns: {
@@ -155,7 +171,7 @@ export interface RecipeFormTemplate {
 			ratio: number | null;
 			weightInGrams?: number | null;
 			isRecipe?: boolean;
-			waterContent?: number; // [核心新增] 增加 waterContent 字段
+			waterContent?: number;
 		}[];
 		fillings: {
 			id: string | null;
@@ -163,7 +179,7 @@ export interface RecipeFormTemplate {
 			ratio: number | null;
 			weightInGrams?: number | null;
 			isRecipe?: boolean;
-			waterContent?: number; // [核心新增] 增加 waterContent 字段
+			waterContent?: number;
 		}[];
 		toppings: {
 			id: string | null;
@@ -171,20 +187,19 @@ export interface RecipeFormTemplate {
 			ratio: number | null;
 			weightInGrams?: number | null;
 			isRecipe?: boolean;
-			waterContent?: number; // [核心新增] 增加 waterContent 字段
+			waterContent?: number;
 		}[];
 		procedure: string[];
 	}[];
 	ingredients?: {
-		// 其他配方使用
 		id: string | null;
 		name: string;
 		ratio: number | null;
 		isRecipe?: boolean;
-		isFlour?: boolean; // [核心新增] 增加 isFlour 字段
-		waterContent?: number; // [核心新增] 增加 waterContent 字段
+		isFlour?: boolean;
+		waterContent?: number;
 	}[];
-	procedure?: string[]; // 其他配方使用
+	procedure?: string[];
 }
 
 export interface RecipeVersion {
@@ -196,10 +211,9 @@ export interface RecipeVersion {
 	createdAt: string;
 	products: Product[];
 	components: {
-		// [核心重命名] doughs -> components
 		id: string;
 		name: string;
-		ingredients: ComponentIngredient[]; // [核心重命名]
+		ingredients: ComponentIngredient[];
 		procedure: string[];
 		_count: {
 			ingredients: number;
@@ -207,7 +221,6 @@ export interface RecipeVersion {
 	}[];
 }
 
-// [核心重命名] DoughIngredient -> ComponentIngredient
 export interface ComponentIngredient {
 	id: string;
 	ratio: number | null;
@@ -223,7 +236,6 @@ export interface ComponentIngredient {
 		name: string;
 		versions: {
 			components: {
-				// [核心重命名] doughs -> components
 				ingredients: {
 					ratio: number;
 					ingredient: {
@@ -249,17 +261,15 @@ export interface ProductListItem {
 	name: string;
 }
 
-// [核心改造] 为 getProductsForTasks 接口定义新的、按品类分组的返回类型
 export type ProductsForTaskResponse = Record<RecipeCategory, Record<string, ProductListItem[]>>;
 
 export interface CalculatedIngredientInfo {
-	id: string; // [核心新增] 为原料信息增加ID，用于DOM-key
+	id: string;
 	name: string;
 	ratio: number;
 	weightInGrams: number;
 	pricePerKg: number;
 	cost: number;
-	// [核心新增] 增加一个可选的 extraInfo 字段
 	extraInfo?: string;
 }
 export interface CalculatedDoughGroup {
@@ -281,7 +291,7 @@ export interface RecipeDetails {
 	doughGroups: CalculatedDoughGroup[];
 	extraIngredients: CalculatedExtraIngredientInfo[];
 	groupedExtraIngredients: Record<string, CalculatedExtraIngredientInfo[]>;
-	productProcedure: string[]; // [核心新增] 增加产品制作要点字段
+	productProcedure: string[];
 }
 
 // --- 原料与库存 ---
@@ -301,7 +311,6 @@ export interface Ingredient {
 	totalConsumptionInGrams: number;
 }
 
-// [核心新增] 定义原料列表接口的返回类型
 export interface IngredientsListResponse {
 	allIngredients: Ingredient[];
 	lowStockIngredients: Ingredient[];
@@ -324,7 +333,6 @@ export interface ProcurementRecord {
 	purchaseDate: string;
 }
 
-// [修改] 更新库存流水条目类型以包含损耗
 export interface IngredientLedgerEntry {
 	date: string;
 	type: '采购入库' | '生产消耗' | '库存调整' | '生产损耗';
@@ -333,7 +341,6 @@ export interface IngredientLedgerEntry {
 	operator: string;
 }
 
-// [核心新增] 定义库存流水接口的完整响应类型
 export interface IngredientLedgerResponse {
 	data: IngredientLedgerEntry[];
 	meta: {
@@ -345,17 +352,15 @@ export interface IngredientLedgerResponse {
 }
 
 // --- 生产任务 ---
+// [修改] 这是“完整”的任务详情类型，仅用于详情页
 export interface ProductionTaskDto {
 	id: string;
 	status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-	// [修改] plannedDate -> startDate, 新增 endDate
 	startDate: string;
 	endDate: string | null;
-	// [新增] 任务的实际完成时间
 	completedAt: string | null;
-	updatedAt: string; // [新增] 任务最后更新时间
+	updatedAt: string;
 	notes: string | null;
-	// [核心新增] 创建任务的用户信息
 	createdBy: {
 		name: string | null;
 		phone: string;
@@ -373,7 +378,6 @@ export interface ProductionTaskDto {
 					name: string;
 				};
 				components: {
-					// [核心重命名] doughs -> components
 					id: string;
 					name: string;
 					ingredients: ComponentIngredient[];
@@ -381,11 +385,9 @@ export interface ProductionTaskDto {
 			};
 		};
 	}[];
-	// [新增] 库存警告信息
 	stockWarning?: string;
 }
 
-// [新增] 创建生产任务的响应类型
 export interface CreateTaskResponse {
 	task: ProductionTaskDto;
 	warning?: string;
@@ -401,7 +403,6 @@ export interface Member {
 	joinDate: string;
 }
 
-// [核心新增] 定义所有者获取全部成员列表的接口响应类型
 export interface TenantWithMembers {
 	tenantId: string;
 	tenantName: string;
@@ -428,7 +429,6 @@ export interface ProductionStatsResponse {
 	ingredientConsumption: IngredientStatDto[];
 }
 
-// [核心新增] 定义客户端看板数据类型
 export interface DashboardStats {
 	totalTenants?: number;
 	totalUsers: number;
@@ -437,30 +437,24 @@ export interface DashboardStats {
 	totalTasks: number;
 }
 
-// [核心重构] 为任务详情页增加一个类型，与后端的 TaskDetailResponseDto 对应
-// 定义原料详情的数据结构
 export interface TaskIngredientDetail {
 	id: string;
 	name: string;
 	brand: string | null;
 	weightInGrams: number;
-	// [中文注释] 新增：单个产品的用量，由服务端直接提供
 	weightPerUnit?: number;
 	isRecipe: boolean;
 	extraInfo?: string | null;
 }
 
-// [核心重命名] DoughProductSummary -> ProductComponentSummary
-// 定义组件汇总中每个产品的数据结构
 export interface ProductComponentSummary {
 	id: string;
 	name: string;
 	quantity: number;
-	totalBaseComponentWeight: number; // [核心重命名]
+	totalBaseComponentWeight: number;
 	divisionWeight: number;
 }
 
-// 定义单个产品的详细信息（如辅料、馅料等）
 export interface ProductDetails {
 	id: string;
 	name: string;
@@ -470,35 +464,31 @@ export interface ProductDetails {
 	procedure: string[];
 }
 
-// [核心重命名] DoughGroup -> ComponentGroup
-// 定义按组件类型分组的数据结构
 export interface ComponentGroup {
 	familyId: string;
 	familyName: string;
 	note: string | null;
-	category: RecipeCategory; // [核心新增]
+	category: RecipeCategory;
 	productsDescription: string;
-	totalComponentWeight: number; // [核心重命名]
-	baseComponentIngredients: TaskIngredientDetail[]; // [核心重命名]
-	baseComponentProcedure: string[]; // [核心重命名]
+	totalComponentWeight: number;
+	baseComponentIngredients: TaskIngredientDetail[];
+	baseComponentProcedure: string[];
 	products: ProductComponentSummary[];
 	productDetails: ProductDetails[];
 }
 
-// 定义用于完成任务模态框的产品列表项
 export interface TaskCompletionItem {
 	id: string;
 	name: string;
 	plannedQuantity: number;
 }
 
-// [核心重构] 彻底重写 ProductionTaskDetailDto 以匹配后端 TaskDetailResponseDto
 export interface ProductionTaskDetailDto {
 	id: string;
 	status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 	notes: string | null;
 	stockWarning: string | null;
 	prepTask: PrepTask | null;
-	componentGroups: ComponentGroup[]; // [核心重命名]
+	componentGroups: ComponentGroup[];
 	items: TaskCompletionItem[];
 }
