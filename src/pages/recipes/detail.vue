@@ -24,12 +24,17 @@
 
 		<AppModal v-model:visible="showVersionOptionsModal" title="配方版本" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleActivateVersionOption" :bleed="true">
+				<ListItem v-if="!selectedVersionForAction?.isActive" class="option-item" @click="handleActivateVersionOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">设为使用中</view>
 					</view>
 				</ListItem>
-				<ListItem class="option-item" @click="handleDeleteVersionOption" :bleed="true">
+				<ListItem class="option-item" @click="handleEditVersionOption" :bleed="true">
+					<view class="main-info">
+						<view class="name">修改配方</view>
+					</view>
+				</ListItem>
+				<ListItem v-if="!selectedVersionForAction?.isActive" class="option-item" @click="handleDeleteVersionOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除配方版本</view>
 					</view>
@@ -275,10 +280,19 @@ const handleVersionClick = (versionToDisplay: RecipeVersion) => {
 	displayedVersionId.value = versionToDisplay.id;
 };
 
+// [修改] 移除对 isActive 的检查，允许对使用中的版本进行操作
 const handleVersionLongPressAction = (version: RecipeVersion) => {
-	if (!canEditRecipe.value || version.isActive || !recipeFamily.value) return;
+	if (!canEditRecipe.value || !recipeFamily.value) return;
 	selectedVersionForAction.value = version;
 	showVersionOptionsModal.value = true;
+};
+
+// [新增] “修改配方”选项的处理器
+const handleEditVersionOption = () => {
+	showVersionOptionsModal.value = false;
+	if (recipeFamily.value && selectedVersionForAction.value) {
+		navigateToEditPage(recipeFamily.value.id, 'edit', selectedVersionForAction.value.id);
+	}
 };
 
 const handleActivateVersionOption = () => {

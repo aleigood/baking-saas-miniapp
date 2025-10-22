@@ -13,7 +13,7 @@
 				:selected="selectedVersionId === version.id"
 				@click="$emit('select-version', version)"
 				@longpress="$emit('longpress-version', version)"
-				:vibrate-on-long-press="canEdit && !version.isActive"
+				:vibrate-on-long-press="canEdit"
 				:bleed="true"
 				:divider="true"
 			>
