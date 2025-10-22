@@ -170,14 +170,19 @@
 			<FormItem label="库存变化量 (kg)">
 				<input class="input-field" type="digit" v-model="stockAdjustment.changeInKg" placeholder="正数代表盘盈，负数代表损耗" />
 			</FormItem>
-			<FormItem v-if="isInitialStockEntry" label="期初单价 (元/kg)">
-				<input class="input-field" type="digit" v-model="stockAdjustment.initialCostPerKg" placeholder="输入估算单价" />
+			<FormItem label="调整原因">
+				<picker mode="selector" :range="adjustmentReasons" @change="onReasonChange">
+					<view class="picker">
+						{{ stockAdjustment.reason || '请选择原因' }}
+						<view class="arrow-down"></view>
+					</view>
+				</picker>
 			</FormItem>
-			<FormItem label="调整原因 (可选)">
-				<view class="reason-tags">
-					<FilterTabs v-model="stockAdjustment.reason" :tabs="presetReasonTabs" size="sm" />
-				</view>
-				<input class="input-field" v-model="stockAdjustment.reason" placeholder="或手动输入原因" />
+			<FormItem v-if="stockAdjustment.reason === '其他'" label=" ">
+				<input class="input-field" v-model="stockAdjustment.customReason" placeholder="请输入具体原因" />
+			</FormItem>
+			<FormItem v-if="stockAdjustment.reason === '初次录入'" label="初期单价 (元/kg)">
+				<input class="input-field" type="digit" v-model="stockAdjustment.initialCostPerKg" placeholder="输入估算单价" />
 			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showUpdateStockConfirmModal = false">取消</AppButton>
@@ -198,7 +203,6 @@ import { useToastStore } from '@/store/toast';
 import type { Ingredient, IngredientSKU, ProcurementRecord, IngredientLedgerEntry } from '@/types/api';
 import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteSku, updateProcurement, adjustStock, getIngredientLedger } from '@/api/ingredients';
 import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
-// [中文注释] 核心修正：从公共文件导入 getLocalDate
 import { getLocalDate } from '@/utils/format';
 import AppModal from '@/components/AppModal.vue';
 import FormItem from '@/components/FormItem.vue';
@@ -213,7 +217,6 @@ import IngredientProcurementList from '@/components/IngredientProcurementList.vu
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
-// [修改] 导入 multiply 函数
 import { formatChineseDate, formatDateTime, formatNumber, formatWeight, multiply } from '@/utils/format';
 
 defineOptions({
@@ -272,7 +275,7 @@ const scrollThreshold = 5;
 
 const ingredientForm = reactive<{
 	name: string;
-	type: 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED'; // [修改]
+	type: 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
 	isFlour: boolean;
 	waterContent: number | null;
 }>({
@@ -297,25 +300,22 @@ const editProcurementForm = reactive<{
 	totalPrice: null
 });
 
+// [核心修改] 为库存调整表单增加自定义原因字段
 const stockAdjustment = reactive<{
 	changeInKg: number | null;
 	reason: string;
+	customReason: string; // [新增] 用于存储“其他”原因的文本
 	initialCostPerKg?: number | null;
 }>({
 	changeInKg: null,
 	reason: '',
+	customReason: '',
 	initialCostPerKg: null
 });
 
-const presetReasonTabs = computed(() => {
-	const reasons = ['盘点损耗', '盘点盈余', '过期损耗', '包装破损'];
-	return reasons.map((reason) => ({
-		key: reason,
-		label: reason
-	}));
-});
+// [新增] 定义库存调整原因的固定列表
+const adjustmentReasons = ['初次录入', '盘盈', '盘亏', '过期损耗', '其他'];
 
-// [新增] 动态计算可见的图表标签
 const visibleChartTabs = computed(() => {
 	if (ingredient.value?.type === 'UNTRACKED') {
 		return [{ key: 'usage', label: '用量走势' }];
@@ -323,25 +323,22 @@ const visibleChartTabs = computed(() => {
 	return chartTabs.value;
 });
 
-const isInitialStockEntry = computed(() => {
-	return ingredient.value?.currentStockInGrams === 0 && (stockAdjustment.changeInKg || 0) > 0;
-});
+// [删除] 不再需要 isInitialStockEntry 计算属性，逻辑已更改
+// const isInitialStockEntry = computed(() => {
+// 	return ingredient.value?.currentStockInGrams === 0 && (stockAdjustment.changeInKg || 0) > 0;
+// });
 
-// [修改] 动态生成 FAB 按钮
 const fabActions = computed(() => {
 	if (!ingredient.value) return [];
 	const currentUserRole = userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role;
 	const actions = [];
 
-	// 增加采购：适用于追踪成本的原料
 	if (ingredient.value.type === 'STANDARD' || ingredient.value.type === 'NON_INVENTORIED') {
 		actions.push({ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() });
 	}
 
-	// 编辑属性：所有类型都可用
 	actions.push({ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() });
 
-	// 库存调整：仅适用于追踪库存的原料，并且需要权限
 	if (ingredient.value.type === 'STANDARD' && (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN')) {
 		actions.push({ icon: '/static/icons/adjust.svg', text: '库存调整', action: () => openUpdateStockModal() });
 	}
@@ -401,7 +398,6 @@ const loadIngredientData = async (id: string) => {
 		ingredientForm.isFlour = ingredientData.isFlour;
 		ingredientForm.waterContent = ingredientData.waterContent * 100;
 
-		// [修改] 如果是非追踪原料，默认tab为用量
 		if (ingredientData.type === 'UNTRACKED') {
 			detailChartTab.value = 'usage';
 		}
@@ -433,7 +429,6 @@ const openEditModal = () => {
 	showEditModal.value = true;
 };
 
-// [修改] 更新原料类型选项
 const availableTypes = ref([
 	{ label: '标准原料 (追踪库存和成本)', value: 'STANDARD' },
 	{ label: '即时采购 (仅追踪成本)', value: 'NON_INVENTORIED' },
@@ -448,7 +443,6 @@ const onTypeChange = (e: any) => {
 	ingredientForm.type = availableTypes.value[e.detail.value].value as 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
 };
 
-// [修改] 使用公共的 multiply 函数进行精确计算
 const ingredientPricePerKg = computed(() => {
 	const ing = ingredient.value;
 	if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
@@ -689,9 +683,16 @@ const openUpdateStockModal = () => {
 	if (ingredient.value) {
 		stockAdjustment.changeInKg = null;
 		stockAdjustment.reason = '';
+		stockAdjustment.customReason = '';
 		stockAdjustment.initialCostPerKg = null;
 		showUpdateStockConfirmModal.value = true;
 	}
+};
+
+// [新增] picker 选择器改变时触发的事件
+const onReasonChange = (e: any) => {
+	const selectedIndex = e.detail.value;
+	stockAdjustment.reason = adjustmentReasons[selectedIndex];
 };
 
 const handleConfirmUpdateStock = async () => {
@@ -700,24 +701,37 @@ const handleConfirmUpdateStock = async () => {
 		toastStore.show({ message: '请输入有效的库存变化量', type: 'error' });
 		return;
 	}
-	if (isInitialStockEntry.value && (!stockAdjustment.initialCostPerKg || stockAdjustment.initialCostPerKg <= 0)) {
-		toastStore.show({ message: '期初库存录入必须填写有效的单价', type: 'error' });
+
+	// [核心修改] 构造并校验最终的原因
+	let finalReason = stockAdjustment.reason;
+	if (stockAdjustment.reason === '其他') {
+		finalReason = stockAdjustment.customReason.trim();
+	}
+	if (!finalReason) {
+		toastStore.show({ message: '请选择或输入一个调整原因', type: 'error' });
+		return;
+	}
+
+	// [核心修改] 根据新的逻辑校验初期单价
+	if (stockAdjustment.reason === '初次录入' && (!stockAdjustment.initialCostPerKg || stockAdjustment.initialCostPerKg <= 0)) {
+		toastStore.show({ message: '初次录入必须填写有效的单价', type: 'error' });
 		return;
 	}
 
 	isSubmitting.value = true;
 	try {
 		const changeInGrams = Number(stockAdjustment.changeInKg) * 1000;
+		// [核心修改] 构建发送到后端的 payload
 		const payload: {
 			changeInGrams: number;
-			reason?: string;
+			reason: string;
 			initialCostPerKg?: number;
 		} = {
 			changeInGrams: changeInGrams,
-			reason: stockAdjustment.reason || undefined
+			reason: finalReason
 		};
 
-		if (isInitialStockEntry.value) {
+		if (stockAdjustment.reason === '初次录入') {
 			payload.initialCostPerKg = stockAdjustment.initialCostPerKg!;
 		}
 
@@ -785,8 +799,11 @@ const handleConfirmUpdateStock = async () => {
 	text-align: right;
 }
 
+/* [删除] 不再需要 reason-tags 样式 */
+/*
 .reason-tags {
 	padding: 10px 0px;
 	margin-bottom: 5px;
 }
+*/
 </style>
