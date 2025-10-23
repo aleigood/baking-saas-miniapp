@@ -66,6 +66,7 @@ export interface ProductionTaskSummaryDto {
 	items: {
 		quantity: number;
 		product: {
+			id: string; // [核心修复] 加上产品 id，与服务端返回数据保持一致
 			name: string;
 		};
 	}[];
