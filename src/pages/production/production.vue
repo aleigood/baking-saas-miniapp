@@ -131,7 +131,7 @@ import IconButton from '@/components/IconButton.vue';
 import AppButton from '@/components/AppButton.vue';
 import CalendarModal from '@/components/CalendarModal.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
-import type { ProductionTaskDto, PrepTask, RecipeCategory } from '@/types/api';
+import type { ProductionTaskDto, PrepTask, RecipeCategory, ProductionTaskSummaryDto } from '@/types/api';
 import { updateTaskStatus, getTaskDates } from '@/api/tasks';
 import { formatChineseDate } from '@/utils/format';
 
@@ -199,7 +199,7 @@ const fabActions = computed(() => {
 const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 
 const isSubmitting = ref(false);
-const selectedTaskForAction = ref<ProductionTaskDto | null>(null);
+const selectedTaskForAction = ref<ProductionTaskSummaryDto | null>(null);
 const showCancelConfirmModal = ref(false);
 const showTaskActionsModal = ref(false);
 const showTemperatureSettingsModal = ref(false);
@@ -302,26 +302,49 @@ const handleDateSelect = async (date: string) => {
 	await dataStore.fetchProductionData(date);
 };
 
-const getTaskTitle = (task: ProductionTaskDto | PrepTask) => {
+const getTaskTitle = (task: ProductionTaskSummaryDto | PrepTask) => {
 	if (task.status === 'PREP') {
 		return (task as PrepTask).title;
 	}
-	const regularTask = task as ProductionTaskDto;
+	const regularTask = task as ProductionTaskSummaryDto;
 	if (!regularTask.items || regularTask.items.length === 0) return '未知任务';
 	return regularTask.items.map((item) => `${item.product.name} x${item.quantity}`).join('、');
 };
 
-const getTotalQuantity = (task: ProductionTaskDto) => {
+const getTotalQuantity = (task: ProductionTaskSummaryDto) => {
 	if (!task.items) return 0;
 	return task.items.reduce((sum, item) => sum + item.quantity, 0);
 };
 
+// [核心修改] 更新 getTaskDetails 函数以支持跨天任务的日期范围显示
 const getTaskDetails = (task: any) => {
 	if (task.status === 'PREP') {
 		return task.details;
 	}
-	const regularTask = task as ProductionTaskDto;
-	const formattedDate = formatChineseDate(regularTask.startDate);
+
+	const regularTask = task as ProductionTaskSummaryDto;
+	let formattedDate: string;
+
+	const startDateStr = regularTask.startDate.split('T')[0];
+	const endDateStr = regularTask.endDate ? regularTask.endDate.split('T')[0] : startDateStr;
+
+	if (regularTask.endDate && startDateStr !== endDateStr) {
+		const startDate = new Date(regularTask.startDate);
+		const endDate = new Date(regularTask.endDate);
+		const startMonth = startDate.getMonth() + 1;
+		const startDay = startDate.getDate();
+		const endMonth = endDate.getMonth() + 1;
+		const endDay = endDate.getDate();
+
+		if (startMonth === endMonth) {
+			formattedDate = `${startMonth}月${startDay}日 - ${endDay}日`;
+		} else {
+			formattedDate = `${startMonth}月${startDay}日 - ${endMonth}月${endDay}日`;
+		}
+	} else {
+		formattedDate = formatChineseDate(regularTask.startDate);
+	}
+
 	const creator = regularTask.createdBy?.name || regularTask.createdBy?.phone || '未知';
 	const totalQuantity = getTotalQuantity(regularTask);
 	return `${formattedDate} - by ${creator} | 计划总数: ${totalQuantity}`;
@@ -332,9 +355,7 @@ const navigateToDetail = (task: any) => {
 	isNavigating.value = true;
 
 	const isPrepTask = task.status === 'PREP';
-	// [核心修改] 改造导航逻辑
 	if (isPrepTask) {
-		// [修改] 不再传递庞大的 taskData 对象，只传递当前选择的日期
 		uni.navigateTo({ url: `/pages/production/prep-detail?date=${selectedDate.value}` });
 	} else {
 		uni.navigateTo({ url: `/pages/production/detail?taskId=${task.id}` });
@@ -349,7 +370,7 @@ const navigateToHistory = () => {
 
 const openTaskActions = (task: any) => {
 	if (task.status === 'PREP') return;
-	selectedTaskForAction.value = task as ProductionTaskDto;
+	selectedTaskForAction.value = task as ProductionTaskSummaryDto;
 	showTaskActionsModal.value = true;
 };
 
