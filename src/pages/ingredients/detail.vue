@@ -55,7 +55,7 @@
 			</view>
 			<view class="form-row">
 				<label class="form-row-label">含水量 (%)</label>
-				<input class="input-field" type="number" v-model="ingredientForm.waterContent" placeholder="例如: 75" />
+				<input class="input-field" type="digit" v-model="ingredientForm.waterContent" placeholder="例如: 75" />
 			</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditModal = false">取消</AppButton>
@@ -73,7 +73,7 @@
 				<input class="input-field" v-model="newSkuForm.specName" placeholder="例如：1kg袋装" />
 			</FormItem>
 			<FormItem label="规格重量 (g)">
-				<input class="input-field" type="number" v-model="newSkuForm.specWeightInGrams" placeholder="例如：1000" />
+				<input class="input-field" type="digit" v-model="newSkuForm.specWeightInGrams" placeholder="例如：1000" />
 			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showAddSkuModal = false">取消</AppButton>
@@ -91,7 +91,7 @@
 				<input class="input-field" type="number" v-model="procurementForm.packagesPurchased" placeholder="例如：10包" />
 			</FormItem>
 			<FormItem label="采购总价 (元)">
-				<input class="input-field" type="number" v-model="procurementForm.totalPrice" placeholder="例如：255" />
+				<input class="input-field" type="digit" v-model="procurementForm.totalPrice" placeholder="例如：255" />
 			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showProcurementModal = false">取消</AppButton>
@@ -156,7 +156,7 @@
 				<input class="input-field" :value="`${editProcurementForm.packagesPurchased} 包`" readonly disabled />
 			</FormItem>
 			<FormItem label="采购总价 (元)">
-				<input class="input-field" type="number" v-model="editProcurementForm.totalPrice" placeholder="输入总价" />
+				<input class="input-field" type="digit" v-model="editProcurementForm.totalPrice" placeholder="输入总价" />
 			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditProcurementModal = false">取消</AppButton>

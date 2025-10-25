@@ -316,14 +316,14 @@ const getTotalQuantity = (task: ProductionTaskSummaryDto) => {
 	return task.items.reduce((sum, item) => sum + item.quantity, 0);
 };
 
-// [核心修改] 更新 getTaskDetails 函数以支持跨天任务的日期范围显示
+// [核心修改] 重新规划副标题格式，统一单日和跨天任务的显示逻辑
 const getTaskDetails = (task: any) => {
 	if (task.status === 'PREP') {
 		return task.details;
 	}
 
 	const regularTask = task as ProductionTaskSummaryDto;
-	let formattedDate: string;
+	let dateDisplay: string;
 
 	const startDateStr = regularTask.startDate.split('T')[0];
 	const endDateStr = regularTask.endDate ? regularTask.endDate.split('T')[0] : startDateStr;
@@ -337,17 +337,19 @@ const getTaskDetails = (task: any) => {
 		const endDay = endDate.getDate();
 
 		if (startMonth === endMonth) {
-			formattedDate = `${startMonth}月${startDay}日 - ${endDay}日`;
+			dateDisplay = `${startMonth}月${startDay}日-${endDay}日`;
 		} else {
-			formattedDate = `${startMonth}月${startDay}日 - ${endMonth}月${endDay}日`;
+			dateDisplay = `${startMonth}月${startDay}日-${endMonth}月${endDay}日`;
 		}
 	} else {
-		formattedDate = formatChineseDate(regularTask.startDate);
+		// 对于单日任务，直接使用中文日期格式
+		dateDisplay = formatChineseDate(regularTask.startDate);
 	}
 
-	const creator = regularTask.createdBy?.name || regularTask.createdBy?.phone || '未知';
 	const totalQuantity = getTotalQuantity(regularTask);
-	return `${formattedDate} - by ${creator} | 计划总数: ${totalQuantity}`;
+	const creator = regularTask.createdBy?.name || regularTask.createdBy?.phone || '未知';
+
+	return `${dateDisplay} 总数: ${totalQuantity} | by ${creator}`;
 };
 
 const navigateToDetail = (task: any) => {

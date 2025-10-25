@@ -332,7 +332,7 @@ const recipeCategories = ref([
 
 const recipeTypes = ref([
 	{ label: '面种', value: 'PRE_DOUGH' },
-	{ label: '原料', value: 'EXTRA' }
+	{ label: '馅料', value: 'EXTRA' }
 ]);
 
 const currentCategoryLabel = computed(() => {
