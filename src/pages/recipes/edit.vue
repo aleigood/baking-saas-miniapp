@@ -60,13 +60,13 @@
 						<span class="card-title">{{ mainComponentTitle }}</span>
 					</view>
 					<FormItem v-if="form.category === 'BREAD'" label="面团出缸温度 (°C)">
-						<input class="input-field" type="number" v-model="form.targetTemp" placeholder="例如: 26" />
+						<input class="input-field" type="digit" v-model="form.targetTemp" placeholder="例如: 26" />
 					</FormItem>
 					<FormItem label="工艺损耗率 (%)">
-						<input class="input-field" type="number" v-model="mainComponent.lossRatio" placeholder="例如: 1" />
+						<input class="input-field" type="digit" v-model="mainComponent.lossRatio" placeholder="例如: 1" />
 					</FormItem>
 					<FormItem v-if="form.type === 'MAIN'" label="分割定额损耗 (g)">
-						<input class="input-field" type="number" v-model="mainComponent.divisionLoss" placeholder="例如: 2" />
+						<input class="input-field" type="digit" v-model="mainComponent.divisionLoss" placeholder="例如: 2" />
 					</FormItem>
 					<view class="ingredient-header">
 						<text class="col-name">原料名称</text>
@@ -86,7 +86,7 @@
 								:tag-style="ing.name === '水' && showTotalWaterTag ? { backgroundColor: '#e0efff', color: '#00529b' } : {}"
 							/>
 						</view>
-						<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
+						<input class="input-field ratio-input" type="digit" v-model="ing.ratio" placeholder="%" />
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
 							<image class="remove-icon" src="/static/icons/trash.svg" />
 						</IconButton>
@@ -124,7 +124,7 @@
 								<input class="input-field" v-model="product.name" :placeholder="`产品${prodIndex + 1}`" />
 							</FormItem>
 							<FormItem label="基础原料克重 (g)">
-								<input class="input-field" type="number" v-model="product.baseDoughWeight" placeholder="例如: 100" />
+								<input class="input-field" type="digit" v-model="product.baseDoughWeight" placeholder="例如: 100" />
 							</FormItem>
 
 							<view class="sub-group">
@@ -140,7 +140,7 @@
 											:show-tag="ing.isRecipe"
 										/>
 									</view>
-									<input class="input-field ratio-input" type="number" v-model="ing.ratio" placeholder="%" />
+									<input class="input-field ratio-input" type="digit" v-model="ing.ratio" placeholder="%" />
 									<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
 										<image class="remove-icon" src="/static/icons/trash.svg" />
 									</IconButton>
@@ -161,7 +161,7 @@
 											:show-tag="ing.isRecipe"
 										/>
 									</view>
-									<input class="input-field ratio-input" type="number" v-model="ing.weightInGrams" placeholder="g/个" />
+									<input class="input-field ratio-input" type="digit" v-model="ing.weightInGrams" placeholder="g/个" />
 									<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'fillings', ingIndex)">
 										<image class="remove-icon" src="/static/icons/trash.svg" />
 									</IconButton>
@@ -182,7 +182,7 @@
 											:show-tag="ing.isRecipe"
 										/>
 									</view>
-									<input class="input-field ratio-input" type="number" v-model="ing.weightInGrams" placeholder="g/个" />
+									<input class="input-field ratio-input" type="digit" v-model="ing.weightInGrams" placeholder="g/个" />
 									<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'toppings', ingIndex)">
 										<image class="remove-icon" src="/static/icons/trash.svg" />
 									</IconButton>
@@ -222,7 +222,7 @@
 				</picker>
 			</FormItem>
 			<FormItem label="面种中面粉占总面粉的百分比 (%)">
-				<input class="input-field" type="number" v-model="preDoughFlourRatio" placeholder="例如：20" />
+				<input class="input-field" type="digit" v-model="preDoughFlourRatio" placeholder="例如：20" />
 			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showAddPreDoughModal = false">取消</AppButton>

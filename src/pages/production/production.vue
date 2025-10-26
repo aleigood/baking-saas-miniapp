@@ -97,15 +97,15 @@
 				</view>
 				<view class="form-item">
 					<view class="form-label">环境温度 (°C)</view>
-					<input class="input-field" type="number" v-model="tempSettings.envTemp" placeholder="输入温度" />
+					<input class="input-field" type="digit" v-model="tempSettings.envTemp" placeholder="输入温度" />
 				</view>
 				<view class="form-item">
 					<view class="form-label">面粉温度 (°C)</view>
-					<input class="input-field" type="number" v-model="tempSettings.flourTemp" placeholder="输入温度" />
+					<input class="input-field" type="digit" v-model="tempSettings.flourTemp" placeholder="输入温度" />
 				</view>
 				<view class="form-item">
 					<view class="form-label">水温 (°C)</view>
-					<input class="input-field" type="number" v-model="tempSettings.waterTemp" placeholder="输入温度" />
+					<input class="input-field" type="digit" v-model="tempSettings.waterTemp" placeholder="输入温度" />
 				</view>
 			</view>
 			<view class="modal-actions">

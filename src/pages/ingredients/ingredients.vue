@@ -116,7 +116,7 @@
 			</view>
 			<view class="form-row">
 				<label class="form-row-label">含水量 (%)</label>
-				<input class="input-field" type="number" v-model="newIngredientForm.waterContent" placeholder="例如: 75" />
+				<input class="input-field" type="digit" v-model="newIngredientForm.waterContent" placeholder="例如: 75" />
 			</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showCreateIngredientModal = false">取消</AppButton>
