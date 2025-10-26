@@ -164,6 +164,7 @@ export interface RecipeFormTemplate {
 		procedure: string[];
 	}[];
 	products?: {
+		id?: string; // [核心修改] 增加可选的 id 字段
 		name: string;
 		baseDoughWeight: number;
 		mixIns: {

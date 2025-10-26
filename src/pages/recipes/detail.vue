@@ -214,25 +214,29 @@ const canEditRecipe = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
 
+// [核心修改] 更新 navigateToEditPage 逻辑，使其在编辑模式下传递 versionId
 const navigateToEditPage = async (familyId: string | null, mode: 'edit' | 'newVersion', versionId?: string) => {
 	if (!familyId || !displayedVersion.value || !recipeFamily.value) return;
 
 	try {
+		// 在“编辑”或“新建版本”模式下，都使用 versionId (如果提供了) 作为源版本ID
+		// 如果 versionId 未提供 (通常是新建版本时)，则使用当前显示的 displayedVersion.value.id
 		const sourceVersionId = versionId || displayedVersion.value.id;
 		const formTemplate = await getRecipeVersionFormTemplate(familyId, sourceVersionId);
 		uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
 
 		const baseUrl = '/pages/recipes/edit';
 		let url = `${baseUrl}?familyId=${familyId}&mode=${mode}`;
-		if (versionId) {
+		// 只有在“编辑”模式下才需要传递 versionId 给编辑页面
+		if (mode === 'edit' && versionId) {
 			url += `&versionId=${versionId}`;
 		}
 
 		uni.navigateTo({ url });
 	} catch (error) {
-		console.error('准备新版本数据失败:', error);
+		console.error('准备编辑/新版本数据失败:', error); // [核心修改] 调整错误提示
 		toastStore.show({
-			message: '准备新版本数据失败',
+			message: mode === 'edit' ? '加载配方数据失败' : '准备新版本数据失败', // [核心修改] 区分错误提示
 			type: 'error'
 		});
 	}
@@ -272,22 +276,26 @@ const handleCreateVersion = () => {
 	if (recipeFamily.value) navigateToEditPage(recipeFamily.value.id, 'newVersion', displayedVersion.value?.id);
 };
 
+// [核心修改] FAB 按钮的点击处理函数，确保编辑的是当前显示的 version
 const handleEditSelectedVersion = () => {
-	if (recipeFamily.value) navigateToEditPage(recipeFamily.value.id, 'edit', displayedVersion.value?.id);
+	if (recipeFamily.value && displayedVersion.value) {
+		// 使用 displayedVersion.value.id
+		navigateToEditPage(recipeFamily.value.id, 'edit', displayedVersion.value.id);
+	}
 };
 
 const handleVersionClick = (versionToDisplay: RecipeVersion) => {
 	displayedVersionId.value = versionToDisplay.id;
 };
 
-// [修改] 移除对 isActive 的检查，允许对使用中的版本进行操作
+// [核心修改] 移除对 isActive 的检查，允许对使用中的版本进行操作
 const handleVersionLongPressAction = (version: RecipeVersion) => {
 	if (!canEditRecipe.value || !recipeFamily.value) return;
 	selectedVersionForAction.value = version;
 	showVersionOptionsModal.value = true;
 };
 
-// [新增] “修改配方”选项的处理器
+// [核心新增] “修改配方”选项的处理器
 const handleEditVersionOption = () => {
 	showVersionOptionsModal.value = false;
 	if (recipeFamily.value && selectedVersionForAction.value) {

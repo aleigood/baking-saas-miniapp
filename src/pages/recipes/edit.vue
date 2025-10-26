@@ -65,7 +65,6 @@
 					<FormItem label="工艺损耗率 (%)">
 						<input class="input-field" type="number" v-model="mainComponent.lossRatio" placeholder="例如: 1" />
 					</FormItem>
-					<!-- [核心修改] 增加 v-if="form.type === 'MAIN'" 条件判断，确保只在主配方时显示 -->
 					<FormItem v-if="form.type === 'MAIN'" label="分割定额损耗 (g)">
 						<input class="input-field" type="number" v-model="mainComponent.divisionLoss" placeholder="例如: 2" />
 					</FormItem>
@@ -258,7 +257,8 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import AutocompleteInput from '@/components/AutocompleteInput.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
-import type { RecipeFamily, RecipeFormTemplate, RecipeCategory, ComponentTemplate } from '@/types/api'; // [核心重命名]
+// [核心修改] 引入 RecipeFormTemplate 中的 Product 定义
+import type { RecipeFamily, RecipeFormTemplate, RecipeCategory, ComponentTemplate, Product as RecipeFormProduct } from '@/types/api';
 import { formatNumber, toDecimal } from '@/utils/format';
 import { predefinedIngredients } from '@/utils/predefinedIngredients';
 
@@ -292,7 +292,8 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const form = ref<Omit<RecipeFormTemplate, 'ingredients' | 'procedure'> & { targetTemp?: number | null }>({
+// [核心修改] 更新 form 的类型，使其 products 数组能包含 id
+const form = ref<Omit<RecipeFormTemplate, 'ingredients' | 'procedure' | 'products'> & { targetTemp?: number | null; products?: RecipeFormProduct[] }>({
 	name: '',
 	type: 'MAIN',
 	category: 'BREAD',
@@ -512,7 +513,13 @@ onLoad(async (options) => {
 		const sourceFormJson = uni.getStorageSync('source_recipe_version_form');
 		if (sourceFormJson) {
 			try {
-				form.value = JSON.parse(sourceFormJson);
+				const parsedForm = JSON.parse(sourceFormJson);
+				// [核心修改] 确保 products 被正确解析并赋值
+				form.value = {
+					...parsedForm,
+					// 确保 products 数组被正确赋值，即使源数据没有 products
+					products: parsedForm.products || []
+				};
 
 				if (form.value.products && form.value.products.length > 0) {
 					activeProductTab.value = 0;
@@ -654,6 +661,7 @@ const confirmAddPreDough = async () => {
 const addProduct = () => {
 	if (!form.value.products) form.value.products = [];
 	form.value.products.push({
+		// id: undefined, // 新增产品时 id 为 undefined
 		name: '',
 		baseDoughWeight: 100,
 		mixIns: [],
@@ -782,7 +790,9 @@ const handleSubmit = async () => {
 			divisionLoss: Number(mainComponentFromForm.divisionLoss || 0),
 			procedure: mainComponentFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
+			// [核心修改] 映射 products 时，包含 p.id (如果存在)
 			products: form.value.products!.map((p) => ({
+				id: p.id, // 包含 id
 				name: p.name,
 				weight: Number(p.baseDoughWeight),
 				procedure: p.procedure.filter((step) => step && step.trim()),
