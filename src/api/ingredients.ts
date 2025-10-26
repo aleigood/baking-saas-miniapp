@@ -4,7 +4,8 @@
  */
 import { request } from '@/utils/request';
 // [核心修改] 导入新的分页响应类型
-import type { Ingredient, IngredientLedgerResponse, IngredientsListResponse } from '@/types/api';
+// [修改] 导入 UpdateSkuDto
+import type { Ingredient, IngredientLedgerResponse, IngredientsListResponse, UpdateSkuDto } from '@/types/api';
 
 /**
  * 获取当前店铺的原料列表
@@ -107,6 +108,19 @@ export function createSku(ingredientId: string, data: { brand?: string; specName
 	return request({
 		url: `/ingredients/${ingredientId}/skus`,
 		method: 'POST',
+		data
+	});
+}
+
+/**
+ * [新增] 更新一个 SKU
+ * @param skuId SKU的ID
+ * @param data 要更新的数据 (brand, specName, specWeightInGrams)
+ */
+export function updateSku(skuId: string, data: UpdateSkuDto): Promise<any> {
+	return request({
+		url: `/ingredients/skus/${skuId}`,
+		method: 'PATCH',
 		data
 	});
 }

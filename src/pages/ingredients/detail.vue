@@ -83,6 +83,24 @@
 			</view>
 		</AppModal>
 
+		<AppModal v-model:visible="showEditSkuModal" title="修改品牌规格">
+			<FormItem label="品牌">
+				<input class="input-field" v-model="editSkuForm.brand" placeholder="例如：王后" />
+			</FormItem>
+			<FormItem label="规格名称">
+				<input class="input-field" v-model="editSkuForm.specName" placeholder="例如：1kg袋装" />
+			</FormItem>
+			<FormItem label="规格重量 (g)">
+				<input class="input-field" type="digit" v-model="editSkuForm.specWeightInGrams" placeholder="例如：1000" />
+			</FormItem>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showEditSkuModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleUpdateSku" :loading="isSubmitting">
+					{{ isSubmitting ? '保存中...' : '确认保存' }}
+				</AppButton>
+			</view>
+		</AppModal>
+
 		<AppModal v-model:visible="showProcurementModal" title="新增采购">
 			<FormItem label="采购商品">
 				<input class="input-field" :value="activeSkuName" readonly disabled />
@@ -103,12 +121,17 @@
 
 		<AppModal v-model:visible="showSkuOptionsModal" title="品牌与规格" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleActivateSkuOption" :bleed="true">
+				<ListItem class="option-item" @click="handleEditSkuOption" :bleed="true">
+					<view class="main-info">
+						<view class="name">修改品牌规格</view>
+					</view>
+				</ListItem>
+				<ListItem class="option-item" @click="handleActivateSkuOption" :bleed="true" v-if="selectedSkuForAction?.id !== ingredient?.activeSku?.id">
 					<view class="main-info">
 						<view class="name">设为使用中</view>
 					</view>
 				</ListItem>
-				<ListItem class="option-item" @click="handleDeleteSkuOption" :bleed="true">
+				<ListItem class="option-item" @click="handleDeleteSkuOption" :bleed="true" v-if="selectedSkuForAction?.id !== ingredient?.activeSku?.id">
 					<view class="main-info">
 						<view class="name">删除此品牌</view>
 					</view>
@@ -201,7 +224,19 @@ import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
 import type { Ingredient, IngredientSKU, ProcurementRecord, IngredientLedgerEntry } from '@/types/api';
-import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteSku, updateProcurement, adjustStock, getIngredientLedger } from '@/api/ingredients';
+// [修改] 导入 updateSku
+import {
+	getIngredient,
+	createSku,
+	createProcurement,
+	setActiveSku,
+	updateIngredient,
+	deleteSku,
+	updateProcurement,
+	adjustStock,
+	getIngredientLedger,
+	updateSku
+} from '@/api/ingredients';
 import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 import { getLocalDate } from '@/utils/format';
 import AppModal from '@/components/AppModal.vue';
@@ -245,6 +280,22 @@ const newSkuForm = ref<{
 	specName: '',
 	specWeightInGrams: null
 });
+
+// [新增] SKU 编辑模态框
+const showEditSkuModal = ref(false);
+// [新增] SKU 编辑表单
+const editSkuForm = ref<{
+	id: string;
+	brand: string;
+	specName: string;
+	specWeightInGrams: number | null;
+}>({
+	id: '',
+	brand: '',
+	specName: '',
+	specWeightInGrams: null
+});
+
 const showProcurementModal = ref(false);
 const procurementForm = ref<{
 	skuId: string;
@@ -485,6 +536,32 @@ const handleCreateSku = async () => {
 	}
 };
 
+// [新增] 处理 SKU 更新
+const handleUpdateSku = async () => {
+	if (!editSkuForm.value.id || !ingredient.value) return;
+	if (!editSkuForm.value.specName || !editSkuForm.value.specWeightInGrams) {
+		toastStore.show({ message: '请填写规格名称和重量', type: 'error' });
+		return;
+	}
+	isSubmitting.value = true;
+	try {
+		await updateSku(editSkuForm.value.id, {
+			brand: editSkuForm.value.brand,
+			specName: editSkuForm.value.specName,
+			specWeightInGrams: Number(editSkuForm.value.specWeightInGrams)
+		});
+		toastStore.show({ message: '更新成功', type: 'success' });
+		showEditSkuModal.value = false;
+		dataStore.markIngredientsAsStale();
+		await loadIngredientData(ingredient.value.id);
+	} catch (error) {
+		// 错误已被拦截器处理
+		console.error('Failed to update SKU:', error);
+	} finally {
+		isSubmitting.value = false;
+	}
+};
+
 const activeSkuName = computed(() => {
 	if (!ingredient.value?.activeSku) return '无激活SKU';
 	const sku = ingredient.value.activeSku;
@@ -547,10 +624,11 @@ const handleSkuClick = (sku: IngredientSKU) => {
 	selectedSkuId.value = sku.id;
 };
 
+// [修改] 移除对 active SKU 的长按限制
 const handleSkuLongPressAction = (sku: IngredientSKU) => {
-	if (sku.id === ingredient.value?.activeSku?.id) {
-		return;
-	}
+	// if (sku.id === ingredient.value?.activeSku?.id) {
+	// 	return;
+	// }
 	selectedSkuForAction.value = sku;
 	showSkuOptionsModal.value = true;
 };
@@ -562,6 +640,20 @@ const handleActivateSkuOption = () => {
 	} else {
 		toastStore.show({ message: '该规格已在使用中', type: 'info' });
 	}
+};
+
+// [新增] 处理 SKU 编辑选项
+const handleEditSkuOption = () => {
+	if (!selectedSkuForAction.value) return;
+	// 填充表单
+	editSkuForm.value = {
+		id: selectedSkuForAction.value.id,
+		brand: selectedSkuForAction.value.brand || '',
+		specName: selectedSkuForAction.value.specName,
+		specWeightInGrams: selectedSkuForAction.value.specWeightInGrams
+	};
+	showSkuOptionsModal.value = false;
+	showEditSkuModal.value = true;
 };
 
 const handleDeleteSkuOption = () => {
@@ -798,12 +890,4 @@ const handleConfirmUpdateStock = async () => {
 	width: 120px;
 	text-align: right;
 }
-
-/* [删除] 不再需要 reason-tags 样式 */
-/*
-.reason-tags {
-	padding: 10px 0px;
-	margin-bottom: 5px;
-}
-*/
 </style>

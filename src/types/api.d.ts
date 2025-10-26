@@ -335,6 +335,13 @@ export interface ProcurementRecord {
 	purchaseDate: string;
 }
 
+// [核心新增] 定义 SKU 更新的数据类型
+export interface UpdateSkuDto {
+	brand?: string;
+	specName?: string;
+	specWeightInGGrams?: number;
+}
+
 export interface IngredientLedgerEntry {
 	date: string;
 	type: '采购入库' | '生产消耗' | '库存调整' | '生产损耗';

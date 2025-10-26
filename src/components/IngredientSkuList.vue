@@ -10,7 +10,7 @@
 			:selected="selectedSkuId === sku.id"
 			@click="$emit('select', sku)"
 			@longpress="$emit('longpress-sku', sku)"
-			:vibrate-on-long-press="ingredient.activeSku?.id !== sku.id"
+			:vibrate-on-long-press="true"
 			:bleed="true"
 			:divider="true"
 		>
