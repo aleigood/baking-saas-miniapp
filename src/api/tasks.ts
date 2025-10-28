@@ -118,6 +118,18 @@ export function updateTaskStatus(taskId: string, status: 'CANCELLED' | 'IN_PROGR
 	});
 }
 
+// [核心新增] 删除一个“待开始”的生产任务 (软删除)
+/**
+ * 删除一个“待开始”的生产任务 (软删除)
+ * @param taskId 要删除的任务ID
+ */
+export function deleteTask(taskId: string): Promise<any> {
+	return request({
+		url: `/production-tasks/${taskId}`,
+		method: 'DELETE' // 调用后端的 remove 方法
+	});
+}
+
 interface SpoilageDetail {
 	stage: string;
 	quantity: number;

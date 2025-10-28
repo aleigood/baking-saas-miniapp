@@ -65,11 +65,31 @@
 						<view class="name">修改任务</view>
 					</view>
 				</ListItem>
-				<ListItem class="option-item" @click="handleOpenCancelConfirm" :bleed="true">
+				<!-- [核心修改] 根据任务状态显示不同的操作 -->
+				<ListItem v-if="selectedTaskForAction?.status === 'PENDING'" class="option-item" @click="handleOpenDeleteConfirm" :bleed="true">
 					<view class="main-info">
-						<view class="name">取消任务</view>
+						<view class="name danger-text">删除任务</view>
+						<!-- 添加 danger-text 样式 -->
 					</view>
 				</ListItem>
+				<ListItem v-else-if="selectedTaskForAction?.status === 'IN_PROGRESS'" class="option-item" @click="handleOpenCancelConfirm" :bleed="true">
+					<view class="main-info">
+						<view class="name danger-text">取消任务</view>
+						<!-- 添加 danger-text 样式 -->
+					</view>
+				</ListItem>
+			</view>
+		</AppModal>
+
+		<!-- [核心修改] 新增删除确认弹窗 -->
+		<AppModal v-model:visible="showDeleteConfirmModal" title="确认删除">
+			<view class="modal-prompt-text">确定要删除这个任务吗？</view>
+			<view class="modal-warning-text">任务将被移除，此操作不可撤销。</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showDeleteConfirmModal = false">返回</AppButton>
+				<AppButton type="danger" @click="handleConfirmDeleteTask" :loading="isSubmitting">
+					{{ isSubmitting ? '删除中...' : '确认删除' }}
+				</AppButton>
 			</view>
 		</AppModal>
 
@@ -132,7 +152,8 @@ import AppButton from '@/components/AppButton.vue';
 import CalendarModal from '@/components/CalendarModal.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
 import type { ProductionTaskDto, PrepTask, RecipeCategory, ProductionTaskSummaryDto } from '@/types/api';
-import { updateTaskStatus, getTaskDates } from '@/api/tasks';
+// [核心修改] 导入 deleteTask API
+import { updateTaskStatus, getTaskDates, deleteTask } from '@/api/tasks';
 import { formatChineseDate } from '@/utils/format';
 
 const STATUS_MAP = {
@@ -201,6 +222,8 @@ const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(nul
 const isSubmitting = ref(false);
 const selectedTaskForAction = ref<ProductionTaskSummaryDto | null>(null);
 const showCancelConfirmModal = ref(false);
+// [核心修改] 新增删除确认弹窗状态
+const showDeleteConfirmModal = ref(false);
 const showTaskActionsModal = ref(false);
 const showTemperatureSettingsModal = ref(false);
 
@@ -389,9 +412,39 @@ const handleEditTask = () => {
 	});
 };
 
+// [核心修改] 新增打开删除确认弹窗的函数
+const handleOpenDeleteConfirm = () => {
+	showTaskActionsModal.value = false;
+	showDeleteConfirmModal.value = true;
+};
+
 const handleOpenCancelConfirm = () => {
 	showTaskActionsModal.value = false;
 	showCancelConfirmModal.value = true;
+};
+
+// [核心修改] 新增确认删除任务的处理函数
+const handleConfirmDeleteTask = async () => {
+	if (!selectedTaskForAction.value) return;
+	isSubmitting.value = true;
+	try {
+		await deleteTask(selectedTaskForAction.value.id); // 调用删除 API
+
+		dataStore.clearTaskProgress(selectedTaskForAction.value.id);
+
+		toastStore.show({ message: '任务已删除', type: 'success' });
+		dataStore.markProductionAsStale(); // 标记列表数据过时
+
+		// 重新获取数据刷新列表
+		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
+	} catch (error) {
+		console.error('Failed to delete task:', error);
+		// 可以在这里添加更具体的错误提示，例如 toastStore.show({...})
+	} finally {
+		isSubmitting.value = false;
+		showDeleteConfirmModal.value = false; // 关闭删除确认弹窗
+		selectedTaskForAction.value = null;
+	}
 };
 
 const handleConfirmCancelTask = async () => {
@@ -404,7 +457,7 @@ const handleConfirmCancelTask = async () => {
 
 		toastStore.show({ message: '任务已取消', type: 'success' });
 		dataStore.markProductionAsStale();
-		dataStore.markHistoricalTasksAsStale();
+		dataStore.markHistoricalTasksAsStale(); // 取消的任务会进入历史记录
 
 		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} catch (error) {
@@ -578,6 +631,11 @@ const handleSaveTemperatureSettings = () => {
 
 .status-tag.status-prep {
 	background-color: #8e44ad;
+}
+
+/* [核心新增] 删除/取消按钮的危险文本样式 */
+.danger-text {
+	color: var(--danger-color, #e74c3c);
 }
 
 .form-container {
