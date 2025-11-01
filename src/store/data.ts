@@ -192,7 +192,17 @@ export const useDataStore = defineStore('data', () => {
 	}
 
 	async function fetchHistoricalTasks(loadMore = false) {
-		if (!currentTenantId.value || (!loadMore && !dataStale.historicalTasks && dataLoaded.value.historicalTasks) || !historicalTasksMeta.value.hasMore) {
+		// [核心修复] 修正卫语句逻辑
+		// 1. 如果没有租户ID，总
+		if (!currentTenantId.value) {
+			return;
+		}
+		// 2. 如果是“加载更多”，但已经没有更多了，则返回
+		if (loadMore && !historicalTasksMeta.value.hasMore) {
+			return;
+		}
+		// 3. 如果是“刷新”（非加载更多），并且数据不是stale，并且已经加载过，则返回
+		if (!loadMore && !dataStale.historicalTasks && dataLoaded.value.historicalTasks) {
 			return;
 		}
 
