@@ -65,23 +65,19 @@
 						<view class="name">修改任务</view>
 					</view>
 				</ListItem>
-				<!-- [核心修改] 根据任务状态显示不同的操作 -->
 				<ListItem v-if="selectedTaskForAction?.status === 'PENDING'" class="option-item" @click="handleOpenDeleteConfirm" :bleed="true">
 					<view class="main-info">
 						<view class="name danger-text">删除任务</view>
-						<!-- 添加 danger-text 样式 -->
 					</view>
 				</ListItem>
 				<ListItem v-else-if="selectedTaskForAction?.status === 'IN_PROGRESS'" class="option-item" @click="handleOpenCancelConfirm" :bleed="true">
 					<view class="main-info">
 						<view class="name danger-text">取消任务</view>
-						<!-- 添加 danger-text 样式 -->
 					</view>
 				</ListItem>
 			</view>
 		</AppModal>
 
-		<!-- [核心修改] 新增删除确认弹窗 -->
 		<AppModal v-model:visible="showDeleteConfirmModal" title="确认删除">
 			<view class="modal-prompt-text">确定要删除这个任务吗？</view>
 			<view class="modal-warning-text">任务将被移除，此操作不可撤销。</view>
@@ -107,14 +103,23 @@
 		<AppModal v-model:visible="showTemperatureSettingsModal" title="设置温度参数">
 			<view class="form-container">
 				<view class="form-item">
-					<view class="form-label">和面机类型</view>
-					<picker mode="selector" :range="temperatureStore.mixerTypes" range-key="text" :value="currentMixerIndex" @change="handleMixerChange">
+					<view class="form-label">搅拌摩擦系数(F)</view>
+					<picker mode="selector" :range="temperatureStore.mixerTypes" range-key="text" :value="currentMixerPresetIndex" @change="handleMixerChange">
 						<view class="picker">
-							{{ temperatureStore.mixerTypes[currentMixerIndex]?.text || '请选择' }}
+							{{ temperatureStore.mixerTypes[currentMixerPresetIndex]?.text || '请选择' }}
 							<view class="arrow-down"></view>
 						</view>
 					</picker>
 				</view>
+
+				<view class="form-item" v-if="isCustomMode">
+					<view class="form-label-group">
+						<view class="form-label">自定义系数 (°C)</view>
+						<view class="form-help-text-inline">* 请通过实测校准（商用机推荐 12-20°C）</view>
+					</view>
+					<input class="input-field" type="digit" v-model="tempSettings.mixerType" placeholder="输入校准值" />
+				</view>
+
 				<view class="form-item">
 					<view class="form-label">环境温度 (°C)</view>
 					<input class="input-field" type="digit" v-model="tempSettings.envTemp" placeholder="输入温度" />
@@ -244,14 +249,26 @@ const tempSettings = reactive<{
 	flourTemp: number | null;
 	waterTemp: number | null;
 }>({
-	mixerType: 9,
+	mixerType: 16, // [核心修改] 默认值改为 16
 	envTemp: 25,
 	flourTemp: 25,
 	waterTemp: 25
 });
 
-const currentMixerIndex = computed(() => {
-	return temperatureStore.mixerTypes.findIndex((m) => m.value === tempSettings.mixerType);
+// [核心修改] 删除旧的 currentMixerIndex (computed)
+// const currentMixerIndex = computed(() => {
+// 	return temperatureStore.mixerTypes.findIndex((m) => m.value === tempSettings.mixerType);
+// });
+
+// [核心修改] 新增 currentMixerPresetIndex (ref) 来跟踪 picker 的选择
+const currentMixerPresetIndex = ref(0);
+
+// [核心修改] 新增 isCustomMode (computed) 来判断是否显示自定义输入框
+const isCustomMode = computed(() => {
+	// 检查当前 picker 选中的项
+	const selected = temperatureStore.mixerTypes[currentMixerPresetIndex.value];
+	// 如果选中项的值是 -1 (我们设定的自定义标记)，则返回 true
+	return selected && selected.value === -1;
 });
 
 const pendingCountLabel = computed(() => {
@@ -491,19 +508,51 @@ const handleFabClick = () => {
 	}
 };
 
+// [核心修改] 更新 openTemperatureSettingsModal 逻辑
 const openTemperatureSettingsModal = () => {
+	// 1. 从 store 加载当前保存的设置到 tempSettings
 	Object.assign(tempSettings, temperatureStore.settings);
+
+	// 2. 检查加载的 F 值 (tempSettings.mixerType) 是否在预设列表中
+	const matchingPresetIndex = temperatureStore.mixerTypes.findIndex((m) => m.value === tempSettings.mixerType);
+
+	if (matchingPresetIndex !== -1) {
+		// 3a. 找到了！说明当前 F 值是一个预设值
+		currentMixerPresetIndex.value = matchingPresetIndex;
+	} else {
+		// 3b. 没找到！说明当前 F 值是自定义的 (e.g., 14.5)
+		// 找到 "自定义" 选项的索引
+		const customIndex = temperatureStore.mixerTypes.findIndex((m) => m.value === -1);
+		// 将 picker 设置到 "自定义"
+		currentMixerPresetIndex.value = customIndex > -1 ? customIndex : 0;
+	}
+
+	// 4. 打开弹窗
 	showTemperatureSettingsModal.value = true;
 };
 
+// [核心修改] 更新 handleMixerChange 逻辑
 const handleMixerChange = (e: any) => {
 	const selectedIndex = e.detail.value;
-	tempSettings.mixerType = temperatureStore.mixerTypes[selectedIndex].value;
+	currentMixerPresetIndex.value = selectedIndex; // 更新 picker 的索引状态
+
+	const selectedValue = temperatureStore.mixerTypes[selectedIndex].value;
+
+	if (selectedValue !== -1) {
+		// 如果用户选择的*不是* "自定义" (value: -1)
+		// 那么就用这个预设值 (e.g., 9, 12, 16, 20) 更新 tempSettings.mixerType
+		tempSettings.mixerType = selectedValue;
+	}
+	// 如果用户选择的是 "自定义" (value: -1)
+	// 我们 *不* 覆盖 tempSettings.mixerType
+	// 这样，输入框 (v-if="isCustomMode") 就会显示出当前F值 (e.g., 14.5)，并允许用户编辑
 };
 
+// [核心修改] handleSaveTemperatureSettings 逻辑是正确的，无需修改
 const handleSaveTemperatureSettings = () => {
 	temperatureStore.saveTemperatureSettings({
-		mixerType: tempSettings.mixerType,
+		// tempSettings.mixerType 要么是选择的预设值，要么是自定义输入的值
+		mixerType: Number(tempSettings.mixerType) || temperatureStore.settings.mixerType,
 		envTemp: Number(tempSettings.envTemp) || temperatureStore.settings.envTemp,
 		flourTemp: Number(tempSettings.flourTemp) || temperatureStore.settings.flourTemp,
 		waterTemp: Number(tempSettings.waterTemp) || temperatureStore.settings.waterTemp
@@ -642,10 +691,27 @@ const handleSaveTemperatureSettings = () => {
 	padding: 0 5px;
 }
 
+/* [核心修改] 新增 .form-label-group 样式 (用于堆叠标签和帮助文本) */
+.form-label-group {
+	display: flex;
+	flex-direction: column;
+	flex: 1; // 占据左侧所有可用空间
+	margin-right: 15px; // 与输入框保持距离
+}
+
+/* [核心修改] 新增 .form-help-text-inline 样式 */
+.form-help-text-inline {
+	font-size: 11px;
+	color: var(--text-secondary);
+	margin-top: 5px; // 标签和帮助文本的间距
+	line-height: 1.4; // 保证换行舒适
+	/* 关键：没有 width: 100%，它会自动被 .form-label-group 限制宽度 */
+}
+
 .form-item {
 	display: flex;
 	justify-content: space-between;
-	align-items: center;
+	align-items: center; /* 垂直居中对齐 左侧组 和 右侧输入框 */
 	padding: 10px 0;
 	border-bottom: 1px solid var(--border-color-light, #f0f0f0);
 }
@@ -659,6 +725,11 @@ const handleSaveTemperatureSettings = () => {
 	color: var(--text-primary);
 	white-space: nowrap;
 	margin-right: 15px;
+}
+
+/* [核心修改] 确保 .form-label-group 里的 .form-label 样式正确 */
+.form-label-group .form-label {
+	margin-right: 0; // 组内的 label 不需要右边距
 }
 
 .input-field {

@@ -14,19 +14,18 @@ export interface TemperatureSettings {
 }
 
 export const useTemperatureStore = defineStore('temperature', () => {
-	// 定义和面机类型选项
+	// [核心修改] 更新摩擦系数(F)的预设值，并添加“自定义”选项
 	const mixerTypes = ref([
-		{ text: '手揉', value: 4 },
-		{ text: '双臂搅拌器', value: 5 },
-		{ text: '家用（星型）和面机', value: 6 },
-		{ text: '低速螺旋和面机', value: 7 },
-		{ text: '卧式和面机', value: 8 },
-		{ text: '高速螺旋和面机', value: 9 }
+		{ text: '家用 (初始值 9°C)', value: 9 },
+		{ text: '商用-低速 (初始值 12°C)', value: 12 },
+		{ text: '商用-中速 (初始值 16°C)', value: 16 },
+		{ text: '商用-高速 (初始值 20°C)', value: 20 },
+		{ text: '自定义 (已校准)', value: -1 } // -1 作为"自定义"的特殊标记
 	]);
 
 	// 使用 reactive 来管理设置对象
 	const settings = reactive<TemperatureSettings>({
-		mixerType: 9, // 高速螺旋和面机
+		mixerType: 16, // [核心修改] 默认值改为 16
 		envTemp: 25,
 		flourTemp: 25,
 		waterTemp: 25
@@ -40,7 +39,7 @@ export const useTemperatureStore = defineStore('temperature', () => {
 			const storedSettings = uni.getStorageSync('temperature_settings');
 			if (storedSettings) {
 				const parsedSettings = JSON.parse(storedSettings);
-				settings.mixerType = parsedSettings.mixerType ?? 9;
+				settings.mixerType = parsedSettings.mixerType ?? 16; // [核心修改] 备用值改为 16
 				settings.envTemp = parsedSettings.envTemp ?? 25;
 				settings.flourTemp = parsedSettings.flourTemp ?? 25;
 				settings.waterTemp = parsedSettings.waterTemp ?? 25;
