@@ -103,7 +103,7 @@
 		<AppModal v-model:visible="showTemperatureSettingsModal" title="设置温度参数">
 			<view class="form-container">
 				<view class="form-item">
-					<view class="form-label">搅拌摩擦系数(F)</view>
+					<view class="form-label">搅拌摩擦系数</view>
 					<picker mode="selector" :range="temperatureStore.mixerTypes" range-key="text" :value="currentMixerPresetIndex" @change="handleMixerChange">
 						<view class="picker">
 							{{ temperatureStore.mixerTypes[currentMixerPresetIndex]?.text || '请选择' }}
@@ -112,12 +112,12 @@
 					</picker>
 				</view>
 
-				<view class="form-item" v-if="isCustomMode">
-					<view class="form-label-group">
+				<view class="form-item form-item-stacked" v-if="isCustomMode">
+					<view class="form-item-row">
 						<view class="form-label">自定义系数 (°C)</view>
-						<view class="form-help-text-inline">* 请通过实测校准（商用机推荐 12-20°C）</view>
+						<input class="input-field" type="digit" v-model="tempSettings.mixerType" placeholder="输入校准值" />
 					</view>
-					<input class="input-field" type="digit" v-model="tempSettings.mixerType" placeholder="输入校准值" />
+					<view class="form-help-text">请通过实测校准摩擦系数（商用机建议 12-20°C）</view>
 				</view>
 
 				<view class="form-item">
@@ -691,29 +691,37 @@ const handleSaveTemperatureSettings = () => {
 	padding: 0 5px;
 }
 
-/* [核心修改] 新增 .form-label-group 样式 (用于堆叠标签和帮助文本) */
-.form-label-group {
-	display: flex;
-	flex-direction: column;
-	flex: 1; // 占据左侧所有可用空间
-	margin-right: 15px; // 与输入框保持距离
-}
-
-/* [核心修改] 新增 .form-help-text-inline 样式 */
-.form-help-text-inline {
-	font-size: 11px;
+/* [核心修改] 调整帮助文本样式 */
+.form-help-text {
+	font-size: 13px;
 	color: var(--text-secondary);
-	margin-top: 5px; // 标签和帮助文本的间距
-	line-height: 1.4; // 保证换行舒适
-	/* 关键：没有 width: 100%，它会自动被 .form-label-group 限制宽度 */
+	padding: 5px 0px 10px 0px;
+	margin-top: 0; /* [核心修改] 移除负边距 */
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .form-item {
 	display: flex;
 	justify-content: space-between;
-	align-items: center; /* 垂直居中对齐 左侧组 和 右侧输入框 */
+	align-items: center;
 	padding: 10px 0;
 	border-bottom: 1px solid var(--border-color-light, #f0f0f0);
+}
+
+/* [核心修改] 新增 .form-item-stacked 样式 */
+.form-item-stacked {
+	flex-direction: column;
+	align-items: stretch;
+	padding: 10px 0 0 0; /* 调整内边距，让边框在帮助文本下方 */
+}
+
+/* [核心修改] 新增 .form-item-row 样式 */
+.form-item-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
 }
 
 .form-container .form-item:last-of-type {
@@ -725,11 +733,6 @@ const handleSaveTemperatureSettings = () => {
 	color: var(--text-primary);
 	white-space: nowrap;
 	margin-right: 15px;
-}
-
-/* [核心修改] 确保 .form-label-group 里的 .form-label 样式正确 */
-.form-label-group .form-label {
-	margin-right: 0; // 组内的 label 不需要右边距
 }
 
 .input-field {
