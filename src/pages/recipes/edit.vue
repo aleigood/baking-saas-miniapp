@@ -6,7 +6,7 @@
 			<view class="page-content page-content-with-fab">
 				<view class="card">
 					<FormItem label="配方名称">
-						<input class="input-field" v-model="form.name" placeholder="例如：法式长棍" :disabled="isEditing" :class="{ 'is-disabled': isEditing }" />
+						<input class="input-field" v-model="form.name" :placeholder="namePlaceholder" :disabled="isEditing" :class="{ 'is-disabled': isEditing }" />
 					</FormItem>
 					<FormItem v-if="form.type === 'MAIN'" label="配方品类">
 						<picker mode="selector" :range="recipeCategories" range-key="label" @change="onCategoryChange" :disabled="isEditing">
@@ -322,6 +322,36 @@ const showFermentationCalculator = computed(() => {
 	const isPreDough = form.value.type === 'PRE_DOUGH';
 	// 满足任意一个条件即可显示
 	return isBreadProduct || isPreDough;
+});
+
+// [核心新增] 根据配方类型动态显示配方名称的提示
+const namePlaceholder = computed(() => {
+	// 优先处理非 MAIN 类型
+	if (form.value.type === 'PRE_DOUGH') {
+		return '例如：波兰种';
+	}
+	if (form.value.type === 'EXTRA') {
+		return '例如：卡仕达酱';
+	}
+
+	// MAIN 类型根据品类显示不同提示
+	if (form.value.type === 'MAIN') {
+		switch (form.value.category) {
+			case 'BREAD':
+				return '例如：法式长棍';
+			case 'PASTRY':
+				return '例如：可颂';
+			case 'DESSERT':
+				return '例如：提拉米苏';
+			case 'DRINK':
+				return '例如：拿铁';
+			default:
+				return '请输入配方名称';
+		}
+	}
+
+	// 默认回退
+	return '请输入配方名称';
 });
 
 const recipeCategories = ref([
