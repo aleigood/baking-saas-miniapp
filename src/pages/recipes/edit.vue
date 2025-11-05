@@ -532,7 +532,7 @@ onLoad(async (options) => {
 	} else {
 		pageMode.value = 'create';
 		if (options?.type === 'EXTRA') {
-			form.value.type = 'EXTRA';
+			form.value.type = 'PRE_DOUGH'; // [核心修改] 新建其他配方时，默认类型从 馅料 改为 面种
 			form.value.products = [];
 			form.value.category = 'OTHER';
 			form.value.components = [
