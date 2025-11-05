@@ -9,7 +9,7 @@
 					</IconButton>
 				</view>
 
-				<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
+				<view class="list-wrapper">
 					<template v-if="ingredientFilter === 'all'">
 						<template v-if="dataStore.ingredients.allIngredients.length > 0">
 							<ListItem
@@ -152,8 +152,7 @@ const toastStore = useToastStore();
 const ingredientFilter = ref('all');
 const isSubmitting = ref(false);
 const selectedIngredient = ref<Ingredient | null>(null);
-const touchStartX = ref(0);
-const touchStartY = ref(0);
+// [核心修改] 移除了 touchStartX 和 touchStartY
 const ingredientFilterTabs = ref([
 	{ key: 'all', label: '全部' },
 	{ key: 'low', label: '库存紧张' }
@@ -222,25 +221,7 @@ const handleScroll = (event: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-const handleTouchStart = (e: TouchEvent) => {
-	touchStartX.value = e.touches[0].clientX;
-	touchStartY.value = e.touches[0].clientY;
-};
-
-const handleTouchEnd = (e: TouchEvent) => {
-	const touchEndX = e.changedTouches[0].clientX;
-	const touchEndY = e.changedTouches[0].clientY;
-	const deltaX = touchEndX - touchStartX.value;
-	const deltaY = touchEndY - touchStartY.value;
-
-	if (Math.abs(deltaX) > 50 && Math.abs(deltaY) < 50) {
-		if (deltaX < 0) {
-			ingredientFilter.value = 'low';
-		} else {
-			ingredientFilter.value = 'all';
-		}
-	}
-};
+// [核心修改] 移除了 handleTouchStart 和 handleTouchEnd 两个函数
 
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
 
