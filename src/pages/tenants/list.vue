@@ -5,7 +5,14 @@
 		<DetailPageLayout>
 			<view class="page-content no-horizontal-padding page-content-with-fab">
 				<template v-if="tenants.length > 0">
-					<ListItem v-for="(tenant, index) in tenants" :key="tenant.id" @click="openEditModal(tenant)" :bleed="true" :divider="index < tenants.length - 1">
+					<ListItem
+						v-for="(tenant, index) in tenants"
+						:key="tenant.id"
+						@longpress.stop="handleLongPress(tenant)"
+						:vibrate-on-long-press="canEdit"
+						:bleed="true"
+						:divider="index < tenants.length - 1"
+					>
 						<view class="store-icon-wrapper">
 							<image class="store-icon" src="/static/icons/store.svg" />
 						</view>
@@ -91,6 +98,21 @@
 				</AppButton>
 			</view>
 		</AppModal>
+
+		<AppModal v-model:visible="showTenantActionsModal" title="店铺操作" :no-header-line="true">
+			<view class="options-list">
+				<ListItem class="option-item" @click="handleEditFromMenu" :bleed="true">
+					<view class="main-info">
+						<view class="name">修改店铺</view>
+					</view>
+				</ListItem>
+				<ListItem class="option-item" @click="handleExportFromMenu" :bleed="true">
+					<view class="main-info">
+						<view class="name">导出配方</view>
+					</view>
+				</ListItem>
+			</view>
+		</AppModal>
 	</view>
 </template>
 
@@ -100,7 +122,7 @@ import { useToastStore } from '@/store/toast';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { getTenants, createTenant, updateTenant } from '@/api/tenants';
-import { batchImportRecipes } from '@/api/recipes';
+import { batchImportRecipes, exportRecipes } from '@/api/recipes';
 // [代码重构] 导入公共日期格式化函数
 import { getLocalDate } from '@/utils/format';
 import type { Tenant, BatchImportResult } from '@/types/api';
@@ -111,6 +133,7 @@ import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppModal from '@/components/AppModal.vue';
 import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
+import IconButton from '@/components/IconButton.vue';
 
 defineOptions({
 	inheritAttrs: false
@@ -139,6 +162,14 @@ const selectedFile = ref<{ name: string; path: string } | null>(null);
 const importResult = ref<BatchImportResult | null>(null);
 const tenantPickerIndex = ref(0);
 
+const showTenantActionsModal = ref(false);
+const selectedTenant = ref<Tenant | null>(null);
+const isExporting = ref(false); // 导出状态
+
+// [G-Code-Note] 【已删除】分享模态框的状态不再需要
+// const showShareModal = ref(false);
+// const exportedFilePath = ref<string | null>(null);
+
 const fabActions = computed(() => {
 	const actions = [
 		{
@@ -155,6 +186,10 @@ const fabActions = computed(() => {
 		});
 	}
 	return actions;
+});
+
+const canEdit = computed(() => {
+	return userStore.userInfo?.role === 'OWNER' || userStore.userInfo?.role === 'ADMIN';
 });
 
 const statusOptions = ref([
@@ -261,7 +296,6 @@ const handleChooseFile = () => {
 	wx.chooseMessageFile({
 		count: 1,
 		type: 'file',
-		// [修复] 将 extension 的值从字符串 'json' 修改为数组 ['json']
 		extension: ['json'],
 		success: (res) => {
 			const file = res.tempFiles[0];
@@ -315,11 +349,133 @@ const handleConfirmImport = async () => {
 		isImporting.value = false;
 	}
 };
+
+const handleLongPress = (tenant: Tenant) => {
+	if (!canEdit.value) return;
+	selectedTenant.value = tenant;
+	showTenantActionsModal.value = true;
+};
+
+const handleEditFromMenu = () => {
+	if (!selectedTenant.value) return;
+	openEditModal(selectedTenant.value);
+	showTenantActionsModal.value = false;
+	selectedTenant.value = null;
+};
+
+const handleExportFromMenu = () => {
+	if (!selectedTenant.value) return;
+	handleExport(selectedTenant.value); // 复用已有的 handleExport
+	showTenantActionsModal.value = false;
+	selectedTenant.value = null;
+};
+
+const handleExport = async (tenant: Tenant) => {
+	if (isExporting.value) return;
+	isExporting.value = true;
+	toastStore.show({ message: `正在导出 [${tenant.name}] 的配方...`, type: 'loading' });
+
+	try {
+		const recipesToExport = await exportRecipes(tenant.id);
+
+		if (recipesToExport.length === 0) {
+			toastStore.show({ message: '该店铺没有可导出的配方', type: 'info' });
+			return;
+		}
+
+		const jsonString = JSON.stringify(recipesToExport, null, 4);
+
+		// #ifdef MP-WEIXIN
+		// 1. 创建安全的文件名
+		const safeTenantName = tenant.name.replace(/[\\/:*?"<>|() ]/g, '_');
+		const safeTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
+		const fileName = `recipes_${safeTenantName}_${safeTimestamp}.json`;
+
+		// 2.【修改】调用 saveFileToTemp 保存文件
+		const tempFilePath = await saveFileToTemp(jsonString, fileName);
+
+		// 3.【修改】调用原生的 wx.showModal
+		uni.hideLoading(); // 隐藏 "正在导出"
+
+		wx.showModal({
+			title: '导出已就绪',
+			content: '配方文件已生成。是否立即分享或保存？',
+			confirmText: '分享文件',
+			cancelText: '取消',
+			success: (res) => {
+				if (res.confirm) {
+					// 4.【修改】在原生的 'success' 回调中调用分享
+					wx.shareFileMessage({
+						filePath: tempFilePath,
+						success: () => {
+							// [G-Code-Note] 1. 移除 "已分享" 的 toast
+							// toastStore.show({ message: '已分享', type: 'success' });
+						},
+						fail: (err) => {
+							console.error('wx.shareFileMessage 失败:', err);
+							if (err.errMsg !== 'shareFileMessage:fail cancel' && !err.errMsg.includes('cancel')) {
+								toastStore.show({ message: `分享失败: ${err.errMsg}`, type: 'error', duration: 3000 });
+							} else {
+								toastStore.show({ message: '已取消分享', type: 'info' });
+							}
+						}
+					});
+				} else if (res.cancel) {
+					toastStore.show({ message: '已取消分享', type: 'info' });
+				}
+			},
+			fail: (err) => {
+				// wx.showModal 失败
+				console.error('wx.showModal 失败:', err);
+				toastStore.show({ message: '无法弹出分享确认框', type: 'error' });
+			}
+		});
+		// #endif
+
+		// #ifndef MP-WEIXIN
+		console.log(jsonString); // H5/App 等环境的降级处理
+		toastStore.show({ message: '导出成功 (内容已打印到控制台)', type: 'info' });
+		// #endif
+	} catch (error) {
+		console.error('导出失败:', error);
+		const errMsg = error instanceof Error ? error.message : typeof error === 'object' ? (error as any).errMsg : '导出失败，请稍后再试';
+		toastStore.show({ message: `导出失败: ${errMsg}`, type: 'error', duration: 3000 });
+	} finally {
+		isExporting.value = false;
+	}
+};
+
+const saveFileToTemp = async (content: string, fileName: string): Promise<string> => {
+	return new Promise((resolve, reject) => {
+		// #ifdef MP-WEIXIN
+		const fs = wx.getFileSystemManager();
+		const filePath = `${wx.env.USER_DATA_PATH}/${fileName}`;
+
+		fs.writeFile({
+			filePath: filePath,
+			data: content,
+			encoding: 'utf8',
+			success: () => {
+				resolve(filePath); // 成功后返回路径
+			},
+			fail: (err) => {
+				reject(err);
+			}
+		});
+		// #endif
+		// #ifndef MP-WEIXIN
+		reject(new Error('仅支持微信小程序环境'));
+		// #endif
+	});
+};
+
+// [G-Code-Note] 【已删除】不再需要 confirmShareFile 和 closeShareModal
 </script>
 
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 @include list-item-content-style;
+@include list-item-option-style;
 @include form-control-styles;
 
 .page-wrapper {
@@ -468,5 +624,12 @@ const handleConfirmImport = async () => {
 
 .skipped-item {
 	line-height: 1.5;
+}
+
+.modal-prompt-text {
+	font-size: 15px;
+	color: var(--text-primary);
+	line-height: 1.6;
+	margin-bottom: 10px;
 }
 </style>

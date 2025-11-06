@@ -1,9 +1,14 @@
+// G-Code-Note: Client API
+// 路径: src/api/recipes.ts
+// [核心修改] 新增 exportRecipes 函数
+
 /**
  * 文件路径: src/api/recipes.ts
  * 文件描述: (已更新) 封装所有与配方(Recipe)相关的API请求，新增版本管理接口。
  */
 import { request, uploadFile } from '@/utils/request';
-import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductsForTaskResponse, RecipeFormTemplate, BatchImportResult } from '@/types/api';
+// [G-Code-Note] 导入 BatchImportRecipeDto 用于导出函数的类型提示
+import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductsForTaskResponse, RecipeFormTemplate, BatchImportResult, BatchImportRecipeDto } from '@/types/api';
 
 /**
  * [修改] 批量导入配方，增加 tenantIds 参数
@@ -22,6 +27,19 @@ export function batchImportRecipes(filePath: string, tenantIds?: string[]): Prom
 		}
 	});
 }
+
+// [G-Code-Note] 【新增】导出指定店铺的所有配方
+/**
+ * 导出指定店铺的所有配方 (生成的文件与批量导入格式兼容)
+ * @param tenantId 店铺ID
+ * @returns 包含所有配方族和版本的数组
+ */
+export const exportRecipes = (tenantId: string): Promise<BatchImportRecipeDto[]> => {
+	return request<BatchImportRecipeDto[]>({
+		url: `/recipes/export/${tenantId}`, // [G-Code-Note] 这是我们将要创建的后端新接口
+		method: 'GET'
+	});
+};
 
 /**
  * 获取当前店铺的配方/产品列表
