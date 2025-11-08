@@ -324,7 +324,7 @@ onLoad(async (options) => {
 @include table-layout;
 
 .collapsible-content {
-	max-height: 1000px;
+	max-height: 10000px; // [修改] 增大最大高度，防止超长列表被截断
 	overflow: hidden;
 	transition: max-height 0.3s ease-in-out;
 	box-sizing: border-box;
