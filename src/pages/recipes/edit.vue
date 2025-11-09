@@ -29,7 +29,7 @@
 					</FormItem>
 				</view>
 
-				<template v-if="form.category === 'BREAD'">
+				<template v-if="form.type === 'MAIN' && form.category === 'BREAD'">
 					<template v-for="(component, componentIndex) in form.components" :key="component.id">
 						<view class="card" v-if="component.type === 'PRE_DOUGH'">
 							<view class="card-title-wrapper">
@@ -70,7 +70,7 @@
 					</FormItem>
 					<view class="ingredient-header">
 						<text class="col-name">原料名称</text>
-						<text class="col-ratio">比例%</text>
+						<text class="col-ratio">{{ form.type === 'PRE_DOUGH' ? '比例%' : '比例%' }}</text>
 						<text class="col-action"></text>
 					</view>
 					<view v-for="(ing, ingIndex) in mainComponent.ingredients" :key="ingIndex" class="ingredient-row">
@@ -86,7 +86,12 @@
 								:tag-style="ing.name === '水' && showTotalWaterTag ? { backgroundColor: '#e0efff', color: '#00529b' } : {}"
 							/>
 						</view>
-						<input class="input-field ratio-input" type="digit" v-model="ing.ratio" placeholder="%" />
+						<template v-if="ing.recipeType === 'PRE_DOUGH'">
+							<input class="input-field ratio-input" type="digit" v-model="ing.flourRatio" placeholder="面粉%" />
+						</template>
+						<template v-else>
+							<input class="input-field ratio-input" type="digit" v-model="ing.ratio" placeholder="%" />
+						</template>
 						<IconButton variant="field" @click="removeIngredient(ingIndex)">
 							<image class="remove-icon" src="/static/icons/trash.svg" />
 						</IconButton>
@@ -257,8 +262,9 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import AutocompleteInput from '@/components/AutocompleteInput.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
-// [核心修改] 引入 RecipeFormTemplate 中的 Product 定义
-import type { RecipeFamily, RecipeFormTemplate, RecipeCategory, ComponentTemplate, Product as RecipeFormProduct } from '@/types/api';
+// 引入 RecipeFormTemplate 中的 Product 定义
+// [G-Code-Note] [核心修改] 引入 RecipeType
+import type { RecipeFamily, RecipeFormTemplate, RecipeCategory, ComponentTemplate, Product as RecipeFormProduct, RecipeType } from '@/types/api';
 import { formatNumber, toDecimal } from '@/utils/format';
 import { predefinedIngredients } from '@/utils/predefinedIngredients';
 
@@ -266,12 +272,26 @@ defineOptions({
 	inheritAttrs: false
 });
 
+// [G-Code-Note] [核心修改] 扩展 AutocompleteItem 类型
 type AutocompleteItem = {
 	id: string | null;
 	name: string;
 	isFlour: boolean;
 	isRecipe: boolean;
 	waterContent: number;
+	recipeType: RecipeType | null; // PRE_DOUGH, EXTRA, or null
+};
+
+// [G-Code-Note] [核心修改] 扩展 mainComponent.ingredients 的类型
+type MainIngredient = {
+	id: string | null;
+	name: string;
+	ratio: number | null;
+	flourRatio: number | null; // 新增面粉比例
+	isFlour: boolean;
+	isRecipe: boolean;
+	waterContent: number;
+	recipeType: RecipeType | null; // 新增配方类型
 };
 
 type SubIngredientRatio = { id: string | null; name: string; ratio: number | null; weightInGrams?: number | null; isRecipe?: boolean; waterContent?: number; isFlour?: boolean };
@@ -292,8 +312,17 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-// [核心修改] 更新 form 的类型，使其 products 数组能包含 id
-const form = ref<Omit<RecipeFormTemplate, 'ingredients' | 'procedure' | 'products'> & { targetTemp?: number | null; products?: RecipeFormProduct[] }>({
+// 更新 form 的类型，使其 products 数组能包含 id
+// [G-Code-Note] [核心修改] 更新 components 和 ingredients 的类型
+const form = ref<
+	Omit<RecipeFormTemplate, 'ingredients' | 'procedure' | 'products' | 'components'> & {
+		targetTemp?: number | null;
+		products?: RecipeFormProduct[];
+		components: (Omit<ComponentTemplate, 'ingredients'> & {
+			ingredients: MainIngredient[];
+		})[];
+	}
+>({
 	name: '',
 	type: 'MAIN',
 	category: 'BREAD',
@@ -304,16 +333,16 @@ const form = ref<Omit<RecipeFormTemplate, 'ingredients' | 'procedure' | 'product
 			id: `main_${Date.now()}`,
 			name: '主面团',
 			type: 'MAIN_DOUGH',
-			lossRatio: 1, // [核心修改] 新建时 lossRatio 默认为 1%
-			divisionLoss: 2, // [核心修改] 新建时 divisionLoss 默认为 2g
-			ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 }],
+			lossRatio: 1, // 新建时 lossRatio 默认为 1%
+			divisionLoss: 2, // 新建时 divisionLoss 默认为 2g
+			ingredients: [{ id: null, name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null }],
 			procedure: ['']
 		}
 	],
 	products: []
 });
 
-// [核心新增] 新增计算属性，判断是否应该显示发酵计算器
+// 新增计算属性，判断是否应该显示发酵计算器
 const showFermentationCalculator = computed(() => {
 	if (!form.value) return false;
 	// 规则1: 如果是产品配方(MAIN)，则必须是面包品类(BREAD)
@@ -324,7 +353,7 @@ const showFermentationCalculator = computed(() => {
 	return isBreadProduct || isPreDough;
 });
 
-// [核心新增] 根据配方类型动态显示配方名称的提示
+// 根据配方类型动态显示配方名称的提示
 const namePlaceholder = computed(() => {
 	// 优先处理非 MAIN 类型
 	if (form.value.type === 'PRE_DOUGH') {
@@ -425,55 +454,91 @@ const productTabs = computed(() => {
 // 修改: 更新 availablePreDoughs 以使用新的数据源
 const availablePreDoughs = computed(() => {
 	const existingPreDoughIds = new Set(form.value.components?.filter((c) => c.type === 'PRE_DOUGH').map((c) => c.id));
+	// [G-Code-Note] [核心修改] 增加自引用过滤
+	const currentRecipeName = form.value.name;
 	// 直接使用 dataStore.recipes.preDoughs
-	return (dataStore.recipes.preDoughs || []).filter((r) => !r.deletedAt && !existingPreDoughIds.has(r.id));
+	return (dataStore.recipes.preDoughs || []).filter((r) => !r.deletedAt && !existingPreDoughIds.has(r.id) && r.name !== currentRecipeName);
 });
 
-// 修改: 更新 availableMainDoughIngredients 以使用新的数据源
+// [G-Code-Note] [核心重构] availableMainDoughIngredients (需求 1 & 3)
 const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
+	// [G-Code-Note] [核心新增] 获取当前正在编辑的配方名称，用于自引用过滤
+	const currentRecipeName = form.value.name;
 
+	// 1. 添加标准原料和预定义原料
 	predefinedIngredients.forEach((p) => {
-		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0 });
+		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0, recipeType: null });
 	});
-
-	// 直接使用 dataStore.recipes.extras
-	const extras = dataStore.recipes.extras || [];
-	extras.forEach((e) => {
-		if (!e.deletedAt) {
-			ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
-		}
-	});
-
 	dataStore.allIngredients.forEach((i) => {
-		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0 });
+		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0, recipeType: null });
 	});
+
+	// 2. 根据当前配方类型，添加允许的“配方”
+	const currentFormType = form.value.type;
+
+	if (currentFormType === 'MAIN') {
+		// 主配方可以添加 EXTRA (馅料) 作为原料 (PRE_DOUGH 通过弹窗添加)
+		const extras = dataStore.recipes.extras || [];
+		extras.forEach((e) => {
+			// [G-Code-Note] [核心修改] 增加自引用过滤
+			if (!e.deletedAt && e.name !== currentRecipeName) {
+				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'EXTRA' });
+			}
+		});
+	} else if (currentFormType === 'PRE_DOUGH') {
+		// 面种配方可以添加 PRE_DOUGH (面种)
+		const preDoughs = dataStore.recipes.preDoughs || [];
+		preDoughs.forEach((p) => {
+			// [G-Code-Note] [核心修改] 增加自引用过滤
+			if (!p.deletedAt && p.name !== currentRecipeName) {
+				ingredientMap.set(p.name, { id: p.id, name: p.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'PRE_DOUGH' });
+			}
+		});
+	} else if (currentFormType === 'EXTRA') {
+		// 馅料配方可以添加 EXTRA (馅料)
+		const extras = dataStore.recipes.extras || [];
+		extras.forEach((e) => {
+			// [G-Code-Note] [核心修改] 增加自引用过滤
+			if (!e.deletedAt && e.name !== currentRecipeName) {
+				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'EXTRA' });
+			}
+		});
+	}
 
 	const combined = Array.from(ingredientMap.values());
 
-	// 直接使用 dataStore.recipes.preDoughs
-	const preDoughNames = new Set((dataStore.recipes.preDoughs || []).filter((r) => !r.deletedAt).map((r) => r.name));
-	return combined.filter((item) => !preDoughNames.has(item.name)).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+	// 3. 如果是 MAIN 配方，需要从列表中排除 PRE_DOUGH (因为它们从弹窗添加)
+	if (currentFormType === 'MAIN') {
+		const preDoughNames = new Set((dataStore.recipes.preDoughs || []).filter((r) => !r.deletedAt).map((r) => r.name));
+		return combined.filter((item) => !preDoughNames.has(item.name)).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
+	}
+
+	return combined.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-// 修改: 更新 availableSubIngredients 以使用新的数据源
+// 修改: availableSubIngredients (产品中的辅料)
+// 规则：产品辅料 = 标准原料 + 馅料(EXTRA)。不允许添加面种(PRE_DOUGH)。
 const availableSubIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
+	// [G-Code-Note] [核心新增] 获取当前正在编辑的配方名称，用于自引用过滤
+	const currentRecipeName = form.value.name;
 
 	predefinedIngredients.forEach((p) => {
-		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0 });
-	});
-
-	// 直接使用 dataStore.recipes.extras
-	const extras = dataStore.recipes.extras || [];
-	extras.forEach((e) => {
-		if (!e.deletedAt) {
-			ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0 });
-		}
+		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0, recipeType: null });
 	});
 
 	dataStore.allIngredients.forEach((i) => {
-		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0 });
+		ingredientMap.set(i.id, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0, recipeType: null });
+	});
+
+	// 只能添加 EXTRA
+	const extras = dataStore.recipes.extras || [];
+	extras.forEach((e) => {
+		// [G-Code-Note] [核心修改] 增加自引用过滤
+		if (!e.deletedAt && e.name !== currentRecipeName) {
+			ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'EXTRA' });
+		}
 	});
 
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
@@ -511,7 +576,11 @@ const formatWaterRatio = (ratio: number): string => {
 	return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
 };
 
-const handleIngredientBlur = (ingredient: { id: string | null; name: string; isRecipe?: boolean; waterContent?: number; isFlour?: boolean }, availableList: AutocompleteItem[]) => {
+// [G-Code-Note] [核心修改] 更新 handleIngredientBlur 以设置 recipeType
+const handleIngredientBlur = (
+	ingredient: { id: string | null; name: string; isRecipe?: boolean; waterContent?: number; isFlour?: boolean; recipeType?: RecipeType | null },
+	availableList: AutocompleteItem[]
+) => {
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableList.find((item) => item.name === ingredient.name);
 		if (existing) {
@@ -519,13 +588,16 @@ const handleIngredientBlur = (ingredient: { id: string | null; name: string; isR
 			ingredient.isRecipe = existing.isRecipe;
 			ingredient.isFlour = existing.isFlour;
 			ingredient.waterContent = existing.waterContent;
+			ingredient.recipeType = existing.recipeType; // [G-Code-Note] 设置 recipeType
 		} else {
 			ingredient.isRecipe = false;
+			ingredient.recipeType = null; // [G-Code-Note] 设置 recipeType
 		}
 	} else if (ingredient.id) {
 		const existing = availableList.find((item) => item.id === ingredient.id);
 		if (existing) {
 			ingredient.isRecipe = existing.isRecipe;
+			ingredient.recipeType = existing.recipeType; // [G-Code-Note] 设置 recipeType
 		}
 	}
 };
@@ -544,10 +616,20 @@ onLoad(async (options) => {
 		if (sourceFormJson) {
 			try {
 				const parsedForm = JSON.parse(sourceFormJson);
-				// [核心修改] 确保 products 被正确解析并赋值
+				// [G-Code-Note] [核心修改] 确保加载的 ingredients 包含新字段
+				const sanitizedComponents = parsedForm.components.map((c: ComponentTemplate) => ({
+					...c,
+					ingredients: c.ingredients.map((ing: any) => ({
+						...ing,
+						flourRatio: ing.isRecipe && (parsedForm.type === 'PRE_DOUGH' || (parsedForm.type === 'MAIN' && ing.ratio === null)) ? ing.ratio : null, // 粗略转换
+						ratio: ing.isRecipe && (parsedForm.type === 'PRE_DOUGH' || (parsedForm.type === 'MAIN' && ing.ratio === null)) ? null : ing.ratio,
+						recipeType: ing.isRecipe ? (availablePreDoughs.value.some((p) => p.id === ing.id) ? 'PRE_DOUGH' : 'EXTRA') : null
+					}))
+				}));
+
 				form.value = {
 					...parsedForm,
-					// 确保 products 数组被正确赋值，即使源数据没有 products
+					components: sanitizedComponents,
 					products: parsedForm.products || []
 				};
 
@@ -562,7 +644,7 @@ onLoad(async (options) => {
 	} else {
 		pageMode.value = 'create';
 		if (options?.type === 'EXTRA') {
-			form.value.type = 'PRE_DOUGH'; // [核心修改] 新建其他配方时，默认类型从 馅料 改为 面种
+			form.value.type = 'PRE_DOUGH'; // 新建其他配方时，默认类型从 馅料 改为 面种
 			form.value.products = [];
 			form.value.category = 'OTHER';
 			form.value.components = [
@@ -570,9 +652,9 @@ onLoad(async (options) => {
 					id: `main_${Date.now()}`,
 					name: '',
 					type: 'BASE_COMPONENT',
-					lossRatio: 1, // [核心修改] 新建时 lossRatio 默认为 1%
-					divisionLoss: 0, // [核心修改] EXTRA 类型 divisionLoss 默认为 0
-					ingredients: [{ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 }],
+					lossRatio: 1, // 新建时 lossRatio 默认为 1%
+					divisionLoss: 0, // EXTRA 类型 divisionLoss 默认为 0
+					ingredients: [{ id: null, name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null }], // [G-Code-Note] 增加新字段
 					procedure: ['']
 				}
 			];
@@ -604,6 +686,7 @@ const handleScroll = (event?: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
+// [G-Code-Note] [核心修改] onIngredientSelect 增加 recipeType
 const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
 	const ingredient = mainComponent.value.ingredients[ingIndex];
 	ingredient.id = item.id;
@@ -611,10 +694,12 @@ const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
 	ingredient.isFlour = item.isFlour;
 	ingredient.isRecipe = item.isRecipe;
 	ingredient.waterContent = item.waterContent;
+	ingredient.recipeType = item.recipeType; // [G-Code-Note] 设置 recipeType
 };
 
+// [G-Code-Note] [核心修改] addIngredient 增加新字段
 const addIngredient = () => {
-	mainComponent.value.ingredients.push({ id: null, name: '', ratio: null, isFlour: false, isRecipe: false, waterContent: 0 });
+	mainComponent.value.ingredients.push({ id: null, name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null });
 };
 
 const removeIngredient = (ingIndex: number) => {
@@ -650,6 +735,7 @@ const confirmAddPreDough = async () => {
 			return;
 		}
 		const preDoughRecipe = activeVersion.components[0];
+		// [G-Code-Note] [核心修改] 使用新的 api.d.ts 类型 (ingredient.ingredient)
 		const ingredients = preDoughRecipe.ingredients;
 
 		const preDoughInternalFlourRatio = ingredients.filter((i) => i.ingredient?.isFlour).reduce((sum, i) => sum + (i.ratio ?? 0), 0);
@@ -675,7 +761,7 @@ const confirmAddPreDough = async () => {
 			name: fullPreDoughData.name,
 			type: 'PRE_DOUGH',
 			flourRatioInMainDough: preDoughFlourRatio.value,
-			ingredients: displayIngredients,
+			ingredients: displayIngredients, // [G-Code-Note] 此处 ingredients 是只读的，类型不匹配
 			procedure: preDoughRecipe.procedure
 		});
 
@@ -746,6 +832,7 @@ const removeProcedureStep = (itemWithProcedure: { procedure: string[] }, index: 
 	itemWithProcedure.procedure.splice(index, 1);
 };
 
+// [G-Code-Note] [核心重构] handleSubmit (需求 3)
 const handleSubmit = async () => {
 	if (!form.value.name.trim()) {
 		toastStore.show({ message: '请输入配方名称', type: 'error' });
@@ -766,10 +853,20 @@ const handleSubmit = async () => {
 			return;
 		}
 
-		const ingredientsPayload = [
-			...mainComponentFromForm.ingredients
-				.filter((ing) => ing.name && ing.ratio !== null && Number(ing.ratio) > 0)
-				.map((ing) => {
+		// [G-Code-Note] [核心修改] 动态构建 ingredientsPayload
+		const ingredientsPayload = mainComponentFromForm.ingredients
+			.filter((ing) => ing.name)
+			.map((ing) => {
+				if (ing.recipeType === 'PRE_DOUGH') {
+					// 引用面种 (PRE_DOUGH) -> 发送 flourRatio
+					if (ing.flourRatio === null || Number(ing.flourRatio) <= 0) return null;
+					return {
+						name: ing.name,
+						flourRatio: toDecimal(Number(ing.flourRatio))
+					};
+				} else {
+					// 引用馅料 (EXTRA) 或 标准原料 -> 发送 ratio
+					if (ing.ratio === null || Number(ing.ratio) <= 0) return null;
 					return {
 						ingredientId: ing.id || undefined,
 						name: ing.name,
@@ -777,14 +874,21 @@ const handleSubmit = async () => {
 						isFlour: ing.isFlour,
 						waterContent: ing.waterContent
 					};
-				}),
-			...form.value
+				}
+			})
+			.filter(Boolean); // 过滤掉无效条目
+
+		// [G-Code-Note] [核心修改] 仅当是 MAIN 配方时，才合并弹窗添加的 PRE_DOUGH
+		if (form.value.type === 'MAIN') {
+			const preDoughComponentsPayload = form.value
 				.components!.filter((c) => c.type === 'PRE_DOUGH')
 				.map((c) => ({
 					name: c.name,
 					flourRatio: toDecimal(Number(c.flourRatioInMainDough))
-				}))
-		];
+				}));
+
+			ingredientsPayload.push(...preDoughComponentsPayload);
+		}
 
 		const processSubIngredients = (subIngredients: (SubIngredientWeight | SubIngredientRatio)[], type: 'MIX_IN' | 'FILLING' | 'TOPPING') => {
 			return subIngredients
@@ -816,11 +920,11 @@ const handleSubmit = async () => {
 			notes: form.value.notes,
 			targetTemp: form.value.targetTemp,
 			lossRatio: toDecimal(Number(mainComponentFromForm.lossRatio || 0)),
-			// [核心修改] 提交时包含主组件的 divisionLoss
+			// 提交时包含主组件的 divisionLoss
 			divisionLoss: Number(mainComponentFromForm.divisionLoss || 0),
 			procedure: mainComponentFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
-			// [核心修改] 映射 products 时，包含 p.id (如果存在)
+			// 映射 products 时，包含 p.id (如果存在)
 			products: form.value.products!.map((p) => ({
 				id: p.id, // 包含 id
 				name: p.name,
@@ -889,9 +993,10 @@ const handleSubmit = async () => {
 }
 
 .col-ratio {
-	width: 60px;
+	width: 80px; /* [G-Code-Note] [核心修改] 统一宽度 */
 	text-align: center;
 	margin-left: 10px;
+	flex-shrink: 0;
 }
 
 .col-action {

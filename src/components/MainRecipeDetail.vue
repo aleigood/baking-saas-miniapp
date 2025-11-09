@@ -11,7 +11,7 @@
 				<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
 			</view>
 
-			<view v-if="recipeDetails.componentGroups.length > 0">
+			<view v-if="recipeDetails.componentGroups && recipeDetails.componentGroups.length > 0">
 				<view v-for="(component, index) in recipeDetails.componentGroups" :key="component.name + index" class="dough-section">
 					<view class="group-title" @click="toggleCollapse(component.name)">
 						<span>{{ component.name }}</span>
@@ -34,10 +34,16 @@
 							>
 								<view class="col-ingredient ingredient-name-cell">
 									<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="'main-ing-icon-' + index + '-' + ingIndex">
-										<text>{{ ing.name }}</text>
+										<view class="ingredient-name-wrapper">
+											<text>{{ ing.name }}</text>
+											<text class="recipe-tag" v-if="ing.isRecipe">自制</text>
+										</view>
 										<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 									</view>
-									<text v-else>{{ ing.name }}</text>
+									<view v-else class="ingredient-name-wrapper">
+										<text>{{ ing.name }}</text>
+										<text class="recipe-tag" v-if="ing.isRecipe">自制</text>
+									</view>
 								</view>
 								<text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
 								<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
@@ -67,7 +73,12 @@
 										<text class="col-total">成本</text>
 									</view>
 									<view v-for="ing in ingredients" :key="ing.id" class="table-row">
-										<text class="col-ingredient">{{ ing.name }}</text>
+										<view class="col-ingredient ingredient-name-cell">
+											<view class="ingredient-name-wrapper">
+												<text>{{ ing.name }}</text>
+												<text class="recipe-tag" v-if="ing.isRecipe">自制</text>
+											</view>
+										</view>
 										<text v-if="groupName === '搅拌原料'" class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
 										<text class="col-usage">{{ getUsageDisplay(ing) }}</text>
 										<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
@@ -159,11 +170,6 @@ const selectedProduct = computed(() => {
 	// @ts-ignore
 	return props.version.products.find((p) => p.id === selectedProductId.value);
 });
-
-// [核心改造] 不再需要 componentSummary，此逻辑已合并到动态循环中
-// const componentSummary = computed(() => {
-// 	return recipeDetails.value?.extraIngredients.find((item) => item.id === 'component-summary');
-// });
 
 const hasOtherIngredients = computed(() => {
 	if (!recipeDetails.value) return false;
@@ -259,6 +265,31 @@ watch(
 @import '@/styles/common.scss';
 @include table-layout;
 
+/* [G-Code-Note] [核心新增] "自制" 标签和名称包装器 */
+.ingredient-name-cell {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 5px;
+}
+
+.ingredient-name-wrapper {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+/* [G-Code-Note] [核心修改] 更新样式以匹配 edit.vue */
+.recipe-tag {
+	font-size: 12px;
+	font-weight: 500;
+	padding: 2px 8px;
+	border-radius: 10px;
+	background-color: #faedcd; /* [G-Code-Note] [核心修改] 更新背景颜色 */
+	color: var(--primary-color); /* [G-Code-Note] [核心修改] 更新字体颜色 */
+	flex-shrink: 0;
+}
+
 .collapsible-content {
 	max-height: 1000px;
 	overflow: hidden;
@@ -278,6 +309,9 @@ watch(
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
+	/* [G-Code-Note] [核心修改] 确保 wrapper 优先，icon 靠右 */
+	flex-grow: 1;
+	justify-content: space-between;
 }
 
 .info-icon {

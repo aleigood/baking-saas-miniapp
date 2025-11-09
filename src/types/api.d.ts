@@ -1,3 +1,7 @@
+// G-Code-Note: Client (Vue)
+// 路径: src/types/api.d.ts
+// [核心重构] 完整文件，更新 ComponentIngredient 并修复 doughGroups -> componentGroups
+
 // [核心新增] 定义批量导入结果的类型
 export interface BatchImportResult {
 	totalCount: number;
@@ -204,6 +208,28 @@ export interface RecipeFormTemplate {
 	procedure?: string[];
 }
 
+// [G-Code-Note] [核心重构] 定义 DisplayIngredient 类型
+// 这与 recipes.service.ts 中的 DisplayIngredient 接口匹配
+export type IngredientType = 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
+export type RecipeType = 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
+
+export interface DisplayIngredient {
+	id: string;
+	name: string;
+	tenantId: string;
+	type: IngredientType | RecipeType; // 'STANDARD', 'UNTRACKED', 'PRE_DOUGH', 'EXTRA'
+	category?: RecipeCategory;
+	isFlour: boolean;
+	waterContent: number;
+	currentStockInGrams: number;
+	currentStockValue: number;
+	activeSkuId: string | null;
+	createdAt: Date;
+	updatedAt: Date;
+	deletedAt: Date | null;
+	extraInfo?: string;
+}
+
 export interface RecipeVersion {
 	id: string;
 	familyId: string;
@@ -215,7 +241,7 @@ export interface RecipeVersion {
 	components: {
 		id: string;
 		name: string;
-		ingredients: ComponentIngredient[];
+		ingredients: ComponentIngredient[]; // [G-Code-Note] ComponentIngredient 类型被修改
 		procedure: string[];
 		_count: {
 			ingredients: number;
@@ -223,31 +249,19 @@ export interface RecipeVersion {
 	}[];
 }
 
+// [G-Code-Note] [核心重构] ComponentIngredient 现在反映 _sanitizeFamily 的输出
 export interface ComponentIngredient {
 	id: string;
 	ratio: number | null;
 	flourRatio: number | null;
 	ingredientId: string | null;
-	ingredient: {
-		id: string;
-		name: string;
-		isFlour: boolean;
-	} | null;
-	linkedPreDough: {
-		id: string;
-		name: string;
-		versions: {
-			components: {
-				ingredients: {
-					ratio: number;
-					ingredient: {
-						name: string;
-						isFlour: boolean;
-					};
-				}[];
-			}[];
-		}[];
-	} | null;
+	preDoughId: string | null; // [G-Code-Note] 增加 preDoughId
+	extraId: string | null; // [G-Code-Note] 增加 extraId
+	ingredient: DisplayIngredient | null; // [G-Code-Note] 使用新的 DisplayIngredient
+
+	// [G-Code-Note] 这两个字段在 _sanitizeFamily 中被设为 null，但为安全起见保留
+	linkedPreDough: null;
+	linkedExtra: null;
 }
 
 export interface Product {
@@ -273,6 +287,7 @@ export interface CalculatedIngredientInfo {
 	pricePerKg: number;
 	cost: number;
 	extraInfo?: string;
+	isRecipe: boolean; // [G-Code-Note] [核心新增] 确保成本计算 API 也返回这个
 }
 export interface CalculatedDoughGroup {
 	name: string;
@@ -287,10 +302,12 @@ export interface CalculatedExtraIngredientInfo {
 	cost: number;
 	weightInGrams: number;
 	ratio?: number;
+	isRecipe: boolean; // [G-Code-Note] [核心新增] 确保成本计算 API 也返回这个
 }
 export interface RecipeDetails {
 	totalCost: number;
-	doughGroups: CalculatedDoughGroup[];
+	// [G-Code-Note] [核心修复] doughGroups -> componentGroups
+	componentGroups: CalculatedDoughGroup[];
 	extraIngredients: CalculatedExtraIngredientInfo[];
 	groupedExtraIngredients: Record<string, CalculatedExtraIngredientInfo[]>;
 	productProcedure: string[];
@@ -389,7 +406,7 @@ export interface ProductionTaskDto {
 				components: {
 					id: string;
 					name: string;
-					ingredients: ComponentIngredient[];
+					ingredients: ComponentIngredient[]; // [G-Code-Note] 已更新为新类型
 				}[];
 			};
 		};
