@@ -12,7 +12,7 @@
 
 			<view class="form-container">
 				<input class="input-field" v-model="form.phone" placeholder="请输入手机号" type="tel" />
-				<input class="input-field" v-model="form.password" type="password" placeholder="请输入密码" />
+				<input class="input-field" v-model="form.password" password placeholder="请输入密码" />
 				<AppButton type="primary" full-width :loading="loading" @click="handleLogin" class="login-button">
 					{{ loading ? '' : '登 录' }}
 				</AppButton>
@@ -53,8 +53,9 @@ const safeAreaTop = computed(() => {
 });
 
 const form = reactive({
-	phone: '13966666666',
-	password: '123'
+	// [核心修改] 清除默认填写的手机号和密码，用于正式发布
+	phone: '',
+	password: ''
 });
 
 // [核心新增] onShow生命周期钩子
