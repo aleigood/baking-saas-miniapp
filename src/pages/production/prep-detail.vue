@@ -62,8 +62,13 @@
 
 					<view v-if="activeTab !== 'BILL_OF_MATERIALS'">
 						<view v-if="filteredPrepItems.length > 0">
-							<view v-for="item in filteredPrepItems" :key="item.id" class="card recipe-card">
+							<view v-for="item in filteredPrepItems" :key="item.id" class="card recipe-card" :class="{ 'is-completed': completedItems.has(item.id) }">
 								<view class="card-title-wrapper" @click="toggleCollapse(item.id)">
+									<view class="completion-toggle" @click.stop="toggleItemCompleted(item.id)">
+										<view class="check-icon" :class="{ 'is-checked': completedItems.has(item.id) }">
+											<view v-if="completedItems.has(item.id)" class="check-mark"></view>
+										</view>
+									</view>
 									<span class="card-title">{{ item.name }}</span>
 									<span class="arrow" :class="{ collapsed: collapsedSections.has(item.id) }">&#10095;</span>
 								</view>
@@ -136,8 +141,8 @@
 import { ref, reactive, computed, getCurrentInstance } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import type { PrepTask, CalculatedRecipeDetails, BillOfMaterialsResponseDto, TaskIngredientDetail } from '@/types/api';
-// [新增] 导入获取前置任务详情的 API 方法
 import { getPrepTaskDetails } from '@/api/tasks';
+import { useDataStore } from '@/store/data'; // [新增] 导入 data store
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
@@ -152,11 +157,16 @@ defineOptions({
 });
 
 const instance = getCurrentInstance();
+const dataStore = useDataStore(); // [新增] 初始化 data store
 
 const isLoading = ref(true);
 const task = ref<PrepTask | null>(null);
+const taskDate = ref<string | null>(null); // [新增] 用于存储当前任务的日期
 
 const addedIngredientsMap = reactive(new Set<string>());
+
+// [新增] 用于跟踪已完成的“面种”或“馅料”卡片
+const completedItems = ref(new Set<string>());
 
 const activeTab = ref('BILL_OF_MATERIALS');
 const collapsedSections = ref(new Set<string>());
@@ -292,13 +302,62 @@ const toggleIngredientAdded = (itemId: string, ingredientIndex: number) => {
 	} else {
 		addedIngredientsMap.add(compositeKey);
 	}
+
+	// [新增] 调用 dataStore 保存状态
+	if (taskDate.value) {
+		dataStore.savePrepTaskProgress(taskDate.value, addedIngredientsMap, completedItems.value);
+	}
+};
+
+// [新增] 切换“面种”或“馅料”卡片的完成状态
+const toggleItemCompleted = (itemId: string) => {
+	// 提供一个短暂的震动反馈
+	uni.vibrateShort({});
+	const newSet = new Set(completedItems.value);
+	if (newSet.has(itemId)) {
+		newSet.delete(itemId); // 再次点击取消完成
+	} else {
+		newSet.add(itemId); // 标记为完成
+	}
+	completedItems.value = newSet;
+
+	// [新增] 调用 dataStore 保存状态
+	if (taskDate.value) {
+		dataStore.savePrepTaskProgress(taskDate.value, addedIngredientsMap, completedItems.value);
+	}
 };
 
 // [核心修改] 重构 onLoad 逻辑，让页面自己请求数据
 onLoad(async (options) => {
 	isLoading.value = true;
 	if (options && options.date) {
+		taskDate.value = options.date; // [新增] 保存日期
+
+		// [新增] 自动清理昨天的前置任务缓存
 		try {
+			// [中文注释] 兼容 iOS，需要将 '-' 替换为 '/'
+			const todayForCache = new Date(taskDate.value.replace(/-/g, '/'));
+			todayForCache.setDate(todayForCache.getDate() - 1); // 设置为昨天
+			// [中文注释] 格式化为 'YYYY-MM-DD'
+			const year = todayForCache.getFullYear();
+			const month = (todayForCache.getMonth() + 1).toString().padStart(2, '0');
+			const day = todayForCache.getDate().toString().padStart(2, '0');
+			const yesterdayStr = `${year}-${month}-${day}`;
+			// [中文注释] 清理昨天的缓存
+			dataStore.clearPrepTaskProgress(yesterdayStr);
+		} catch (e) {
+			console.warn('Failed to clear yesterday prep task progress', e);
+		}
+
+		try {
+			// [新增] 调用 dataStore 的方法加载当天的缓存
+			const { addedIngredients, completedItems: loadedCompletedItems } = dataStore.loadPrepTaskProgress(taskDate.value);
+			// [中文注释] 清空当前的 Set，用缓存数据填充
+			addedIngredientsMap.clear();
+			addedIngredients.forEach((key) => addedIngredientsMap.add(key));
+			// [中文注释] 更新 ref
+			completedItems.value = loadedCompletedItems;
+
 			// 调用新的 API 方法获取数据
 			const taskData = await getPrepTaskDetails(options.date);
 			task.value = taskData;
@@ -324,7 +383,7 @@ onLoad(async (options) => {
 @include table-layout;
 
 .collapsible-content {
-	max-height: 10000px; // [修改] 增大最大高度，防止超长列表被截断
+	max-height: 10000px;
 	overflow: hidden;
 	transition: max-height 0.3s ease-in-out;
 	box-sizing: border-box;
@@ -350,10 +409,20 @@ onLoad(async (options) => {
 
 .card {
 	margin-bottom: 20px;
+	transition: opacity 0.3s ease;
 }
 
 .card-title-wrapper {
 	margin-bottom: 0px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.card-title {
+	flex: 1;
+	min-width: 0;
+	transition: text-decoration 0.3s ease;
 }
 
 .arrow {
@@ -362,6 +431,7 @@ onLoad(async (options) => {
 	transform: rotate(90deg);
 	transition: transform 0.3s ease;
 	padding: 5px;
+	flex-shrink: 0;
 }
 
 .arrow.collapsed {
@@ -450,5 +520,47 @@ onLoad(async (options) => {
 .highlight {
 	font-weight: 600;
 	color: var(--primary-color);
+}
+
+.recipe-card.is-completed {
+	opacity: 0.65;
+
+	.card-title {
+		text-decoration: line-through;
+		text-decoration-color: var(--text-secondary);
+	}
+}
+
+.completion-toggle {
+	padding: 5px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.check-icon {
+	width: 20px;
+	height: 20px;
+	border: 2px solid var(--text-secondary);
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.2s ease;
+	box-sizing: border-box;
+}
+
+.check-icon.is-checked {
+	border-color: var(--primary-color);
+	background-color: var(--primary-color);
+}
+
+.check-mark {
+	width: 6px;
+	height: 11px;
+	border: solid #ffffff;
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg) translateY(-1px) translateX(-1px);
 }
 </style>

@@ -42,6 +42,8 @@ function getMonthDateRange() {
 
 // [中文注释] 核心重构：将任务进度缓存的 key 生成逻辑集中管理
 const getTaskProgressStorageKey = (taskId: string) => `task-progress-${taskId}`;
+// [新增] 将前置任务进度缓存的 key 生成逻辑集中管理
+const getPrepTaskProgressStorageKey = (date: string) => `prep-task-progress-${date}`;
 
 export const useDataStore = defineStore('data', () => {
 	const tenants = ref<Tenant[]>([]);
@@ -126,6 +128,48 @@ export const useDataStore = defineStore('data', () => {
 	// [中文注释] 核心重构：清除指定任务的进度缓存
 	const clearTaskProgress = (taskId: string) => {
 		const storageKey = getTaskProgressStorageKey(taskId);
+		uni.removeStorageSync(storageKey);
+	};
+
+	// [新增] 加载指定日期的前置任务进度
+	const loadPrepTaskProgress = (date: string): { addedIngredients: Set<string>; completedItems: Set<string> } => {
+		const storageKey = getPrepTaskProgressStorageKey(date);
+		const savedData = uni.getStorageSync(storageKey);
+		if (savedData) {
+			// 确保解析安全
+			try {
+				const parsed = JSON.parse(savedData);
+				const addedIngredients = Array.isArray(parsed.addedIngredients) ? new Set(parsed.addedIngredients) : new Set<string>();
+				const completedItems = Array.isArray(parsed.completedItems) ? new Set(parsed.completedItems) : new Set<string>();
+				return { addedIngredients, completedItems };
+			} catch (e) {
+				console.error('Failed to parse prep task progress:', e);
+			}
+		}
+		// [中文注释] 如果没有缓存，返回两个空的 Set
+		return { addedIngredients: new Set<string>(), completedItems: new Set<string>() };
+	};
+
+	// [新增] 保存指定日期的前置任务进度
+	const savePrepTaskProgress = (date: string, addedIngredients: Set<string>, completedItems: Set<string>) => {
+		try {
+			const storageKey = getPrepTaskProgressStorageKey(date);
+			// [中文注释] 将两个 Set 转换为数组，存入一个对象中
+			const dataToSave = {
+				addedIngredients: Array.from(addedIngredients),
+				completedItems: Array.from(completedItems)
+			};
+			uni.setStorageSync(storageKey, JSON.stringify(dataToSave));
+		} catch (e) {
+			const toastStore = useToastStore();
+			toastStore.show({ message: '保存前置任务进度失败', type: 'error' });
+			console.error('Failed to save prep task progress to storage:', e);
+		}
+	};
+
+	// [新增] 清除指定日期的前置任务进度
+	const clearPrepTaskProgress = (date: string) => {
+		const storageKey = getPrepTaskProgressStorageKey(date);
 		uni.removeStorageSync(storageKey);
 	};
 	// --- End of 任务进度缓存管理 ---
@@ -371,6 +415,10 @@ export const useDataStore = defineStore('data', () => {
 		loadTaskProgress,
 		saveTaskProgress,
 		clearTaskProgress,
+		// [新增] 导出前置任务的缓存管理方法
+		loadPrepTaskProgress,
+		savePrepTaskProgress,
+		clearPrepTaskProgress,
 		clearProductionTasks,
 		fetchTenants,
 		selectTenant,
