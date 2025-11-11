@@ -82,26 +82,7 @@
 									</text>
 								</view>
 							</view>
-							<view class="group-title" @click="toggleCollapse('componentSummary')">
-								<span>{{ selectedComponentDetails.category === 'BREAD' ? '面团汇总' : '原料汇总' }}</span>
-								<span class="arrow" :class="{ collapsed: collapsedSections.has('componentSummary') }">&#10095;</span>
-							</view>
-							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('componentSummary') }">
-								<view class="smart-table">
-									<view class="table-header">
-										<text class="col-product-name">产品名称</text>
-										<text class="col-quantity">数量</text>
-										<text class="col-dough-weight">{{ selectedComponentDetails.category === 'BREAD' ? '产品面团' : '产品原料' }}</text>
-										<text class="col-division-weight">分割重量</text>
-									</view>
-									<view v-for="product in selectedComponentDetails.products" :key="product.id" class="info-row">
-										<text class="col-product-name">{{ product.name }}</text>
-										<text class="col-quantity">{{ product.quantity }}</text>
-										<text class="col-dough-weight">{{ formatWeight(product.totalBaseComponentWeight) }}</text>
-										<text class="col-division-weight">{{ formatWeight(product.divisionWeight) }}</text>
-									</view>
-								</view>
-							</view>
+
 							<view class="group-title" @click="toggleCollapse('productSummary')">
 								<span>产品汇总</span>
 								<span class="arrow" :class="{ collapsed: collapsedSections.has('productSummary') }">&#10095;</span>
@@ -112,6 +93,21 @@
 								</view>
 
 								<template v-if="selectedProductDetails">
+									<view class="smart-table" style="margin-top: 15px">
+										<view class="table-header">
+											<text class="col-product-name">基础原料</text>
+											<text class="col-dough-weight">总重</text>
+											<text class="col-quantity">产品数量</text>
+											<text class="col-division-weight">分割重量</text>
+										</view>
+										<view class="info-row">
+											<text class="col-product-name">{{ selectedProductDetails.baseComponent.name }}</text>
+											<text class="col-dough-weight">{{ formatWeight(selectedProductDetails.baseComponent.totalBaseComponentWeight) }}</text>
+											<text class="col-quantity">{{ selectedProductDetails.baseComponent.quantity }}</text>
+											<text class="col-division-weight">{{ formatWeight(selectedProductDetails.baseComponent.divisionWeight) }}</text>
+										</view>
+									</view>
+
 									<template
 										v-if="
 											selectedProductDetails.mixIns.length > 0 ||
@@ -253,6 +249,7 @@ import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
 import { useTemperatureStore } from '@/store/temperature';
+// [G-Code-Note] [需求修改] 引入新的类型
 import type { ProductionTaskDetailDto } from '@/types/api';
 import { getTaskDetail, updateTaskStatus, completeTask, getSpoilageStages } from '@/api/tasks';
 import AppModal from '@/components/AppModal.vue';

@@ -308,7 +308,8 @@ export interface RecipeDetails {
 	totalCost: number;
 	// [G-Code-Note] [核心修复] doughGroups -> componentGroups
 	componentGroups: CalculatedDoughGroup[];
-	extraIngredients: CalculatedExtraIngredientInfo[];
+	// [G-Code-Note] [需求修改] 移除 extraIngredients 字段，与后端 costing.service.ts 保持一致
+	// extraIngredients: CalculatedExtraIngredientInfo[];
 	groupedExtraIngredients: Record<string, CalculatedExtraIngredientInfo[]>;
 	productProcedure: string[];
 }
@@ -484,6 +485,13 @@ export interface ProductComponentSummary {
 export interface ProductDetails {
 	id: string;
 	name: string;
+	// [G-Code-Note] [需求修改] 新增 baseComponent 字段
+	baseComponent: {
+		name: string; // 根据品类显示 "面团" 或 "主料"
+		quantity: number;
+		totalBaseComponentWeight: number;
+		divisionWeight: number;
+	};
 	mixIns: TaskIngredientDetail[];
 	fillings: TaskIngredientDetail[];
 	toppings: TaskIngredientDetail[];
@@ -499,7 +507,8 @@ export interface ComponentGroup {
 	totalComponentWeight: number;
 	baseComponentIngredients: TaskIngredientDetail[];
 	baseComponentProcedure: string[];
-	products: ProductComponentSummary[];
+	// [G-Code-Note] [需求修改] 移除 products 字段
+	// products: ProductComponentSummary[];
 	productDetails: ProductDetails[];
 }
 
@@ -514,7 +523,8 @@ export interface ProductionTaskDetailDto {
 	status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 	notes: string | null;
 	stockWarning: string | null;
-	prepTask: PrepTask | null;
+	// [G-Code-Note] [需求修改] 移除 prepTask 字段
+	// prepTask: PrepTask | null;
 	componentGroups: ComponentGroup[];
 	items: TaskCompletionItem[];
 }
