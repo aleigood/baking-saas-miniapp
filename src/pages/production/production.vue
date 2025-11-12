@@ -370,9 +370,14 @@ const handleRefresh = async () => {
 		dataStore.markProductsForTaskCreationAsStale();
 		await Promise.all([dataStore.fetchProductsForTaskCreation(), dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} finally {
+		// 1. 告诉 spinner "开始" 隐藏
 		refreshableLayout.value?.finishRefresh();
-		// [核心修改] 下拉刷新：强制刷新 Key，*并* 播放动画
-		triggerListAnimationWithKeyUpdate(true);
+
+		// 2. [核心修复] 延迟 300毫秒 (等待 spinner 隐藏动画结束)
+		setTimeout(() => {
+			// 3. 真正开始播放列表动画
+			triggerListAnimationWithKeyUpdate(true);
+		}, 700); // (这个 300ms 是估计值, 你可以根据 RefreshableLayout 的实际动画时长调整)
 	}
 };
 

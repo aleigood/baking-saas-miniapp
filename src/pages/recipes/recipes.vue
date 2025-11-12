@@ -315,8 +315,14 @@ const handleRefresh = async () => {
 		dataStore.markRecipesAsStale();
 		await dataStore.fetchRecipesData();
 	} finally {
+		// 1. 告诉 spinner "开始" 隐藏
 		refreshableLayout.value?.finishRefresh();
-		triggerListAnimationWithKeyUpdate(true); // [中文注释] 刷新时播放动画
+
+		// 2. [核心修复] 延迟 300毫秒 (等待 spinner 隐藏动画结束)
+		setTimeout(() => {
+			// 3. 真正开始播放列表动画
+			triggerListAnimationWithKeyUpdate(true);
+		}, 700); // (这个 300ms 是估计值, 你可以根据 RefreshableLayout 的实际动画时长调整)
 	}
 };
 
