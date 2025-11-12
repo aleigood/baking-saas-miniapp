@@ -23,7 +23,7 @@
 
 				<view class="list-wrapper">
 					<template v-if="hasAnyRecipe">
-						<template v-if="filteredRecipes.length > 0">
+						<view v-if="filteredRecipes.length > 0" :key="listAnimationKey">
 							<ListItem
 								v-for="(family, index) in filteredRecipes"
 								:key="family.id"
@@ -33,6 +33,8 @@
 								:bleed="true"
 								:divider="index < filteredRecipes.length - 1"
 								:discontinued="!!family.deletedAt"
+								:animate-on-mount="triggerListAnimation"
+								:animation-index="index"
 							>
 								<template v-if="family.type === 'MAIN'">
 									<view class="main-info">
@@ -64,7 +66,7 @@
 									</view>
 								</template>
 							</ListItem>
-						</template>
+						</view>
 						<view v-else class="empty-state">
 							<text>该分类下暂无配方</text>
 						</view>
@@ -138,7 +140,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+// [核心修改] 导入 watch
+import { ref, computed, watch } from 'vue';
+// [核心修复] 移除了 @dcloud-io- 里的破折号
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
@@ -165,6 +169,11 @@ const activeFilter = ref('BREAD');
 
 const isSubmitting = ref(false);
 const selectedRecipe = ref<RecipeFamily | null>(null);
+
+// [核心新增] 动画相关状态
+const listAnimationKey = ref(Date.now());
+const triggerListAnimation = ref(false);
+const isFirstLoad = ref(true);
 
 const recipeTypeMap = {
 	MAIN: '面团',
@@ -258,8 +267,26 @@ const fabActions = computed(() => {
 	];
 });
 
+// [核心新增] 动画辅助函数
+const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
+	listAnimationKey.value = Date.now();
+	triggerListAnimation.value = playAnimation;
+};
+
+// [核心新增] 监听 Tab 切换
+watch(
+	() => uiStore.activeTab,
+	(newTab, oldTab) => {
+		if (oldTab === 'recipes' && newTab !== 'recipes') {
+			triggerListAnimation.value = false;
+		}
+	}
+);
+
 onShow(async () => {
 	isNavigating.value = false;
+	let didFetch = false; // [中文注释] 动画标志
+
 	// [核心修改] 移除此处的 Toast 消费逻辑，统一由 main.vue 处理
 	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
 		await dataStore.fetchRecipesData();
@@ -267,6 +294,19 @@ onShow(async () => {
 		if (filterTabs.value.length > 0 && !filterTabs.value.some((t) => t.key === activeFilter.value)) {
 			activeFilter.value = filterTabs.value[0].key;
 		}
+		didFetch = true; // [中文注释] 标记已获取数据
+	}
+
+	// [核心新增] 动画状态逻辑
+	if (didFetch) {
+		if (isFirstLoad.value) {
+			triggerListAnimationWithKeyUpdate(true);
+			isFirstLoad.value = false;
+		} else {
+			triggerListAnimationWithKeyUpdate(false);
+		}
+	} else {
+		triggerListAnimation.value = false;
 	}
 });
 
@@ -276,6 +316,7 @@ const handleRefresh = async () => {
 		await dataStore.fetchRecipesData();
 	} finally {
 		refreshableLayout.value?.finishRefresh();
+		triggerListAnimationWithKeyUpdate(true); // [中文注释] 刷新时播放动画
 	}
 };
 
@@ -369,6 +410,7 @@ const confirmDiscontinueRecipe = async () => {
 		// [核心修正] 增加这一行，标记用于创建任务的产品列表数据为过期
 		dataStore.markProductsForTaskCreationAsStale();
 		await dataStore.fetchRecipesData();
+		triggerListAnimationWithKeyUpdate(true); // [中文注释] 操作后播放动画
 	} catch (error) {
 		console.error('Failed to discontinue recipe:', error);
 	} finally {
@@ -388,6 +430,7 @@ const confirmRestoreRecipe = async () => {
 		// [核心修正] 增加这一行，标记用于创建任务的产品列表数据为过期
 		dataStore.markProductsForTaskCreationAsStale();
 		await dataStore.fetchRecipesData();
+		triggerListAnimationWithKeyUpdate(true); // [中文注释] 操作后播放动画
 	} catch (error) {
 		console.error('Failed to restore recipe:', error);
 	} finally {
@@ -405,6 +448,7 @@ const confirmDeleteRecipe = async () => {
 		toastStore.show({ message: '删除成功', type: 'success' });
 		dataStore.markRecipesAsStale();
 		await dataStore.fetchRecipesData();
+		triggerListAnimationWithKeyUpdate(true); // [中文注释] 操作后播放动画
 	} catch (error) {
 		console.error('Failed to delete recipe:', error);
 	} finally {

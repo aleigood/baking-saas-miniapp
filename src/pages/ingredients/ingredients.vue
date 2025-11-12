@@ -11,7 +11,7 @@
 
 				<view class="list-wrapper">
 					<template v-if="ingredientFilter === 'all'">
-						<template v-if="dataStore.ingredients.allIngredients.length > 0">
+						<view v-if="dataStore.ingredients.allIngredients.length > 0" :key="listAnimationKey + '-all'">
 							<ListItem
 								v-for="(ing, index) in dataStore.ingredients.allIngredients"
 								:key="ing.id"
@@ -20,6 +20,8 @@
 								:vibrate-on-long-press="canEdit"
 								:bleed="true"
 								:divider="index < dataStore.ingredients.allIngredients.length - 1"
+								:animate-on-mount="triggerListAnimation"
+								:animation-index="index"
 							>
 								<view class="main-info">
 									<view class="name">{{ ing.name }}</view>
@@ -38,14 +40,14 @@
 									</view>
 								</view>
 							</ListItem>
-						</template>
+						</view>
 						<view v-else class="empty-state">
 							<text>暂无原料信息</text>
 						</view>
 					</template>
 
 					<template v-if="ingredientFilter === 'low'">
-						<template v-if="dataStore.ingredients.lowStockIngredients.length > 0">
+						<view v-if="dataStore.ingredients.lowStockIngredients.length > 0" :key="listAnimationKey + '-low'">
 							<ListItem
 								v-for="(ing, index) in dataStore.ingredients.lowStockIngredients"
 								:key="ing.id"
@@ -54,6 +56,8 @@
 								:vibrate-on-long-press="canEdit"
 								:bleed="true"
 								:divider="index < dataStore.ingredients.lowStockIngredients.length - 1"
+								:animate-on-mount="triggerListAnimation"
+								:animation-index="index"
 							>
 								<view class="main-info">
 									<view class="name">{{ ing.name }}</view>
@@ -66,7 +70,7 @@
 									<view class="desc">库存: {{ formatWeight(ing.currentStockInGrams) }}</view>
 								</view>
 							</ListItem>
-						</template>
+						</view>
 						<view v-else class="empty-state">
 							<text>暂无库存紧张的原料</text>
 						</view>
@@ -129,11 +133,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue';
+// [核心修改] 导入 watch
+import { ref, computed, reactive, watch } from 'vue';
+// [核心修复] 移除了 @dcloud-io- 里的破折号
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
+// [核心新增] 导入 uiStore
+import { useUiStore } from '@/store/ui';
 import { createIngredient, deleteIngredient } from '@/api/ingredients';
 import type { Ingredient } from '@/types/api';
 import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
@@ -149,6 +157,9 @@ import { formatWeight, formatNumber } from '@/utils/format';
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
+// [核心新增] 获取 uiStore 实例
+const uiStore = useUiStore();
+
 const ingredientFilter = ref('all');
 const isSubmitting = ref(false);
 const selectedIngredient = ref<Ingredient | null>(null);
@@ -166,6 +177,11 @@ const isNavigating = ref(false);
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
+
+// [核心新增] 动画相关状态
+const listAnimationKey = ref(Date.now());
+const triggerListAnimation = ref(false);
+const isFirstLoad = ref(true);
 
 const newIngredientForm = reactive<{
 	name: string;
@@ -189,10 +205,41 @@ const currentTypeLabel = computed(() => {
 	return availableTypes.value.find((t) => t.value === newIngredientForm.type)?.label || '未知类型';
 });
 
+// [核心新增] 动画辅助函数
+const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
+	listAnimationKey.value = Date.now();
+	triggerListAnimation.value = playAnimation;
+};
+
+// [核心新增] 监听 Tab 切换
+watch(
+	() => uiStore.activeTab,
+	(newTab, oldTab) => {
+		if (oldTab === 'ingredients' && newTab !== 'ingredients') {
+			triggerListAnimation.value = false;
+		}
+	}
+);
+
 onShow(async () => {
 	isNavigating.value = false;
+	let didFetch = false; // [中文注释] 动画标志
+
 	if (dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients) {
 		await dataStore.fetchIngredientsData();
+		didFetch = true; // [中文注释] 标记已获取数据
+	}
+
+	// [核心新增] 动画状态逻辑
+	if (didFetch) {
+		if (isFirstLoad.value) {
+			triggerListAnimationWithKeyUpdate(true);
+			isFirstLoad.value = false;
+		} else {
+			triggerListAnimationWithKeyUpdate(false);
+		}
+	} else {
+		triggerListAnimation.value = false;
 	}
 });
 
@@ -202,6 +249,7 @@ const handleRefresh = async () => {
 		await dataStore.fetchIngredientsData();
 	} finally {
 		refreshableLayout.value?.finishRefresh();
+		triggerListAnimationWithKeyUpdate(true); // [中文注释] 刷新时播放动画
 	}
 };
 
@@ -289,6 +337,7 @@ const confirmDeleteIngredient = async () => {
 		toastStore.show({ message: '删除成功', type: 'success' });
 		dataStore.markIngredientsAsStale();
 		await dataStore.fetchIngredientsData();
+		triggerListAnimationWithKeyUpdate(true); // [中文注释] 操作后播放动画
 	} catch (error) {
 		console.error('Failed to delete ingredient:', error);
 	} finally {
@@ -331,6 +380,7 @@ const handleCreateIngredient = async () => {
 		showCreateIngredientModal.value = false;
 		dataStore.markIngredientsAsStale();
 		await dataStore.fetchIngredientsData();
+		triggerListAnimationWithKeyUpdate(true); // [中文注释] 操作后播放动画
 	} catch (error) {
 		console.error('Failed to create ingredient:', error);
 	} finally {

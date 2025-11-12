@@ -1,10 +1,17 @@
 <template>
 	<view
 		class="list-item ripple-container"
-		:class="{ 'card-mode': cardMode, 'is-selected': selected, 'bleed-mode': bleed, 'is-discontinued': discontinued }"
+		:class="{
+			'card-mode': cardMode,
+			'is-selected': selected,
+			'bleed-mode': bleed,
+			'is-discontinued': discontinued,
+			'animate-in': animateOnMount // [中文注释] 仅在 animateOnMount 为 true 时添加动画类
+		}"
 		@touchstart="handleTouchStart"
 		@click="handleClick"
 		@longpress="handleLongPress"
+		:style="animationStyle"
 	>
 		<span v-for="ripple in ripples" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 		<view class="list-item-content" :class="{ 'no-padding': noPadding, 'bleed-padding': bleed }">
@@ -15,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, getCurrentInstance } from 'vue';
+import { ref, getCurrentInstance, computed } from 'vue'; // [中文注释] 引入 computed
 
 const props = defineProps({
 	vibrateOnLongPress: {
@@ -42,7 +49,15 @@ const props = defineProps({
 		type: Boolean,
 		default: false
 	},
-	// [中文注释] 新增 discontinued prop，用于接收停用状态
+	// [中文注释] 新增 animateOnMount prop，控制是否播放入场动画
+	animateOnMount: {
+		type: Boolean,
+		default: false
+	},
+	animationIndex: {
+		type: Number,
+		default: 0
+	},
 	discontinued: {
 		type: Boolean,
 		default: false
@@ -53,6 +68,20 @@ const emit = defineEmits(['click', 'longpress']);
 
 const ripples = ref<any[]>([]);
 const instance = getCurrentInstance();
+
+// [中文注释] 计算交错动画的延迟时间 (使用 CSS 变量)
+const animationStyle = computed(() => {
+	// [中文注释] 仅当需要动画时才计算延迟
+	if (!props.animateOnMount) {
+		return {};
+	}
+	// [中文注释] 每个item延迟50ms，最多延迟1000ms
+	const delayMs = Math.min(props.animationIndex * 50, 1000);
+	return {
+		'--animation-delay': `${delayMs}ms`
+	};
+});
+
 const handleTouchStart = (event: TouchEvent) => {
 	const touch = event.touches[0];
 	const query = uni.createSelectorQuery().in(instance);
@@ -96,6 +125,18 @@ const handleLongPress = (event: Event) => {
 </script>
 
 <style scoped lang="scss">
+/* [中文注释] 新增：定义列表项入场动画 */
+@keyframes fadeInUp {
+	from {
+		opacity: 0;
+		transform: translateY(15px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
 /* [CSS重构] 将 .list-item 相关的样式从 common.scss 移入组件内部 */
 .list-item {
 	position: relative;
@@ -114,6 +155,13 @@ const handleLongPress = (event: Event) => {
 	&:active {
 		transform: scale(0.98);
 	}
+}
+
+/* [中文注释] 新增：将动画应用到 .animate-in 类上 */
+.list-item.animate-in {
+	animation: fadeInUp 0.35s ease-out forwards;
+	opacity: 0; /* [中文注释] 动画初始状态 (配合 forwards) */
+	animation-delay: var(--animation-delay, 0ms); /* [中文注释] 使用 CSS 变量设置延迟 */
 }
 
 // [中文注释] 新增停用状态的样式，直接在组件内部定义

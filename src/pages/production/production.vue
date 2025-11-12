@@ -29,14 +29,16 @@
 					</view>
 				</view>
 
-				<view v-if="dataStore.production.length > 0">
+				<view v-if="dataStore.production.length > 0" :key="listAnimationKey">
 					<ListItem
-						v-for="task in dataStore.production"
+						v-for="(task, index) in dataStore.production"
 						:key="task.id"
 						@click="navigateToDetail(task)"
 						@longpress="openTaskActions(task)"
 						:vibrate-on-long-press="true"
 						card-mode
+						:animation-index="index"
+						:animate-on-mount="triggerListAnimation"
 						:style="{ '--card-border-color': (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).color }"
 					>
 						<view class="task-info">
@@ -142,7 +144,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue';
+// [核心修复] 从 vue 导入 watch
+import { ref, computed, reactive, watch } from 'vue';
 import { onShow, onLoad } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
@@ -157,7 +160,6 @@ import AppButton from '@/components/AppButton.vue';
 import CalendarModal from '@/components/CalendarModal.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
 import type { ProductionTaskDto, PrepTask, RecipeCategory, ProductionTaskSummaryDto } from '@/types/api';
-// [核心修改] 导入 deleteTask API
 import { updateTaskStatus, getTaskDates, deleteTask } from '@/api/tasks';
 import { formatChineseDate } from '@/utils/format';
 
@@ -197,6 +199,14 @@ const uiStore = useUiStore();
 const toastStore = useToastStore();
 const temperatureStore = useTemperatureStore();
 
+// [中文注释] 用于控制列表动画的 Key
+const listAnimationKey = ref(Date.now());
+// [核心修改] 控制列表动画是否播放的标志
+const triggerListAnimation = ref(false);
+
+// [核心修复] 新增一个标志，用于判断是否是组件首次加载
+const isFirstLoad = ref(true);
+
 const categoryMap = {
 	BREAD: '面包任务',
 	PASTRY: '西点任务',
@@ -227,7 +237,6 @@ const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(nul
 const isSubmitting = ref(false);
 const selectedTaskForAction = ref<ProductionTaskSummaryDto | null>(null);
 const showCancelConfirmModal = ref(false);
-// [核心修改] 新增删除确认弹窗状态
 const showDeleteConfirmModal = ref(false);
 const showTaskActionsModal = ref(false);
 const showTemperatureSettingsModal = ref(false);
@@ -249,25 +258,16 @@ const tempSettings = reactive<{
 	flourTemp: number | null;
 	waterTemp: number | null;
 }>({
-	mixerType: 16, // [核心修改] 默认值改为 16
+	mixerType: 16,
 	envTemp: 25,
 	flourTemp: 25,
 	waterTemp: 25
 });
 
-// [核心修改] 删除旧的 currentMixerIndex (computed)
-// const currentMixerIndex = computed(() => {
-// 	return temperatureStore.mixerTypes.findIndex((m) => m.value === tempSettings.mixerType);
-// });
-
-// [核心修改] 新增 currentMixerPresetIndex (ref) 来跟踪 picker 的选择
 const currentMixerPresetIndex = ref(0);
 
-// [核心修改] 新增 isCustomMode (computed) 来判断是否显示自定义输入框
 const isCustomMode = computed(() => {
-	// 检查当前 picker 选中的项
 	const selected = temperatureStore.mixerTypes[currentMixerPresetIndex.value];
-	// 如果选中项的值是 -1 (我们设定的自定义标记)，则返回 true
 	return selected && selected.value === -1;
 });
 
@@ -291,12 +291,33 @@ const pageTitle = computed(() => {
 	return `${date.getMonth() + 1}月${date.getDate()}日任务`;
 });
 
+// [核心修改] 触发列表动画 (现在接受一个参数)
+const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
+	listAnimationKey.value = Date.now(); // 强制列表重新渲染
+	triggerListAnimation.value = playAnimation; // 告知新列表项是否播放动画
+};
+
+// [核心修复] 监听 activeTab 的变化
+watch(
+	() => uiStore.activeTab,
+	(newTab, oldTab) => {
+		// 当用户从“制作”页切换到 *其他* 页面时
+		if (oldTab === 'production' && newTab !== 'production') {
+			// 立刻重置动画标志，这样下次切回来时它就是 false
+			triggerListAnimation.value = false;
+		}
+	}
+);
+
 onLoad(() => {
 	temperatureStore.initTemperatureSettings();
+	// [核心修复] 注意：onLoad 在 v-show 架构下只运行一次
+	// 我们不在 onShow 中设置 isFirstLoad，而是在 ref 中默认为 true
 });
 
 onShow(async () => {
 	isNavigating.value = false;
+	let didFetchProduction = false; // [中文注释] 标记是否获取了新数据
 
 	try {
 		if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation || dataStore.dataStale.recipes) {
@@ -304,9 +325,26 @@ onShow(async () => {
 		}
 		if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
 			await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
+			didFetchProduction = true; // [中文注释] 标记为 true
 		}
 	} catch (error) {
 		console.error('Failed to load data on show:', error);
+	}
+
+	// [核心修复] 重新编排 onShow 逻辑
+	if (didFetchProduction) {
+		// 如果获取了新数据
+		if (isFirstLoad.value) {
+			// 并且这是第一次加载
+			triggerListAnimationWithKeyUpdate(true); // 播放动画
+			isFirstLoad.value = false; // 关闭“首次加载”开关
+		} else {
+			// 否则 (这是 Tab 切换回来时发现数据过期了)
+			triggerListAnimationWithKeyUpdate(false); // 不播放动画
+		}
+	} else {
+		// 如果没有获取新数据 (只是普通的 Tab 切换)
+		triggerListAnimation.value = false; // 确保不播放动画
 	}
 });
 
@@ -333,6 +371,8 @@ const handleRefresh = async () => {
 		await Promise.all([dataStore.fetchProductsForTaskCreation(), dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} finally {
 		refreshableLayout.value?.finishRefresh();
+		// [核心修改] 下拉刷新：强制刷新 Key，*并* 播放动画
+		triggerListAnimationWithKeyUpdate(true);
 	}
 };
 
@@ -340,29 +380,30 @@ const handleDateSelect = async (date: string) => {
 	selectedDate.value = date;
 	isCalendarVisible.value = false;
 	await dataStore.fetchProductionData(date);
+	// [核心修改] 选择日期：强制刷新 Key，*并* 播放动画
+	triggerListAnimationWithKeyUpdate(true);
 };
 
-const getTaskTitle = (task: ProductionTaskSummaryDto | PrepTask) => {
+const getTaskTitle = (task: ProductionTaskDto | PrepTask) => {
 	if (task.status === 'PREP') {
 		return (task as PrepTask).title;
 	}
-	const regularTask = task as ProductionTaskSummaryDto;
+	const regularTask = task as ProductionTaskDto;
 	if (!regularTask.items || regularTask.items.length === 0) return '未知任务';
 	return regularTask.items.map((item) => `${item.product.name} x${item.quantity}`).join('、');
 };
 
-const getTotalQuantity = (task: ProductionTaskSummaryDto) => {
+const getTotalQuantity = (task: ProductionTaskDto) => {
 	if (!task.items) return 0;
 	return task.items.reduce((sum, item) => sum + item.quantity, 0);
 };
 
-// [核心修改] 重新规划副标题格式，统一单日和跨天任务的显示逻辑
 const getTaskDetails = (task: any) => {
 	if (task.status === 'PREP') {
 		return task.details;
 	}
 
-	const regularTask = task as ProductionTaskSummaryDto;
+	const regularTask = task as ProductionTaskDto;
 	let dateDisplay: string;
 
 	const startDateStr = regularTask.startDate.split('T')[0];
@@ -382,7 +423,6 @@ const getTaskDetails = (task: any) => {
 			dateDisplay = `${startMonth}月${startDay}日-${endMonth}月${endDay}日`;
 		}
 	} else {
-		// 对于单日任务，直接使用中文日期格式
 		dateDisplay = formatChineseDate(regularTask.startDate);
 	}
 
@@ -412,7 +452,7 @@ const navigateToHistory = () => {
 
 const openTaskActions = (task: any) => {
 	if (task.status === 'PREP') return;
-	selectedTaskForAction.value = task as ProductionTaskSummaryDto;
+	selectedTaskForAction.value = task as ProductionTaskDto;
 	showTaskActionsModal.value = true;
 };
 
@@ -429,7 +469,6 @@ const handleEditTask = () => {
 	});
 };
 
-// [核心修改] 新增打开删除确认弹窗的函数
 const handleOpenDeleteConfirm = () => {
 	showTaskActionsModal.value = false;
 	showDeleteConfirmModal.value = true;
@@ -440,26 +479,25 @@ const handleOpenCancelConfirm = () => {
 	showCancelConfirmModal.value = true;
 };
 
-// [核心修改] 新增确认删除任务的处理函数
 const handleConfirmDeleteTask = async () => {
 	if (!selectedTaskForAction.value) return;
 	isSubmitting.value = true;
 	try {
-		await deleteTask(selectedTaskForAction.value.id); // 调用删除 API
+		await deleteTask(selectedTaskForAction.value.id);
 
 		dataStore.clearTaskProgress(selectedTaskForAction.value.id);
 
 		toastStore.show({ message: '任务已删除', type: 'success' });
-		dataStore.markProductionAsStale(); // 标记列表数据过时
+		dataStore.markProductionAsStale();
 
-		// 重新获取数据刷新列表
 		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
+		// [核心修改] 删除任务：强制刷新 Key，*并* 播放动画
+		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
 		console.error('Failed to delete task:', error);
-		// 可以在这里添加更具体的错误提示，例如 toastStore.show({...})
 	} finally {
 		isSubmitting.value = false;
-		showDeleteConfirmModal.value = false; // 关闭删除确认弹窗
+		showDeleteConfirmModal.value = false;
 		selectedTaskForAction.value = null;
 	}
 };
@@ -474,9 +512,11 @@ const handleConfirmCancelTask = async () => {
 
 		toastStore.show({ message: '任务已取消', type: 'success' });
 		dataStore.markProductionAsStale();
-		dataStore.markHistoricalTasksAsStale(); // 取消的任务会进入历史记录
+		dataStore.markHistoricalTasksAsStale();
 
 		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
+		// [核心修改] 取消任务：强制刷新 Key，*并* 播放动画
+		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
 		console.error('Failed to cancel task:', error);
 	} finally {
@@ -508,50 +548,32 @@ const handleFabClick = () => {
 	}
 };
 
-// [核心修改] 更新 openTemperatureSettingsModal 逻辑
 const openTemperatureSettingsModal = () => {
-	// 1. 从 store 加载当前保存的设置到 tempSettings
 	Object.assign(tempSettings, temperatureStore.settings);
-
-	// 2. 检查加载的 F 值 (tempSettings.mixerType) 是否在预设列表中
 	const matchingPresetIndex = temperatureStore.mixerTypes.findIndex((m) => m.value === tempSettings.mixerType);
 
 	if (matchingPresetIndex !== -1) {
-		// 3a. 找到了！说明当前 F 值是一个预设值
 		currentMixerPresetIndex.value = matchingPresetIndex;
 	} else {
-		// 3b. 没找到！说明当前 F 值是自定义的 (e.g., 14.5)
-		// 找到 "自定义" 选项的索引
 		const customIndex = temperatureStore.mixerTypes.findIndex((m) => m.value === -1);
-		// 将 picker 设置到 "自定义"
 		currentMixerPresetIndex.value = customIndex > -1 ? customIndex : 0;
 	}
-
-	// 4. 打开弹窗
 	showTemperatureSettingsModal.value = true;
 };
 
-// [核心修改] 更新 handleMixerChange 逻辑
 const handleMixerChange = (e: any) => {
 	const selectedIndex = e.detail.value;
-	currentMixerPresetIndex.value = selectedIndex; // 更新 picker 的索引状态
+	currentMixerPresetIndex.value = selectedIndex;
 
 	const selectedValue = temperatureStore.mixerTypes[selectedIndex].value;
 
 	if (selectedValue !== -1) {
-		// 如果用户选择的*不是* "自定义" (value: -1)
-		// 那么就用这个预设值 (e.g., 9, 12, 16, 20) 更新 tempSettings.mixerType
 		tempSettings.mixerType = selectedValue;
 	}
-	// 如果用户选择的是 "自定义" (value: -1)
-	// 我们 *不* 覆盖 tempSettings.mixerType
-	// 这样，输入框 (v-if="isCustomMode") 就会显示出当前F值 (e.g., 14.5)，并允许用户编辑
 };
 
-// [核心修改] handleSaveTemperatureSettings 逻辑是正确的，无需修改
 const handleSaveTemperatureSettings = () => {
 	temperatureStore.saveTemperatureSettings({
-		// tempSettings.mixerType 要么是选择的预设值，要么是自定义输入的值
 		mixerType: Number(tempSettings.mixerType) || temperatureStore.settings.mixerType,
 		envTemp: Number(tempSettings.envTemp) || temperatureStore.settings.envTemp,
 		flourTemp: Number(tempSettings.flourTemp) || temperatureStore.settings.flourTemp,
@@ -682,7 +704,6 @@ const handleSaveTemperatureSettings = () => {
 	background-color: #8e44ad;
 }
 
-/* [核心新增] 删除/取消按钮的危险文本样式 */
 .danger-text {
 	color: var(--danger-color, #e74c3c);
 }
@@ -691,12 +712,11 @@ const handleSaveTemperatureSettings = () => {
 	padding: 0 5px;
 }
 
-/* [核心修改] 调整帮助文本样式 */
 .form-help-text {
 	font-size: 13px;
 	color: var(--text-secondary);
 	padding: 5px 0px 10px 0px;
-	margin-top: 0; /* [核心修改] 移除负边距 */
+	margin-top: 0;
 	width: 100%;
 	box-sizing: border-box;
 }
@@ -709,14 +729,12 @@ const handleSaveTemperatureSettings = () => {
 	border-bottom: 1px solid var(--border-color-light, #f0f0f0);
 }
 
-/* [核心修改] 新增 .form-item-stacked 样式 */
 .form-item-stacked {
 	flex-direction: column;
 	align-items: stretch;
-	padding: 10px 0 0 0; /* 调整内边距，让边框在帮助文本下方 */
+	padding: 10px 0 0 0;
 }
 
-/* [核心修改] 新增 .form-item-row 样式 */
 .form-item-row {
 	display: flex;
 	justify-content: space-between;
