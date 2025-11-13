@@ -192,13 +192,16 @@ const popover = reactive<{
 });
 
 const filterTabs = computed(() => {
-	const tabs = [{ key: 'BILL_OF_MATERIALS', label: '备料清单' }];
+	const tabs = []; // [修改] 初始化为空数组
+	// [修改] 先添加“面种”和“馅料”（如果存在）
 	if (preDoughItems.value.length > 0) {
 		tabs.push({ key: 'PRE_DOUGH', label: '面种' });
 	}
 	if (extraItems.value.length > 0) {
 		tabs.push({ key: 'EXTRA', label: '馅料' });
 	}
+	// [修改] 最后添加“备料清单”
+	tabs.push({ key: 'BILL_OF_MATERIALS', label: '备料清单' });
 	return tabs;
 });
 
@@ -361,11 +364,12 @@ onLoad(async (options) => {
 			// 调用新的 API 方法获取数据
 			const taskData = await getPrepTaskDetails(options.date);
 			task.value = taskData;
-			// 设置默认显示的 Tab
-			if (!hasMaterials.value && preDoughItems.value.length > 0) {
-				activeTab.value = 'PRE_DOUGH';
-			} else if (!hasMaterials.value && extraItems.value.length > 0) {
-				activeTab.value = 'EXTRA';
+
+			// [修改] 设置默认显示的 Tab
+			// [中文注释] 确保在数据加载后，filterTabs 计算属性会更新
+			// [中文注释] 然后我们显式地将 activeTab 设置为 filterTabs 数组中的第一个
+			if (filterTabs.value.length > 0) {
+				activeTab.value = filterTabs.value[0].key;
 			}
 		} catch (error) {
 			console.error('获取前置任务详情失败:', error);
