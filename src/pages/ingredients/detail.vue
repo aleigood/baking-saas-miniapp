@@ -72,8 +72,26 @@
 			<FormItem label="规格名称">
 				<input class="input-field" v-model="newSkuForm.specName" placeholder="例如：1kg袋装" />
 			</FormItem>
+
+			<FormItem label="常用密度">
+				<picker mode="selector" :range="densityOptions.map((t) => t.label)" @change="onNewSkuDensityChange">
+					<view class="picker">
+						{{ newSkuDensityLabel }}
+						<view class="arrow-down"></view>
+					</view>
+				</picker>
+			</FormItem>
+			<FormItem v-if="newSkuForm.density" label="采购体积 (mL)">
+				<input class="input-field" type="digit" v-model="newSkuForm.volumeInML" placeholder="例如：1000" />
+			</FormItem>
 			<FormItem label="规格重量 (g)">
-				<input class="input-field" type="digit" v-model="newSkuForm.specWeightInGrams" placeholder="例如：1000" />
+				<input
+					class="input-field"
+					type="digit"
+					v-model="newSkuForm.specWeightInGrams"
+					:readonly="isNewSkuWeightReadOnly"
+					:placeholder="isNewSkuWeightReadOnly ? '自动计算' : '例如：1000'"
+				/>
 			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showAddSkuModal = false">取消</AppButton>
@@ -90,9 +108,37 @@
 			<FormItem label="规格名称">
 				<input class="input-field" v-model="editSkuForm.specName" placeholder="例如：1kg袋装" />
 			</FormItem>
-			<FormItem label="规格重量 (g)">
-				<input class="input-field" type="digit" v-model="editSkuForm.specWeightInGrams" placeholder="例如：1000" />
+
+			<FormItem label="常用密度">
+				<picker mode="selector" :range="densityOptions.map((t) => t.label)" :disabled="hasProcurementRecords" @change="onEditSkuDensityChange">
+					<view class="picker" :class="{ 'is-disabled': hasProcurementRecords }">
+						{{ editSkuDensityLabel }}
+						<view class="arrow-down"></view>
+					</view>
+				</picker>
 			</FormItem>
+			<FormItem v-if="editSkuForm.density" label="采购体积 (mL)">
+				<input
+					class="input-field"
+					:class="{ 'is-disabled': hasProcurementRecords }"
+					type="digit"
+					v-model="editSkuForm.volumeInML"
+					placeholder="例如：1000"
+					:disabled="hasProcurementRecords"
+				/>
+			</FormItem>
+			<FormItem label="规格重量 (g)">
+				<input
+					class="input-field"
+					:class="{ 'is-disabled': hasProcurementRecords }"
+					type="digit"
+					v-model="editSkuForm.specWeightInGrams"
+					:readonly="isEditSkuWeightReadOnly"
+					:disabled="hasProcurementRecords"
+					:placeholder="isEditSkuWeightReadOnly ? '自动计算' : '例如：1000'"
+				/>
+			</FormItem>
+			<view class="modal-warning-text" v-if="hasProcurementRecords">此SKU已有采购记录，无法修改规格重量。</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditSkuModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleUpdateSku" :loading="isSubmitting">
@@ -254,6 +300,15 @@ import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import { formatChineseDate, formatDateTime, formatNumber, formatWeight, multiply } from '@/utils/format';
 
+// [新增] 密度常量
+const densityOptions = [
+	{ label: '手动输入重量(g)', value: null },
+	{ label: '水 (1.0 g/mL)', value: 1.0 },
+	{ label: '牛奶 (1.03 g/mL)', value: 1.03 },
+	{ label: '淡奶油 (0.99 g/mL)', value: 0.99 },
+	{ label: '食用油 (0.92 g/mL)', value: 0.92 }
+];
+
 defineOptions({
 	inheritAttrs: false
 });
@@ -275,10 +330,14 @@ const newSkuForm = ref<{
 	brand: string;
 	specName: string;
 	specWeightInGrams: number | null;
+	volumeInML: number | null; // [新增]
+	density: number | null; // [新增]
 }>({
 	brand: '',
 	specName: '',
-	specWeightInGrams: null
+	specWeightInGrams: null,
+	volumeInML: null, // [新增]
+	density: null // [新增]
 });
 
 // [新增] SKU 编辑模态框
@@ -289,12 +348,19 @@ const editSkuForm = ref<{
 	brand: string;
 	specName: string;
 	specWeightInGrams: number | null;
+	volumeInML: number | null; // [新增]
+	density: number | null; // [新增]
 }>({
 	id: '',
 	brand: '',
 	specName: '',
-	specWeightInGrams: null
+	specWeightInGrams: null,
+	volumeInML: null, // [新增]
+	density: null // [新增]
 });
+
+// [新增] 用于控制编辑时是否禁用重量相关字段
+const hasProcurementRecords = ref(false);
 
 const showProcurementModal = ref(false);
 const procurementForm = ref<{
@@ -323,6 +389,17 @@ const showUpdateStockConfirmModal = ref(false);
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
+
+// [新增] 计算属性
+const isNewSkuWeightReadOnly = computed(() => !!newSkuForm.value.density);
+const newSkuDensityLabel = computed(() => {
+	return densityOptions.find((t) => t.value === newSkuForm.value.density)?.label || '手动输入重量(g)';
+});
+
+const isEditSkuWeightReadOnly = computed(() => !!editSkuForm.value.density || hasProcurementRecords.value);
+const editSkuDensityLabel = computed(() => {
+	return densityOptions.find((t) => t.value === editSkuForm.value.density)?.label || '手动输入重量(g)';
+});
 
 const ingredientForm = reactive<{
 	name: string;
@@ -374,11 +451,6 @@ const visibleChartTabs = computed(() => {
 	return chartTabs.value;
 });
 
-// [删除] 不再需要 isInitialStockEntry 计算属性，逻辑已更改
-// const isInitialStockEntry = computed(() => {
-// 	return ingredient.value?.currentStockInGrams === 0 && (stockAdjustment.changeInKg || 0) > 0;
-// });
-
 const fabActions = computed(() => {
 	if (!ingredient.value) return [];
 	const currentUserRole = userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role;
@@ -396,6 +468,48 @@ const fabActions = computed(() => {
 
 	return actions;
 });
+
+// [新增] 监听“新增SKU”表单的体积和密度，自动计算重量
+watch(
+	() => [newSkuForm.value.volumeInML, newSkuForm.value.density],
+	([volume, density]) => {
+		if (volume && density) {
+			newSkuForm.value.specWeightInGrams = Number((volume * density).toFixed(1));
+		}
+	}
+);
+
+// [新增] 监听“编辑SKU”表单的体积和密度，自动计算重量
+watch(
+	() => [editSkuForm.value.volumeInML, editSkuForm.value.density],
+	([volume, density]) => {
+		if (volume && density) {
+			editSkuForm.value.specWeightInGrams = Number((volume * density).toFixed(1));
+		}
+	}
+);
+
+// [新增] “新增SKU”密度选择器
+const onNewSkuDensityChange = (e: any) => {
+	const selectedIndex = e.detail.value;
+	newSkuForm.value.density = densityOptions[selectedIndex].value;
+	// 如果切换回“手动输入”，清空体积和重量
+	if (!newSkuForm.value.density) {
+		newSkuForm.value.specWeightInGrams = null;
+		newSkuForm.value.volumeInML = null;
+	}
+};
+
+// [新增] “编辑SKU”密度选择器
+const onEditSkuDensityChange = (e: any) => {
+	const selectedIndex = e.detail.value;
+	editSkuForm.value.density = densityOptions[selectedIndex].value;
+	// 如果切换回“手动输入”，清空体积和重量
+	if (!editSkuForm.value.density) {
+		editSkuForm.value.specWeightInGrams = null;
+		editSkuForm.value.volumeInML = null;
+	}
+};
 
 onLoad(async (options) => {
 	ingredientId.value = options?.ingredientId || null;
@@ -505,7 +619,14 @@ const ingredientPricePerKg = computed(() => {
 });
 
 const openAddSkuModal = () => {
-	newSkuForm.value = { brand: '', specName: '', specWeightInGrams: null };
+	// [修改] 重置新字段
+	newSkuForm.value = {
+		brand: '',
+		specName: '',
+		specWeightInGrams: null,
+		volumeInML: null,
+		density: null
+	};
 	showAddSkuModal.value = true;
 };
 
@@ -645,12 +766,19 @@ const handleActivateSkuOption = () => {
 // [新增] 处理 SKU 编辑选项
 const handleEditSkuOption = () => {
 	if (!selectedSkuForAction.value) return;
+
+	// [新增] 检查是否存在采购记录
+	const skuData = ingredient.value?.skus.find((s) => s.id === selectedSkuForAction.value!.id);
+	hasProcurementRecords.value = (skuData?.procurementRecords?.length || 0) > 0;
+
 	// 填充表单
 	editSkuForm.value = {
 		id: selectedSkuForAction.value.id,
 		brand: selectedSkuForAction.value.brand || '',
 		specName: selectedSkuForAction.value.specName,
-		specWeightInGrams: selectedSkuForAction.value.specWeightInGrams
+		specWeightInGrams: selectedSkuForAction.value.specWeightInGrams,
+		volumeInML: null, // [新增]
+		density: null // [新增]
 	};
 	showSkuOptionsModal.value = false;
 	showEditSkuModal.value = true;
