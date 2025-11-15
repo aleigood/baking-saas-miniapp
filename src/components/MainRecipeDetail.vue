@@ -365,13 +365,8 @@ watch(
 			border-bottom: none;
 		}
 	}
-
-	.col-total {
-		font-weight: 400;
-	}
 }
 
-/* [中文注释] 为辅料表格（4列表格）定义列宽 */
 .summary-table-wrapper.mix-in-table .smart-table {
 	.col-ingredient {
 		flex: 2.5;
