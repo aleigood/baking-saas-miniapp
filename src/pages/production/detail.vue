@@ -84,7 +84,7 @@
 							</view>
 
 							<view class="group-title" @click="toggleCollapse('productSummary')">
-								<span>产品汇总</span>
+								<span>{{ selectedComponentDetails.familyName }}产品</span>
 								<span class="arrow" :class="{ collapsed: collapsedSections.has('productSummary') }">&#10095;</span>
 							</view>
 							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('productSummary') }">
@@ -93,7 +93,7 @@
 								</view>
 
 								<template v-if="selectedProductDetails">
-									<view class="smart-table" style="margin-top: 15px">
+									<view class="smart-table">
 										<view class="table-header">
 											<text class="col-product-name">基础原料</text>
 											<text class="col-dough-weight">总重</text>
@@ -919,11 +919,10 @@ const productTabs = computed(() => {
 .smart-table {
 	font-size: 14px;
 	color: var(--text-primary);
-	margin-top: 25px;
 
 	.table-header {
 		color: var(--text-secondary);
-		font-weight: 600;
+		font-weight: 500;
 		border-bottom: 1px solid var(--border-color);
 	}
 
@@ -966,7 +965,7 @@ const productTabs = computed(() => {
 
 .procedure-notes {
 	@include procedure-notes-style;
-	margin-top: 15px;
+	margin-top: 25px;
 }
 
 /* [中文注释] 为有4列的详情表格重新分配列宽，以适应新增的“单个用量”列 */
@@ -985,16 +984,12 @@ const productTabs = computed(() => {
 }
 
 .detail-table {
-	margin-top: 15px;
+	margin-top: 25px;
 }
 
 .product-tabs-container {
-	margin-top: 25px;
-	margin-bottom: 10px;
-	/* [样式修改] 
-	   为 FilterTabs 组件设置其容器的背景色 (RGB格式)
-	   这里假设卡片背景是白色 (255, 255, 255)，FilterTabs 会用这个变量来创建匹配的渐变
-	*/
+	margin-top: 30px;
+	margin-bottom: 30px;
 	--tabs-container-bg-rgb: 255, 255, 255;
 }
 

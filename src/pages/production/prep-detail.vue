@@ -449,7 +449,7 @@ onLoad(async (options) => {
 
 	.table-header {
 		color: var(--text-secondary);
-		font-weight: 600;
+		font-weight: 500;
 		border-bottom: 1px solid var(--border-color);
 	}
 
@@ -471,7 +471,7 @@ onLoad(async (options) => {
 
 	.table-header {
 		color: var(--text-secondary);
-		font-weight: 600;
+		font-weight: 500;
 	}
 
 	.table-row {
@@ -507,7 +507,7 @@ onLoad(async (options) => {
 
 .procedure-notes {
 	@include procedure-notes-style;
-	margin-top: 15px;
+	margin-top: 25px;
 }
 
 .highlight {

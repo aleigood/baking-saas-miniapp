@@ -64,7 +64,7 @@
 					</view>
 					<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
 						<template v-for="(ingredients, groupName) in recipeDetails.groupedExtraIngredients" :key="groupName">
-							<view v-if="ingredients.length > 0" class="summary-table-wrapper" :class="{ 'mix-in-table': groupName === '搅拌原料' }">
+							<view v-if="ingredients.length > 0" class="summary-table-wrapper">
 								<view class="smart-table detail-table">
 									<view class="table-header summary-header">
 										<text class="col-ingredient">{{ groupName === '搅拌原料' ? '辅料' : groupName }}</text>
@@ -352,7 +352,7 @@ watch(
 
 	.table-header {
 		color: var(--text-secondary);
-		font-weight: 600;
+		font-weight: 500;
 		background-color: transparent;
 		border-bottom: 1px solid var(--border-color);
 	}
@@ -367,33 +367,17 @@ watch(
 	}
 }
 
-.summary-table-wrapper.mix-in-table .smart-table {
-	.col-ingredient {
-		flex: 2.5;
-	}
-	.col-ratio,
-	.col-usage,
-	.col-total {
-		flex: 1.5;
-		text-align: right;
-	}
-}
-
 .procedure-notes {
 	@include procedure-notes-style;
-	margin-top: 15px;
+	margin-top: 25px;
 }
 
 .product-tabs-wrapper {
-	padding: 25px 0px;
+	padding: 30px 0px;
 }
 
 .data-analysis-section {
 	margin-bottom: 20px;
-}
-
-.detail-table {
-	margin-top: 15px;
 }
 
 .summary-header {
@@ -401,12 +385,8 @@ watch(
 	border-bottom: 1px solid var(--border-color);
 }
 
-.summary-table-wrapper {
-	margin-top: 15px;
-}
-
 .total-cost-summary {
-	margin-top: 15px;
+	margin-top: 25px;
 	text-align: right;
 	font-size: 14px;
 	font-weight: 600;

@@ -1037,7 +1037,7 @@ const handleSubmit = async () => {
 
 	.table-header {
 		color: var(--text-secondary);
-		font-weight: 600;
+		font-weight: 500;
 		border-bottom: 1px solid var(--border-color);
 	}
 
@@ -1107,7 +1107,7 @@ const handleSubmit = async () => {
 
 .procedure-notes-read-only {
 	@include procedure-notes-style;
-	margin-top: 15px;
+	margin-top: 25px;
 }
 
 .product-tabs-wrapper {
