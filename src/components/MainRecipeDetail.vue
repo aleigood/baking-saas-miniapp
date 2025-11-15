@@ -352,7 +352,7 @@ watch(
 
 	.table-header {
 		color: var(--text-secondary);
-		font-weight: 500;
+		font-weight: 600;
 		background-color: transparent;
 		border-bottom: 1px solid var(--border-color);
 	}
@@ -385,20 +385,8 @@ watch(
 }
 
 .procedure-notes {
+	@include procedure-notes-style;
 	margin-top: 15px;
-	font-size: 12px;
-	color: var(--text-secondary);
-	line-height: 1.6;
-
-	.notes-title {
-		font-weight: 600;
-		display: block;
-		margin-bottom: 5px;
-	}
-
-	.note-item {
-		display: block;
-	}
 }
 
 .product-tabs-wrapper {

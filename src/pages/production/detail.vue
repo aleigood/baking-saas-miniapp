@@ -89,7 +89,7 @@
 							</view>
 							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('productSummary') }">
 								<view class="product-tabs-container" v-if="productTabs.length > 0">
-									<AnimatedTabs v-model="selectedProductId" :tabs="productTabs" />
+									<FilterTabs v-model="selectedProductId" :tabs="productTabs" size="sm" align="center" />
 								</view>
 
 								<template v-if="selectedProductDetails">
@@ -163,9 +163,6 @@
 												</view>
 											</view>
 										</template>
-									</template>
-									<template v-else>
-										<view class="empty-state-sm" style="padding: 20px 0">无其他原料</view>
 									</template>
 
 									<view v-if="selectedProductDetails.procedure.length > 0" class="procedure-notes">
@@ -258,6 +255,7 @@ import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import ListItem from '@/components/ListItem.vue';
 import AnimatedTabs from '@/components/CssAnimatedTabs.vue';
+import FilterTabs from '@/components/FilterTabs.vue';
 import AppPopover from '@/components/AppPopover.vue';
 import { formatWeight } from '@/utils/format';
 
@@ -925,7 +923,7 @@ const productTabs = computed(() => {
 
 	.table-header {
 		color: var(--text-secondary);
-		font-weight: 500;
+		font-weight: 600;
 		border-bottom: 1px solid var(--border-color);
 	}
 
@@ -967,20 +965,8 @@ const productTabs = computed(() => {
 }
 
 .procedure-notes {
+	@include procedure-notes-style;
 	margin-top: 15px;
-	font-size: 12px;
-	color: var(--text-secondary);
-	line-height: 1.6;
-
-	.notes-title {
-		font-weight: 600;
-		display: block;
-		margin-bottom: 5px;
-	}
-
-	.note-item {
-		display: block;
-	}
 }
 
 /* [中文注释] 为有4列的详情表格重新分配列宽，以适应新增的“单个用量”列 */
@@ -1004,6 +990,12 @@ const productTabs = computed(() => {
 
 .product-tabs-container {
 	margin-top: 25px;
+	margin-bottom: 10px;
+	/* [样式修改] 
+	   为 FilterTabs 组件设置其容器的背景色 (RGB格式)
+	   这里假设卡片背景是白色 (255, 255, 255)，FilterTabs 会用这个变量来创建匹配的渐变
+	*/
+	--tabs-container-bg-rgb: 255, 255, 255;
 }
 
 .spoilagestages-tabs-container {

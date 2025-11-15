@@ -449,7 +449,7 @@ onLoad(async (options) => {
 
 	.table-header {
 		color: var(--text-secondary);
-		font-weight: 500;
+		font-weight: 600;
 		border-bottom: 1px solid var(--border-color);
 	}
 
@@ -471,7 +471,7 @@ onLoad(async (options) => {
 
 	.table-header {
 		color: var(--text-secondary);
-		font-weight: 500;
+		font-weight: 600;
 	}
 
 	.table-row {
@@ -506,19 +506,8 @@ onLoad(async (options) => {
 }
 
 .procedure-notes {
-	font-size: 12px;
-	color: var(--text-secondary);
-	line-height: 1.6;
-
-	.notes-title {
-		font-weight: 600;
-		display: block;
-		margin-bottom: 5px;
-	}
-
-	.note-item {
-		display: block;
-	}
+	@include procedure-notes-style;
+	margin-top: 15px;
 }
 
 .highlight {

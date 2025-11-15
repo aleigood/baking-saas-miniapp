@@ -208,10 +208,10 @@ const triggerListAnimation = ref(false);
 const isFirstLoad = ref(true);
 
 const categoryMap = {
-	BREAD: '面包任务',
-	PASTRY: '西点任务',
-	DESSERT: '甜品任务',
-	DRINK: '饮品任务'
+	BREAD: '面包制作',
+	PASTRY: '西点制作',
+	DESSERT: '甜品制作',
+	DRINK: '饮品制作'
 };
 
 const isSingleCategory = computed(() => {

@@ -248,16 +248,17 @@ watch(
 		transition: opacity 0.2s ease-in-out;
 	}
 
-	/* [核心修改] 将渐变色修改为指定的背景色 */
+	/* 将渐变色修改为使用 CSS 变量 (--tabs-container-bg-rgb)
+	   父组件可以通过设置这个变量来控制渐变的颜色，使其与容器背景匹配
+	   默认回退到 (253, 248, 242)，即 #fdf8f2*/
 	&::before {
 		left: 0;
-		background: linear-gradient(to right, var(--bg-color, #fdf8f2), rgba(253, 248, 242, 0));
+		background: linear-gradient(to right, rgb(var(--tabs-container-bg-rgb, 253, 248, 242)), rgba(var(--tabs-container-bg-rgb, 253, 248, 242), 0));
 	}
 
-	/* [核心修改] 将渐变色修改为指定的背景色 */
 	&::after {
 		right: 0;
-		background: linear-gradient(to left, var(--bg-color, #fdf8f2), rgba(253, 248, 242, 0));
+		background: linear-gradient(to left, rgb(var(--tabs-container-bg-rgb, 253, 248, 242)), rgba(var(--tabs-container-bg-rgb, 253, 248, 242), 0));
 	}
 
 	&.show-left-fade::before {

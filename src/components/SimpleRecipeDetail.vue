@@ -145,7 +145,7 @@ const handleIconClick = (info: string | null | undefined, elementId: string) => 
 
 	.table-header {
 		color: var(--text-secondary);
-		font-weight: 500;
+		font-weight: 600;
 		border-bottom: 1px solid var(--border-color);
 	}
 
@@ -165,19 +165,7 @@ const handleIconClick = (info: string | null | undefined, elementId: string) => 
 }
 
 .procedure-notes {
-	margin-top: 10px;
-	font-size: 12px;
-	color: var(--text-secondary);
-	line-height: 1.6;
-
-	.notes-title {
-		font-weight: 600;
-		display: block;
-		margin-bottom: 5px;
-	}
-
-	.note-item {
-		display: block;
-	}
+	@include procedure-notes-style;
+	margin-top: 15px;
 }
 </style>
