@@ -40,9 +40,15 @@
 									</IconButton>
 								</view>
 							</view>
-							<view v-for="ing in component.ingredients" :key="ing.name" class="info-row">
-								<text class="info-label">{{ ing.name }}</text>
-								<text class="info-value">{{ formatNumber(ing.ratio) }}%</text>
+							<view class="smart-table" style="margin-top: 15px">
+								<view class="table-header">
+									<text class="col-ingredient">原料</text>
+									<text class="col-ratio">比例</text>
+								</view>
+								<view v-for="ing in component.ingredients" :key="ing.name" class="table-row">
+									<text class="col-ingredient">{{ ing.name }}</text>
+									<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
+								</view>
 							</view>
 							<view v-if="component.procedure && component.procedure.length > 0" class="procedure-notes-read-only">
 								<text class="notes-title">制作要点:</text>
@@ -966,6 +972,7 @@ const handleSubmit = async () => {
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 @include form-control-styles;
+@include table-layout;
 
 .page-wrapper {
 	display: flex;
@@ -1025,24 +1032,23 @@ const handleSubmit = async () => {
 	margin-top: 30px;
 }
 
-.info-row {
-	display: flex;
-	justify-content: space-between;
+.smart-table {
 	font-size: 14px;
-	padding: 8px 5px;
-	border-bottom: 1px solid var(--border-color);
-}
 
-.info-row:last-child {
-	border-bottom: none;
-}
+	.table-header {
+		color: var(--text-secondary);
+		font-weight: 600;
+		border-bottom: 1px solid var(--border-color);
+	}
 
-.info-label {
-	color: var(--text-secondary);
-}
+	.table-row {
+		color: var(--text-primary);
+		border-bottom: 1px solid var(--border-color);
 
-.info-value {
-	color: var(--text-primary);
+		&:last-child {
+			border-bottom: none;
+		}
+	}
 }
 
 .add-button-container {
@@ -1100,20 +1106,8 @@ const handleSubmit = async () => {
 }
 
 .procedure-notes-read-only {
-	margin-top: 25px;
-	font-size: 12px;
-	color: var(--text-secondary);
-	line-height: 1.6;
-
-	.notes-title {
-		font-weight: 600;
-		display: block;
-		margin-bottom: 5px;
-	}
-
-	.note-item {
-		display: block;
-	}
+	@include procedure-notes-style;
+	margin-top: 15px;
 }
 
 .product-tabs-wrapper {
