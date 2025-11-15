@@ -525,7 +525,6 @@ onLoad(async (options) => {
 }
 
 .completion-toggle {
-	padding: 5px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
