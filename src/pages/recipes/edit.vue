@@ -88,7 +88,7 @@
 								@select="onIngredientSelect($event, ingIndex)"
 								@blur="handleIngredientBlur(ing, availableMainDoughIngredients)"
 								:show-tag="ing.isRecipe || (ing.name === '水' && showTotalWaterTag)"
-								:tag-text="ing.name === '水' && showTotalWaterTag ? `总水: ${formatWaterRatio(totalCalculatedWaterRatio)}%` : '自制'"
+								:tag-text="ing.name === '水' && showTotalWaterTag ? `总水量: ${formatWaterRatio(totalCalculatedWaterRatio)}%` : '自制'"
 								:tag-style="ing.name === '水' && showTotalWaterTag ? { backgroundColor: '#e0efff', color: '#00529b' } : {}"
 							/>
 						</view>

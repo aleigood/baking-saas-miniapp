@@ -102,10 +102,10 @@
 
 									<view class="total-weight-summary">
 										<template v-if="item.targetWeight != null">
-											<text>制作总量：{{ formatWeight(item.totalWeight) }} (需求量：{{ formatWeight(item.targetWeight) }})</text>
+											<text>总量：{{ formatWeight(item.totalWeight) }} (需求量：{{ formatWeight(item.targetWeight) }})</text>
 										</template>
 										<template v-else>
-											<text>制作总量：{{ formatWeight(item.totalWeight) }}</text>
+											<text>总量：{{ formatWeight(item.totalWeight) }}</text>
 										</template>
 									</view>
 
@@ -499,7 +499,7 @@ onLoad(async (options) => {
 .total-weight-summary {
 	display: flex;
 	justify-content: flex-end;
-	padding: 10px 4px;
+	padding: 15px 4px;
 	font-size: 13px;
 	color: var(--text-secondary);
 	border-top: 1px solid var(--border-color);

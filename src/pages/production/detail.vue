@@ -957,7 +957,7 @@ const productTabs = computed(() => {
 .total-weight-summary {
 	display: flex;
 	justify-content: flex-end;
-	padding: 10px 4px;
+	padding: 15px 4px;
 	font-size: 13px;
 	color: var(--text-secondary);
 	border-top: 1px solid var(--border-color);

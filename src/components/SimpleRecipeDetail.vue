@@ -167,5 +167,6 @@ const handleIconClick = (info: string | null | undefined, elementId: string) => 
 .procedure-notes {
 	@include procedure-notes-style;
 	margin-top: 25px;
+	margin-bottom: 10px;
 }
 </style>
