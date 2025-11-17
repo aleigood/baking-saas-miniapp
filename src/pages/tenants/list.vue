@@ -86,10 +86,10 @@
 					<text>跳过 (已存在或失败)：</text>
 					<text class="result-value skipped">{{ importResult.skippedCount }}</text>
 				</view>
-				<view v-if="importResult.skippedCount > 0 && importResult.skippedRecipes.length > 0" class="skipped-list">
+				<scroll-view v-if="importResult.skippedCount > 0 && importResult.skippedRecipes.length > 0" class="skipped-list" :scroll-y="true">
 					<view class="skipped-title">跳过详情:</view>
 					<view v-for="(name, index) in importResult.skippedRecipes" :key="index" class="skipped-item">{{ name }}</view>
-				</view>
+				</scroll-view>
 			</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="closeImportModal">返回</AppButton>
@@ -611,10 +611,12 @@ const saveFileToTemp = async (content: string, fileName: string): Promise<string
 	font-size: 12px;
 	color: var(--text-secondary);
 	max-height: 100px;
-	overflow-y: auto;
+	/* [代码修改] 'overflow-y' 已由 <scroll-view> 的 'scroll-y' 属性接管，此处移除 */
+	/* overflow-y: auto; */
 	background-color: #f7f7f7;
 	border-radius: 4px;
 	padding: 8px;
+	box-sizing: border-box; /* [代码修改] 添加 box-sizing 确保 padding 不会撑开 max-height */
 }
 
 .skipped-title {
