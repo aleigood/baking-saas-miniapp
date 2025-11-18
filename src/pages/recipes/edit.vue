@@ -76,6 +76,7 @@
 					</FormItem>
 					<view class="ingredient-header">
 						<text class="col-name">原料名称</text>
+						<text v-if="showFlourCheckbox" class="col-flour">面粉?</text>
 						<text class="col-ratio">{{ form.type === 'PRE_DOUGH' ? '比例%' : '比例%' }}</text>
 						<text class="col-action"></text>
 					</view>
@@ -88,9 +89,14 @@
 								@select="onIngredientSelect($event, ingIndex)"
 								@blur="handleIngredientBlur(ing, availableMainDoughIngredients)"
 								:show-tag="ing.isRecipe || (ing.name === '水' && showTotalWaterTag)"
-								:tag-text="ing.name === '水' && showTotalWaterTag ? `总水量: ${formatWaterRatio(totalCalculatedWaterRatio)}%` : '自制'"
+								:tag-text="ing.name === '水' && showTotalWaterTag ? `总量: ${formatWaterRatio(totalCalculatedWaterRatio)}%` : '自制'"
 								:tag-style="ing.name === '水' && showTotalWaterTag ? { backgroundColor: '#e0efff', color: '#00529b' } : {}"
 							/>
+						</view>
+						<view v-if="showFlourCheckbox" class="checkbox-container" @click="toggleIsFlour(ing)">
+							<view class="custom-checkbox" :class="{ 'is-checked': ing.isFlour }">
+								<view v-if="ing.isFlour" class="check-mark"></view>
+							</view>
 						</view>
 						<template v-if="ing.recipeType === 'PRE_DOUGH'">
 							<input class="input-field ratio-input" type="digit" v-model="ing.flourRatio" placeholder="面粉%" />
@@ -356,6 +362,17 @@ const showFermentationCalculator = computed(() => {
 	// 规则2: 如果是其他配方，则必须是面种类型(PRE_DOUGH)
 	const isPreDough = form.value.type === 'PRE_DOUGH';
 	// 满足任意一个条件即可显示
+	return isBreadProduct || isPreDough;
+});
+
+// [代码新增] 增加一个计算属性，判断是否显示“面粉?”勾选框
+const showFlourCheckbox = computed(() => {
+	if (!form.value) return false;
+	// 规则1: 产品配方(MAIN) 且 品类是面包(BREAD)
+	const isBreadProduct = form.value.type === 'MAIN' && form.value.category === 'BREAD';
+	// 规则2: 其他配方 且 类型是面种(PRE_DOUGH)
+	const isPreDough = form.value.type === 'PRE_DOUGH';
+	// 满足任一条件即显示
 	return isBreadProduct || isPreDough;
 });
 
@@ -712,6 +729,11 @@ const removeIngredient = (ingIndex: number) => {
 	mainComponent.value.ingredients.splice(ingIndex, 1);
 };
 
+// [代码新增] 切换“是否为面粉”状态
+const toggleIsFlour = (ingredient: MainIngredient) => {
+	ingredient.isFlour = !ingredient.isFlour;
+};
+
 const removeComponent = (componentIndex: number) => {
 	form.value.components!.splice(componentIndex, 1);
 };
@@ -986,6 +1008,7 @@ const handleSubmit = async () => {
 	flex-shrink: 0;
 }
 
+/* [代码修改] 调整表头布局方式 */
 .ingredient-header {
 	display: flex;
 	color: var(--text-secondary);
@@ -993,17 +1016,28 @@ const handleSubmit = async () => {
 	padding: 0 5px;
 	margin-top: 15px;
 	margin-bottom: 8px;
+	gap: 10px; /* [代码修改] 使用 gap 替代 margin */
+	align-items: center; /* [代码修改] 垂直居中 */
 }
 
 .col-name {
 	flex: 1;
 }
 
-.col-ratio {
-	width: 80px; /* [G-Code-Note] [核心修改] 统一宽度 */
-	text-align: center;
-	margin-left: 10px;
+/* [代码修改] “面粉?”列标题样式，并缩小宽度 */
+.col-flour {
+	width: 40px;
 	flex-shrink: 0;
+	text-align: right;
+	font-size: 13px;
+}
+
+.col-ratio {
+	width: 70px; /* [G-Code-Note] [核心修改] 统一宽度 */
+	text-align: right;
+	flex-shrink: 0;
+	/* [代码修改] 移除 margin-left，由 gap 控制间距 */
+	/* margin-left: 10px; */
 }
 
 .col-action {
@@ -1016,6 +1050,47 @@ const handleSubmit = async () => {
 	align-items: center;
 	gap: 10px;
 	margin-bottom: 10px;
+}
+
+/* [代码修改] 勾选框容器样式，并缩小宽度 */
+.checkbox-container {
+	width: 25px;
+	flex-shrink: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+/* [代码新增] 自定义 checkbox 样式 */
+.custom-checkbox {
+	width: 18px;
+	height: 18px;
+	border: 1.5px solid #ab9d88; /* 边框颜色 (主题棕色) */
+	border-radius: 4px;
+	background-color: #fff;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	box-sizing: border-box;
+	transition: background-color 0.2s, border-color 0.2s;
+
+	/* 选中状态 */
+	&.is-checked {
+		background-color: #6d4e41; /* 选中背景 (深棕色) */
+		border-color: #6d4e41;
+	}
+}
+
+/* [代码新增] CSS 绘制的 checkmark (白色小勾) */
+.check-mark {
+	width: 5px;
+	height: 9px;
+	border-style: solid;
+	border-color: #fff; /* 勾的颜色 (白色) */
+	border-width: 0 2px 2px 0;
+	/* 通过 transform 调整位置和角度 */
+	transform: rotate(45deg) translateY(-1px) translateX(-1px);
+	box-sizing: border-box;
 }
 
 .autocomplete-input-wrapper {
