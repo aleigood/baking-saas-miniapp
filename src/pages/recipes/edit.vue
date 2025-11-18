@@ -152,7 +152,7 @@
 							</FormItem>
 
 							<view class="sub-group">
-								<view class="sub-group-title">辅料 (Mix-ins)</view>
+								<view class="sub-group-title">辅料 (配方百分比)</view>
 								<view v-for="(ing, ingIndex) in product.mixIns" :key="ingIndex" class="ingredient-row">
 									<view class="autocomplete-input-wrapper">
 										<AutocompleteInput
@@ -173,7 +173,7 @@
 							</view>
 
 							<view class="sub-group">
-								<view class="sub-group-title">馅料 (Fillings)</view>
+								<view class="sub-group-title">馅料 (克/个)</view>
 								<view v-for="(ing, ingIndex) in product.fillings" :key="ingIndex" class="ingredient-row">
 									<view class="autocomplete-input-wrapper">
 										<AutocompleteInput
@@ -194,7 +194,7 @@
 							</view>
 
 							<view class="sub-group">
-								<view class="sub-group-title">表面装饰 (Toppings)</view>
+								<view class="sub-group-title">表面装饰 (克/个)</view>
 								<view v-for="(ing, ingIndex) in product.toppings" :key="ingIndex" class="ingredient-row">
 									<view class="autocomplete-input-wrapper">
 										<AutocompleteInput
@@ -1022,7 +1022,7 @@ const handleSubmit = async () => {
 
 .col-ratio {
 	width: 70px;
-	text-align: right;
+	text-align: center;
 	flex-shrink: 0;
 }
 
