@@ -40,16 +40,37 @@
 									</IconButton>
 								</view>
 							</view>
-							<view class="smart-table" style="margin-top: 15px">
-								<view class="table-header">
-									<text class="col-ingredient">原料</text>
-									<text class="col-ratio">比例</text>
-								</view>
-								<view v-for="ing in component.ingredients" :key="ing.name" class="table-row">
-									<text class="col-ingredient">{{ ing.name }}</text>
-									<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
-								</view>
+
+							<FormItem label="面种中面粉占总面粉的百分比 (%)">
+								<input
+									class="input-field"
+									type="digit"
+									v-model="component.flourRatioInMainDough"
+									@input="handlePreDoughRatioChange(component)"
+									placeholder="例如: 20"
+								/>
+							</FormItem>
+
+							<view class="ingredient-header">
+								<text class="col-name">原料</text>
+								<text class="col-flour">面粉?</text>
+								<text class="col-ratio">比例 %</text>
 							</view>
+
+							<view v-for="ing in component.ingredients" :key="ing.name" class="ingredient-row">
+								<view class="autocomplete-input-wrapper">
+									<input class="input-field is-disabled" :value="ing.name" disabled />
+								</view>
+
+								<view class="checkbox-container">
+									<view class="custom-checkbox" :class="{ 'is-checked': ing.isFlour, 'is-disabled': true }">
+										<view v-if="ing.isFlour" class="check-mark"></view>
+									</view>
+								</view>
+
+								<input class="input-field ratio-input is-disabled" :value="formatNumber(ing.ratio)" disabled />
+							</view>
+
 							<view v-if="component.procedure && component.procedure.length > 0" class="procedure-notes-read-only">
 								<text class="notes-title">制作要点:</text>
 								<text v-for="(step, stepIndex) in component.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
@@ -275,7 +296,6 @@ import AutocompleteInput from '@/components/AutocompleteInput.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 // 引入 RecipeFormTemplate 中的 Product 定义
-// [G-Code-Note] [核心修改] 引入 RecipeType
 import type { RecipeFamily, RecipeFormTemplate, RecipeCategory, ComponentTemplate, Product as RecipeFormProduct, RecipeType } from '@/types/api';
 import { formatNumber, toDecimal } from '@/utils/format';
 import { predefinedIngredients } from '@/utils/predefinedIngredients';
@@ -284,7 +304,6 @@ defineOptions({
 	inheritAttrs: false
 });
 
-// [G-Code-Note] [核心修改] 扩展 AutocompleteItem 类型
 type AutocompleteItem = {
 	id: string | null;
 	name: string;
@@ -294,16 +313,21 @@ type AutocompleteItem = {
 	recipeType: RecipeType | null; // PRE_DOUGH, EXTRA, or null
 };
 
-// [G-Code-Note] [核心修改] 扩展 mainComponent.ingredients 的类型
 type MainIngredient = {
 	id: string | null;
 	name: string;
 	ratio: number | null;
-	flourRatio: number | null; // 新增面粉比例
+	flourRatio: number | null;
 	isFlour: boolean;
 	isRecipe: boolean;
 	waterContent: number;
-	recipeType: RecipeType | null; // 新增配方类型
+	recipeType: RecipeType | null;
+};
+
+// [G-Code-Note] [核心修改] 扩展组件类型，支持存储原始配方数据用于动态计算
+type EnhancedComponent = Omit<ComponentTemplate, 'ingredients'> & {
+	ingredients: MainIngredient[];
+	_originalIngredients?: MainIngredient[]; // 内部字段：用于存储面种原始比例数据
 };
 
 type SubIngredientRatio = { id: string | null; name: string; ratio: number | null; weightInGrams?: number | null; isRecipe?: boolean; waterContent?: number; isFlour?: boolean };
@@ -324,15 +348,12 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-// 更新 form 的类型，使其 products 数组能包含 id
-// [G-Code-Note] [核心修改] 更新 components 和 ingredients 的类型
+// [G-Code-Note] [核心修改] 将 components 的类型更新为 EnhancedComponent
 const form = ref<
 	Omit<RecipeFormTemplate, 'ingredients' | 'procedure' | 'products' | 'components'> & {
 		targetTemp?: number | null;
 		products?: RecipeFormProduct[];
-		components: (Omit<ComponentTemplate, 'ingredients'> & {
-			ingredients: MainIngredient[];
-		})[];
+		components: EnhancedComponent[];
 	}
 >({
 	name: '',
@@ -345,8 +366,8 @@ const form = ref<
 			id: `main_${Date.now()}`,
 			name: '主面团',
 			type: 'MAIN_DOUGH',
-			lossRatio: 1, // 新建时 lossRatio 默认为 1%
-			divisionLoss: 2, // 新建时 divisionLoss 默认为 2g
+			lossRatio: 1,
+			divisionLoss: 2,
 			ingredients: [{ id: null, name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null }],
 			procedure: ['']
 		}
@@ -357,36 +378,27 @@ const form = ref<
 // 新增计算属性，判断是否应该显示发酵计算器
 const showFermentationCalculator = computed(() => {
 	if (!form.value) return false;
-	// 规则1: 如果是产品配方(MAIN)，则必须是面包品类(BREAD)
 	const isBreadProduct = form.value.type === 'MAIN' && form.value.category === 'BREAD';
-	// 规则2: 如果是其他配方，则必须是面种类型(PRE_DOUGH)
 	const isPreDough = form.value.type === 'PRE_DOUGH';
-	// 满足任意一个条件即可显示
 	return isBreadProduct || isPreDough;
 });
 
-// [代码新增] 增加一个计算属性，判断是否显示“面粉?”勾选框
+// 增加一个计算属性，判断是否显示“面粉?”勾选框
 const showFlourCheckbox = computed(() => {
 	if (!form.value) return false;
-	// 规则1: 产品配方(MAIN) 且 品类是面包(BREAD)
 	const isBreadProduct = form.value.type === 'MAIN' && form.value.category === 'BREAD';
-	// 规则2: 其他配方 且 类型是面种(PRE_DOUGH)
 	const isPreDough = form.value.type === 'PRE_DOUGH';
-	// 满足任一条件即显示
 	return isBreadProduct || isPreDough;
 });
 
 // 根据配方类型动态显示配方名称的提示
 const namePlaceholder = computed(() => {
-	// 优先处理非 MAIN 类型
 	if (form.value.type === 'PRE_DOUGH') {
 		return '例如：波兰种';
 	}
 	if (form.value.type === 'EXTRA') {
 		return '例如：卡仕达酱';
 	}
-
-	// MAIN 类型根据品类显示不同提示
 	if (form.value.type === 'MAIN') {
 		switch (form.value.category) {
 			case 'BREAD':
@@ -401,8 +413,6 @@ const namePlaceholder = computed(() => {
 				return '请输入配方名称';
 		}
 	}
-
-	// 默认回退
 	return '请输入配方名称';
 });
 
@@ -474,22 +484,16 @@ const productTabs = computed(() => {
 	}));
 });
 
-// 修改: 更新 availablePreDoughs 以使用新的数据源
 const availablePreDoughs = computed(() => {
 	const existingPreDoughIds = new Set(form.value.components?.filter((c) => c.type === 'PRE_DOUGH').map((c) => c.id));
-	// [G-Code-Note] [核心修改] 增加自引用过滤
 	const currentRecipeName = form.value.name;
-	// 直接使用 dataStore.recipes.preDoughs
 	return (dataStore.recipes.preDoughs || []).filter((r) => !r.deletedAt && !existingPreDoughIds.has(r.id) && r.name !== currentRecipeName);
 });
 
-// [G-Code-Note] [核心重构] availableMainDoughIngredients (需求 1 & 3)
 const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
-	// [G-Code-Note] [核心新增] 获取当前正在编辑的配方名称，用于自引用过滤
 	const currentRecipeName = form.value.name;
 
-	// 1. 添加标准原料和预定义原料
 	predefinedIngredients.forEach((p) => {
 		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0, recipeType: null });
 	});
@@ -497,32 +501,25 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0, recipeType: null });
 	});
 
-	// 2. 根据当前配方类型，添加允许的“配方”
 	const currentFormType = form.value.type;
 
 	if (currentFormType === 'MAIN') {
-		// 主配方可以添加 EXTRA (馅料) 作为原料 (PRE_DOUGH 通过弹窗添加)
 		const extras = dataStore.recipes.extras || [];
 		extras.forEach((e) => {
-			// [G-Code-Note] [核心修改] 增加自引用过滤
 			if (!e.deletedAt && e.name !== currentRecipeName) {
 				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'EXTRA' });
 			}
 		});
 	} else if (currentFormType === 'PRE_DOUGH') {
-		// 面种配方可以添加 PRE_DOUGH (面种)
 		const preDoughs = dataStore.recipes.preDoughs || [];
 		preDoughs.forEach((p) => {
-			// [G-Code-Note] [核心修改] 增加自引用过滤
 			if (!p.deletedAt && p.name !== currentRecipeName) {
 				ingredientMap.set(p.name, { id: p.id, name: p.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'PRE_DOUGH' });
 			}
 		});
 	} else if (currentFormType === 'EXTRA') {
-		// 馅料配方可以添加 EXTRA (馅料)
 		const extras = dataStore.recipes.extras || [];
 		extras.forEach((e) => {
-			// [G-Code-Note] [核心修改] 增加自引用过滤
 			if (!e.deletedAt && e.name !== currentRecipeName) {
 				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'EXTRA' });
 			}
@@ -531,7 +528,6 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 
 	const combined = Array.from(ingredientMap.values());
 
-	// 3. 如果是 MAIN 配方，需要从列表中排除 PRE_DOUGH (因为它们从弹窗添加)
 	if (currentFormType === 'MAIN') {
 		const preDoughNames = new Set((dataStore.recipes.preDoughs || []).filter((r) => !r.deletedAt).map((r) => r.name));
 		return combined.filter((item) => !preDoughNames.has(item.name)).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
@@ -540,11 +536,8 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 	return combined.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-// 修改: availableSubIngredients (产品中的辅料)
-// 规则：产品辅料 = 标准原料 + 馅料(EXTRA)。不允许添加面种(PRE_DOUGH)。
 const availableSubIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
-	// [G-Code-Note] [核心新增] 获取当前正在编辑的配方名称，用于自引用过滤
 	const currentRecipeName = form.value.name;
 
 	predefinedIngredients.forEach((p) => {
@@ -555,10 +548,8 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 		ingredientMap.set(i.id, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0, recipeType: null });
 	});
 
-	// 只能添加 EXTRA
 	const extras = dataStore.recipes.extras || [];
 	extras.forEach((e) => {
-		// [G-Code-Note] [核心修改] 增加自引用过滤
 		if (!e.deletedAt && e.name !== currentRecipeName) {
 			ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'EXTRA' });
 		}
@@ -599,7 +590,6 @@ const formatWaterRatio = (ratio: number): string => {
 	return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
 };
 
-// [G-Code-Note] [核心修改] 更新 handleIngredientBlur 以设置 recipeType
 const handleIngredientBlur = (
 	ingredient: { id: string | null; name: string; isRecipe?: boolean; waterContent?: number; isFlour?: boolean; recipeType?: RecipeType | null },
 	availableList: AutocompleteItem[]
@@ -611,18 +601,33 @@ const handleIngredientBlur = (
 			ingredient.isRecipe = existing.isRecipe;
 			ingredient.isFlour = existing.isFlour;
 			ingredient.waterContent = existing.waterContent;
-			ingredient.recipeType = existing.recipeType; // [G-Code-Note] 设置 recipeType
+			ingredient.recipeType = existing.recipeType;
 		} else {
 			ingredient.isRecipe = false;
-			ingredient.recipeType = null; // [G-Code-Note] 设置 recipeType
+			ingredient.recipeType = null;
 		}
 	} else if (ingredient.id) {
 		const existing = availableList.find((item) => item.id === ingredient.id);
 		if (existing) {
 			ingredient.isRecipe = existing.isRecipe;
-			ingredient.recipeType = existing.recipeType; // [G-Code-Note] 设置 recipeType
+			ingredient.recipeType = existing.recipeType;
 		}
 	}
+};
+
+// [G-Code-Note] [核心新增] 初始化面种的原始数据快照，用于后续比例调整计算
+const initPreDoughData = (components: EnhancedComponent[]) => {
+	components.forEach((comp) => {
+		if (comp.type === 'PRE_DOUGH' && comp.ingredients.length > 0 && !comp._originalIngredients) {
+			// 尝试深拷贝当前的 ingredients 作为基准
+			// 注意：如果是编辑模式加载的数据，这里的 ingredients 已经是计算过比例的了
+			// 我们可以通过当前的 flourRatioInMainDough 反推，或者简单地将当前状态视为基准
+			// 为了简单且稳健，我们将当前加载的状态视为 "Current Base"
+			// 如果用户修改比例，我们将基于这个 Base 进行缩放
+			// 但为了计算准确，最好是将 Base 归一化（比如归一化到 100% 面粉），但这里直接存快照即可
+			comp._originalIngredients = JSON.parse(JSON.stringify(comp.ingredients));
+		}
+	});
 };
 
 onLoad(async (options) => {
@@ -639,12 +644,11 @@ onLoad(async (options) => {
 		if (sourceFormJson) {
 			try {
 				const parsedForm = JSON.parse(sourceFormJson);
-				// [G-Code-Note] [核心修改] 确保加载的 ingredients 包含新字段
 				const sanitizedComponents = parsedForm.components.map((c: ComponentTemplate) => ({
 					...c,
 					ingredients: c.ingredients.map((ing: any) => ({
 						...ing,
-						flourRatio: ing.isRecipe && (parsedForm.type === 'PRE_DOUGH' || (parsedForm.type === 'MAIN' && ing.ratio === null)) ? ing.ratio : null, // 粗略转换
+						flourRatio: ing.isRecipe && (parsedForm.type === 'PRE_DOUGH' || (parsedForm.type === 'MAIN' && ing.ratio === null)) ? ing.ratio : null,
 						ratio: ing.isRecipe && (parsedForm.type === 'PRE_DOUGH' || (parsedForm.type === 'MAIN' && ing.ratio === null)) ? null : ing.ratio,
 						recipeType: ing.isRecipe ? (availablePreDoughs.value.some((p) => p.id === ing.id) ? 'PRE_DOUGH' : 'EXTRA') : null
 					}))
@@ -655,6 +659,9 @@ onLoad(async (options) => {
 					components: sanitizedComponents,
 					products: parsedForm.products || []
 				};
+
+				// [G-Code-Note] [核心新增] 初始化面种原始数据
+				initPreDoughData(form.value.components);
 
 				if (form.value.products && form.value.products.length > 0) {
 					activeProductTab.value = 0;
@@ -667,7 +674,7 @@ onLoad(async (options) => {
 	} else {
 		pageMode.value = 'create';
 		if (options?.type === 'EXTRA') {
-			form.value.type = 'PRE_DOUGH'; // 新建其他配方时，默认类型从 馅料 改为 面种
+			form.value.type = 'PRE_DOUGH';
 			form.value.products = [];
 			form.value.category = 'OTHER';
 			form.value.components = [
@@ -675,9 +682,9 @@ onLoad(async (options) => {
 					id: `main_${Date.now()}`,
 					name: '',
 					type: 'BASE_COMPONENT',
-					lossRatio: 1, // 新建时 lossRatio 默认为 1%
-					divisionLoss: 0, // EXTRA 类型 divisionLoss 默认为 0
-					ingredients: [{ id: null, name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null }], // [G-Code-Note] 增加新字段
+					lossRatio: 1,
+					divisionLoss: 0,
+					ingredients: [{ id: null, name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null }],
 					procedure: ['']
 				}
 			];
@@ -709,7 +716,6 @@ const handleScroll = (event?: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-// [G-Code-Note] [核心修改] onIngredientSelect 增加 recipeType
 const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
 	const ingredient = mainComponent.value.ingredients[ingIndex];
 	ingredient.id = item.id;
@@ -717,10 +723,9 @@ const onIngredientSelect = (item: AutocompleteItem, ingIndex: number) => {
 	ingredient.isFlour = item.isFlour;
 	ingredient.isRecipe = item.isRecipe;
 	ingredient.waterContent = item.waterContent;
-	ingredient.recipeType = item.recipeType; // [G-Code-Note] 设置 recipeType
+	ingredient.recipeType = item.recipeType;
 };
 
-// [G-Code-Note] [核心修改] addIngredient 增加新字段
 const addIngredient = () => {
 	mainComponent.value.ingredients.push({ id: null, name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null });
 };
@@ -729,7 +734,6 @@ const removeIngredient = (ingIndex: number) => {
 	mainComponent.value.ingredients.splice(ingIndex, 1);
 };
 
-// [代码新增] 切换“是否为面粉”状态
 const toggleIsFlour = (ingredient: MainIngredient) => {
 	ingredient.isFlour = !ingredient.isFlour;
 };
@@ -748,6 +752,28 @@ const onPreDoughSelect = (e: any) => {
 	selectedPreDough.value = availablePreDoughs.value[e.detail.value];
 };
 
+// [G-Code-Note] [核心新增] 处理面种比例变更，重新计算内部原料比例
+const handlePreDoughRatioChange = (component: EnhancedComponent) => {
+	const targetRatio = Number(component.flourRatioInMainDough);
+	// 如果没有原始数据快照，或者输入无效，则不计算
+	if (!component._originalIngredients || targetRatio <= 0) return;
+
+	// 计算原始快照中的面粉总比例（作为基准分母）
+	const originalFlourSum = component._originalIngredients.reduce((sum, ing) => sum + (ing.isFlour ? ing.ratio || 0 : 0), 0);
+
+	if (originalFlourSum <= 0) return; // 避免除以0
+
+	// 计算缩放因子
+	const scalingFactor = targetRatio / originalFlourSum;
+
+	// 更新显示的 ingredients
+	component.ingredients = component._originalIngredients.map((ing) => ({
+		...ing,
+		// 按照新的比例缩放
+		ratio: (ing.ratio || 0) * scalingFactor
+	}));
+};
+
 const confirmAddPreDough = async () => {
 	if (!selectedPreDough.value || !preDoughFlourRatio.value || preDoughFlourRatio.value <= 0) {
 		toastStore.show({ message: '请选择面种并填写有效的面粉占比', type: 'error' });
@@ -763,7 +789,6 @@ const confirmAddPreDough = async () => {
 			return;
 		}
 		const preDoughRecipe = activeVersion.components[0];
-		// [G-Code-Note] [核心修改] 使用新的 api.d.ts 类型 (ingredient.ingredient)
 		const ingredients = preDoughRecipe.ingredients;
 
 		const preDoughInternalFlourRatio = ingredients.filter((i) => i.ingredient?.isFlour).reduce((sum, i) => sum + (i.ratio ?? 0), 0);
@@ -776,21 +801,32 @@ const confirmAddPreDough = async () => {
 		const targetFlourRatioInMainDoughDecimal = toDecimal(preDoughFlourRatio.value);
 		const scalingFactor = targetFlourRatioInMainDoughDecimal / preDoughInternalFlourRatio;
 
-		const displayIngredients = ingredients.map((i) => ({
+		// [G-Code-Note] [核心修改] 确保 isFlour 属性被正确传递，便于后续逻辑判断
+		const displayIngredients: MainIngredient[] = ingredients.map((i) => ({
 			id: i.ingredient!.id,
 			name: i.ingredient!.name,
 			ratio: (i.ratio ?? 0) * scalingFactor * 100,
 			isRecipe: false,
-			waterContent: i.ingredient!.waterContent
+			waterContent: i.ingredient!.waterContent,
+			isFlour: i.ingredient!.isFlour, // 传递 isFlour
+			flourRatio: null,
+			recipeType: null
 		}));
+
+		// [G-Code-Note] [核心修改] 存储 _originalIngredients 快照，为缩放计算做准备
+		// 这里存储的是当前计算出的 displayIngredients 作为初始状态。
+		// 逻辑上：当用户添加完成时，当前的比例和 ingredient 列表是匹配的。
+		// handlePreDoughRatioChange 将会基于这个初始状态进行缩放。
+		const originalSnapshot = JSON.parse(JSON.stringify(displayIngredients));
 
 		form.value.components!.push({
 			id: activeVersion.familyId,
 			name: fullPreDoughData.name,
 			type: 'PRE_DOUGH',
 			flourRatioInMainDough: preDoughFlourRatio.value,
-			ingredients: displayIngredients, // [G-Code-Note] 此处 ingredients 是只读的，类型不匹配
-			procedure: preDoughRecipe.procedure
+			ingredients: displayIngredients,
+			procedure: preDoughRecipe.procedure,
+			_originalIngredients: originalSnapshot // 存储内部字段
 		});
 
 		showAddPreDoughModal.value = false;
@@ -805,7 +841,6 @@ const confirmAddPreDough = async () => {
 const addProduct = () => {
 	if (!form.value.products) form.value.products = [];
 	form.value.products.push({
-		// id: undefined, // 新增产品时 id 为 undefined
 		name: '',
 		baseDoughWeight: 100,
 		mixIns: [],
@@ -860,7 +895,6 @@ const removeProcedureStep = (itemWithProcedure: { procedure: string[] }, index: 
 	itemWithProcedure.procedure.splice(index, 1);
 };
 
-// [G-Code-Note] [核心重构] handleSubmit (需求 3)
 const handleSubmit = async () => {
 	if (!form.value.name.trim()) {
 		toastStore.show({ message: '请输入配方名称', type: 'error' });
@@ -881,19 +915,16 @@ const handleSubmit = async () => {
 			return;
 		}
 
-		// [G-Code-Note] [核心修改] 动态构建 ingredientsPayload
 		const ingredientsPayload = mainComponentFromForm.ingredients
 			.filter((ing) => ing.name)
 			.map((ing) => {
 				if (ing.recipeType === 'PRE_DOUGH') {
-					// 引用面种 (PRE_DOUGH) -> 发送 flourRatio
 					if (ing.flourRatio === null || Number(ing.flourRatio) <= 0) return null;
 					return {
 						name: ing.name,
 						flourRatio: toDecimal(Number(ing.flourRatio))
 					};
 				} else {
-					// 引用馅料 (EXTRA) 或 标准原料 -> 发送 ratio
 					if (ing.ratio === null || Number(ing.ratio) <= 0) return null;
 					return {
 						ingredientId: ing.id || undefined,
@@ -904,9 +935,8 @@ const handleSubmit = async () => {
 					};
 				}
 			})
-			.filter(Boolean); // 过滤掉无效条目
+			.filter(Boolean);
 
-		// [G-Code-Note] [核心修改] 仅当是 MAIN 配方时，才合并弹窗添加的 PRE_DOUGH
 		if (form.value.type === 'MAIN') {
 			const preDoughComponentsPayload = form.value
 				.components!.filter((c) => c.type === 'PRE_DOUGH')
@@ -948,13 +978,11 @@ const handleSubmit = async () => {
 			notes: form.value.notes,
 			targetTemp: form.value.targetTemp,
 			lossRatio: toDecimal(Number(mainComponentFromForm.lossRatio || 0)),
-			// 提交时包含主组件的 divisionLoss
 			divisionLoss: Number(mainComponentFromForm.divisionLoss || 0),
 			procedure: mainComponentFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
-			// 映射 products 时，包含 p.id (如果存在)
 			products: form.value.products!.map((p) => ({
-				id: p.id, // 包含 id
+				id: p.id,
 				name: p.name,
 				weight: Number(p.baseDoughWeight),
 				procedure: p.procedure.filter((step) => step && step.trim()),
@@ -995,6 +1023,7 @@ const handleSubmit = async () => {
 @import '@/styles/common.scss';
 @include form-control-styles;
 @include table-layout;
+@include checkbox-style; /* [新增] 引入这一行，顶替掉下面原本几十行的 checkbox 代码 */
 
 .page-wrapper {
 	display: flex;
@@ -1008,7 +1037,8 @@ const handleSubmit = async () => {
 	flex-shrink: 0;
 }
 
-/* [代码修改] 调整表头布局方式 */
+/* .input-field.is-disabled 删掉！ */
+
 .ingredient-header {
 	display: flex;
 	color: var(--text-secondary);
@@ -1016,15 +1046,14 @@ const handleSubmit = async () => {
 	padding: 0 5px;
 	margin-top: 15px;
 	margin-bottom: 8px;
-	gap: 10px; /* [代码修改] 使用 gap 替代 margin */
-	align-items: center; /* [代码修改] 垂直居中 */
+	gap: 10px;
+	align-items: center;
 }
 
 .col-name {
 	flex: 1;
 }
 
-/* [代码修改] “面粉?”列标题样式，并缩小宽度 */
 .col-flour {
 	width: 40px;
 	flex-shrink: 0;
@@ -1033,11 +1062,9 @@ const handleSubmit = async () => {
 }
 
 .col-ratio {
-	width: 70px; /* [G-Code-Note] [核心修改] 统一宽度 */
+	width: 70px;
 	text-align: right;
 	flex-shrink: 0;
-	/* [代码修改] 移除 margin-left，由 gap 控制间距 */
-	/* margin-left: 10px; */
 }
 
 .col-action {
@@ -1052,7 +1079,6 @@ const handleSubmit = async () => {
 	margin-bottom: 10px;
 }
 
-/* [代码修改] 勾选框容器样式，并缩小宽度 */
 .checkbox-container {
 	width: 25px;
 	flex-shrink: 0;
@@ -1061,37 +1087,7 @@ const handleSubmit = async () => {
 	align-items: center;
 }
 
-/* [代码新增] 自定义 checkbox 样式 */
-.custom-checkbox {
-	width: 18px;
-	height: 18px;
-	border: 1.5px solid #ab9d88; /* 边框颜色 (主题棕色) */
-	border-radius: 4px;
-	background-color: #fff;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	box-sizing: border-box;
-	transition: background-color 0.2s, border-color 0.2s;
-
-	/* 选中状态 */
-	&.is-checked {
-		background-color: #6d4e41; /* 选中背景 (深棕色) */
-		border-color: #6d4e41;
-	}
-}
-
-/* [代码新增] CSS 绘制的 checkmark (白色小勾) */
-.check-mark {
-	width: 5px;
-	height: 9px;
-	border-style: solid;
-	border-color: #fff; /* 勾的颜色 (白色) */
-	border-width: 0 2px 2px 0;
-	/* 通过 transform 调整位置和角度 */
-	transform: rotate(45deg) translateY(-1px) translateX(-1px);
-	box-sizing: border-box;
-}
+/* .custom-checkbox 和 .check-mark 全部删掉！ */
 
 .autocomplete-input-wrapper {
 	flex: 1;

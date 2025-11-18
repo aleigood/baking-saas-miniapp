@@ -37,6 +37,56 @@
 	}
 }
 
+/* [核心新增] 通用复选框样式 Mixin (Element UI 风格 + 主题色) */
+/* 在页面中使用 @include checkbox-style; 即可引入 */
+@mixin checkbox-style {
+	.custom-checkbox {
+		width: 18px;
+		height: 18px;
+		border: 1.5px solid #ab9d88; /* 默认边框颜色 (主题棕色) */
+		border-radius: 4px;
+		background-color: #fff;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		box-sizing: border-box;
+		transition: background-color 0.2s, border-color 0.2s;
+
+		/* 选中状态 */
+		&.is-checked {
+			background-color: #6d4e41; /* 选中背景 (深棕色) */
+			border-color: #6d4e41;
+		}
+
+		/* [Element UI 风格] 禁用状态 */
+		&.is-disabled {
+			border-color: #e4e7ed; /* Element 禁用边框 */
+			background-color: #f5f7fa; /* Element 禁用背景 */
+
+			&.is-checked {
+				background-color: #c0c4cc; /* Element 禁用且选中时的灰色 */
+				border-color: #c0c4cc;
+			}
+
+			.check-mark {
+				border-color: #fff;
+			}
+		}
+	}
+
+	/* CSS 绘制的 checkmark (白色小勾) */
+	.check-mark {
+		width: 5px;
+		height: 9px;
+		border-style: solid;
+		border-color: #fff; /* 勾的颜色 (白色) */
+		border-width: 0 2px 2px 0;
+		/* 通过 transform 调整位置和角度 */
+		transform: rotate(45deg) translateY(-1px) translateX(-1px);
+		box-sizing: border-box;
+	}
+}
+
 /* [核心改造] 创建一个通用的、包含多种布局模式的表格 Mixin */
 @mixin table-layout {
 	/* 模式一：智能自适应表格 */
@@ -109,12 +159,6 @@
 			text-align: center;
 			color: var(--text-secondary);
 		}
-
-		/*
-		 * 策略: 如果希望多个可换行列（比如有两个长文本列）近似地平均分配空间，
-		 * 请不要添加 `width: 100%` 规则。在没有明确宽度指令的情况下，
-		 * `table-layout: auto` 会根据内容自然地进行分配，从而达到类似均分的效果。
-		 */
 	}
 
 	/* 模式二：三列固定比例表格 (用于任务详情页) */
@@ -173,6 +217,53 @@
 	.note-item {
 		display: block;
 		margin-top: 4px;
+	}
+}
+
+/* [核心新增] 创建一个 Mixin 来封装表单控件的通用样式 */
+@mixin form-control-styles {
+	.input-field,
+	.picker {
+		width: 100%;
+		height: 44px;
+		line-height: 44px;
+		padding: 0 12px;
+		border: 1px solid var(--border-color);
+		border-radius: 10px;
+		font-size: 14px;
+		background-color: #f8f9fa;
+		box-sizing: border-box;
+		text-align: left;
+		color: var(--text-primary);
+	}
+
+	/* [Element UI 风格] 禁用状态修正 */
+	.input-field.is-disabled,
+	.picker.is-disabled {
+		background-color: #f5f7fa; /* Element 禁用背景色 (浅灰) */
+		color: #909399; /* Element 次级文本色 (便于阅读) */
+		border-color: #e4e7ed; /* Element 浅色边框 */
+	}
+
+	.picker {
+		position: relative;
+		padding-right: 30px;
+
+		&.placeholder {
+			color: #999;
+		}
+
+		.arrow-down {
+			position: absolute;
+			right: 12px;
+			top: 50%;
+			transform: translateY(-50%);
+			width: 0;
+			height: 0;
+			border-left: 5px solid transparent;
+			border-right: 5px solid transparent;
+			border-top: 6px solid #999;
+		}
 	}
 }
 
@@ -412,49 +503,4 @@
 .bottom-actions-container {
 	margin-top: 35px;
 	margin-bottom: 35px;
-}
-
-/* [核心新增] 创建一个 Mixin 来封装表单控件的通用样式 */
-@mixin form-control-styles {
-	.input-field,
-	.picker {
-		width: 100%;
-		height: 44px;
-		line-height: 44px;
-		padding: 0 12px;
-		border: 1px solid var(--border-color);
-		border-radius: 10px;
-		font-size: 14px;
-		background-color: #f8f9fa;
-		box-sizing: border-box;
-		text-align: left;
-		color: var(--text-primary);
-	}
-
-	.input-field.is-disabled,
-	.picker.is-disabled {
-		background-color: #e9ecef;
-		color: #6c757d;
-	}
-
-	.picker {
-		position: relative;
-		padding-right: 30px;
-
-		&.placeholder {
-			color: #999;
-		}
-
-		.arrow-down {
-			position: absolute;
-			right: 12px;
-			top: 50%;
-			transform: translateY(-50%);
-			width: 0;
-			height: 0;
-			border-left: 5px solid transparent;
-			border-right: 5px solid transparent;
-			border-top: 6px solid #999;
-		}
-	}
 }
