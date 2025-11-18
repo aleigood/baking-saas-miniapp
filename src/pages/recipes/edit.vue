@@ -52,13 +52,13 @@
 							</FormItem>
 
 							<view class="ingredient-header">
-								<text class="col-name">原料名称</text>
+								<text class="col-name">原料</text>
 								<text class="col-ratio">比例 %</text>
 							</view>
 
 							<view v-for="ing in component.ingredients" :key="ing.name" class="ingredient-row">
 								<view class="autocomplete-input-wrapper">
-									<input class="input-field is-disabled" :value="ing.name" disabled />
+									<AutocompleteInput :modelValue="ing.name" disabled :tags="getIngredientTags(ing)" />
 								</view>
 
 								<input class="input-field ratio-input is-disabled" :value="formatNumber(ing.ratio)" disabled />
@@ -101,7 +101,7 @@
 								placeholder="输入或选择原料"
 								@select="onIngredientSelect($event, ingIndex)"
 								@blur="handleIngredientBlur(ing, availableMainDoughIngredients)"
-								:tags="getIngredientTags(ing)"
+								:tags="getIngredientTags(ing, true)"
 								:allow-create-flour="showFlourCheckbox"
 							/>
 						</view>
@@ -570,14 +570,14 @@ const formatWaterRatio = (ratio: number): string => {
 	return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
 };
 
-// [G-Code-Note] [核心修改] 颜色调整：使用燕麦色/棕色替代绿色，符合烘焙主题
-const getIngredientTags = (ing: MainIngredient | SubIngredientWeight | SubIngredientRatio) => {
+// [G-Code-Note] [核心修改] 增加 isMainDough 参数，控制总水量标签的显示上下文
+const getIngredientTags = (ing: MainIngredient | SubIngredientWeight | SubIngredientRatio, isMainDough: boolean = false) => {
 	const tags = [];
 	if (ing.isFlour) {
-		// 修改了这里的颜色
 		tags.push({ text: '面粉', style: { backgroundColor: '#ebe2d9', color: '#8d6e63' } });
 	}
-	if (ing.name === '水' && showTotalWaterTag.value) {
+	// 只有在主面团上下文中，才显示总水量标签
+	if (isMainDough && ing.name === '水' && showTotalWaterTag.value) {
 		tags.push({
 			text: `总量: ${formatWaterRatio(totalCalculatedWaterRatio.value)}%`,
 			style: { backgroundColor: '#e0efff', color: '#00529b' }
@@ -1022,7 +1022,7 @@ const handleSubmit = async () => {
 
 .col-ratio {
 	width: 70px;
-	text-align: center;
+	text-align: right;
 	flex-shrink: 0;
 }
 

@@ -3,9 +3,10 @@
 		<view class="input-wrapper">
 			<input
 				class="input-field"
-				:class="{ 'has-tags': tags.length > 0 }"
+				:class="{ 'has-tags': tags.length > 0, 'is-disabled': disabled }"
 				:value="modelValue"
 				:placeholder="placeholder"
+				:disabled="disabled"
 				@input="onInput"
 				@focus="onFocus"
 				@blur="handleInputBlur"
@@ -14,7 +15,7 @@
 				<text v-for="(tag, index) in tags" :key="index" class="input-tag" :style="tag.style">{{ tag.text }}</text>
 			</view>
 		</view>
-		<view v-if="showSuggestions" class="suggestions-container" :style="suggestionsStyle">
+		<view v-if="showSuggestions && !disabled" class="suggestions-container" :style="suggestionsStyle">
 			<scroll-view :scroll-y="true" class="suggestions-scroll-view">
 				<view v-for="item in filteredItems" :key="item.id" class="suggestion-item" @click="selectItem(item)">
 					<text class="suggestion-name">{{ item.name }}</text>
@@ -50,10 +51,13 @@ interface InputTag {
 const props = withDefaults(
 	defineProps<{
 		modelValue: string;
-		items: { id: string | null; name: string; isRecipe?: boolean; isFlour?: boolean }[];
+		items?: { id: string | null; name: string; isRecipe?: boolean; isFlour?: boolean }[]; // items 变为可选
 		placeholder?: string;
 		tags?: InputTag[];
 		allowCreateFlour?: boolean;
+		// [核心新增] 支持禁用状态
+		disabled?: boolean;
+		// 兼容旧属性
 		showTag?: boolean;
 		tagText?: string;
 		tagStyle?: Record<string, string>;
@@ -64,6 +68,7 @@ const props = withDefaults(
 		placeholder: '',
 		tags: () => [],
 		allowCreateFlour: false,
+		disabled: false,
 		showTag: false,
 		tagText: '自制',
 		tagStyle: () => ({})
@@ -91,14 +96,14 @@ onUnmounted(() => {
 });
 
 const filteredItems = computed(() => {
-	if (!props.modelValue) {
+	if (!props.modelValue || props.disabled) {
 		return [];
 	}
 	return props.items.filter((item) => item.name.toLowerCase().includes(props.modelValue.toLowerCase())).slice(0, 50);
 });
 
 const canCreateNew = computed(() => {
-	if (!props.modelValue) {
+	if (!props.modelValue || props.disabled) {
 		return false;
 	}
 	return !props.items.some((item) => item.name.toLowerCase() === props.modelValue.toLowerCase());
@@ -117,14 +122,16 @@ const suggestionsStyle = computed(() => {
 });
 
 const showSuggestions = computed(() => {
-	return focused.value && props.modelValue.length > 0;
+	return focused.value && props.modelValue.length > 0 && !props.disabled;
 });
 
 const onInput = (event: any) => {
+	if (props.disabled) return;
 	emit('update:modelValue', event.detail.value);
 };
 
 const onFocus = () => {
+	if (props.disabled) return;
 	uni.$emit('page-clicked');
 	focused.value = true;
 	nextTick(() => {
@@ -177,6 +184,14 @@ const createNewItem = (isFlour: boolean) => {
 
 .input-field.has-tags {
 	padding-right: 100px;
+}
+
+/* [核心新增] 禁用样式 */
+.input-field.is-disabled {
+	background-color: #f5f7fa;
+	color: #c0c4cc;
+	/* 保持标签颜色正常显示，不被透明度影响 */
+	opacity: 1;
 }
 
 .tags-container {
@@ -247,7 +262,6 @@ const createNewItem = (isFlour: boolean) => {
 	font-size: 10px;
 }
 
-/* [G-Code-Note] [核心修改] 修改面粉标签颜色，从绿色改为燕麦/棕色 */
 .flour-tag {
 	background-color: #ebe2d9;
 	color: #8d6e63;
@@ -266,7 +280,6 @@ const createNewItem = (isFlour: boolean) => {
 	justify-content: flex-start;
 }
 
-/* [G-Code-Note] [核心修改] 修改新建面粉选项的颜色 */
 .flour-create {
 	color: #8d6e63;
 	border-top: 1px dashed #dcc8b5;
