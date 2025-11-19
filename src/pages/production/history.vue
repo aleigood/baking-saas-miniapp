@@ -44,7 +44,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+// [核心修改] 导入 onUnload
+import { onShow, onUnload } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast'; // [核心新增] 引入toastStore
@@ -99,6 +100,11 @@ onShow(async () => {
 		await dataStore.fetchHistoricalTasks(false);
 		isLoading.value = false;
 	}
+});
+
+// [核心修复] 在页面卸载时清理历史任务数据，防止内存泄漏
+onUnload(() => {
+	dataStore.clearHistoricalTasks();
 });
 
 // [核心修复] 为滚动事件处理函数增加健壮性检查

@@ -4,23 +4,33 @@
  */
 
 /**
- * [核心新增] 高精度乘法函数，用于避免浮点数计算的精度问题
+ * [核心修复] 高精度乘法函数，增加对科学计数法的支持
  * @param a - 第一个乘数
  * @param b - 第二个乘数
  * @returns 准确的乘法结果
  */
 export const multiply = (a: number, b: number): number => {
-	// 获取数字的小数位数
-	const getDecimalLength = (n: number) => (String(n).split('.')[1] || '').length;
+	// [修复] 处理科学计数法 (例如 1e-7)
+	const getDecimalLength = (n: number) => {
+		const str = String(n);
+		if (str.includes('e-')) {
+			return parseInt(str.split('e-')[1], 10);
+		}
+		const parts = str.split('.');
+		return parts.length > 1 ? parts[1].length : 0;
+	};
+
 	const lenA = getDecimalLength(a);
 	const lenB = getDecimalLength(b);
+
 	// 计算放大倍数
 	const multiplier = Math.pow(10, lenA + lenB);
+
 	// 将浮点数转换为整数进行计算
-	// [核心修复] 增加 Math.round 来处理类似 0.7 * 10 = 7.000000000000001 的情况
+	// Math.round 处理类似 0.7 * 10 = 7.000000000000001 的情况
 	const intA = Math.round(a * Math.pow(10, lenA));
 	const intB = Math.round(b * Math.pow(10, lenB));
-	// 计算结果并还原小数位数
+
 	return (intA * intB) / multiplier;
 };
 

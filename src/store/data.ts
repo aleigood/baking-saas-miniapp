@@ -40,9 +40,7 @@ function getMonthDateRange() {
 	};
 }
 
-// [中文注释] 核心重构：将任务进度缓存的 key 生成逻辑集中管理
 const getTaskProgressStorageKey = (taskId: string) => `task-progress-${taskId}`;
-// [新增] 将前置任务进度缓存的 key 生成逻辑集中管理
 const getPrepTaskProgressStorageKey = (date: string) => `prep-task-progress-${date}`;
 
 export const useDataStore = defineStore('data', () => {
@@ -365,6 +363,12 @@ export const useDataStore = defineStore('data', () => {
 		dataLoaded.value.historicalTasks = false;
 	}
 
+	// [核心新增] 暴露一个公开的清理方法，供页面调用以释放内存
+	function clearHistoricalTasks() {
+		resetHistoricalTasks();
+		markHistoricalTasksAsStale();
+	}
+
 	function resetData() {
 		production.value = [];
 		homeStats.value = { pendingCount: 0 };
@@ -434,6 +438,8 @@ export const useDataStore = defineStore('data', () => {
 		markRecipesAsStale,
 		markProductsForTaskCreationAsStale,
 		markIngredientsAsStale,
-		markMembersAsStale
+		markMembersAsStale,
+		// [新增] 导出清理历史任务的方法
+		clearHistoricalTasks
 	};
 });

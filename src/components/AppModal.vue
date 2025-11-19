@@ -1,5 +1,12 @@
 <template>
-	<view v-if="isRendered" class="modal-overlay" :class="animationClass.overlay" @click="closeModal" @touchmove.stop.prevent="() => {}">
+	<view
+		v-if="isRendered"
+		class="modal-overlay"
+		:class="animationClass.overlay"
+		@click="closeModal"
+		@touchmove.stop.prevent="() => {}"
+		:style="{ '--modal-duration': `${DURATION}ms` }"
+	>
 		<view class="modal-content" :style="{ width: width }" :class="[animationClass.content, { 'is-options-modal': noHeaderLine }]" @click.stop>
 			<view class="modal-header" :class="{ 'no-line': noHeaderLine }" v-if="title">
 				<h3 class="modal-title">{{ title }}</h3>
@@ -33,6 +40,9 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible']);
 
+// [核心修复] 定义统一的动画持续时间常量，消除魔法数字
+const DURATION = 300;
+
 // [新增] isRendered 用于 v-if，控制组件是否真实存在于DOM中
 const isRendered = ref(false);
 // [新增] animationClass 用于控制进入和离开的动画类
@@ -63,10 +73,11 @@ watch(
 			// 1. 当需要隐藏时，先应用离开动画
 			animationClass.overlay = 'fade-out';
 			animationClass.content = 'slide-down';
-			// 2. 等待动画播放完毕（300ms）后，再从DOM中移除元素
+			// 2. 等待动画播放完毕后，再从DOM中移除元素
+			// [核心修复] 使用常量 DURATION
 			animationTimer = setTimeout(() => {
 				isRendered.value = false;
-			}, 300); // 这个时间必须和CSS动画的持续时间一致
+			}, DURATION);
 		}
 	}
 );
@@ -181,19 +192,20 @@ const closeModal = () => {
 }
 
 /* [新增] 应用动画的类 */
+/* [核心修复] 使用 CSS 变量 var(--modal-duration) */
 .modal-overlay.fade-in {
-	animation: fadeIn 0.3s ease-in-out forwards;
+	animation: fadeIn var(--modal-duration) ease-in-out forwards;
 }
 
 .modal-overlay.fade-out {
-	animation: fadeOut 0.3s ease-in-out forwards;
+	animation: fadeOut var(--modal-duration) ease-in-out forwards;
 }
 
 .modal-content.slide-up {
-	animation: slideUp 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+	animation: slideUp var(--modal-duration) cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
 .modal-content.slide-down {
-	animation: slideDown 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+	animation: slideDown var(--modal-duration) cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 </style>

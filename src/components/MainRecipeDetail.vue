@@ -157,8 +157,9 @@ const chartTabs = ref([
 ]);
 
 const productTabsForFilter = computed(() => {
-	if (!props.version) return [];
-	// @ts-ignore
+	// [核心修复] 移除 @ts-ignore，添加类型守卫
+	if (!props.version || !props.version.products) return [];
+
 	return props.version.products.map((p) => ({
 		key: p.id,
 		label: p.name
@@ -167,7 +168,9 @@ const productTabsForFilter = computed(() => {
 
 const selectedProduct = computed(() => {
 	if (!props.version || !selectedProductId.value) return null;
-	// @ts-ignore
+	// [核心修复] 移除 @ts-ignore，添加类型守卫
+	if (!props.version.products) return null;
+
 	return props.version.products.find((p) => p.id === selectedProductId.value);
 });
 
