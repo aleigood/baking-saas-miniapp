@@ -30,7 +30,7 @@
 				<template v-if="canCreateNew">
 					<view class="suggestion-item create-item" @click="handleCreate(defaultCreateAction)">
 						<text class="create-icon">+</text>
-						<text>新建: "{{ modelValue }}"</text>
+						<text>新建原料: "{{ modelValue }}"</text>
 					</view>
 					<view v-for="(action, idx) in creationOptions" :key="idx" class="suggestion-item create-item extra-create-action" @click="handleCreate(action)">
 						<text class="create-icon">+</text>
