@@ -59,6 +59,11 @@ export const request = <T = any>(options: RequestOptions): Promise<T> => {
 			success: (res: UniApp.RequestSuccessCallbackResult) => {
 				// 核心：处理401 Unauthorized错误
 				if (res.statusCode === 401 && options.url !== '/auth/login') {
+					// [新增] 防抖检测：如果应用已经处于重定向流程中，直接忽略后续的并发 401 错误，防止重复弹窗
+					if (userStore.isRedirecting) {
+						return reject(res);
+					}
+
 					// [核心改造] 为 Toast 消息指定目标地址：登录页
 					uiStore.setNextPageToast(
 						{
@@ -142,6 +147,11 @@ export function uploadFile<T>(options: UploadFileOptions): Promise<T> {
 			},
 			success: (res) => {
 				if (res.statusCode === 401 && options.url !== '/auth/login') {
+					// [新增] 防抖检测：同普通请求，防止文件上传时的并发 401 重复触发
+					if (userStore.isRedirecting) {
+						return reject(new Error('Unauthorized'));
+					}
+
 					uiStore.setNextPageToast(
 						{
 							message: '登录已过期，请重新登录',
