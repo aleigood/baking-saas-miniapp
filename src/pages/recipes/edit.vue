@@ -102,8 +102,18 @@
 								@select="onIngredientSelect($event, ingIndex)"
 								@blur="handleIngredientBlur(ing, availableMainDoughIngredients)"
 								:tags="getIngredientTags(ing, true)"
-								:allow-create-flour="showFlourCheckbox"
-							/>
+								:creationOptions="showFlourCheckbox ? [{ label: '新建面粉', payload: { isFlour: true } }] : []"
+							>
+								<template #item="{ item }">
+									<view class="suggestion-row-wrapper">
+										<view class="suggestion-name-text">{{ item.name }}</view>
+										<view class="suggestion-tags-wrapper">
+											<text v-if="item.isFlour" class="mini-tag flour-tag">面粉</text>
+											<text v-if="item.isRecipe" class="mini-tag recipe-tag">自制</text>
+										</view>
+									</view>
+								</template>
+							</AutocompleteInput>
 						</view>
 						<template v-if="ing.recipeType === 'PRE_DOUGH'">
 							<input class="input-field ratio-input" type="digit" v-model="ing.flourRatio" placeholder="面粉%" />
@@ -162,7 +172,17 @@
 											@select="onSubIngredientSelect($event, prodIndex, 'mixIns', ingIndex)"
 											@blur="handleIngredientBlur(ing, availableSubIngredients)"
 											:tags="getIngredientTags(ing)"
-										/>
+										>
+											<template #item="{ item }">
+												<view class="suggestion-row-wrapper">
+													<view class="suggestion-name-text">{{ item.name }}</view>
+													<view class="suggestion-tags-wrapper">
+														<text v-if="item.isFlour" class="mini-tag flour-tag">面粉</text>
+														<text v-if="item.isRecipe" class="mini-tag recipe-tag">自制</text>
+													</view>
+												</view>
+											</template>
+										</AutocompleteInput>
 									</view>
 									<input class="input-field ratio-input" type="digit" v-model="ing.ratio" placeholder="%" />
 									<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'mixIns', ingIndex)">
@@ -183,7 +203,17 @@
 											@select="onSubIngredientSelect($event, prodIndex, 'fillings', ingIndex)"
 											@blur="handleIngredientBlur(ing, availableSubIngredients)"
 											:tags="getIngredientTags(ing)"
-										/>
+										>
+											<template #item="{ item }">
+												<view class="suggestion-row-wrapper">
+													<view class="suggestion-name-text">{{ item.name }}</view>
+													<view class="suggestion-tags-wrapper">
+														<text v-if="item.isFlour" class="mini-tag flour-tag">面粉</text>
+														<text v-if="item.isRecipe" class="mini-tag recipe-tag">自制</text>
+													</view>
+												</view>
+											</template>
+										</AutocompleteInput>
 									</view>
 									<input class="input-field ratio-input" type="digit" v-model="ing.weightInGrams" placeholder="g/个" />
 									<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'fillings', ingIndex)">
@@ -204,7 +234,17 @@
 											@select="onSubIngredientSelect($event, prodIndex, 'toppings', ingIndex)"
 											@blur="handleIngredientBlur(ing, availableSubIngredients)"
 											:tags="getIngredientTags(ing)"
-										/>
+										>
+											<template #item="{ item }">
+												<view class="suggestion-row-wrapper">
+													<view class="suggestion-name-text">{{ item.name }}</view>
+													<view class="suggestion-tags-wrapper">
+														<text v-if="item.isFlour" class="mini-tag flour-tag">面粉</text>
+														<text v-if="item.isRecipe" class="mini-tag recipe-tag">自制</text>
+													</view>
+												</view>
+											</template>
+										</AutocompleteInput>
 									</view>
 									<input class="input-field ratio-input" type="digit" v-model="ing.weightInGrams" placeholder="g/个" />
 									<IconButton variant="field" @click="removeSubIngredient(prodIndex, 'toppings', ingIndex)">
@@ -570,20 +610,18 @@ const formatWaterRatio = (ratio: number): string => {
 	return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
 };
 
-// [G-Code-Note] [核心修改] 增加 isMainDough 参数，控制总水量标签的显示上下文
 const getIngredientTags = (ing: MainIngredient | SubIngredientWeight | SubIngredientRatio, isMainDough: boolean = false) => {
 	const tags = [];
 	if (ing.isFlour) {
 		tags.push({ text: '面粉', style: { backgroundColor: '#ebe2d9', color: '#8d6e63' } });
 	}
-	// 只有在主面团上下文中，才显示总水量标签
 	if (isMainDough && ing.name === '水' && showTotalWaterTag.value) {
 		tags.push({
 			text: `总量: ${formatWaterRatio(totalCalculatedWaterRatio.value)}%`,
 			style: { backgroundColor: '#e0efff', color: '#00529b' }
 		});
 	} else if (ing.isRecipe) {
-		tags.push({ text: '自制', style: { backgroundColor: '#faedcd', color: '#e6a23c' } });
+		tags.push({ text: '自制', style: { backgroundColor: '#faedcd', color: 'var(--primary-color)' } });
 	}
 	return tags;
 };
@@ -1142,5 +1180,53 @@ const handleSubmit = async () => {
 	display: flex;
 	justify-content: center;
 	align-items: center;
+}
+
+/* 新增：Suggestion Wrapper 
+   专门用于解决小程序 Slot 内部 Flex 失效的问题。
+   将布局逻辑完全保留在父组件中。
+*/
+.suggestion-row-wrapper {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+}
+
+.suggestion-name-text {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	margin-right: 8px;
+	font-size: 14px;
+}
+
+.suggestion-tags-wrapper {
+	display: flex;
+	gap: 5px;
+	flex-shrink: 0;
+	white-space: nowrap;
+	align-items: center;
+	height: 100%;
+}
+
+.mini-tag {
+	padding: 1px 5px;
+	border-radius: 4px;
+	font-size: 10px;
+	line-height: 1.4;
+	display: inline-block;
+}
+
+.flour-tag {
+	background-color: #ebe2d9;
+	color: #8d6e63;
+}
+
+.recipe-tag {
+	background-color: #faedcd;
+	color: var(--primary-color);
 }
 </style>

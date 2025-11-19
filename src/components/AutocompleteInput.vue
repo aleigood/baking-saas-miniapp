@@ -1,39 +1,43 @@
 <template>
 	<view class="autocomplete-container" :style="{ zIndex: focused ? 99 : 1 }" @click.stop>
-		<view class="input-wrapper">
+		<view class="input-wrapper-box input-field" :class="{ 'is-disabled': disabled }" @click="triggerFocus">
 			<input
-				class="input-field"
-				:class="{ 'has-tags': tags.length > 0, 'is-disabled': disabled }"
+				class="real-input"
 				:value="modelValue"
 				:placeholder="placeholder"
 				:disabled="disabled"
+				:focus="innerFocus"
 				@input="onInput"
 				@focus="onFocus"
 				@blur="handleInputBlur"
 			/>
-			<view v-if="tags.length > 0" class="tags-container">
+
+			<view v-if="tags.length > 0" class="tags-flow">
 				<text v-for="(tag, index) in tags" :key="index" class="input-tag" :style="tag.style">{{ tag.text }}</text>
 			</view>
 		</view>
+
 		<view v-if="showSuggestions && !disabled" class="suggestions-container" :style="suggestionsStyle">
 			<scroll-view :scroll-y="true" class="suggestions-scroll-view">
-				<view v-for="item in filteredItems" :key="item.id" class="suggestion-item" @click="selectItem(item)">
-					<text class="suggestion-name">{{ item.name }}</text>
-					<view class="suggestion-tags">
-						<text v-if="item.isFlour" class="mini-tag flour-tag">面粉</text>
-						<text v-if="item.isRecipe" class="mini-tag recipe-tag">自制</text>
-					</view>
+				<view v-for="(item, index) in filteredItems" :key="item.id || index" class="suggestion-item" @click="selectItem(item)">
+					<slot name="item" :item="item">
+						<view class="default-item-layout">
+							<text class="suggestion-name">{{ item.name }}</text>
+						</view>
+					</slot>
 				</view>
+
 				<template v-if="canCreateNew">
-					<view class="suggestion-item create-item" @click="createNewItem(false)">
+					<view class="suggestion-item create-item" @click="handleCreate(defaultCreateAction)">
 						<text class="create-icon">+</text>
-						<text>新建原料: "{{ modelValue }}"</text>
+						<text>新建: "{{ modelValue }}"</text>
 					</view>
-					<view v-if="allowCreateFlour" class="suggestion-item create-item flour-create" @click="createNewItem(true)">
+					<view v-for="(action, idx) in creationOptions" :key="idx" class="suggestion-item create-item extra-create-action" @click="handleCreate(action)">
 						<text class="create-icon">+</text>
-						<text>新建面粉: "{{ modelValue }}"</text>
+						<text>{{ action.label }}: "{{ modelValue }}"</text>
 					</view>
 				</template>
+
 				<view v-if="filteredItems.length === 0 && !canCreateNew" class="no-results">无匹配项</view>
 			</scroll-view>
 		</view>
@@ -48,42 +52,41 @@ interface InputTag {
 	style?: Record<string, string>;
 }
 
+export interface CreateAction {
+	label: string;
+	payload?: any;
+}
+
 const props = withDefaults(
 	defineProps<{
 		modelValue: string;
-		items?: { id: string | null; name: string; isRecipe?: boolean; isFlour?: boolean }[]; // items 变为可选
+		items?: any[];
 		placeholder?: string;
 		tags?: InputTag[];
-		allowCreateFlour?: boolean;
-		// [核心新增] 支持禁用状态
 		disabled?: boolean;
-		// 兼容旧属性
-		showTag?: boolean;
-		tagText?: string;
-		tagStyle?: Record<string, string>;
+		creationOptions?: CreateAction[];
 	}>(),
 	{
 		modelValue: '',
 		items: () => [],
 		placeholder: '',
 		tags: () => [],
-		allowCreateFlour: false,
 		disabled: false,
-		showTag: false,
-		tagText: '自制',
-		tagStyle: () => ({})
+		creationOptions: () => []
 	}
 );
 
-const emit = defineEmits(['update:modelValue', 'select', 'blur']);
+const emit = defineEmits(['update:modelValue', 'select', 'blur', 'create']);
 
 const instance = getCurrentInstance();
 const focused = ref(false);
+const innerFocus = ref(false);
 const inputRect = ref<UniApp.NodeInfo | null>(null);
 
 const handleGlobalClick = () => {
 	if (focused.value) {
 		focused.value = false;
+		innerFocus.value = false;
 	}
 };
 
@@ -96,23 +99,19 @@ onUnmounted(() => {
 });
 
 const filteredItems = computed(() => {
-	if (!props.modelValue || props.disabled) {
-		return [];
-	}
-	return props.items.filter((item) => item.name.toLowerCase().includes(props.modelValue.toLowerCase())).slice(0, 50);
+	if (!props.modelValue || props.disabled) return [];
+	return props.items.filter((item) => item.name && item.name.toLowerCase().includes(props.modelValue.toLowerCase())).slice(0, 50);
 });
 
 const canCreateNew = computed(() => {
-	if (!props.modelValue || props.disabled) {
-		return false;
-	}
+	if (!props.modelValue || props.disabled) return false;
 	return !props.items.some((item) => item.name.toLowerCase() === props.modelValue.toLowerCase());
 });
 
+const defaultCreateAction = { label: '新建', payload: {} };
+
 const suggestionsStyle = computed(() => {
-	if (!inputRect.value) {
-		return { display: 'none' };
-	}
+	if (!inputRect.value) return { display: 'none' };
 	const bottom = uni.getWindowInfo().windowHeight - (inputRect.value.top || 0);
 	return {
 		bottom: `${bottom}px`,
@@ -124,6 +123,18 @@ const suggestionsStyle = computed(() => {
 const showSuggestions = computed(() => {
 	return focused.value && props.modelValue.length > 0 && !props.disabled;
 });
+
+const triggerFocus = () => {
+	if (props.disabled) return;
+
+	// [核心修复] 如果当前已经是聚焦状态，说明是用户直接点击了 input 触发的原生聚焦
+	// 此时不要再通过 innerFocus 强制聚焦，否则会导致小程序键盘闪烁或关闭
+	if (focused.value) return;
+
+	innerFocus.value = true;
+	// 注意：这里删除了 onFocus() 的手动调用
+	// 因为 innerFocus 变为 true 会自动触发 input 的原生 @focus 事件，从而调用 onFocus
+};
 
 const onInput = (event: any) => {
 	if (props.disabled) return;
@@ -137,31 +148,32 @@ const onFocus = () => {
 	nextTick(() => {
 		const query = uni.createSelectorQuery().in(instance);
 		query
-			.select('.input-field')
+			.select('.input-wrapper-box')
 			.boundingClientRect((rect) => {
-				if (rect) {
-					inputRect.value = rect;
-				}
+				if (rect) inputRect.value = rect;
 			})
 			.exec();
 	});
 };
 
 const handleInputBlur = () => {
+	// 这里保留 innerFocus = false 是为了下次能再次触发 :focus="true"
+	// 配合 triggerFocus 中的 if(focused.value) return 检查，不会产生冲突
+	innerFocus.value = false;
 	emit('blur');
 };
 
-const selectItem = (item: { id: string | null; name: string; isFlour?: boolean }) => {
+const selectItem = (item: any) => {
 	emit('update:modelValue', item.name);
 	emit('select', item);
 	focused.value = false;
 };
 
-const createNewItem = (isFlour: boolean) => {
+const handleCreate = (action: CreateAction) => {
 	emit('select', {
 		id: null,
 		name: props.modelValue,
-		isFlour: isFlour
+		...action.payload
 	});
 	focused.value = false;
 };
@@ -169,53 +181,53 @@ const createNewItem = (isFlour: boolean) => {
 
 <style scoped lang="scss">
 @import '@/styles/common.scss';
+
 @include form-control-styles;
 
 .autocomplete-container {
 	position: relative;
+	width: 100%;
 }
 
-.input-wrapper {
-	position: relative;
-	width: 100%;
+.input-wrapper-box {
+	display: flex !important;
+	align-items: center;
+	box-sizing: border-box;
+	transition: border-color 0.3s;
+}
+
+.real-input {
+	flex: 1;
+	height: 100%;
+	min-height: inherit;
+	border: none;
+	outline: none;
+	background: transparent;
+	font-size: inherit;
+	color: inherit;
+	padding: 0;
+	margin: 0;
+	line-height: normal;
+}
+
+.tags-flow {
 	display: flex;
 	align-items: center;
-}
-
-.input-field.has-tags {
-	padding-right: 100px;
-}
-
-/* [核心新增] 禁用样式 */
-.input-field.is-disabled {
-	background-color: #f5f7fa;
-	color: #c0c4cc;
-	/* 保持标签颜色正常显示，不被透明度影响 */
-	opacity: 1;
-}
-
-.tags-container {
-	position: absolute;
-	right: 10px;
-	top: 50%;
-	transform: translateY(-50%);
-	display: flex;
+	flex-shrink: 0;
 	gap: 6px;
-	pointer-events: none;
-	justify-content: flex-end;
-	max-width: 120px;
+	margin-left: 8px;
+	max-width: 60%;
 	overflow: hidden;
+	height: 100%;
 }
 
 .input-tag {
-	background-color: #f0f2f5;
-	color: var(--text-secondary);
 	padding: 2px 6px;
 	border-radius: 4px;
 	font-size: 11px;
 	font-weight: 500;
 	white-space: nowrap;
-	flex-shrink: 0;
+	line-height: 1.4;
 }
 
 .suggestions-container {
@@ -238,9 +250,7 @@ const createNewItem = (isFlour: boolean) => {
 	font-size: 14px;
 	color: var(--text-primary);
 	border-bottom: 1px solid var(--border-color);
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
+	display: block;
 
 	&:last-child {
 		border-bottom: none;
@@ -251,25 +261,11 @@ const createNewItem = (isFlour: boolean) => {
 	}
 }
 
-.suggestion-tags {
+.default-item-layout {
 	display: flex;
-	gap: 5px;
-}
-
-.mini-tag {
-	padding: 1px 5px;
-	border-radius: 4px;
-	font-size: 10px;
-}
-
-.flour-tag {
-	background-color: #ebe2d9;
-	color: #8d6e63;
-}
-
-.recipe-tag {
-	background-color: #faedcd;
-	color: var(--primary-color);
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
 }
 
 .create-item {
@@ -280,9 +276,9 @@ const createNewItem = (isFlour: boolean) => {
 	justify-content: flex-start;
 }
 
-.flour-create {
+.extra-create-action {
 	color: #8d6e63;
-	border-top: 1px dashed #dcc8b5;
+	border-top: 1px dashed var(--border-color);
 }
 
 .create-icon {
