@@ -9,7 +9,6 @@
 				<text class="col-total">总价</text>
 			</view>
 			<view v-if="displayedProcurementRecords && displayedProcurementRecords.length > 0">
-				<!-- [核心修改] 传入 :no-padding="true" 属性 -->
 				<ListItem
 					v-for="record in displayedProcurementRecords"
 					:key="record.id"
@@ -19,11 +18,10 @@
 					:no-padding="true"
 				>
 					<view class="procurement-item-content">
-						<!-- 修改：使用 formatDateTime 格式化日期和时间 -->
 						<text class="col-date">{{ formatDateTime(record.purchaseDate) }}</text>
 						<text class="col-quantity">{{ record.packagesPurchased }} 包</text>
-						<text class="col-price">¥{{ Number(record.pricePerPackage).toFixed(2) }}</text>
-						<text class="col-total">¥{{ (record.packagesPurchased * Number(record.pricePerPackage)).toFixed(2) }}</text>
+						<text class="col-price">¥{{ formatMoney(record.pricePerPackage) }}</text>
+						<text class="col-total">¥{{ formatMoney(record.packagesPurchased * Number(record.pricePerPackage)) }}</text>
 					</view>
 				</ListItem>
 			</view>
@@ -36,12 +34,11 @@
 <script setup lang="ts">
 import { ref, computed, type PropType } from 'vue';
 import type { IngredientSKU, ProcurementRecord } from '@/types/api';
-// 修改：引入 formatDateTime
-import { formatDateTime } from '@/utils/format';
+// [核心修改] 引入 formatMoney
+import { formatDateTime, formatMoney } from '@/utils/format';
 import ListItem from '@/components/ListItem.vue';
 import AppButton from '@/components/AppButton.vue';
 
-// 定义组件接收的属性
 const props = defineProps({
 	selectedSku: {
 		type: Object as PropType<IngredientSKU | null>,
@@ -49,24 +46,20 @@ const props = defineProps({
 	}
 });
 
-// 定义组件可以向外触发的事件
 const emit = defineEmits(['longpress']);
 
 const displayedRecordsCount = ref(10);
 
-// 计算显示的采购记录
 const displayedProcurementRecords = computed(() => {
 	if (!props.selectedSku || !props.selectedSku.procurementRecords) return [];
 	return props.selectedSku.procurementRecords.slice(0, displayedRecordsCount.value);
 });
 
-// 计算是否还有更多记录可加载
 const hasMoreRecords = computed(() => {
 	if (!props.selectedSku || !props.selectedSku.procurementRecords) return false;
 	return displayedRecordsCount.value < props.selectedSku.procurementRecords.length;
 });
 
-// 加载更多记录
 const loadMoreRecords = () => {
 	displayedRecordsCount.value += 10;
 };
@@ -88,7 +81,6 @@ const loadMoreRecords = () => {
 		margin-bottom: 5px;
 	}
 
-	/* [核心修改] 移除不再需要的 :deep() 样式覆盖 */
 	.procurement-item {
 	}
 

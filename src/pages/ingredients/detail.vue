@@ -270,7 +270,6 @@ import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
 import type { Ingredient, IngredientSKU, ProcurementRecord, IngredientLedgerEntry } from '@/types/api';
-// [修改] 导入 updateSku
 import {
 	getIngredient,
 	createSku,
@@ -298,9 +297,9 @@ import IngredientProcurementList from '@/components/IngredientProcurementList.vu
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
-import { formatChineseDate, formatDateTime, formatNumber, formatWeight, multiply } from '@/utils/format';
+// [核心修改] 引入 formatMoney
+import { formatChineseDate, formatDateTime, formatNumber, formatWeight, multiply, formatMoney } from '@/utils/format';
 
-// [新增] 密度常量
 const densityOptions = [
 	{ label: '手动输入重量(g)', value: null },
 	{ label: '水 (1.0 g/mL)', value: 1.0 },
@@ -330,36 +329,33 @@ const newSkuForm = ref<{
 	brand: string;
 	specName: string;
 	specWeightInGrams: number | null;
-	volumeInML: number | null; // [新增]
-	density: number | null; // [新增]
+	volumeInML: number | null;
+	density: number | null;
 }>({
 	brand: '',
 	specName: '',
 	specWeightInGrams: null,
-	volumeInML: null, // [新增]
-	density: null // [新增]
+	volumeInML: null,
+	density: null
 });
 
-// [新增] SKU 编辑模态框
 const showEditSkuModal = ref(false);
-// [新增] SKU 编辑表单
 const editSkuForm = ref<{
 	id: string;
 	brand: string;
 	specName: string;
 	specWeightInGrams: number | null;
-	volumeInML: number | null; // [新增]
-	density: number | null; // [新增]
+	volumeInML: number | null;
+	density: number | null;
 }>({
 	id: '',
 	brand: '',
 	specName: '',
 	specWeightInGrams: null,
-	volumeInML: null, // [新增]
-	density: null // [新增]
+	volumeInML: null,
+	density: null
 });
 
-// [新增] 用于控制编辑时是否禁用重量相关字段
 const hasProcurementRecords = ref(false);
 
 const showProcurementModal = ref(false);
@@ -390,7 +386,6 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-// [新增] 计算属性
 const isNewSkuWeightReadOnly = computed(() => !!newSkuForm.value.density);
 const newSkuDensityLabel = computed(() => {
 	return densityOptions.find((t) => t.value === newSkuForm.value.density)?.label || '手动输入重量(g)';
@@ -428,11 +423,10 @@ const editProcurementForm = reactive<{
 	totalPrice: null
 });
 
-// [核心修改] 为库存调整表单增加自定义原因字段
 const stockAdjustment = reactive<{
 	changeInKg: number | null;
 	reason: string;
-	customReason: string; // [新增] 用于存储“其他”原因的文本
+	customReason: string;
 	initialCostPerKg?: number | null;
 }>({
 	changeInKg: null,
@@ -441,7 +435,6 @@ const stockAdjustment = reactive<{
 	initialCostPerKg: null
 });
 
-// [新增] 定义库存调整原因的固定列表
 const adjustmentReasons = ['初次录入', '盘盈', '盘亏', '过期损耗', '其他'];
 
 const visibleChartTabs = computed(() => {
@@ -469,7 +462,6 @@ const fabActions = computed(() => {
 	return actions;
 });
 
-// [新增] 监听“新增SKU”表单的体积和密度，自动计算重量
 watch(
 	() => [newSkuForm.value.volumeInML, newSkuForm.value.density],
 	([volume, density]) => {
@@ -479,7 +471,6 @@ watch(
 	}
 );
 
-// [新增] 监听“编辑SKU”表单的体积和密度，自动计算重量
 watch(
 	() => [editSkuForm.value.volumeInML, editSkuForm.value.density],
 	([volume, density]) => {
@@ -489,22 +480,18 @@ watch(
 	}
 );
 
-// [新增] “新增SKU”密度选择器
 const onNewSkuDensityChange = (e: any) => {
 	const selectedIndex = e.detail.value;
 	newSkuForm.value.density = densityOptions[selectedIndex].value;
-	// 如果切换回“手动输入”，清空体积和重量
 	if (!newSkuForm.value.density) {
 		newSkuForm.value.specWeightInGrams = null;
 		newSkuForm.value.volumeInML = null;
 	}
 };
 
-// [新增] “编辑SKU”密度选择器
 const onEditSkuDensityChange = (e: any) => {
 	const selectedIndex = e.detail.value;
 	editSkuForm.value.density = densityOptions[selectedIndex].value;
-	// 如果切换回“手动输入”，清空体积和重量
 	if (!editSkuForm.value.density) {
 		editSkuForm.value.specWeightInGrams = null;
 		editSkuForm.value.volumeInML = null;
@@ -611,15 +598,15 @@ const onTypeChange = (e: any) => {
 const ingredientPricePerKg = computed(() => {
 	const ing = ingredient.value;
 	if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
-		return '¥0/kg';
+		return '¥0.00/kg';
 	}
 	const pricePerGram = Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams;
 	const price = multiply(pricePerGram, 1000);
-	return `¥${formatNumber(price)}/kg`;
+	// [核心修改] 使用 formatMoney 格式化单价
+	return `¥${formatMoney(price)}/kg`;
 });
 
 const openAddSkuModal = () => {
-	// [修改] 重置新字段
 	newSkuForm.value = {
 		brand: '',
 		specName: '',
@@ -657,7 +644,6 @@ const handleCreateSku = async () => {
 	}
 };
 
-// [新增] 处理 SKU 更新
 const handleUpdateSku = async () => {
 	if (!editSkuForm.value.id || !ingredient.value) return;
 	if (!editSkuForm.value.specName || !editSkuForm.value.specWeightInGrams) {
@@ -676,7 +662,6 @@ const handleUpdateSku = async () => {
 		dataStore.markIngredientsAsStale();
 		await loadIngredientData(ingredient.value.id);
 	} catch (error) {
-		// 错误已被拦截器处理
 		console.error('Failed to update SKU:', error);
 	} finally {
 		isSubmitting.value = false;
@@ -745,11 +730,7 @@ const handleSkuClick = (sku: IngredientSKU) => {
 	selectedSkuId.value = sku.id;
 };
 
-// [修改] 移除对 active SKU 的长按限制
 const handleSkuLongPressAction = (sku: IngredientSKU) => {
-	// if (sku.id === ingredient.value?.activeSku?.id) {
-	// 	return;
-	// }
 	selectedSkuForAction.value = sku;
 	showSkuOptionsModal.value = true;
 };
@@ -763,22 +744,19 @@ const handleActivateSkuOption = () => {
 	}
 };
 
-// [新增] 处理 SKU 编辑选项
 const handleEditSkuOption = () => {
 	if (!selectedSkuForAction.value) return;
 
-	// [新增] 检查是否存在采购记录
 	const skuData = ingredient.value?.skus.find((s) => s.id === selectedSkuForAction.value!.id);
 	hasProcurementRecords.value = (skuData?.procurementRecords?.length || 0) > 0;
 
-	// 填充表单
 	editSkuForm.value = {
 		id: selectedSkuForAction.value.id,
 		brand: selectedSkuForAction.value.brand || '',
 		specName: selectedSkuForAction.value.specName,
 		specWeightInGrams: selectedSkuForAction.value.specWeightInGrams,
-		volumeInML: null, // [新增]
-		density: null // [新增]
+		volumeInML: null,
+		density: null
 	};
 	showSkuOptionsModal.value = false;
 	showEditSkuModal.value = true;
@@ -909,7 +887,6 @@ const openUpdateStockModal = () => {
 	}
 };
 
-// [新增] picker 选择器改变时触发的事件
 const onReasonChange = (e: any) => {
 	const selectedIndex = e.detail.value;
 	stockAdjustment.reason = adjustmentReasons[selectedIndex];
@@ -922,7 +899,6 @@ const handleConfirmUpdateStock = async () => {
 		return;
 	}
 
-	// [核心修改] 构造并校验最终的原因
 	let finalReason = stockAdjustment.reason;
 	if (stockAdjustment.reason === '其他') {
 		finalReason = stockAdjustment.customReason.trim();
@@ -932,7 +908,6 @@ const handleConfirmUpdateStock = async () => {
 		return;
 	}
 
-	// [核心修改] 根据新的逻辑校验初期单价
 	if (stockAdjustment.reason === '初次录入' && (!stockAdjustment.initialCostPerKg || stockAdjustment.initialCostPerKg <= 0)) {
 		toastStore.show({ message: '初次录入必须填写有效的单价', type: 'error' });
 		return;
@@ -941,7 +916,6 @@ const handleConfirmUpdateStock = async () => {
 	isSubmitting.value = true;
 	try {
 		const changeInGrams = Number(stockAdjustment.changeInKg) * 1000;
-		// [核心修改] 构建发送到后端的 payload
 		const payload: {
 			changeInGrams: number;
 			reason: string;

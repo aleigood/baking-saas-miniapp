@@ -120,7 +120,7 @@ export function formatEventTime(primaryDateInput: string | Date, eventDateInput:
 
 /**
  * [核心修改] 优化数字格式化，移除末尾多余的零和小数点
- * @description 例如：12.50 -> "12.5", 12.00 -> "12"
+ * @description 用于数量、重量等非金额数值。例如：12.50 -> "12.5", 12.00 -> "12"
  * @param num - 需要格式化的数字
  * @returns 格式化后的字符串
  */
@@ -134,6 +134,23 @@ export function formatNumber(num: number | string | null | undefined): string {
 	}
 	// 使用 parseFloat 和 toFixed 来处理浮点数精度并移除末尾的零
 	return String(parseFloat(number.toFixed(2)));
+}
+
+/**
+ * [核心新增] 专门用于金额显示的格式化，强制保留两位小数
+ * @description 用于价格、成本等金额数值。例如：12 -> "12.00", 12.5 -> "12.50"
+ * @param num - 需要格式化的数字
+ * @returns 格式化后的字符串
+ */
+export function formatMoney(num: number | string | null | undefined): string {
+	if (num === null || num === undefined) {
+		return '0.00';
+	}
+	const number = Number(num);
+	if (isNaN(number)) {
+		return '0.00';
+	}
+	return number.toFixed(2);
 }
 
 /**

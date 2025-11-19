@@ -47,8 +47,8 @@
 								</view>
 								<text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
 								<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-								<text class="col-price">¥{{ formatNumber(ing.pricePerKg) }}/kg</text>
-								<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+								<text class="col-price">¥{{ formatMoney(ing.pricePerKg) }}/kg</text>
+								<text class="col-total">¥{{ formatMoney(ing.cost) }}</text>
 							</view>
 						</view>
 						<view v-if="component.procedure && component.procedure.length > 0" class="procedure-notes">
@@ -81,14 +81,14 @@
 										</view>
 										<text v-if="groupName === '搅拌原料'" class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
 										<text class="col-usage">{{ getUsageDisplay(ing) }}</text>
-										<text class="col-total">¥{{ formatNumber(ing.cost) }}</text>
+										<text class="col-total">¥{{ formatMoney(ing.cost) }}</text>
 									</view>
 								</view>
 							</view>
 						</template>
 						<view class="total-cost-summary">
 							<view class="summary-divider"></view>
-							<view class="summary-text">总成本: ¥{{ formatNumber(recipeDetails.totalCost) }}</view>
+							<view class="summary-text">总成本: ¥{{ formatMoney(recipeDetails.totalCost) }}</view>
 						</view>
 						<view v-if="recipeDetails.productProcedure && recipeDetails.productProcedure.length > 0" class="procedure-notes">
 							<text class="notes-title">制作要点:</text>
@@ -106,7 +106,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, getCurrentInstance } from 'vue';
 import type { PropType } from 'vue';
-// [核心修改] 导入新的类型
 import type { RecipeVersion, RecipeDetails, CalculatedExtraIngredientInfo } from '@/types/api';
 import { getProductCostHistory, getProductCostBreakdown, getRecipeDetails } from '@/api/costing';
 import { useDataStore } from '@/store/data';
@@ -114,7 +113,8 @@ import LineChart from '@/components/LineChart.vue';
 import PieChart from '@/components/PieChart.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import AnimatedTabs from '@/components/AnimatedTabs.vue';
-import { formatNumber, formatWeight, toPercentage } from '@/utils/format';
+// [核心修改] 引入 formatMoney
+import { formatNumber, formatWeight, toPercentage, formatMoney } from '@/utils/format';
 
 const instance = getCurrentInstance();
 
@@ -173,7 +173,6 @@ const selectedProduct = computed(() => {
 
 const hasOtherIngredients = computed(() => {
 	if (!recipeDetails.value) return false;
-	// [核心改造] 检查 groupedExtraIngredients 是否有任何一个分组包含数据
 	return Object.values(recipeDetails.value.groupedExtraIngredients).some((group) => group.length > 0);
 });
 
@@ -226,18 +225,14 @@ const toggleCollapse = (sectionName: string) => {
 	collapsedSections.value = newSet;
 };
 
-// [核心新增] 根据分组名决定“用量”列的标题
 const getUsageColumnHeader = (groupName: string): string => {
 	if (groupName === '馅料' || groupName === '表面装饰') {
-		// [中文注释] 修改标题为“单个用量”
 		return '单个用量';
 	}
 	return '总用量';
 };
 
-// [核心新增] 根据原料类型动态生成用量显示文本
 const getUsageDisplay = (ingredient: CalculatedExtraIngredientInfo): string => {
-	// [中文注释] 配方占比已移至单独的列，这里只返回重量
 	return formatWeight(ingredient.weightInGrams);
 };
 
@@ -265,7 +260,6 @@ watch(
 @import '@/styles/common.scss';
 @include table-layout;
 
-/* [G-Code-Note] [核心新增] "自制" 标签和名称包装器 */
 .ingredient-name-cell {
 	display: flex;
 	justify-content: space-between;
@@ -279,14 +273,13 @@ watch(
 	gap: 6px;
 }
 
-/* [G-Code-Note] [核心修改] 更新样式以匹配 edit.vue */
 .recipe-tag {
 	font-size: 12px;
 	font-weight: 500;
 	padding: 2px 8px;
 	border-radius: 10px;
-	background-color: #faedcd; /* [G-Code-Note] [核心修改] 更新背景颜色 */
-	color: var(--primary-color); /* [G-Code-Note] [核心修改] 更新字体颜色 */
+	background-color: #faedcd;
+	color: var(--primary-color);
 	flex-shrink: 0;
 }
 
@@ -309,7 +302,6 @@ watch(
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
-	/* [G-Code-Note] [核心修改] 确保 wrapper 优先，icon 靠右 */
 	flex-grow: 1;
 	justify-content: space-between;
 }
