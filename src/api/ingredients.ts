@@ -141,7 +141,7 @@ export function deleteSku(skuId: string): Promise<any> {
  * @param data 包含SKU ID、采购数量和价格
  */
 // [核心修改] 修正 createProcurement 函数，确保 skuId 在 URL 中，并使 purchaseDate 成为必需字段
-export function createProcurement(data: { skuId: string; packagesPurchased: number; pricePerPackage: number; purchaseDate: string }): Promise<any> {
+export function createProcurement(data: { skuId: string; packagesPurchased: number; pricePerPackage: number }): Promise<any> {
 	return request({
 		url: `/ingredients/skus/${data.skuId}/procurements`,
 		method: 'POST',

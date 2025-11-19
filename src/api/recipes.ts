@@ -61,21 +61,6 @@ export function getProductsForTasks(): Promise<ProductsForTaskResponse> {
 }
 
 /**
- * [新增] 获取指定配方家族的所有版本列表
- * @param familyId 配方家族的ID
- */
-export function getRecipeVersions(familyId: string): Promise<RecipeVersion[]> {
-	// 注意：这个接口在后端 recipes.controller.ts 中并未直接提供，
-	// 后端 findOne(id) 可以获取所有版本，这里模拟前端调用，实际项目中后端可能需要单独接口。
-	// 为符合重构要求，我们假设前端将通过调用 findOne 实现。
-	// 这里保留函数名，但在页面中会通过调用 findOne 实现。
-	// 实际调用将是 getRecipeFamily(familyId)。
-	return request<RecipeVersion[]>({
-		url: `/recipes/${familyId}/versions` // 假设后端提供了此端点
-	});
-}
-
-/**
  * [新增] 获取单个配方家族的完整信息，包括所有版本
  * @param familyId 配方家族的ID
  */
