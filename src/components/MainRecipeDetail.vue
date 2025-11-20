@@ -23,7 +23,7 @@
 								<text class="col-ingredient">原料</text>
 								<text class="col-ratio">比例</text>
 								<text class="col-usage">用量</text>
-								<text class="col-price">单价(kg)</text>
+								<text class="col-price">单价/kg</text>
 								<text class="col-total">成本</text>
 							</view>
 							<view
