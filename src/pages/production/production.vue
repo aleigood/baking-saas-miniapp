@@ -45,7 +45,11 @@
 							<view class="title">{{ getTaskTitle(task) }}</view>
 							<view class="details">{{ getTaskDetails(task) }}</view>
 						</view>
-						<view class="status-tag" :class="(STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).className">
+						<view
+							class="status-tag"
+							:class="(STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).className"
+							:style="{ backgroundColor: (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).color }"
+						>
 							{{ (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).text }}
 						</view>
 					</ListItem>
