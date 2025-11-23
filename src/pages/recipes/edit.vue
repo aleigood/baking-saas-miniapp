@@ -527,21 +527,25 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 		const extras = dataStore.recipes.extras || [];
 		extras.forEach((e) => {
 			if (!e.deletedAt && e.name !== currentRecipeName) {
-				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'EXTRA' });
+				// 使用后端返回的 waterContent
+				const effectiveWaterContent = (e as any).waterContent || 0;
+				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'EXTRA' });
 			}
 		});
 	} else if (currentFormType === 'PRE_DOUGH') {
 		const preDoughs = dataStore.recipes.preDoughs || [];
 		preDoughs.forEach((p) => {
 			if (!p.deletedAt && p.name !== currentRecipeName) {
-				ingredientMap.set(p.name, { id: p.id, name: p.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'PRE_DOUGH' });
+				const effectiveWaterContent = (p as any).waterContent || 0;
+				ingredientMap.set(p.name, { id: p.id, name: p.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'PRE_DOUGH' });
 			}
 		});
 	} else if (currentFormType === 'EXTRA') {
 		const extras = dataStore.recipes.extras || [];
 		extras.forEach((e) => {
 			if (!e.deletedAt && e.name !== currentRecipeName) {
-				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'EXTRA' });
+				const effectiveWaterContent = (e as any).waterContent || 0;
+				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'EXTRA' });
 			}
 		});
 	}
@@ -571,7 +575,8 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 	const extras = dataStore.recipes.extras || [];
 	extras.forEach((e) => {
 		if (!e.deletedAt && e.name !== currentRecipeName) {
-			ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: 0, recipeType: 'EXTRA' });
+			const effectiveWaterContent = (e as any).waterContent || 0;
+			ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'EXTRA' });
 		}
 	});
 
@@ -590,19 +595,43 @@ const totalCalculatedWaterRatio = computed(() => {
 	return totalWater;
 });
 
+// 计算哪个原料应该显示“总量水”标签
+const waterTagTargetName = computed(() => {
+	const ingredients = mainComponent.value.ingredients;
+
+	// 1. 优先查找明确叫“水”的原料
+	const explicitWater = ingredients.find((i) => i.name === '水');
+	if (explicitWater) return '水';
+
+	// 2. 如果没有，查找贡献水分最多的原料
+	let maxContribution = 0;
+	let targetName = '';
+
+	ingredients.forEach((ing) => {
+		if (ing.name && ing.ratio && ing.waterContent > 0) {
+			const contribution = Number(ing.ratio) * ing.waterContent;
+			if (contribution > maxContribution) {
+				maxContribution = contribution;
+				targetName = ing.name;
+			}
+		}
+	});
+
+	return targetName;
+});
+
 const manualWaterRatio = computed(() => {
-	const waterIngredient = mainComponent.value.ingredients.find((i) => i.name === '水');
-	return Number(waterIngredient?.ratio || 0);
+	const targetName = waterTagTargetName.value;
+	const targetIngredient = mainComponent.value.ingredients.find((i) => i.name === targetName);
+	if (!targetIngredient) return 0;
+	return Number(targetIngredient?.ratio || 0);
 });
 
 const showTotalWaterTag = computed(() => {
 	if (form.value.category !== 'BREAD' && form.value.type !== 'PRE_DOUGH') {
 		return false;
 	}
-	if (manualWaterRatio.value === 0 && totalCalculatedWaterRatio.value === 0) {
-		return false;
-	}
-	return Math.abs(totalCalculatedWaterRatio.value - manualWaterRatio.value) > 0.01;
+	return totalCalculatedWaterRatio.value > 0;
 });
 
 const formatWaterRatio = (ratio: number): string => {
@@ -615,9 +644,10 @@ const getIngredientTags = (ing: MainIngredient | SubIngredientWeight | SubIngred
 	if (ing.isFlour) {
 		tags.push({ text: '面粉', style: { backgroundColor: '#ebe2d9', color: '#8d6e63' } });
 	}
-	if (isMainDough && ing.name === '水' && showTotalWaterTag.value) {
+
+	if (isMainDough && ing.name === waterTagTargetName.value && showTotalWaterTag.value) {
 		tags.push({
-			text: `总量: ${formatWaterRatio(totalCalculatedWaterRatio.value)}%`,
+			text: `总水: ${formatWaterRatio(totalCalculatedWaterRatio.value)}%`,
 			style: { backgroundColor: '#e0efff', color: '#00529b' }
 		});
 	} else if (ing.isRecipe) {
@@ -630,6 +660,8 @@ const handleIngredientBlur = (
 	ingredient: { id: string | null; name: string; isRecipe?: boolean; waterContent?: number; isFlour?: boolean; recipeType?: RecipeType | null },
 	availableList: AutocompleteItem[]
 ) => {
+	if (!availableList) return;
+
 	if (!ingredient.id && ingredient.name) {
 		const existing = availableList.find((item) => item.name === ingredient.name);
 		if (existing) {
@@ -645,6 +677,7 @@ const handleIngredientBlur = (
 			ingredient.isRecipe = existing.isRecipe;
 			ingredient.recipeType = existing.recipeType;
 			ingredient.isFlour = existing.isFlour;
+			ingredient.waterContent = existing.waterContent;
 		}
 	}
 };
@@ -691,6 +724,24 @@ onLoad(async (options) => {
 
 				if (form.value.products && form.value.products.length > 0) {
 					activeProductTab.value = 0;
+				}
+
+				if (form.value.components) {
+					form.value.components.forEach((comp) => {
+						comp.ingredients.forEach((ing) => {
+							if (ing.isRecipe && ing.id) {
+								const found = availableMainDoughIngredients.value.find((item) => item.id === ing.id);
+								if (found) {
+									ing.waterContent = found.waterContent;
+								}
+							} else if (!ing.isRecipe && ing.name) {
+								const found = availableMainDoughIngredients.value.find((item) => item.name === ing.name);
+								if (found) {
+									ing.waterContent = found.waterContent;
+								}
+							}
+						});
+					});
 				}
 			} catch (e) {
 				console.error('解析或处理配方模板数据失败:', e);
