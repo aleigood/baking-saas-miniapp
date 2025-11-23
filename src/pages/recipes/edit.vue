@@ -645,14 +645,18 @@ const getIngredientTags = (ing: MainIngredient | SubIngredientWeight | SubIngred
 		tags.push({ text: '面粉', style: { backgroundColor: '#ebe2d9', color: '#8d6e63' } });
 	}
 
+	// [修复] 分开判断，允许标签共存
+	if (ing.isRecipe) {
+		tags.push({ text: '自制', style: { backgroundColor: '#faedcd', color: 'var(--primary-color)' } });
+	}
+
 	if (isMainDough && ing.name === waterTagTargetName.value && showTotalWaterTag.value) {
 		tags.push({
 			text: `总水: ${formatWaterRatio(totalCalculatedWaterRatio.value)}%`,
 			style: { backgroundColor: '#e0efff', color: '#00529b' }
 		});
-	} else if (ing.isRecipe) {
-		tags.push({ text: '自制', style: { backgroundColor: '#faedcd', color: 'var(--primary-color)' } });
 	}
+
 	return tags;
 };
 
