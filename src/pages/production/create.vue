@@ -140,16 +140,14 @@ const productsInCurrentTab = computed(() => {
 
 onLoad(async (options) => {
 	isLoading.value = true;
+
+	// 1. 确保 productsForTaskCreation 已加载 (这是按分类组织的产品列表，是我们反查分类的关键)
 	if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation) {
 		await dataStore.fetchProductsForTaskCreation();
 	}
-	// [核心修改] 修复数据加载的判断条件和方法调用
-	if (options && options.taskId) {
-		// 在修改模式下，需要所有配方数据来反查品类，因此需要确保该数据已加载
-		if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
-			await dataStore.fetchRecipesData();
-		}
-	}
+
+	// [优化] 不需要强制加载 recipes 了，因为我们现在改用 productsForTaskCreation 来反查分类
+	// 只有当 productsForTaskCreation 为空时才可能需要兜底，但理论上 productsForTaskCreation 更适合这个场景
 
 	Object.values(dataStore.productsForTaskCreation)
 		.flatMap((group) => Object.values(group))
@@ -165,21 +163,40 @@ onLoad(async (options) => {
 		if (taskJson) {
 			try {
 				const taskToEdit: ProductionTaskDto = JSON.parse(taskJson);
-				// [核心修改] 确保在查找前 dataStore.allRecipes 是可用的
-				if (taskToEdit.items.length > 0 && dataStore.allRecipes && dataStore.allRecipes.length > 0) {
+
+				if (taskToEdit.items.length > 0) {
 					const firstProductId = taskToEdit.items[0].product.id;
-					// 在所有配方中查找这个产品属于哪个品类
-					for (const recipeFamily of dataStore.allRecipes) {
-						// 增加 versions 存在的判断
-						const hasProduct = recipeFamily.versions?.some((v) => v.products.some((p) => p.id === firstProductId));
-						if (hasProduct) {
-							selectedCategory.value = recipeFamily.category;
-							break;
+
+					// 🟢 [核心修复]：改用 productsForTaskCreation 进行反查
+					// 它的结构是: { BREAD: { "配方名": [产品1, 产品2] }, CAKE: ... }
+					let foundCategory: RecipeCategory | null = null;
+
+					// 获取所有分类键
+					const allCategories = Object.keys(dataStore.productsForTaskCreation) as RecipeCategory[];
+
+					// 遍历所有分类
+					for (const category of allCategories) {
+						const familiesInCat = dataStore.productsForTaskCreation[category];
+						if (!familiesInCat) continue;
+
+						// 遍历该分类下的所有配方族
+						for (const familyName of Object.keys(familiesInCat)) {
+							const products = familiesInCat[familyName];
+							// 检查产品ID是否存在于该列表中
+							if (products.some((p) => p.id === firstProductId)) {
+								foundCategory = category;
+								break;
+							}
 						}
+						if (foundCategory) break;
+					}
+
+					if (foundCategory) {
+						selectedCategory.value = foundCategory;
 					}
 				}
 
-				// [中文注释] 核心修正：使用 getLocalDate 函数来格式化日期，避免时区问题
+				// 使用 getLocalDate 函数来格式化日期，避免时区问题
 				taskForm.startDate = getLocalDate(new Date(taskToEdit.startDate));
 				taskForm.endDate = taskToEdit.endDate ? getLocalDate(new Date(taskToEdit.endDate)) : taskForm.startDate;
 
@@ -203,7 +220,7 @@ onLoad(async (options) => {
 		uni.navigateBack();
 	}
 
-	// [核心修改] 如果不是编辑模式，则根据 URL 传入的 date 参数或当天日期来设置默认生产日期
+	// 如果不是编辑模式，则根据 URL 传入的 date 参数或当天日期来设置默认生产日期
 	if (!isEditMode.value) {
 		const initialDate = options?.date || getLocalDate();
 		taskForm.startDate = initialDate;
