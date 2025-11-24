@@ -321,6 +321,9 @@ onLoad(() => {
 
 onShow(async () => {
 	isNavigating.value = false;
+	// [核心修复] 页面显示时强制关闭操作弹窗，防止返回时出现残影
+	showTaskActionsModal.value = false;
+
 	let didFetchProduction = false; // [中文注释] 标记是否获取了新数据
 
 	try {
@@ -473,9 +476,14 @@ const handleEditTask = () => {
 	dataStore.clearTaskProgress(selectedTaskForAction.value.id);
 
 	uni.setStorageSync('task_to_edit', JSON.stringify(selectedTaskForAction.value));
-	uni.navigateTo({
-		url: `/pages/production/create?taskId=${selectedTaskForAction.value.id}`
-	});
+
+	// [核心修复] 增加 100ms 延时，确保弹窗 DOM 已在视觉上关闭或更新后再进行页面跳转
+	// 这样可以避免从下一页返回时，看到弹窗半透明遮罩的“残影”
+	setTimeout(() => {
+		uni.navigateTo({
+			url: `/pages/production/create?taskId=${selectedTaskForAction.value.id}`
+		});
+	}, 200);
 };
 
 const handleOpenDeleteConfirm = () => {
