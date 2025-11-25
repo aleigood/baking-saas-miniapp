@@ -61,7 +61,7 @@
 
 		<CalendarModal :visible="isCalendarVisible" :task-dates="taskDates" @close="isCalendarVisible = false" @select="handleDateSelect" />
 
-		<AppModal v-model:visible="showTaskActionsModal" title="制作任务" :no-header-line="true">
+		<AppModal ref="taskActionsModalRef" v-model:visible="showTaskActionsModal" title="制作任务" :no-header-line="true">
 			<view class="options-list">
 				<ListItem v-if="selectedTaskForAction?.status === 'PENDING'" class="option-item" @click="handleEditTask" :bleed="true">
 					<view class="main-info">
@@ -234,6 +234,9 @@ const fabActions = computed(() => {
 });
 
 const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
+
+// [核心修改] 添加 Modal 的引用，用于调用 closeAndRun
+const taskActionsModalRef = ref<InstanceType<typeof AppModal> | null>(null);
 
 const isSubmitting = ref(false);
 const selectedTaskForAction = ref<ProductionTaskSummaryDto | null>(null);
@@ -468,19 +471,26 @@ const openTaskActions = (task: any) => {
 const handleEditTask = () => {
 	if (isNavigating.value || !selectedTaskForAction.value) return;
 	isNavigating.value = true;
-	showTaskActionsModal.value = false;
 
 	dataStore.clearTaskProgress(selectedTaskForAction.value.id);
-
 	uni.setStorageSync('task_to_edit', JSON.stringify(selectedTaskForAction.value));
 
-	// [核心修复] 增加 100ms 延时，确保弹窗 DOM 已在视觉上关闭或更新后再进行页面跳转
-	// 这样可以避免从下一页返回时，看到弹窗半透明遮罩的“残影”
-	setTimeout(() => {
+	// [核心修改] 使用组件暴露的 closeAndRun 方法
+	// 这会先关闭弹窗，等待动画结束并清理DOM后，再执行跳转
+	// 从而彻底避免返回上一页时的黑色残影问题，且无需在此处写 setTimeout
+	if (taskActionsModalRef.value) {
+		taskActionsModalRef.value.closeAndRun(() => {
+			uni.navigateTo({
+				url: `/pages/production/create?taskId=${selectedTaskForAction.value!.id}`
+			});
+		});
+	} else {
+		// 降级处理：万一 ref 不存在（极少情况），直接跳转
+		showTaskActionsModal.value = false;
 		uni.navigateTo({
 			url: `/pages/production/create?taskId=${selectedTaskForAction.value.id}`
 		});
-	}, 200);
+	}
 };
 
 const handleOpenDeleteConfirm = () => {

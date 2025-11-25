@@ -85,6 +85,24 @@ watch(
 const closeModal = () => {
 	emit('update:visible', false);
 };
+
+// [新增] 封装一个"执行动作并安全关闭"的方法
+// 供父组件调用，专门解决跳转时的黑屏/残影问题
+const closeAndRun = (action: () => void) => {
+	// 1. 先触发关闭动画
+	emit('update:visible', false);
+
+	// 2. 在组件内部等待动画结束 (加 50ms 缓冲确保万无一失)
+	setTimeout(() => {
+		// 3. 动画播完，DOM 已清理，此时执行跳转不仅流畅，而且截图绝对干净
+		action();
+	}, DURATION + 50);
+};
+
+// [新增] 暴露给父组件使用
+defineExpose({
+	closeAndRun
+});
 </script>
 
 <style scoped lang="scss">
