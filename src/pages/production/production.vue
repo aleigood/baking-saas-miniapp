@@ -32,7 +32,7 @@
 				<view v-if="dataStore.production.length > 0" :key="listAnimationKey">
 					<ListItem
 						v-for="(task, index) in dataStore.production"
-						:key="task.id"
+						:key="`${task.id}_${task.status}`"
 						@click="navigateToDetail(task)"
 						@longpress="openTaskActions(task)"
 						:vibrate-on-long-press="true"
@@ -45,11 +45,8 @@
 							<view class="title">{{ getTaskTitle(task) }}</view>
 							<view class="details">{{ getTaskDetails(task) }}</view>
 						</view>
-						<view
-							class="status-tag"
-							:class="(STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).className"
-							:style="{ backgroundColor: (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).color }"
-						>
+
+						<view class="status-tag" :class="(STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).className">
 							{{ (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).text }}
 						</view>
 					</ListItem>
