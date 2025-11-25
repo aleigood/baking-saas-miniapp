@@ -14,7 +14,7 @@
 		</view>
 	</view>
 
-	<AppModal v-model:visible="isMenuVisible" title="用户选项" :no-header-line="true">
+	<AppModal ref="menuModalRef" v-model:visible="isMenuVisible" title="用户选项" :no-header-line="true">
 		<view class="options-list">
 			<ListItem v-if="canSwitchTenants" class="option-item" @click="openStoreSelector" :bleed="true">
 				<view class="main-info">
@@ -43,7 +43,7 @@
 		</view>
 	</AppModal>
 
-	<AppModal :visible="uiStore.showLogoutConfirmModal" @update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
+	<AppModal ref="logoutModalRef" :visible="uiStore.showLogoutConfirmModal" @update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
 		<view class="modal-prompt-text">您确定要退出登录吗？</view>
 		<view class="modal-actions">
 			<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)">取消</AppButton>
@@ -61,7 +61,6 @@ import { useUiStore } from '@/store/ui';
 import { MODAL_KEYS } from '@/constants/modalKeys';
 import AppModal from '@/components/AppModal.vue';
 import ListItem from '@/components/ListItem.vue';
-// [核心新增] 导入 AppButton 组件
 import AppButton from '@/components/AppButton.vue';
 
 const systemStore = useSystemStore();
@@ -70,6 +69,10 @@ const dataStore = useDataStore();
 const uiStore = useUiStore();
 
 const isMenuVisible = ref(false);
+
+// [核心修改] 定义 refs
+const menuModalRef = ref<InstanceType<typeof AppModal> | null>(null);
+const logoutModalRef = ref<InstanceType<typeof AppModal> | null>(null);
 
 const headerStyle = computed(() => ({
 	height: `${systemStore.headerHeight}px`
@@ -95,26 +98,39 @@ const openStoreSelector = () => {
 	}, 300);
 };
 
+// [核心修改] 使用 closeAndRun
 const navigateToProfile = () => {
-	uni.navigateTo({
-		url: '/pages/personnel/profile'
-	});
-	isMenuVisible.value = false;
+	if (menuModalRef.value) {
+		menuModalRef.value.closeAndRun(() => {
+			uni.navigateTo({
+				url: '/pages/personnel/profile'
+			});
+		});
+	} else {
+		isMenuVisible.value = false;
+		uni.navigateTo({
+			url: '/pages/personnel/profile'
+		});
+	}
 };
 
-// [核心修改] handleLogout 重命名为 handleOpenLogoutConfirm，并修改逻辑
 const handleOpenLogoutConfirm = () => {
-	isMenuVisible.value = false; // 先关闭选项模态框
-	// 延迟打开下一个模态框，以获得更好的过渡效果
+	isMenuVisible.value = false;
 	setTimeout(() => {
 		uiStore.openModal(MODAL_KEYS.LOGOUT_CONFIRM);
 	}, 300);
 };
 
-// [核心新增] 新增确认退出登录的函数
+// [核心修改] 使用 closeAndRun 优雅退出
 const handleConfirmLogout = () => {
-	userStore.logout();
-	uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM);
+	if (logoutModalRef.value) {
+		logoutModalRef.value.closeAndRun(() => {
+			userStore.logout();
+		});
+	} else {
+		userStore.logout();
+		uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM);
+	}
 };
 </script>
 
@@ -188,7 +204,6 @@ const handleConfirmLogout = () => {
 	margin-right: 15px;
 }
 
-/* [核心新增] 确认对话框的文字样式 */
 .modal-prompt-text {
 	font-size: 16px;
 	color: var(--text-primary);

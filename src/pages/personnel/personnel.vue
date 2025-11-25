@@ -56,7 +56,7 @@
 			</view>
 		</view>
 
-		<AppModal :visible="uiStore.showLogoutConfirmModal" @update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
+		<AppModal ref="logoutModalRef" :visible="uiStore.showLogoutConfirmModal" @update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
 			<view class="modal-prompt-text">您确定要退出登录吗？</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)">取消</AppButton>
@@ -74,11 +74,11 @@ import { useDataStore } from '@/store/data';
 import { useUiStore } from '@/store/ui';
 import { useSystemStore } from '@/store/system';
 import { MODAL_KEYS } from '@/constants/modalKeys';
-import { getAppDashboardStats } from '@/api/dashboard'; // [核心新增] 导入看板API
+import { getAppDashboardStats } from '@/api/dashboard';
 import ListItem from '@/components/ListItem.vue';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
-import type { Role, DashboardStats } from '@/types/api'; // [核心新增] 导入看板类型
+import type { Role, DashboardStats } from '@/types/api';
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
@@ -86,11 +86,12 @@ const uiStore = useUiStore();
 const systemStore = useSystemStore();
 const isNavigating = ref(false);
 
-// [核心新增] 用于存储看板数据的响应式状态
 const stats = ref<Partial<DashboardStats>>({});
 const isLoadingStats = ref(false);
 
-// [核心修正] 将函数定义移至 onShow 钩子之前
+// [核心修改] 定义 ref
+const logoutModalRef = ref<InstanceType<typeof AppModal> | null>(null);
+
 const fetchDashboardStats = async () => {
 	isLoadingStats.value = true;
 	try {
@@ -98,20 +99,17 @@ const fetchDashboardStats = async () => {
 		stats.value = data;
 	} catch (error) {
 		console.error('获取看板数据失败:', error);
-		// 可以在这里给一个默认值或错误提示
 		stats.value = {};
 	} finally {
 		isLoadingStats.value = false;
 	}
 };
 
-// [核心修改] onShow 钩子中增加获取看板数据的逻辑
 onShow(async () => {
 	isNavigating.value = false;
 	if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
 		dataStore.fetchMembersData();
 	}
-	// 获取看板数据
 	await fetchDashboardStats();
 });
 
@@ -165,9 +163,16 @@ const handleOpenLogoutConfirm = () => {
 	uiStore.openModal(MODAL_KEYS.LOGOUT_CONFIRM);
 };
 
+// [核心修改] 使用 closeAndRun 优雅退出
 const handleLogout = () => {
-	userStore.logout();
-	uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM);
+	if (logoutModalRef.value) {
+		logoutModalRef.value.closeAndRun(() => {
+			userStore.logout();
+		});
+	} else {
+		userStore.logout();
+		uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM);
+	}
 };
 </script>
 
@@ -175,7 +180,6 @@ const handleLogout = () => {
 @import '@/styles/common.scss';
 @include list-item-content-style;
 
-/* [核心新增] 独立头部的样式 */
 .personnel-header {
 	position: fixed;
 	top: 0;
@@ -209,7 +213,7 @@ const handleLogout = () => {
 	align-items: center;
 	padding: 20px;
 	border-radius: 20px;
-	margin-bottom: 30px; /* [核心修改] 调整与下方卡片的间距 */
+	margin-bottom: 30px;
 	position: relative;
 }
 
@@ -254,7 +258,6 @@ const handleLogout = () => {
 	color: var(--text-secondary);
 }
 
-/* [核心新增] 数据看板卡片样式 */
 .stats-card {
 	padding: 30px 0;
 	margin-bottom: 40px;
