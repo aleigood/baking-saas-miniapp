@@ -131,7 +131,7 @@
 			<FermentationCalculator :pre-doughs="preDoughItems" @close="showCalculatorModal = false" />
 		</AppModal>
 
-		<ExpandingFab v-if="preDoughItems.length > 0" :icon="'/static/icons/calculator.svg'" @click="showCalculatorModal = true" :no-tab-bar="true" :visible="isFabVisible" />
+		<ExpandingFab v-if="task" :actions="fabActions" :no-tab-bar="true" :visible="isFabVisible" />
 
 		<AppPopover :visible="popover.visible" :content="popover.content" :targetRect="popover.targetRect" placement="right" :offsetY="0" />
 	</view>
@@ -140,9 +140,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, getCurrentInstance } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import type { PrepTask, CalculatedRecipeDetails, BillOfMaterialsResponseDto, TaskIngredientDetail } from '@/types/api';
-import { getPrepTaskDetails } from '@/api/tasks';
-import { useDataStore } from '@/store/data'; // [新增] 导入 data store
+import type { PrepTask, BillOfMaterialsResponseDto } from '@/types/api';
+// [新增] 引入 PDF URL 获取方法和 user store
+import { getPrepTaskDetails, getPrepTaskPdfUrl } from '@/api/tasks';
+import { useDataStore } from '@/store/data';
+import { useUserStore } from '@/store/user';
+import { useToastStore } from '@/store/toast';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
@@ -157,15 +160,17 @@ defineOptions({
 });
 
 const instance = getCurrentInstance();
-const dataStore = useDataStore(); // [新增] 初始化 data store
+const dataStore = useDataStore();
+const userStore = useUserStore();
+const toastStore = useToastStore();
 
 const isLoading = ref(true);
+// [新增] 打印状态
+const isPrinting = ref(false);
 const task = ref<PrepTask | null>(null);
-const taskDate = ref<string | null>(null); // [新增] 用于存储当前任务的日期
+const taskDate = ref<string | null>(null);
 
 const addedIngredientsMap = reactive(new Set<string>());
-
-// [新增] 用于跟踪已完成的“面种”或“馅料”卡片
 const completedItems = ref(new Set<string>());
 
 const activeTab = ref('BILL_OF_MATERIALS');
@@ -191,16 +196,81 @@ const popover = reactive<{
 	targetRect: null
 });
 
+// [核心新增] FAB 菜单动作配置
+const fabActions = computed(() => {
+	const actions = [];
+
+	// 1. 始终显示打印按钮
+	actions.push({
+		icon: '/static/icons/print.svg',
+		text: '打印备料单',
+		action: handlePrintPrepTask
+	});
+
+	// 2. 如果有面种，显示计算器按钮
+	if (preDoughItems.value.length > 0) {
+		actions.push({
+			icon: '/static/icons/calculator.svg',
+			text: '发酵计算器',
+			action: () => {
+				showCalculatorModal.value = true;
+			}
+		});
+	}
+
+	return actions;
+});
+
+// [核心新增] 打印处理函数
+const handlePrintPrepTask = () => {
+	if (!taskDate.value) return;
+
+	if (isPrinting.value) return;
+	isPrinting.value = true;
+
+	const url = getPrepTaskPdfUrl(taskDate.value);
+	const token = userStore.token;
+
+	uni.downloadFile({
+		url: url,
+		header: {
+			Authorization: `Bearer ${token}`
+		},
+		success: function (res) {
+			if (res.statusCode === 200) {
+				const filePath = res.tempFilePath;
+				uni.openDocument({
+					filePath: filePath,
+					fileType: 'pdf',
+					showMenu: true,
+					success: function () {
+						console.log('打开文档成功');
+					},
+					fail: function (err) {
+						toastStore.show({ message: '无法预览文件', type: 'error' });
+					}
+				});
+			} else {
+				toastStore.show({ message: '下载失败', type: 'error' });
+			}
+		},
+		fail: function (err) {
+			toastStore.show({ message: '网络请求失败', type: 'error' });
+		},
+		complete: () => {
+			isPrinting.value = false;
+		}
+	});
+};
+
 const filterTabs = computed(() => {
-	const tabs = []; // [修改] 初始化为空数组
-	// [修改] 先添加“面种”和“馅料”（如果存在）
+	const tabs = [];
 	if (preDoughItems.value.length > 0) {
 		tabs.push({ key: 'PRE_DOUGH', label: '面种' });
 	}
 	if (extraItems.value.length > 0) {
 		tabs.push({ key: 'EXTRA', label: '馅料' });
 	}
-	// [修改] 最后添加“备料清单”
 	tabs.push({ key: 'BILL_OF_MATERIALS', label: '备料清单' });
 	return tabs;
 });
@@ -306,74 +376,57 @@ const toggleIngredientAdded = (itemId: string, ingredientIndex: number) => {
 		addedIngredientsMap.add(compositeKey);
 	}
 
-	// [新增] 调用 dataStore 保存状态
 	if (taskDate.value) {
 		dataStore.savePrepTaskProgress(taskDate.value, addedIngredientsMap, completedItems.value);
 	}
 };
 
-// [新增] 切换“面种”或“馅料”卡片的完成状态
 const toggleItemCompleted = (itemId: string) => {
-	// 提供一个短暂的震动反馈
 	uni.vibrateShort({});
 	const newSet = new Set(completedItems.value);
 	if (newSet.has(itemId)) {
-		newSet.delete(itemId); // 再次点击取消完成
+		newSet.delete(itemId);
 	} else {
-		newSet.add(itemId); // 标记为完成
+		newSet.add(itemId);
 	}
 	completedItems.value = newSet;
 
-	// [新增] 调用 dataStore 保存状态
 	if (taskDate.value) {
 		dataStore.savePrepTaskProgress(taskDate.value, addedIngredientsMap, completedItems.value);
 	}
 };
 
-// [核心修改] 重构 onLoad 逻辑，让页面自己请求数据
 onLoad(async (options) => {
 	isLoading.value = true;
 	if (options && options.date) {
-		taskDate.value = options.date; // [新增] 保存日期
+		taskDate.value = options.date;
 
-		// [新增] 自动清理昨天的前置任务缓存
 		try {
-			// [中文注释] 兼容 iOS，需要将 '-' 替换为 '/'
 			const todayForCache = new Date(taskDate.value.replace(/-/g, '/'));
-			todayForCache.setDate(todayForCache.getDate() - 1); // 设置为昨天
-			// [中文注释] 格式化为 'YYYY-MM-DD'
+			todayForCache.setDate(todayForCache.getDate() - 1);
 			const year = todayForCache.getFullYear();
 			const month = (todayForCache.getMonth() + 1).toString().padStart(2, '0');
 			const day = todayForCache.getDate().toString().padStart(2, '0');
 			const yesterdayStr = `${year}-${month}-${day}`;
-			// [中文注释] 清理昨天的缓存
 			dataStore.clearPrepTaskProgress(yesterdayStr);
 		} catch (e) {
 			console.warn('Failed to clear yesterday prep task progress', e);
 		}
 
 		try {
-			// [新增] 调用 dataStore 的方法加载当天的缓存
 			const { addedIngredients, completedItems: loadedCompletedItems } = dataStore.loadPrepTaskProgress(taskDate.value);
-			// [中文注释] 清空当前的 Set，用缓存数据填充
 			addedIngredientsMap.clear();
 			addedIngredients.forEach((key) => addedIngredientsMap.add(key));
-			// [中文注释] 更新 ref
 			completedItems.value = loadedCompletedItems;
 
-			// 调用新的 API 方法获取数据
 			const taskData = await getPrepTaskDetails(options.date);
 			task.value = taskData;
 
-			// [修改] 设置默认显示的 Tab
-			// [中文注释] 确保在数据加载后，filterTabs 计算属性会更新
-			// [中文注释] 然后我们显式地将 activeTab 设置为 filterTabs 数组中的第一个
 			if (filterTabs.value.length > 0) {
 				activeTab.value = filterTabs.value[0].key;
 			}
 		} catch (error) {
 			console.error('获取前置任务详情失败:', error);
-			// 你可以在这里添加一个错误提示
 		}
 	} else {
 		console.error('缺少 date 参数，无法加载前置任务');

@@ -6,10 +6,11 @@ import { request } from '@/utils/request';
 import type { ProductionTaskDto, CreateTaskResponse, ProductionDataPayload, PrepTask, ProductionTaskDetailDto } from '@/types/api';
 import type { TemperatureSettings } from '@/store/temperature';
 
+// [核心修改] 统一使用环境变量，移除对 @/config 的引用
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 /**
  * 修改一个尚未开始的生产任务
- * @param taskId 要修改的任务ID
- * @param data 任务的最新信息
  */
 export function updateTask(
 	taskId: string,
@@ -24,8 +25,6 @@ export function updateTask(
 
 /**
  * 获取历史任务（分页）
- * @param page 页码
- * @param limit 每页数量
  */
 export function getHistoryTasks(page: number, limit: number): Promise<{ data: Record<string, ProductionTaskDto[]>; meta: any }> {
 	return request({
@@ -39,7 +38,6 @@ export function getHistoryTasks(page: number, limit: number): Promise<{ data: Re
 
 /**
  * 获取指定日期的活动任务列表（轻量级）
- * @param date 'YYYY-MM-DD' 格式的日期字符串
  */
 export function getTasks(date?: string): Promise<ProductionDataPayload> {
 	return request<ProductionDataPayload>({
@@ -51,7 +49,6 @@ export function getTasks(date?: string): Promise<ProductionDataPayload> {
 
 /**
  * [新增] 获取指定日期的前置准备任务详情 (重量级)
- * @param date 'YYYY-MM-DD' 格式的日期字符串
  */
 export const getPrepTaskDetails = (date: string): Promise<PrepTask | null> => {
 	return request({
@@ -83,8 +80,6 @@ export function getSpoilageStages(): Promise<{ key: string; label: string }[]> {
 
 /**
  * 获取单个生产任务的详情
- * @param taskId 任务ID
- * @param params 温度相关的查询参数
  */
 export function getTaskDetail(taskId: string, params?: Partial<TemperatureSettings>): Promise<ProductionTaskDetailDto> {
 	return request<ProductionTaskDetailDto>({
@@ -95,7 +90,6 @@ export function getTaskDetail(taskId: string, params?: Partial<TemperatureSettin
 
 /**
  * 创建一个新的生产任务
- * @param data 包含 startDate, endDate 和 products 数组等信息
  */
 export function createTask(data: { startDate: string; endDate?: string; notes?: string; products: { productId: string; quantity: number }[] }): Promise<CreateTaskResponse> {
 	return request<CreateTaskResponse>({
@@ -107,8 +101,6 @@ export function createTask(data: { startDate: string; endDate?: string; notes?: 
 
 /**
  * 更新一个生产任务的状态
- * @param taskId 任务ID
- * @param status 新的状态
  */
 export function updateTaskStatus(taskId: string, status: 'CANCELLED' | 'IN_PROGRESS'): Promise<any> {
 	return request({
@@ -118,15 +110,13 @@ export function updateTaskStatus(taskId: string, status: 'CANCELLED' | 'IN_PROGR
 	});
 }
 
-// [核心新增] 删除一个“待开始”的生产任务 (软删除)
 /**
  * 删除一个“待开始”的生产任务 (软删除)
- * @param taskId 要删除的任务ID
  */
 export function deleteTask(taskId: string): Promise<any> {
 	return request({
 		url: `/production-tasks/${taskId}`,
-		method: 'DELETE' // 调用后端的 remove 方法
+		method: 'DELETE'
 	});
 }
 
@@ -144,8 +134,6 @@ interface CompletedTaskItem {
 
 /**
  * 完成一个生产任务
- * @param taskId 任务ID
- * @param data 包含 completedItems 数组等信息
  */
 export function completeTask(taskId: string, data: { notes?: string; completedItems: CompletedTaskItem[] }): Promise<any> {
 	return request({
@@ -154,3 +142,19 @@ export function completeTask(taskId: string, data: { notes?: string; completedIt
 		data
 	});
 }
+
+/**
+ * [核心] 获取普通任务 PDF 下载的完整 URL
+ * 使用 BASE_URL 拼接
+ */
+export const getTaskPdfUrl = (taskId: string) => {
+	return `${BASE_URL}/production-tasks/${taskId}/pdf`;
+};
+
+/**
+ * [核心] 获取前置任务 PDF 下载的完整 URL
+ * 使用 BASE_URL 拼接
+ */
+export const getPrepTaskPdfUrl = (date: string) => {
+	return `${BASE_URL}/production-tasks/prep-task-pdf?date=${date}`;
+};

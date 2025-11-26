@@ -39,7 +39,6 @@ const props = defineProps({
 		type: String,
 		default: '/static/icons/fab-add.svg'
 	},
-	// [核心新增] visible prop 用于控制显隐
 	visible: {
 		type: Boolean,
 		default: true
@@ -131,19 +130,15 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 	z-index: 20;
 	width: 56px;
 	height: 56px;
-	/* [核心新增] 增加过渡动画 */
 	transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
 	opacity: 1;
 	transform: translateY(0);
 }
 
-/* [核心新增] 隐藏状态的样式 */
 .fab-container.is-hidden {
 	opacity: 0;
 	transform: translateY(calc(100% + 30px));
-	/* 向下移出视野 */
 	pointer-events: none;
-	/* 隐藏时不可交互 */
 }
 
 .fab-container.fab-no-tab-bar {
@@ -151,12 +146,14 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 	bottom: calc(30px + env(safe-area-inset-bottom));
 }
 
+/* --- 主按钮样式 --- */
 .fab-main {
 	position: absolute;
 	bottom: 0;
 	right: 0;
 	width: 56px;
 	height: 56px;
+	// 主按钮背景色（深棕色）
 	background-color: var(--primary-color);
 	border-radius: 50%;
 	display: flex;
@@ -172,6 +169,10 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 		width: 28px;
 		height: 28px;
 		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+		/* [关键 CSS 1] 强制主按钮图标变白 */
+		/* 适用于黑色或深色的 SVG 原图 */
+		filter: brightness(0) invert(1);
 	}
 
 	.fab-icon.is-open {
@@ -184,6 +185,7 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 	box-shadow: 0 7px 8px -4px rgba(0, 0, 0, 0.2), 0 12px 17px 2px rgba(0, 0, 0, 0.14), 0 5px 22px 4px rgba(0, 0, 0, 0.12);
 }
 
+/* --- 弹出菜单样式 --- */
 .fab-options {
 	position: absolute;
 	bottom: calc(100% + 15px);
@@ -231,12 +233,13 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 .option-button {
 	width: 44px;
 	height: 44px;
-	background-color: #fff;
+	background-color: #fff; // 小按钮背景是白色
 	border-radius: 50%;
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	// 必须设置 overflow: hidden 隐藏原始图标
 	overflow: hidden;
 	transform: translateZ(0);
 	margin-right: 6px;
@@ -244,6 +247,13 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 	.option-icon {
 		width: 22px;
 		height: 22px;
+
+		/* [关键 CSS 2] 强制小按钮图标变主题色 #8c5a3b */
+		/* 利用 drop-shadow 投影 Hack */
+		/* 1. 将原始图标移出可视区域 */
+		transform: translateX(-100px);
+		/* 2. 在原位置投射一个指定颜色的实体影子 */
+		filter: drop-shadow(100px 0 0 #8c5a3b);
 	}
 }
 

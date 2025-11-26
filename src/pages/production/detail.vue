@@ -3,7 +3,7 @@
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader title="任务详情" />
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content" v-if="!isLoading && task">
+			<view class="page-content page-content-with-fab" v-if="!isLoading && task">
 				<view class="detail-page">
 					<view v-if="task.stockWarning && !isReadOnly" class="warning-card card">
 						<view class="warning-content">
@@ -186,6 +186,8 @@
 			</view>
 		</DetailPageLayout>
 
+		<ExpandingFab v-if="isStarted" icon="/static/icons/print.svg" @click="handlePrintTask" :no-tab-bar="true" :visible="isFabVisible" />
+
 		<AppModal v-model:visible="showCompleteTaskModal" :title="completionStep === 1 ? '提报完成数量' : '提报产品损耗'">
 			<view class="modal-slider-container" :style="{ height: modalContentHeight ? `${modalContentHeight}px` : 'auto' }">
 				<view class="modal-slider-track" :class="{ 'go-to-step2': completionStep === 2 }">
@@ -246,9 +248,9 @@ import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
 import { useTemperatureStore } from '@/store/temperature';
-// [G-Code-Note] [需求修改] 引入新的类型
+import { useUserStore } from '@/store/user';
 import type { ProductionTaskDetailDto } from '@/types/api';
-import { getTaskDetail, updateTaskStatus, completeTask, getSpoilageStages } from '@/api/tasks';
+import { getTaskDetail, updateTaskStatus, completeTask, getSpoilageStages, getTaskPdfUrl } from '@/api/tasks';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
@@ -257,6 +259,8 @@ import ListItem from '@/components/ListItem.vue';
 import AnimatedTabs from '@/components/CssAnimatedTabs.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import AppPopover from '@/components/AppPopover.vue';
+// [核心新增] 引入 ExpandingFab
+import ExpandingFab from '@/components/ExpandingFab.vue';
 import { formatWeight } from '@/utils/format';
 
 defineOptions({
@@ -267,10 +271,12 @@ const dataStore = useDataStore();
 const toastStore = useToastStore();
 const uiStore = useUiStore();
 const temperatureStore = useTemperatureStore();
+const userStore = useUserStore();
 const instance = getCurrentInstance();
 
 const isLoading = ref(true);
 const isSubmitting = ref(false);
+const isPrinting = ref(false);
 const task = ref<ProductionTaskDetailDto | null>(null);
 const taskId = ref<string | null>(null);
 const showCompleteTaskModal = ref(false);
@@ -303,6 +309,11 @@ const activeLossTab = ref('');
 const modalContentHeight = ref<number | string>('auto');
 
 const fromPage = ref('');
+
+// [核心新增] FAB 按钮相关状态
+const isFabVisible = ref(true);
+const lastScrollTop = ref(0);
+const scrollThreshold = 5;
 
 const popover = reactive<{
 	visible: boolean;
@@ -408,10 +419,28 @@ onLoad(async (options) => {
 	await loadTaskData(taskId.value);
 });
 
-const handleScroll = () => {
+const handleScroll = (event?: any) => {
 	if (popover.visible) {
 		popover.visible = false;
 	}
+
+	// [核心新增] FAB 显隐逻辑
+	if (!event || !event.detail) {
+		return;
+	}
+	const scrollTop = event.detail.scrollTop;
+
+	if (Math.abs(scrollTop - lastScrollTop.value) <= scrollThreshold) {
+		return;
+	}
+
+	if (scrollTop > lastScrollTop.value && scrollTop > 50) {
+		isFabVisible.value = false;
+	} else {
+		isFabVisible.value = true;
+	}
+
+	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
 const loadTaskData = async (id: string) => {
@@ -421,7 +450,6 @@ const loadTaskData = async (id: string) => {
 		const response = await getTaskDetail(id, temperatureStore.settings);
 		task.value = response;
 
-		// [中文注释] 核心重构：调用 dataStore 的方法来加载任务进度
 		addedIngredientsMap.clear();
 		if (task.value.status === 'IN_PROGRESS') {
 			const savedProgress = dataStore.loadTaskProgress(id);
@@ -442,6 +470,74 @@ const loadTaskData = async (id: string) => {
 		console.error('Failed to load task details:', error);
 	} finally {
 		isLoading.value = false;
+	}
+};
+
+const handlePrintTask = async () => {
+	if (!taskId.value) return;
+
+	isPrinting.value = true;
+	try {
+		const pdfUrl = await getTaskPdfUrl(taskId.value);
+
+		if (!pdfUrl) {
+			toastStore.show({
+				message: '无法获取打印文件',
+				type: 'error'
+			});
+			return;
+		}
+
+		const token = userStore.token;
+
+		uni.downloadFile({
+			url: pdfUrl,
+			header: {
+				Authorization: `Bearer ${token}`
+			},
+			success: function (res) {
+				if (res.statusCode === 200) {
+					const filePath = res.tempFilePath;
+					uni.openDocument({
+						filePath: filePath,
+						fileType: 'pdf',
+						showMenu: true,
+						success: function () {
+							console.log('打开文档成功');
+						},
+						fail: function (err) {
+							console.error('打开文档失败', err);
+							toastStore.show({
+								message: '无法打开打印预览',
+								type: 'error'
+							});
+						}
+					});
+				} else {
+					toastStore.show({
+						message: '文件下载失败',
+						type: 'error'
+					});
+				}
+			},
+			fail: function (err) {
+				console.error('下载失败', err);
+				toastStore.show({
+					message: '网络请求失败，请重试',
+					type: 'error'
+				});
+			},
+			complete: () => {
+				isPrinting.value = false;
+			}
+		});
+	} catch (error) {
+		console.error('Print error:', error);
+		toastStore.show({
+			message: '打印请求出错',
+			type: 'error'
+		});
+		isPrinting.value = false;
 	}
 };
 
@@ -578,7 +674,6 @@ const handleConfirmComplete = async () => {
 			completedItems
 		});
 
-		// [中文注释] 核心重构：调用 dataStore 的方法来清理缓存
 		dataStore.clearTaskProgress(task.value.id);
 
 		const target = fromPage.value === 'history' ? '/pages/production/history' : '/pages/main/main';
@@ -613,21 +708,18 @@ const toggleCollapse = (sectionName: string) => {
 	collapsedSections.value = newSet;
 };
 
-// [中文注释] 核心重构：调用 dataStore 的方法来保存任务进度
 const toggleIngredientAdded = (componentFamilyId: string, ingredientId: string) => {
 	if (isReadOnly.value || !taskId.value) return;
 	uni.vibrateShort({});
 
 	const compositeKey = `${componentFamilyId}-${ingredientId}`;
 
-	// 步骤 1: 更新UI
 	if (addedIngredientsMap.has(compositeKey)) {
 		addedIngredientsMap.delete(compositeKey);
 	} else {
 		addedIngredientsMap.add(compositeKey);
 	}
 
-	// 步骤 2: 调用 dataStore 保存状态
 	dataStore.saveTaskProgress(taskId.value, addedIngredientsMap);
 };
 
@@ -715,8 +807,9 @@ const productTabs = computed(() => {
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 @include list-item-content-style;
-/* [核心改造] 引入新的表格布局 Mixin */
 @include table-layout;
+
+/* [修改] 移除原有的 .bottom-actions-container.two-buttons 样式，不再需要双按钮布局 */
 
 .collapsible-content {
 	max-height: 1000px;
