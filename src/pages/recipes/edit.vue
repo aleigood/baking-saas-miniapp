@@ -647,7 +647,7 @@ const waterContentPlaceholder = computed(() => {
 watch(
 	[() => form.value.customWaterContent, calculatedWaterContentPreview],
 	([newCustom, newAuto]) => {
-		// 如果用户已经手动清空，保持输入框为空 (显示 placeholder)
+		// 如果用户已经手动清空，保持输入框为空
 		if (isManuallyCleared.value) {
 			if (waterContentInputValue.value !== '') {
 				waterContentInputValue.value = '';
@@ -664,9 +664,11 @@ watch(
 		}
 
 		// 默认情况：数据库为 null (自动模式)，且用户未手动清空
-		// 此时填充自动计算的值，实现“进入页面默认填充”
 		const autoVal = Number(newAuto);
-		const newVal = autoVal > 0 ? autoVal : '';
+
+		// 这里改为：只要不是 NaN 就填充，允许 0
+		const newVal = !isNaN(autoVal) ? autoVal : '';
+
 		if (waterContentInputValue.value !== newVal) {
 			waterContentInputValue.value = newVal;
 		}
@@ -674,7 +676,7 @@ watch(
 	{ immediate: true }
 );
 
-// 🟢 [核心新增] 输入事件处理
+// 输入事件处理
 const onCustomWaterContentInput = (e: any) => {
 	const val = e.detail.value;
 	waterContentInputValue.value = val;
@@ -691,19 +693,15 @@ const onCustomWaterContentInput = (e: any) => {
 	}
 };
 
-// 🟢 [核心新增] Blur 事件处理
 const onCustomWaterContentBlur = (e: any) => {
 	const val = Number(e.detail.value);
 	const autoVal = Number(calculatedWaterContentPreview.value);
 
-	// 如果用户输入的值与自动计算的值几乎相等
-	// 我们可以将其视为“自动模式” (传给后端 null)
-	// 同时取消手动清空标记，因为这时候值是存在的
-	if (Math.abs(val - autoVal) < 0.1 && val !== 0) {
+	// [核心修复] 移除 "&& val !== 0"
+	// 如果自动计算是 0，用户输入 0，也应该被视为“自动模式”（customWaterContent = null）
+	if (Math.abs(val - autoVal) < 0.1) {
 		isManuallyCleared.value = false;
 		form.value.customWaterContent = null;
-		// 此时 watcher 会触发，因为 form.value 变了，
-		// 但 watcher 逻辑会再次把 autoVal 赋给 inputValue，视觉上无变化，完美。
 	}
 };
 
