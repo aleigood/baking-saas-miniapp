@@ -79,6 +79,20 @@
 					<view class="card-title-wrapper">
 						<span class="card-title">{{ mainComponentTitle }}</span>
 					</view>
+
+					<template v-if="form.type !== 'MAIN'">
+						<FormItem label="整体含水量 (%)">
+							<input
+								class="input-field"
+								type="digit"
+								:value="waterContentInputValue"
+								@input="onCustomWaterContentInput"
+								@blur="onCustomWaterContentBlur"
+								:placeholder="waterContentPlaceholder"
+							/>
+						</FormItem>
+					</template>
+
 					<FormItem v-if="form.category === 'BREAD'" label="面团出缸温度 (°C)">
 						<input class="input-field" type="digit" v-model="form.targetTemp" placeholder="例如: 26" />
 					</FormItem>
@@ -352,6 +366,7 @@ type MainIngredient = {
 type EnhancedComponent = Omit<ComponentTemplate, 'ingredients'> & {
 	ingredients: MainIngredient[];
 	_originalIngredients?: MainIngredient[];
+	customWaterContent?: number | null;
 };
 
 type SubIngredientRatio = { id: string | null; name: string; ratio: number | null; weightInGrams?: number | null; isRecipe?: boolean; waterContent?: number; isFlour?: boolean };
@@ -377,6 +392,7 @@ const form = ref<
 		targetTemp?: number | null;
 		products?: RecipeFormProduct[];
 		components: EnhancedComponent[];
+		customWaterContent?: number | null;
 	}
 >({
 	name: '',
@@ -384,6 +400,7 @@ const form = ref<
 	category: 'BREAD',
 	notes: '',
 	targetTemp: null,
+	customWaterContent: null,
 	components: [
 		{
 			id: `main_${Date.now()}`,
@@ -485,7 +502,7 @@ const mainComponentTitle = computed(() => {
 	if (form.value.category === 'BREAD' && form.value.type === 'MAIN') {
 		return '主面团';
 	}
-	return form.value.name ? `${form.value.name}原料` : '基础原料';
+	return '基础原料';
 });
 
 const showAddPreDoughModal = ref(false);
@@ -527,7 +544,6 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 		const extras = dataStore.recipes.extras || [];
 		extras.forEach((e) => {
 			if (!e.deletedAt && e.name !== currentRecipeName) {
-				// 使用后端返回的 waterContent
 				const effectiveWaterContent = (e as any).waterContent || 0;
 				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'EXTRA' });
 			}
@@ -583,6 +599,114 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
+// 🟢 [核心逻辑] 计算预览含水量
+const calculatedWaterContentPreview = computed(() => {
+	// 如果是主配方，通常不需要这个预览
+	if (form.value.type === 'MAIN') return 0;
+
+	const component = mainComponent.value;
+	if (!component || !component.ingredients) return 0;
+
+	let totalWaterUnits = 0;
+	let totalUnits = 0;
+
+	component.ingredients.forEach((ing) => {
+		const ratio = Number(ing.ratio) || 0;
+		if (ratio <= 0) return;
+
+		let waterContent = 0;
+
+		const item = availableMainDoughIngredients.value.find((i) => i.name === ing.name);
+
+		if (item) {
+			waterContent = item.waterContent || 0;
+		} else {
+			if (ing.name === '水') waterContent = 1;
+		}
+
+		totalWaterUnits += ratio * waterContent;
+		totalUnits += ratio;
+	});
+
+	if (totalUnits === 0) return 0;
+	return ((totalWaterUnits / totalUnits) * 100).toFixed(1);
+});
+
+// 🟢 [核心新增] 定义输入框的本地显示值和手动清空标记
+const waterContentInputValue = ref<string | number>('');
+const isManuallyCleared = ref(false);
+
+// 🟢 [核心新增] 计算占位文本
+const waterContentPlaceholder = computed(() => {
+	const val = Number(calculatedWaterContentPreview.value);
+	return val > 0 ? `${val}` : '0';
+});
+
+// 🟢 [核心新增] 同步逻辑：监听数据变化，更新输入框显示
+// 这个 watcher 负责实现“默认填充”但“允许清空”的逻辑
+watch(
+	[() => form.value.customWaterContent, calculatedWaterContentPreview],
+	([newCustom, newAuto]) => {
+		// 如果用户已经手动清空，保持输入框为空 (显示 placeholder)
+		if (isManuallyCleared.value) {
+			if (waterContentInputValue.value !== '') {
+				waterContentInputValue.value = '';
+			}
+			return;
+		}
+
+		// 如果数据库中有明确的覆盖值，显示它
+		if (newCustom !== null && newCustom !== undefined) {
+			if (waterContentInputValue.value !== newCustom) {
+				waterContentInputValue.value = newCustom;
+			}
+			return;
+		}
+
+		// 默认情况：数据库为 null (自动模式)，且用户未手动清空
+		// 此时填充自动计算的值，实现“进入页面默认填充”
+		const autoVal = Number(newAuto);
+		const newVal = autoVal > 0 ? autoVal : '';
+		if (waterContentInputValue.value !== newVal) {
+			waterContentInputValue.value = newVal;
+		}
+	},
+	{ immediate: true }
+);
+
+// 🟢 [核心新增] 输入事件处理
+const onCustomWaterContentInput = (e: any) => {
+	const val = e.detail.value;
+	waterContentInputValue.value = val;
+
+	if (val === '') {
+		// 用户清空了 -> 标记为手动清空，设置 model 为 null
+		isManuallyCleared.value = true;
+		form.value.customWaterContent = null;
+	} else {
+		// 用户输入了值 -> 取消手动清空标记，设置 model 为数字
+		isManuallyCleared.value = false;
+		const numVal = Number(val);
+		form.value.customWaterContent = isNaN(numVal) ? null : numVal;
+	}
+};
+
+// 🟢 [核心新增] Blur 事件处理
+const onCustomWaterContentBlur = (e: any) => {
+	const val = Number(e.detail.value);
+	const autoVal = Number(calculatedWaterContentPreview.value);
+
+	// 如果用户输入的值与自动计算的值几乎相等
+	// 我们可以将其视为“自动模式” (传给后端 null)
+	// 同时取消手动清空标记，因为这时候值是存在的
+	if (Math.abs(val - autoVal) < 0.1 && val !== 0) {
+		isManuallyCleared.value = false;
+		form.value.customWaterContent = null;
+		// 此时 watcher 会触发，因为 form.value 变了，
+		// 但 watcher 逻辑会再次把 autoVal 赋给 inputValue，视觉上无变化，完美。
+	}
+};
+
 const totalCalculatedWaterRatio = computed(() => {
 	let totalWater = 0;
 	form.value.components?.forEach((component) => {
@@ -595,15 +719,11 @@ const totalCalculatedWaterRatio = computed(() => {
 	return totalWater;
 });
 
-// 计算哪个原料应该显示“总量水”标签
 const waterTagTargetName = computed(() => {
 	const ingredients = mainComponent.value.ingredients;
-
-	// 1. 优先查找明确叫“水”的原料
 	const explicitWater = ingredients.find((i) => i.name === '水');
 	if (explicitWater) return '水';
 
-	// 2. 如果没有，查找贡献水分最多的原料
 	let maxContribution = 0;
 	let targetName = '';
 
@@ -627,11 +747,26 @@ const manualWaterRatio = computed(() => {
 	return Number(targetIngredient?.ratio || 0);
 });
 
+// [核心修改] 显式水的比例
+const explicitWaterRatio = computed(() => {
+	const ingredients = mainComponent.value.ingredients;
+	const waterIng = ingredients.find((i) => i.name === '水');
+	return waterIng ? Number(waterIng.ratio || 0) : 0;
+});
+
+// [核心修改] 显示总水标签的逻辑
 const showTotalWaterTag = computed(() => {
-	if (form.value.category !== 'BREAD' && form.value.type !== 'PRE_DOUGH') {
+	// 条件1: 只有 主配方(MAIN) 且是 面包(BREAD) 才显示
+	if (form.value.type !== 'MAIN' || form.value.category !== 'BREAD') {
 		return false;
 	}
-	return totalCalculatedWaterRatio.value > 0;
+
+	// 如果计算出的总水是 0，没必要显示
+	if (totalCalculatedWaterRatio.value <= 0) return false;
+
+	// 条件2: 只有当 [计算总水] 与 [直接添加的水] 不一致时才显示
+	const diff = Math.abs(totalCalculatedWaterRatio.value - explicitWaterRatio.value);
+	return diff > 0.1; // 使用 0.1 容差避免浮点数计算误差
 });
 
 const formatWaterRatio = (ratio: number): string => {
@@ -645,7 +780,6 @@ const getIngredientTags = (ing: MainIngredient | SubIngredientWeight | SubIngred
 		tags.push({ text: '面粉', style: { backgroundColor: '#ebe2d9', color: '#8d6e63' } });
 	}
 
-	// [修复] 分开判断，允许标签共存
 	if (ing.isRecipe) {
 		tags.push({ text: '自制', style: { backgroundColor: '#faedcd', color: 'var(--primary-color)' } });
 	}
@@ -696,7 +830,14 @@ const initPreDoughData = (components: EnhancedComponent[]) => {
 
 onLoad(async (options) => {
 	if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
-	if (!dataStore.dataLoaded.recipes) await dataStore.fetchRecipesData();
+
+	// [核心修复] 如果数据过期 (dataStale) 或未加载，都强制获取最新数据
+	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
+		await dataStore.fetchRecipesData();
+	}
+
+	// [核心新增] 页面加载时重置“手动清空”标记
+	isManuallyCleared.value = false;
 
 	if (options && options.familyId) {
 		isEditing.value = true;
@@ -720,6 +861,11 @@ onLoad(async (options) => {
 
 				form.value = {
 					...parsedForm,
+					// [核心修复] 更严谨的空值检查，支持回显 0
+					customWaterContent:
+						parsedForm.components[0]?.customWaterContent !== undefined && parsedForm.components[0]?.customWaterContent !== null
+							? parsedForm.components[0].customWaterContent
+							: null,
 					components: sanitizedComponents,
 					products: parsedForm.products || []
 				};
@@ -780,6 +926,7 @@ onUnload(() => {
 	uni.removeStorageSync('source_recipe_version_form');
 });
 
+// ... (UI交互函数保持不变) ...
 const handleScroll = (event?: any) => {
 	if (!event || !event.detail) {
 		return;
@@ -1033,6 +1180,15 @@ const handleSubmit = async () => {
 				.filter(Boolean);
 		};
 
+		// [核心修改] 处理自定义含水量
+		// 1. 获取自动计算值
+		const autoVal = Number(calculatedWaterContentPreview.value);
+		// 2. 获取用户输入值
+		const currentCustom = form.value.customWaterContent;
+		// 3. 如果用户输入值存在且不等于自动计算值，才作为有效自定义值；否则传 null
+		// 这样确保如果用户输入了 65，而自动计算也是 65，我们传 null，维持“自动”状态
+		const finalCustomWaterContent = currentCustom !== null && currentCustom !== undefined && Math.abs(currentCustom - autoVal) > 0.1 ? Number(currentCustom) : null;
+
 		const payload = {
 			name: form.value.name,
 			type: form.value.type,
@@ -1041,6 +1197,7 @@ const handleSubmit = async () => {
 			targetTemp: form.value.targetTemp,
 			lossRatio: toDecimal(Number(mainComponentFromForm.lossRatio || 0)),
 			divisionLoss: Number(mainComponentFromForm.divisionLoss || 0),
+			customWaterContent: finalCustomWaterContent, // 使用处理后的值
 			procedure: mainComponentFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
 			products: form.value.products!.map((p) => ({

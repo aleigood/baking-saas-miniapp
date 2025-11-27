@@ -195,7 +195,6 @@ const loadRecipeData = async (id: string) => {
 		} else {
 			displayedVersionId.value = null;
 		}
-		dataStore.dataStale.recipes = false;
 	} catch (error) {
 		console.error('Failed to fetch recipe details:', error);
 		toastStore.show({
