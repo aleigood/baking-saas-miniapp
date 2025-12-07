@@ -32,7 +32,7 @@
 								</view>
 								<view class="side-info">
 									<view class="value">
-										<template v-if="ing.type === 'STANDARD'">{{ formatWeight(ing.currentStockInGrams) }}</template>
+										<template v-if="ing.type === 'STANDARD' || ing.type === 'SELF_MADE'">{{ formatWeight(ing.currentStockInGrams) }}</template>
 										<template v-else>∞</template>
 									</view>
 									<view v-if="ing.totalConsumptionInGrams > 0 && ing.type !== 'UNTRACKED'" class="desc consumption">
@@ -43,6 +43,36 @@
 						</view>
 						<view v-else class="empty-state">
 							<text>暂无原料信息</text>
+						</view>
+					</template>
+
+					<template v-if="ingredientFilter === 'self_made'">
+						<view v-if="selfMadeIngredients.length > 0" :key="listAnimationKey + '-self'">
+							<ListItem
+								v-for="(ing, index) in selfMadeIngredients"
+								:key="ing.id"
+								@click="navigateToDetail(ing.id)"
+								:vibrate-on-long-press="false"
+								:bleed="true"
+								:divider="index < selfMadeIngredients.length - 1"
+								:animate-on-mount="triggerListAnimation"
+								:animation-index="index"
+							>
+								<view class="main-info">
+									<view class="name">{{ ing.name }}</view>
+									<view class="desc">保质期: {{ ing.shelfLife > 0 ? ing.shelfLife + '小时' : '未设置' }}</view>
+								</view>
+								<view class="side-info">
+									<view class="value">
+										{{ formatWeight(ing.currentStockInGrams) }}
+									</view>
+									<view class="desc">当前库存</view>
+								</view>
+							</ListItem>
+						</view>
+						<view v-else class="empty-state">
+							<text>暂无自制原料</text>
+							<view class="empty-state-sub">请在“配方”中创建面种或馅料配方自动生成</view>
 						</view>
 					</template>
 
@@ -133,18 +163,15 @@
 </template>
 
 <script setup lang="ts">
-// [核心修改] 导入 watch
 import { ref, computed, reactive, watch } from 'vue';
-// [核心修复] 移除了 @dcloud-io- 里的破折号
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
-// [核心新增] 导入 uiStore
 import { useUiStore } from '@/store/ui';
 import { createIngredient, deleteIngredient } from '@/api/ingredients';
 import type { Ingredient } from '@/types/api';
-import ExpandingFab from '@/components/ExpandingFab.vue'; // [核心修改] 更改导入
+import ExpandingFab from '@/components/ExpandingFab.vue';
 import ListItem from '@/components/ListItem.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import AppModal from '@/components/AppModal.vue';
@@ -152,22 +179,23 @@ import AppButton from '@/components/AppButton.vue';
 import IconButton from '@/components/IconButton.vue';
 import FormItem from '@/components/FormItem.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
-import { formatWeight, formatNumber } from '@/utils/format';
+import { formatWeight } from '@/utils/format';
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
-// [核心新增] 获取 uiStore 实例
 const uiStore = useUiStore();
 
 const ingredientFilter = ref('all');
 const isSubmitting = ref(false);
 const selectedIngredient = ref<Ingredient | null>(null);
-// [核心修改] 移除了 touchStartX 和 touchStartY
+
 const ingredientFilterTabs = ref([
 	{ key: 'all', label: '全部' },
+	{ key: 'self_made', label: '自制' }, // [核心新增]
 	{ key: 'low', label: '库存紧张' }
 ]);
+
 const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 const showIngredientActionsModal = ref(false);
 const showDeleteIngredientConfirmModal = ref(false);
@@ -178,7 +206,6 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-// [核心新增] 动画相关状态
 const listAnimationKey = ref(Date.now());
 const triggerListAnimation = ref(false);
 const isFirstLoad = ref(true);
@@ -201,17 +228,20 @@ const availableTypes = ref([
 	{ label: '非追踪原料 (水/冰等)', value: 'UNTRACKED' }
 ]);
 
+// [核心新增] 计算自制原料列表
+const selfMadeIngredients = computed(() => {
+	return dataStore.ingredients.allIngredients.filter((i) => i.type === 'SELF_MADE');
+});
+
 const currentTypeLabel = computed(() => {
 	return availableTypes.value.find((t) => t.value === newIngredientForm.type)?.label || '未知类型';
 });
 
-// [核心新增] 动画辅助函数
 const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
 	listAnimationKey.value = Date.now();
 	triggerListAnimation.value = playAnimation;
 };
 
-// [核心新增] 监听 Tab 切换
 watch(
 	() => uiStore.activeTab,
 	(newTab, oldTab) => {
@@ -223,14 +253,13 @@ watch(
 
 onShow(async () => {
 	isNavigating.value = false;
-	let didFetch = false; // [中文注释] 动画标志
+	let didFetch = false;
 
 	if (dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients) {
 		await dataStore.fetchIngredientsData();
-		didFetch = true; // [中文注释] 标记已获取数据
+		didFetch = true;
 	}
 
-	// [核心新增] 动画状态逻辑
 	if (didFetch) {
 		if (isFirstLoad.value) {
 			triggerListAnimationWithKeyUpdate(true);
@@ -248,14 +277,10 @@ const handleRefresh = async () => {
 		dataStore.markIngredientsAsStale();
 		await dataStore.fetchIngredientsData();
 	} finally {
-		// 1. 告诉 spinner "开始" 隐藏
 		refreshableLayout.value?.finishRefresh();
-
-		// 2. [核心修复] 延迟 300毫秒 (等待 spinner 隐藏动画结束)
 		setTimeout(() => {
-			// 3. 真正开始播放列表动画
 			triggerListAnimationWithKeyUpdate(true);
-		}, 700); // (这个 300ms 是估计值, 你可以根据 RefreshableLayout 的实际动画时长调整)
+		}, 700);
 	}
 };
 
@@ -275,23 +300,22 @@ const handleScroll = (event: any) => {
 	lastScrollTop.value = scrollTop < 0 ? 0 : scrollTop;
 };
 
-// [核心修改] 移除了 handleTouchStart 和 handleTouchEnd 两个函数
-
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
 
 const canEdit = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
 
-// [核心新增] 新增一个辅助函数，用于将原料类型映射为简短的中文标签
 const getIngredientTypeLabel = (type: Ingredient['type']) => {
 	switch (type) {
 		case 'UNTRACKED':
 			return '非追踪原料';
 		case 'NON_INVENTORIED':
 			return '即时采购';
+		case 'SELF_MADE':
+			return '自制原料';
 		default:
-			return '标准原料'; // 作为备用
+			return '标准原料';
 	}
 };
 
@@ -343,7 +367,7 @@ const confirmDeleteIngredient = async () => {
 		toastStore.show({ message: '删除成功', type: 'success' });
 		dataStore.markIngredientsAsStale();
 		await dataStore.fetchIngredientsData();
-		triggerListAnimationWithKeyUpdate(true); // [中文注释] 操作后播放动画
+		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
 		console.error('Failed to delete ingredient:', error);
 	} finally {
@@ -386,7 +410,7 @@ const handleCreateIngredient = async () => {
 		showCreateIngredientModal.value = false;
 		dataStore.markIngredientsAsStale();
 		await dataStore.fetchIngredientsData();
-		triggerListAnimationWithKeyUpdate(true); // [中文注释] 操作后播放动画
+		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
 		console.error('Failed to create ingredient:', error);
 	} finally {
@@ -464,5 +488,12 @@ const handleCreateIngredient = async () => {
 .form-row .input-field {
 	width: 120px;
 	text-align: right;
+}
+
+/* [核心新增] 空状态下的辅助文本样式 */
+.empty-state-sub {
+	font-size: 13px;
+	color: var(--text-secondary);
+	margin-top: 5px;
 }
 </style>

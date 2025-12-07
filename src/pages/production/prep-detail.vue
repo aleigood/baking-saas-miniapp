@@ -5,6 +5,11 @@
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab">
 				<template v-if="task">
+					<view class="stock-deduction-notice" v-if="activeTab !== 'BILL_OF_MATERIALS'">
+						<text class="notice-symbol">ⓘ</text>
+						<text class="notice-text">需制作量已自动扣减自制原料的现有库存。</text>
+					</view>
+
 					<view class="filter-wrapper">
 						<FilterTabs v-model="activeTab" :tabs="filterTabs" />
 					</view>
@@ -118,6 +123,7 @@
 						</view>
 						<view v-else class="empty-state">
 							<text>该分类下暂无备料</text>
+							<view class="empty-state-sub">或库存充足无需制作</view>
 						</view>
 					</view>
 				</template>
@@ -141,7 +147,6 @@
 import { ref, reactive, computed, getCurrentInstance } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import type { PrepTask, BillOfMaterialsResponseDto } from '@/types/api';
-// [新增] 引入 PDF URL 获取方法和 user store
 import { getPrepTaskDetails, getPrepTaskPdfUrl } from '@/api/tasks';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
@@ -165,7 +170,6 @@ const userStore = useUserStore();
 const toastStore = useToastStore();
 
 const isLoading = ref(true);
-// [新增] 打印状态
 const isPrinting = ref(false);
 const task = ref<PrepTask | null>(null);
 const taskDate = ref<string | null>(null);
@@ -196,18 +200,15 @@ const popover = reactive<{
 	targetRect: null
 });
 
-// [核心新增] FAB 菜单动作配置
 const fabActions = computed(() => {
 	const actions = [];
 
-	// 1. 始终显示打印按钮
 	actions.push({
 		icon: '/static/icons/print.svg',
 		text: '打印备料单',
 		action: handlePrintPrepTask
 	});
 
-	// 2. 如果有面种，显示计算器按钮
 	if (preDoughItems.value.length > 0) {
 		actions.push({
 			icon: '/static/icons/calculator.svg',
@@ -221,7 +222,6 @@ const fabActions = computed(() => {
 	return actions;
 });
 
-// [核心新增] 打印处理函数
 const handlePrintPrepTask = () => {
 	if (!taskDate.value) return;
 
@@ -607,5 +607,34 @@ onLoad(async (options) => {
 	border: solid #ffffff;
 	border-width: 0 2px 2px 0;
 	transform: rotate(45deg) translateY(-1px) translateX(-1px);
+}
+
+/* [核心新增] 提示条样式 */
+.stock-deduction-notice {
+	display: flex;
+	align-items: center;
+	background-color: #e3f2fd;
+	color: #0277bd;
+	padding: 10px 15px;
+	border-radius: 8px;
+	margin-bottom: 20px;
+	font-size: 13px;
+}
+
+.notice-symbol {
+	font-size: 14px;
+	margin-right: 6px;
+	font-weight: bold;
+}
+
+.notice-text {
+	line-height: 1.4;
+}
+
+/* [核心新增] 空状态副标题 */
+.empty-state-sub {
+	font-size: 13px;
+	color: var(--text-secondary);
+	margin-top: 5px;
 }
 </style>

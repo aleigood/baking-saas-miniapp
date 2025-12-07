@@ -1,6 +1,6 @@
 // G-Code-Note: Client (Vue)
 // 路径: src/types/api.d.ts
-// [核心重构] 完整文件，更新 ComponentIngredient 并修复 doughGroups -> componentGroups
+// [核心重构] 完整文件，更新 Ingredient 类型以支持自制原料和配方关联
 
 // [核心新增] 定义批量导入结果的类型
 export interface BatchImportResult {
@@ -210,7 +210,8 @@ export interface RecipeFormTemplate {
 
 // [G-Code-Note] [核心重构] 定义 DisplayIngredient 类型
 // 这与 recipes.service.ts 中的 DisplayIngredient 接口匹配
-export type IngredientType = 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
+// [核心修改] 更新 IngredientType，增加 SELF_MADE
+export type IngredientType = 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED' | 'SELF_MADE';
 export type RecipeType = 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 
 export interface DisplayIngredient {
@@ -228,6 +229,9 @@ export interface DisplayIngredient {
 	updatedAt: Date;
 	deletedAt: Date | null;
 	extraInfo?: string;
+	// [核心新增] 自制原料字段
+	shelfLife: number;
+	recipeFamilyId?: string | null;
 }
 
 export interface RecipeVersion {
@@ -318,7 +322,7 @@ export interface RecipeDetails {
 export interface Ingredient {
 	id: string;
 	name: string;
-	type: 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
+	type: IngredientType; // [核心修改] 使用更新后的类型 (包含 SELF_MADE)
 	isFlour: boolean;
 	waterContent: number;
 	activeSku: IngredientSKU | null;
@@ -329,6 +333,22 @@ export interface Ingredient {
 	daysOfSupply: number;
 	avgDailyConsumption: number;
 	totalConsumptionInGrams: number;
+
+	// [核心新增] 自制原料相关字段
+	shelfLife: number;
+	recipeFamilyId?: string | null;
+	// [核心新增] 关联的配方族信息 (用于详情页跳转)
+	recipeFamily?: {
+		id: string;
+		name: string;
+		versions: {
+			id: string;
+			version: number;
+			products: {
+				id: string;
+			}[];
+		}[];
+	} | null;
 }
 
 export interface IngredientsListResponse {
@@ -362,7 +382,7 @@ export interface UpdateSkuDto {
 
 export interface IngredientLedgerEntry {
 	date: string;
-	type: '采购入库' | '生产消耗' | '库存调整' | '生产损耗';
+	type: '采购入库' | '生产消耗' | '库存调整' | '生产损耗' | '生产入库'; // [核心新增] 增加 '生产入库'
 	change: number; // 单位: 克
 	details: string;
 	operator: string;

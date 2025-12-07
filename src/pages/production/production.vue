@@ -208,11 +208,12 @@ const triggerListAnimation = ref(false);
 // [核心修复] 新增一个标志，用于判断是否是组件首次加载
 const isFirstLoad = ref(true);
 
-const categoryMap = {
+const categoryMap: Record<string, string> = {
 	BREAD: '面包制作',
 	PASTRY: '西点制作',
 	DESSERT: '甜品制作',
-	DRINK: '饮品制作'
+	DRINK: '饮品制作',
+	OTHER: '原料制作' // [核心新增] 增加自制原料的任务入口
 };
 
 const isSingleCategory = computed(() => {
@@ -476,16 +477,18 @@ const handleEditTask = () => {
 	uni.setStorageSync('task_to_edit', JSON.stringify(selectedTaskForAction.value));
 
 	// [核心修改] 使用组件暴露的 closeAndRun 方法
-	// 这会先关闭弹窗，等待动画结束并清理DOM后，再执行跳转
-	// 从而彻底避免返回上一页时的黑色残影问题，且无需在此处写 setTimeout
 	if (taskActionsModalRef.value) {
 		taskActionsModalRef.value.closeAndRun(() => {
+			// 检查是否为自制原料任务，如果是，跳转到 create-ingredient 页面
+			// 这里可以根据任务的第一个产品的品类来判断，或者让后端返回任务类型
+			// 简单起见，如果 product.name 在 dataStore.productsForTaskCreation.OTHER 中，则认为是自制
+			// 更好的方式是在 selectedTaskForAction 中包含 category 信息，但 DTO 目前没有
+			// 暂时统一跳转到 create 页面，create 页面有自适应逻辑
 			uni.navigateTo({
 				url: `/pages/production/create?taskId=${selectedTaskForAction.value!.id}`
 			});
 		});
 	} else {
-		// 降级处理：万一 ref 不存在（极少情况），直接跳转
 		showTaskActionsModal.value = false;
 		uni.navigateTo({
 			url: `/pages/production/create?taskId=${selectedTaskForAction.value.id}`
@@ -553,7 +556,12 @@ const handleConfirmCancelTask = async () => {
 const navigateToCreatePage = (category: RecipeCategory) => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
-	uni.navigateTo({ url: `/pages/production/create?category=${category}&date=${selectedDate.value}` });
+	// [核心修改] 如果是自制原料，跳转到专用页面
+	if (category === 'OTHER') {
+		uni.navigateTo({ url: `/pages/production/create-ingredient?date=${selectedDate.value}` });
+	} else {
+		uni.navigateTo({ url: `/pages/production/create?category=${category}&date=${selectedDate.value}` });
+	}
 };
 
 const handleFabClick = () => {

@@ -29,7 +29,10 @@
 				</view>
 
 				<view class="card">
-					<view class="card-title">产品数量</view>
+					<view class="card-title">
+						{{ isSelfMadeCategory ? '制作重量' : '产品数量' }}
+						<text v-if="isSelfMadeCategory" class="subtitle-text">(单位: 克)</text>
+					</view>
 					<view class="summary-card">
 						<view v-if="summaryGroups.length > 0" class="summary-content">
 							<view v-for="(group, groupIndex) in summaryGroups" :key="groupIndex" class="summary-group">
@@ -42,7 +45,9 @@
 								</view>
 							</view>
 						</view>
-						<view v-else class="summary-placeholder">产品数量汇总</view>
+						<view v-else class="summary-placeholder">
+							{{ isSelfMadeCategory ? '请填写制作重量' : '请填写产品数量' }}
+						</view>
 					</view>
 					<view class="product-tabs-container" v-if="productTabs.length > 0">
 						<CssAnimatedTabs v-model="activeTab" :tabs="productTabs" />
@@ -53,7 +58,7 @@
 							<input
 								class="input-field quantity-input"
 								type="number"
-								placeholder="数量"
+								:placeholder="quantityPlaceholder"
 								:value="taskQuantities[product.id]"
 								@input="onQuantityInput(product.id, $event)"
 							/>
@@ -101,17 +106,28 @@ const editingTaskId = ref<string | null>(null);
 
 const selectedCategory = ref<RecipeCategory | null>(null);
 
-const categoryMap = {
+const categoryMap: Record<string, string> = {
 	BREAD: '面包',
 	PASTRY: '西点',
 	DESSERT: '甜品',
-	DRINK: '饮品'
+	DRINK: '饮品',
+	OTHER: '自制原料' // [核心修改] 增加 OTHER 分类的映射
 };
+
+const isSelfMadeCategory = computed(() => {
+	// 如果是 "OTHER" 分类，通常意味着是面种或馅料的制作
+	return selectedCategory.value === 'OTHER';
+});
+
+const quantityPlaceholder = computed(() => {
+	return isSelfMadeCategory.value ? '重量(g)' : '数量';
+});
 
 const pageTitle = computed(() => {
 	if (isEditMode.value) return '修改任务';
 	if (selectedCategory.value) {
-		return `新建${categoryMap[selectedCategory.value] || ''}任务`;
+		const catName = categoryMap[selectedCategory.value] || '生产';
+		return `新建${catName}任务`;
 	}
 	return '新建任务';
 });
@@ -141,13 +157,9 @@ const productsInCurrentTab = computed(() => {
 onLoad(async (options) => {
 	isLoading.value = true;
 
-	// 1. 确保 productsForTaskCreation 已加载 (这是按分类组织的产品列表，是我们反查分类的关键)
 	if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation) {
 		await dataStore.fetchProductsForTaskCreation();
 	}
-
-	// [优化] 不需要强制加载 recipes 了，因为我们现在改用 productsForTaskCreation 来反查分类
-	// 只有当 productsForTaskCreation 为空时才可能需要兜底，但理论上 productsForTaskCreation 更适合这个场景
 
 	Object.values(dataStore.productsForTaskCreation)
 		.flatMap((group) => Object.values(group))
@@ -167,22 +179,15 @@ onLoad(async (options) => {
 				if (taskToEdit.items.length > 0) {
 					const firstProductId = taskToEdit.items[0].product.id;
 
-					// 🟢 [核心修复]：改用 productsForTaskCreation 进行反查
-					// 它的结构是: { BREAD: { "配方名": [产品1, 产品2] }, CAKE: ... }
 					let foundCategory: RecipeCategory | null = null;
-
-					// 获取所有分类键
 					const allCategories = Object.keys(dataStore.productsForTaskCreation) as RecipeCategory[];
 
-					// 遍历所有分类
 					for (const category of allCategories) {
 						const familiesInCat = dataStore.productsForTaskCreation[category];
 						if (!familiesInCat) continue;
 
-						// 遍历该分类下的所有配方族
 						for (const familyName of Object.keys(familiesInCat)) {
 							const products = familiesInCat[familyName];
-							// 检查产品ID是否存在于该列表中
 							if (products.some((p) => p.id === firstProductId)) {
 								foundCategory = category;
 								break;
@@ -196,7 +201,6 @@ onLoad(async (options) => {
 					}
 				}
 
-				// 使用 getLocalDate 函数来格式化日期，避免时区问题
 				taskForm.startDate = getLocalDate(new Date(taskToEdit.startDate));
 				taskForm.endDate = taskToEdit.endDate ? getLocalDate(new Date(taskToEdit.endDate)) : taskForm.startDate;
 
@@ -216,11 +220,16 @@ onLoad(async (options) => {
 	} else if (options && options.category) {
 		selectedCategory.value = options.category as RecipeCategory;
 	} else {
-		toastStore.show({ message: '未指定任务品类', type: 'error' });
-		uni.navigateBack();
+		// [容错] 如果没有指定品类，且只有一个品类可用，则自动选择
+		const availableCats = Object.keys(dataStore.productsForTaskCreation) as RecipeCategory[];
+		if (availableCats.length === 1) {
+			selectedCategory.value = availableCats[0];
+		} else {
+			toastStore.show({ message: '未指定任务品类', type: 'error' });
+			uni.navigateBack();
+		}
 	}
 
-	// 如果不是编辑模式，则根据 URL 传入的 date 参数或当天日期来设置默认生产日期
 	if (!isEditMode.value) {
 		const initialDate = options?.date || getLocalDate();
 		taskForm.startDate = initialDate;
@@ -275,7 +284,12 @@ const updateSummary = () => {
 		if (quantifiedProducts.length > 0) {
 			groups.push({
 				name: groupName,
-				items: quantifiedProducts.map((p) => `${p.name} x${p.quantity}`)
+				items: quantifiedProducts.map((p) => {
+					// [核心修改] 根据类型显示单位
+					const unit = isSelfMadeCategory.value ? 'g' : 'x';
+					// 对于自制原料，数量显示为 "1000g"；对于产品，显示为 "x10"
+					return isSelfMadeCategory.value ? `${p.name} ${p.quantity}${unit}` : `${p.name} ${unit}${p.quantity}`;
+				})
 			});
 		}
 	}
@@ -291,7 +305,8 @@ const handleSubmit = async () => {
 		}));
 
 	if (productsToSubmit.length === 0) {
-		toastStore.show({ message: '请输入要生产的数量', type: 'error' });
+		const msg = isSelfMadeCategory.value ? '请输入制作重量' : '请输入要生产的数量';
+		toastStore.show({ message: msg, type: 'error' });
 		return;
 	}
 
@@ -439,28 +454,10 @@ const handleSubmit = async () => {
 	text-align: center;
 }
 
-.category-selection-wrapper {
-	padding: 20px 0;
-}
-
-.category-grid {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 15px;
-	margin-top: 20px;
-}
-
-.category-item {
-	padding: 30px 15px;
-	text-align: center;
-	font-size: 16px;
-	font-weight: 500;
-	color: var(--text-primary);
-	transition: all 0.2s ease-in-out;
-
-	&:active {
-		transform: scale(0.95);
-		background-color: #f3e9e3;
-	}
+.subtitle-text {
+	font-size: 12px;
+	color: var(--text-secondary);
+	font-weight: normal;
+	margin-left: 5px;
 }
 </style>

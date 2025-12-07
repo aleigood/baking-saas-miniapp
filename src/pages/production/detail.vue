@@ -95,16 +95,20 @@
 								<template v-if="selectedProductDetails">
 									<view class="smart-table">
 										<view class="table-header">
-											<text class="col-product-name">基础原料</text>
+											<text class="col-product-name">{{ isSelfMadeComponent ? '产品名称' : '基础原料' }}</text>
 											<text class="col-dough-weight">总重</text>
-											<text class="col-quantity">产品数量</text>
-											<text class="col-division-weight">分割重量</text>
+											<text v-if="!isSelfMadeComponent" class="col-quantity">产品数量</text>
+											<text v-if="!isSelfMadeComponent" class="col-division-weight">分割重量</text>
+											<text v-if="isSelfMadeComponent" class="col-division-weight">目标产出</text>
 										</view>
 										<view class="info-row">
 											<text class="col-product-name">{{ selectedProductDetails.baseComponent.name }}</text>
 											<text class="col-dough-weight">{{ formatWeight(selectedProductDetails.baseComponent.totalBaseComponentWeight) }}</text>
-											<text class="col-quantity">{{ selectedProductDetails.baseComponent.quantity }}</text>
-											<text class="col-division-weight">{{ formatWeight(selectedProductDetails.baseComponent.divisionWeight) }}</text>
+											<text v-if="!isSelfMadeComponent" class="col-quantity">{{ selectedProductDetails.baseComponent.quantity }}</text>
+											<text v-if="!isSelfMadeComponent" class="col-division-weight">
+												{{ formatWeight(selectedProductDetails.baseComponent.divisionWeight) }}
+											</text>
+											<text v-if="isSelfMadeComponent" class="col-division-weight">{{ formatWeight(selectedProductDetails.baseComponent.quantity) }}</text>
 										</view>
 									</view>
 
@@ -188,18 +192,18 @@
 
 		<ExpandingFab v-if="isStarted" icon="/static/icons/print.svg" @click="handlePrintTask" :no-tab-bar="true" :visible="isFabVisible" />
 
-		<AppModal v-model:visible="showCompleteTaskModal" :title="completionStep === 1 ? '提报完成数量' : '提报产品损耗'">
+		<AppModal v-model:visible="showCompleteTaskModal" :title="completionStep === 1 ? (isSelfMadeTask ? '提报完成重量' : '提报完成数量') : '提报产品损耗'">
 			<view class="modal-slider-container" :style="{ height: modalContentHeight ? `${modalContentHeight}px` : 'auto' }">
 				<view class="modal-slider-track" :class="{ 'go-to-step2': completionStep === 2 }">
 					<view class="modal-step-content" id="step1-content">
 						<view class="loss-product-list">
 							<view v-for="product in allProductsInTask" :key="product.id" class="loss-product-item">
-								<text class="loss-product-name">{{ product.name }} (计划 {{ product.plannedQuantity }})</text>
+								<text class="loss-product-name">{{ product.name }} (计划 {{ formatProductQuantity(product) }})</text>
 								<input
 									v-if="completionForm[product.id]"
 									class="loss-quantity-input"
 									type="number"
-									placeholder="实际数量"
+									:placeholder="isSelfMadeTask ? '实际产出(g)' : '实际数量'"
 									v-model.number="completionForm[product.id].completedQuantity"
 									@input="onCompletedQuantityInput(product.id, $event)"
 								/>
@@ -217,7 +221,7 @@
 									v-if="completionForm[product.id]"
 									class="loss-quantity-input"
 									type="number"
-									placeholder="数量"
+									:placeholder="isSelfMadeTask ? '重量(g)' : '数量'"
 									:value="completionForm[product.id].spoilageDetails[activeLossTab]"
 									@input="onSpoilageQuantityInput(product.id, activeLossTab, $event)"
 								/>
@@ -259,7 +263,6 @@ import ListItem from '@/components/ListItem.vue';
 import AnimatedTabs from '@/components/CssAnimatedTabs.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import AppPopover from '@/components/AppPopover.vue';
-// [核心新增] 引入 ExpandingFab
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import { formatWeight } from '@/utils/format';
 
@@ -310,7 +313,6 @@ const modalContentHeight = ref<number | string>('auto');
 
 const fromPage = ref('');
 
-// [核心新增] FAB 按钮相关状态
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
@@ -424,7 +426,6 @@ const handleScroll = (event?: any) => {
 		popover.visible = false;
 	}
 
-	// [核心新增] FAB 显隐逻辑
 	if (!event || !event.detail) {
 		return;
 	}
@@ -802,6 +803,27 @@ const productTabs = computed(() => {
 		label: p.name
 	}));
 });
+
+// [核心新增] 判断是否为自制原料任务
+const isSelfMadeComponent = computed(() => {
+	if (!selectedComponentDetails.value) return false;
+	return selectedComponentDetails.value.category === 'OTHER';
+});
+
+const isSelfMadeTask = computed(() => {
+	// 简单的判断逻辑：如果当前选中的组件是 'OTHER'，或者任务中任意一个组件是 'OTHER'，
+	// 可以认为这是一个自制原料任务。
+	// 这里更严谨一点：基于 selectedComponentDetails 判断当前显示的视图
+	return isSelfMadeComponent.value;
+});
+
+// [核心新增] 格式化产品计划数量显示
+const formatProductQuantity = (product: { name: string; plannedQuantity: number }) => {
+	if (isSelfMadeTask.value) {
+		return `${product.plannedQuantity}g`;
+	}
+	return `${product.plannedQuantity}`;
+};
 </script>
 
 <style scoped lang="scss">
@@ -866,6 +888,10 @@ const productTabs = computed(() => {
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
+}
+
+.spoilagestages-tabs-container {
+	margin-top: 0px;
 }
 
 .spoilage-item {
@@ -1084,9 +1110,5 @@ const productTabs = computed(() => {
 	margin-top: 30px;
 	margin-bottom: 30px;
 	--tabs-container-bg-rgb: 255, 255, 255;
-}
-
-.spoilagestages-tabs-container {
-	margin-top: 0px;
 }
 </style>

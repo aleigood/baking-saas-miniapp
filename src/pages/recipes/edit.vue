@@ -24,6 +24,11 @@
 							</view>
 						</picker>
 					</FormItem>
+
+					<FormItem v-if="form.type !== 'MAIN'" label="保质期 (小时)">
+						<input class="input-field" type="number" v-model="form.shelfLife" placeholder="例如：24 (0表示长期)" />
+					</FormItem>
+
 					<FormItem v-if="isEditing" label="版本说明">
 						<input class="input-field" v-model="form.notes" placeholder="例如：夏季版本，减少水量" />
 					</FormItem>
@@ -393,6 +398,8 @@ const form = ref<
 		products?: RecipeFormProduct[];
 		components: EnhancedComponent[];
 		customWaterContent?: number | null;
+		// [核心新增] 保质期字段
+		shelfLife?: number | null;
 	}
 >({
 	name: '',
@@ -401,6 +408,7 @@ const form = ref<
 	notes: '',
 	targetTemp: null,
 	customWaterContent: null,
+	shelfLife: null, // [核心新增]
 	components: [
 		{
 			id: `main_${Date.now()}`,
@@ -857,6 +865,17 @@ onLoad(async (options) => {
 					}))
 				}));
 
+				// [核心修复] 从配方族数据中获取保质期 shelfLife
+				let shelfLifeVal: number | null = null;
+				if (parsedForm.type !== 'MAIN') {
+					// 尝试在本地配方列表中查找以获取 family 信息（其中包含 shelfLife）
+					const allRecipes = [...dataStore.recipes.preDoughs, ...dataStore.recipes.extras];
+					const family = allRecipes.find((f) => f.name === parsedForm.name); // 这是一个近似查找，实际上应该由 source_recipe_version_form 带入
+					if (family && (family as any).shelfLife) {
+						shelfLifeVal = (family as any).shelfLife;
+					}
+				}
+
 				form.value = {
 					...parsedForm,
 					// [核心修复] 更严谨的空值检查，支持回显 0
@@ -864,6 +883,7 @@ onLoad(async (options) => {
 						parsedForm.components[0]?.customWaterContent !== undefined && parsedForm.components[0]?.customWaterContent !== null
 							? parsedForm.components[0].customWaterContent
 							: null,
+					shelfLife: shelfLifeVal, // [核心新增]
 					components: sanitizedComponents,
 					products: parsedForm.products || []
 				};
@@ -902,6 +922,7 @@ onLoad(async (options) => {
 			form.value.type = 'PRE_DOUGH';
 			form.value.products = [];
 			form.value.category = 'OTHER';
+			form.value.shelfLife = 0; // 默认 0
 			form.value.components = [
 				{
 					id: `main_${Date.now()}`,
@@ -1196,6 +1217,7 @@ const handleSubmit = async () => {
 			lossRatio: toDecimal(Number(mainComponentFromForm.lossRatio || 0)),
 			divisionLoss: Number(mainComponentFromForm.divisionLoss || 0),
 			customWaterContent: finalCustomWaterContent, // 使用处理后的值
+			shelfLife: form.value.shelfLife ? Number(form.value.shelfLife) : 0, // [核心新增] 提交保质期
 			procedure: mainComponentFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
 			products: form.value.products!.map((p) => ({

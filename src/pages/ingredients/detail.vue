@@ -7,9 +7,14 @@
 			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
 				<view class="top-info-bar" v-if="ingredient.type !== 'UNTRACKED'">
 					<view class="tag-group">
-						<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
+						<template v-if="ingredient.type === 'SELF_MADE'">
+							<span class="tag">保质期: {{ ingredient.shelfLife > 0 ? ingredient.shelfLife + '小时' : '未设置' }}</span>
+						</template>
+						<template v-else>
+							<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
+						</template>
 						<span class="tag">单价: {{ ingredientPricePerKg }}</span>
-						<span class="tag" v-if="ingredient.type === 'STANDARD'">库存: {{ formatWeight(ingredient.currentStockInGrams) }}</span>
+						<span class="tag" v-if="ingredient.type === 'STANDARD' || ingredient.type === 'SELF_MADE'">库存: {{ formatWeight(ingredient.currentStockInGrams) }}</span>
 					</view>
 				</view>
 
@@ -19,7 +24,7 @@
 					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix="" unit-suffix="kg" />
 				</view>
 
-				<template v-if="ingredient.type !== 'UNTRACKED'">
+				<template v-if="ingredient.type === 'STANDARD' || ingredient.type === 'NON_INVENTORIED'">
 					<IngredientSkuList
 						:ingredient="ingredient"
 						:selected-sku-id="selectedSkuId"
@@ -28,6 +33,23 @@
 						@add="openAddSkuModal"
 					/>
 					<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
+				</template>
+
+				<template v-if="ingredient.type === 'SELF_MADE'">
+					<view class="card no-padding">
+						<ListItem @click="navigateToLedger" :bleed="true">
+							<view class="nav-item-content">
+								<view class="nav-icon-wrapper">
+									<image class="nav-icon" src="/static/icons/log.svg" />
+								</view>
+								<view class="main-info">
+									<view class="name">生产与库存记录</view>
+									<view class="desc">查看入库、消耗与损耗明细</view>
+								</view>
+								<view class="arrow-icon">&#10095;</view>
+							</view>
+						</ListItem>
+					</view>
 				</template>
 			</view>
 			<view class="loading-spinner" v-else>
@@ -39,24 +61,47 @@
 
 		<AppModal v-model:visible="showEditModal" title="编辑原料属性">
 			<FormItem label="原料名称">
-				<input class="input-field" v-model="ingredientForm.name" placeholder="输入原料名称" />
+				<input
+					class="input-field"
+					v-model="ingredientForm.name"
+					placeholder="输入原料名称"
+					:disabled="ingredient?.type === 'SELF_MADE'"
+					:class="{ 'is-disabled': ingredient?.type === 'SELF_MADE' }"
+				/>
 			</FormItem>
 			<FormItem label="原料类型">
-				<picker mode="selector" :range="availableTypes.map((t) => t.label)" @change="onTypeChange">
-					<view class="picker">
+				<picker mode="selector" :range="availableTypes.map((t) => t.label)" @change="onTypeChange" :disabled="ingredient?.type === 'SELF_MADE'">
+					<view class="picker" :class="{ 'is-disabled': ingredient?.type === 'SELF_MADE' }">
 						{{ currentTypeLabel }}
 						<view class="arrow-down"></view>
 					</view>
 				</picker>
 			</FormItem>
+
+			<template v-if="ingredientForm.type === 'SELF_MADE'">
+				<FormItem label="保质期 (小时)">
+					<input class="input-field" type="number" v-model="ingredientForm.shelfLife" placeholder="例如: 24" />
+				</FormItem>
+			</template>
+
 			<view class="form-row">
 				<label class="form-row-label">是否为面粉</label>
-				<switch :checked="ingredientForm.isFlour" @change="onIsFlourChange" color="#8c5a3b" />
+				<switch :checked="ingredientForm.isFlour" @change="onIsFlourChange" color="#8c5a3b" :disabled="ingredient?.type === 'SELF_MADE'" />
 			</view>
 			<view class="form-row">
 				<label class="form-row-label">含水量 (%)</label>
-				<input class="input-field" type="digit" v-model="ingredientForm.waterContent" placeholder="例如: 75" />
+				<input
+					class="input-field"
+					type="digit"
+					v-model="ingredientForm.waterContent"
+					placeholder="例如: 75"
+					:disabled="ingredient?.type === 'SELF_MADE'"
+					:class="{ 'is-disabled': ingredient?.type === 'SELF_MADE' }"
+				/>
 			</view>
+
+			<view v-if="ingredient?.type === 'SELF_MADE'" class="modal-warning-text" style="margin-top: 10px">注：自制原料的名称、含水量由配方自动同步，无需手动修改。</view>
+
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleUpdateIngredient" :loading="isSubmitting">
@@ -297,7 +342,6 @@ import IngredientProcurementList from '@/components/IngredientProcurementList.vu
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
-// [核心修改] 引入 formatMoney
 import { formatChineseDate, formatDateTime, formatNumber, formatWeight, multiply, formatMoney } from '@/utils/format';
 
 const densityOptions = [
@@ -398,14 +442,16 @@ const editSkuDensityLabel = computed(() => {
 
 const ingredientForm = reactive<{
 	name: string;
-	type: 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
+	type: 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED' | 'SELF_MADE';
 	isFlour: boolean;
 	waterContent: number | null;
+	shelfLife: number | null; // [核心新增]
 }>({
 	name: '',
 	type: 'STANDARD',
 	isFlour: false,
-	waterContent: null
+	waterContent: null,
+	shelfLife: null
 });
 
 const showEditProcurementModal = ref(false);
@@ -455,7 +501,8 @@ const fabActions = computed(() => {
 
 	actions.push({ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() });
 
-	if (ingredient.value.type === 'STANDARD' && (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN')) {
+	// [核心修改] 自制原料也允许调整库存（如报损、盘点）
+	if ((ingredient.value.type === 'STANDARD' || ingredient.value.type === 'SELF_MADE') && (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN')) {
 		actions.push({ icon: '/static/icons/adjust.svg', text: '库存调整', action: () => openUpdateStockModal() });
 	}
 
@@ -549,6 +596,8 @@ const loadIngredientData = async (id: string) => {
 		ingredientForm.type = ingredientData.type;
 		ingredientForm.isFlour = ingredientData.isFlour;
 		ingredientForm.waterContent = ingredientData.waterContent * 100;
+		// [核心新增] 初始化保质期
+		ingredientForm.shelfLife = ingredientData.shelfLife || null;
 
 		if (ingredientData.type === 'UNTRACKED') {
 			detailChartTab.value = 'usage';
@@ -577,6 +626,7 @@ const openEditModal = () => {
 		ingredientForm.type = ingredient.value.type;
 		ingredientForm.isFlour = ingredient.value.isFlour;
 		ingredientForm.waterContent = ingredient.value.waterContent * 100;
+		ingredientForm.shelfLife = ingredient.value.shelfLife || null;
 	}
 	showEditModal.value = true;
 };
@@ -584,7 +634,8 @@ const openEditModal = () => {
 const availableTypes = ref([
 	{ label: '标准原料 (追踪库存和成本)', value: 'STANDARD' },
 	{ label: '即时采购 (仅追踪成本)', value: 'NON_INVENTORIED' },
-	{ label: '非追踪原料 (水/冰等)', value: 'UNTRACKED' }
+	{ label: '非追踪原料 (水/冰等)', value: 'UNTRACKED' },
+	{ label: '自制原料 (由配方产出)', value: 'SELF_MADE' } // [核心新增]
 ]);
 
 const currentTypeLabel = computed(() => {
@@ -592,18 +643,32 @@ const currentTypeLabel = computed(() => {
 });
 
 const onTypeChange = (e: any) => {
-	ingredientForm.type = availableTypes.value[e.detail.value].value as 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED';
+	ingredientForm.type = availableTypes.value[e.detail.value].value as any;
 };
 
 const ingredientPricePerKg = computed(() => {
 	const ing = ingredient.value;
-	if (!ing || !ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
-		return '¥0.00/kg';
+	if (!ing) return '¥0.00/kg';
+
+	// [核心修改] 对于标准原料和自制原料，优先使用当前库存价值计算单价
+	if (ing.type === 'STANDARD' || ing.type === 'SELF_MADE') {
+		if (ing.currentStockInGrams > 0) {
+			const pricePerGram = ing.currentStockValue / ing.currentStockInGrams;
+			const price = multiply(pricePerGram, 1000);
+			return `¥${formatMoney(price)}/kg`;
+		}
+		// 如果没有库存，尝试显示上次成本（自制原料可能没有 SKU，所以这里可能显示 0）
+		if (ing.type === 'SELF_MADE') return '¥0.00/kg';
 	}
-	const pricePerGram = Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams;
-	const price = multiply(pricePerGram, 1000);
-	// [核心修改] 使用 formatMoney 格式化单价
-	return `¥${formatMoney(price)}/kg`;
+
+	// 对于采购原料，如果没有库存，尝试用上次采购价
+	if (ing.activeSku && ing.currentPricePerPackage && ing.activeSku.specWeightInGrams) {
+		const pricePerGram = Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams;
+		const price = multiply(pricePerGram, 1000);
+		return `¥${formatMoney(price)}/kg`;
+	}
+
+	return '¥0.00/kg';
 });
 
 const openAddSkuModal = () => {
@@ -822,7 +887,8 @@ const handleUpdateIngredient = async () => {
 			name: ingredientForm.name,
 			type: ingredientForm.type,
 			isFlour: ingredientForm.isFlour,
-			waterContent: (Number(ingredientForm.waterContent) || 0) / 100
+			waterContent: (Number(ingredientForm.waterContent) || 0) / 100,
+			shelfLife: ingredientForm.shelfLife ? Number(ingredientForm.shelfLife) : 0 // [核心新增]
 		});
 		toastStore.show({ message: '保存成功', type: 'success' });
 		showEditModal.value = false;
@@ -940,11 +1006,19 @@ const handleConfirmUpdateStock = async () => {
 		isSubmitting.value = false;
 	}
 };
+
+const navigateToLedger = () => {
+	if (!ingredient.value) return;
+	uni.navigateTo({
+		url: `/pages/ingredients/ledger?ingredientId=${ingredient.value.id}`
+	});
+};
 </script>
 
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 
+@include list-item-content-style; // [核心新增] 确保内部内容样式正确应用
 @include list-item-option-style;
 @include form-control-styles;
 
@@ -991,5 +1065,54 @@ const handleConfirmUpdateStock = async () => {
 .form-row .input-field {
 	width: 120px;
 	text-align: right;
+}
+
+.header-action {
+	font-size: 13px;
+	color: var(--text-secondary);
+}
+
+.empty-state-sm {
+	font-size: 13px;
+	color: var(--text-secondary);
+	margin-top: 5px;
+}
+
+/* [核心新增] 列表导航样式，复用 list-item-content-style */
+.nav-item-content {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	padding: 8px 0;
+}
+
+.nav-icon-wrapper {
+	width: 36px;
+	height: 36px;
+	border-radius: 8px;
+	background-color: #f5f7fa;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-right: 12px;
+	flex-shrink: 0;
+}
+
+.nav-icon {
+	width: 20px;
+	height: 20px;
+	opacity: 0.7;
+}
+
+.arrow-icon {
+	color: #ccc;
+	font-size: 14px;
+	margin-left: 8px;
+}
+
+/* 确保 card no-padding 能正确移除内边距 */
+.card.no-padding {
+	padding: 0;
+	overflow: hidden; /* 确保圆角裁剪 */
 }
 </style>
