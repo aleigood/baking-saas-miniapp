@@ -162,7 +162,7 @@ import CalendarModal from '@/components/CalendarModal.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
 import type { ProductionTaskDto, PrepTask, RecipeCategory, ProductionTaskSummaryDto } from '@/types/api';
 import { updateTaskStatus, getTaskDates, deleteTask } from '@/api/tasks';
-import { formatChineseDate } from '@/utils/format';
+import { formatChineseDate, formatWeight } from '@/utils/format';
 
 const STATUS_MAP = {
 	PENDING: {
@@ -397,18 +397,46 @@ const handleDateSelect = async (date: string) => {
 	triggerListAnimationWithKeyUpdate(true);
 };
 
+// [核心新增] 判断是否为自制原料任务
+const isSelfMadeItem = (item: any) => {
+	// 注意：这里的类型定义是不完整的，使用 any 来访问嵌套属性
+	// 服务端已经更新 taskListItemsInclude 来返回 recipeVersion.family.category
+	return item.product?.recipeVersion?.family?.category === 'OTHER';
+};
+
+// [修改] getTaskTitle 函数
 const getTaskTitle = (task: ProductionTaskDto | PrepTask) => {
 	if (task.status === 'PREP') {
 		return (task as PrepTask).title;
 	}
 	const regularTask = task as ProductionTaskDto;
 	if (!regularTask.items || regularTask.items.length === 0) return '未知任务';
-	return regularTask.items.map((item) => `${item.product.name} x${item.quantity}`).join('、');
+
+	// [修改逻辑] 如果是自制原料，显示克重(g)；如果是普通产品，显示数量(xN)
+	return regularTask.items
+		.map((item) => {
+			if (isSelfMadeItem(item)) {
+				// 自制原料：显示 "波兰种 2000g"
+				// 注意：这里假设您有 formatWeight 工具函数，如果没有可以直接用 item.quantity + 'g'
+				return `${item.product.name} ${item.quantity}g`;
+			}
+			// 普通产品：显示 "法棍 x10"
+			return `${item.product.name} x${item.quantity}`;
+		})
+		.join('、');
 };
 
+// [修改] getTotalQuantity 函数
 const getTotalQuantity = (task: ProductionTaskDto) => {
 	if (!task.items) return 0;
-	return task.items.reduce((sum, item) => sum + item.quantity, 0);
+
+	// [修改逻辑] 统计总数时，自制原料任务算作 1 个任务单位，而不是累加克重
+	return task.items.reduce((sum, item) => {
+		if (isSelfMadeItem(item)) {
+			return sum + 1;
+		}
+		return sum + item.quantity;
+	}, 0);
 };
 
 const getTaskDetails = (task: any) => {
@@ -465,7 +493,7 @@ const navigateToHistory = () => {
 
 const openTaskActions = (task: any) => {
 	if (task.status === 'PREP') return;
-	selectedTaskForAction.value = task as ProductionTaskDto;
+	selectedTaskForAction.value = task as ProductionTaskSummaryDto;
 	showTaskActionsModal.value = true;
 };
 
@@ -473,20 +501,34 @@ const handleEditTask = () => {
 	if (isNavigating.value || !selectedTaskForAction.value) return;
 	isNavigating.value = true;
 
-	dataStore.clearTaskProgress(selectedTaskForAction.value.id);
+	// [优化] 由于 productionTaskSummary 不包含完整信息，编辑前需要 taskDetail
+	// 但这里我们假设 create 页面会重新 fetch details based on ID
+	// 或者我们把 summary 存进去，让 create 页面处理
+	// 实际上 create 页面确实会根据 taskId 加载数据，但它也会读取 storage
+	// 这里的 task 对象结构可能不完全匹配 full DTO，但通常足够用于 id 跳转
+
+	// 注意：这里我们不需要清除进度，因为那是 detail 页面的事
+	// dataStore.clearTaskProgress(selectedTaskForAction.value.id);
+
+	// 保存摘要信息到本地，虽然 create 页面可能重新 fetch，但作为后备
 	uni.setStorageSync('task_to_edit', JSON.stringify(selectedTaskForAction.value));
 
 	// [核心修改] 使用组件暴露的 closeAndRun 方法
 	if (taskActionsModalRef.value) {
 		taskActionsModalRef.value.closeAndRun(() => {
-			// 检查是否为自制原料任务，如果是，跳转到 create-ingredient 页面
-			// 这里可以根据任务的第一个产品的品类来判断，或者让后端返回任务类型
-			// 简单起见，如果 product.name 在 dataStore.productsForTaskCreation.OTHER 中，则认为是自制
-			// 更好的方式是在 selectedTaskForAction 中包含 category 信息，但 DTO 目前没有
-			// 暂时统一跳转到 create 页面，create 页面有自适应逻辑
-			uni.navigateTo({
-				url: `/pages/production/create?taskId=${selectedTaskForAction.value!.id}`
-			});
+			// 检查是否为自制原料任务
+			// 这里的 selectedTaskForAction.value 已经是 summary DTO
+			// 我们可以检查第一个 item 的 category
+			const firstItem = selectedTaskForAction.value?.items[0];
+			if (firstItem && isSelfMadeItem(firstItem)) {
+				uni.navigateTo({
+					url: `/pages/production/create-ingredient?taskId=${selectedTaskForAction.value!.id}`
+				});
+			} else {
+				uni.navigateTo({
+					url: `/pages/production/create?taskId=${selectedTaskForAction.value!.id}`
+				});
+			}
 		});
 	} else {
 		showTaskActionsModal.value = false;

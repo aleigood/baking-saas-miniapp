@@ -47,19 +47,6 @@
 					</view>
 
 					<view class="calculator-container" v-if="activeRecipeState">
-						<view class="card-header-row">
-							<view class="section-title">制作计算器</view>
-							<view class="reset-text" @click="resetActiveWeights">清空当前</view>
-						</view>
-
-						<view class="total-weight-container">
-							<view class="total-weight-label">目标总重量 (g)</view>
-							<input class="input-field total-input" type="number" :value="activeRecipeState.totalDisplay" @input="onTotalWeightInput" placeholder="输入总克重" />
-						</view>
-
-						<view class="divider"></view>
-						<view class="section-subtitle">原料明细</view>
-
 						<view v-if="isLoadingDetails" class="loading-block">
 							<text>加载配方详情...</text>
 						</view>
@@ -74,6 +61,19 @@
 									</view>
 								</view>
 								<input class="input-field weight-input" type="number" :value="ing.weightDisplay" @input="onIngredientWeightInput(index, $event)" placeholder="0" />
+							</view>
+
+							<view class="ingredient-item total-weight-row">
+								<view class="ingredient-info">
+									<text class="ingredient-name total-label">目标总重量</text>
+								</view>
+								<input
+									class="input-field weight-input total-input-small"
+									type="number"
+									:value="activeRecipeState.totalDisplay"
+									@input="onTotalWeightInput"
+									placeholder="0"
+								/>
 							</view>
 						</view>
 					</view>
@@ -465,6 +465,8 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	/* [核心修改] 增加最小高度以确保垂直居中 */
+	min-height: 60px;
 	height: 100%;
 }
 
@@ -487,55 +489,13 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	}
 }
 
-.card-header-row {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 15px;
-}
-
-.section-title {
-	font-size: 15px;
-	font-weight: 600;
-	color: var(--text-primary);
-}
-
 .reset-text {
-	font-size: 13px;
+	font-size: 11px;
 	color: var(--primary-color);
-	padding: 4px 10px;
+	padding: 2px 8px;
 	background: rgba(140, 90, 59, 0.1);
 	border-radius: 4px;
-}
-
-.total-weight-container {
-	margin-bottom: 20px;
-}
-
-.total-weight-label {
-	display: block;
-	font-size: 14px;
-	font-weight: 600;
-	color: var(--primary-color);
-	margin-bottom: 10px;
-}
-
-.total-input {
-	width: 100%;
-	height: 50px;
-	background-color: #fff;
-	border: 1px solid var(--primary-color);
-	border-radius: 8px;
-	font-size: 20px;
-	font-weight: bold;
-	text-align: center;
-	color: var(--text-primary);
-}
-
-.divider {
-	height: 1px;
-	background-color: #f0f0f0;
-	margin: 20px -20px;
+	cursor: pointer;
 }
 
 .section-subtitle {
@@ -558,6 +518,7 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	gap: 12px;
 }
 
+/* 复用 ingredient-item 样式 */
 .ingredient-item {
 	display: flex;
 	align-items: center;
@@ -568,9 +529,9 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 .ingredient-info {
 	width: calc(50% - 6px);
 	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	justify-content: center;
+	flex-direction: row; /* [核心修改] 变为行布局，使标签在名字后面 */
+	align-items: center;
+	justify-content: flex-end; /* 内容靠右 */
 	min-width: 0;
 }
 
@@ -581,14 +542,21 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	text-overflow: ellipsis;
 	color: var(--text-primary);
 	text-align: right;
-	width: 100%;
+	width: auto; /* [核心修改] 宽度自适应，不占满 */
+	flex-shrink: 1;
+}
+
+.total-label {
+	color: var(--primary-color);
 }
 
 .tags {
 	display: flex;
 	gap: 4px;
-	margin-top: 2px;
+	margin-top: 0; /* [核心修改] 移除顶部间距 */
+	margin-left: 4px; /* [核心修改] 增加左侧间距 */
 	justify-content: flex-end;
+	flex-shrink: 0;
 }
 
 .type-tag {

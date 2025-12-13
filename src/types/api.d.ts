@@ -70,8 +70,14 @@ export interface ProductionTaskSummaryDto {
 	items: {
 		quantity: number;
 		product: {
-			id: string; // [核心修复] 加上产品 id，与服务端返回数据保持一致
+			id: string;
 			name: string;
+			// [新增] 增加配方品类字段
+			recipeVersion?: {
+				family: {
+					category: RecipeCategory;
+				};
+			};
 		};
 	}[];
 }
