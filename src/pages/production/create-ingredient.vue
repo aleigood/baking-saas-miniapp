@@ -102,7 +102,7 @@ import { getLocalDate } from '@/utils/format';
 import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
-import CssAnimatedTabs from '@/components/CssAnimatedTabs.vue'; // [核心新增]
+import CssAnimatedTabs from '@/components/CssAnimatedTabs.vue';
 import type { RecipeFamily } from '@/types/api';
 
 defineOptions({
@@ -326,7 +326,9 @@ const summaryItems = computed(() => {
 	Object.keys(recipeStates).forEach((key) => {
 		const state = recipeStates[key];
 		if (state.totalWeight && state.totalWeight > 0) {
-			items.push(`${key} ${state.totalWeight}g`);
+			// [核心修改] 格式化重量，与输入框显示逻辑保持一致 (最多2位小数)
+			const formattedWeight = parseFloat(state.totalWeight.toFixed(2));
+			items.push(`${key} ${formattedWeight}g`);
 		}
 	});
 	return items;
@@ -465,7 +467,6 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	/* [核心修改] 增加最小高度以确保垂直居中 */
 	min-height: 60px;
 	height: 100%;
 }
