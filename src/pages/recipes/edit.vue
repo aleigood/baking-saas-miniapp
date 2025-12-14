@@ -731,7 +731,7 @@ const waterTagTargetName = computed(() => {
 	if (explicitWater) return '水';
 
 	let maxContribution = 0;
-	let targetName = '';
+	let targetName: string | null = null; // [Core Fix] Initialize as null
 
 	ingredients.forEach((ing) => {
 		if (ing.name && ing.ratio && ing.waterContent > 0) {
@@ -790,7 +790,8 @@ const getIngredientTags = (ing: MainIngredient | SubIngredientWeight | SubIngred
 		tags.push({ text: '自制', style: { backgroundColor: '#faedcd', color: 'var(--primary-color)' } });
 	}
 
-	if (isMainDough && ing.name === waterTagTargetName.value && showTotalWaterTag.value) {
+	// [Core Fix] Add check for waterTagTargetName.value (ensuring it's not null) and ing.name
+	if (isMainDough && waterTagTargetName.value && ing.name === waterTagTargetName.value && showTotalWaterTag.value) {
 		tags.push({
 			text: `总水: ${formatWaterRatio(totalCalculatedWaterRatio.value)}%`,
 			style: { backgroundColor: '#e0efff', color: '#00529b' }
