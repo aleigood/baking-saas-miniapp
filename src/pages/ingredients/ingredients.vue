@@ -3,26 +3,57 @@
 		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll" class="full-height-wrapper">
 			<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
 				<view class="filter-bar">
-					<FilterTabs v-model="ingredientFilter" :tabs="ingredientFilterTabs" />
+					<FilterTabs v-model="activeFilter" :tabs="ingredientFilterTabs" />
 					<IconButton @click="navigateToLedger">
 						<image class="header-icon" src="/static/icons/log.svg" />
 					</IconButton>
 				</view>
 
+				<view class="search-sort-bar">
+					<view class="search-box">
+						<image class="search-icon" src="/static/icons/search.svg" mode="aspectFit" />
+						<input
+							class="search-input"
+							v-model="filterKeyword"
+							placeholder="搜索原料名称或品牌"
+							confirm-type="search"
+							placeholder-style="color: #a98467; opacity: 0.5; font-size: 13px;"
+						/>
+						<view v-if="filterKeyword" class="clear-btn" @click="filterKeyword = ''">
+							<text class="clear-icon">×</text>
+						</view>
+					</view>
+					<view class="sort-btn" @click="toggleSort">
+						<image class="sort-icon" src="/static/icons/sort.svg" />
+						<text class="sort-label">{{ currentSortLabel }}</text>
+					</view>
+				</view>
+
 				<view class="list-wrapper">
-					<template v-if="ingredientFilter === 'all'">
-						<view v-if="dataStore.ingredients.allIngredients.length > 0" :key="listAnimationKey + '-all'">
-							<ListItem
-								v-for="(ing, index) in dataStore.ingredients.allIngredients"
-								:key="ing.id"
-								@click="navigateToDetail(ing.id)"
-								@longpress="openIngredientActions(ing)"
-								:vibrate-on-long-press="canEdit"
-								:bleed="true"
-								:divider="index < dataStore.ingredients.allIngredients.length - 1"
-								:animate-on-mount="triggerListAnimation"
-								:animation-index="index"
-							>
+					<view v-if="filteredIngredients.length > 0" :key="listAnimationKey">
+						<ListItem
+							v-for="(ing, index) in filteredIngredients"
+							:key="ing.id"
+							@click="navigateToDetail(ing.id)"
+							@longpress="openIngredientActions(ing)"
+							:vibrate-on-long-press="canEdit"
+							:bleed="true"
+							:divider="index < filteredIngredients.length - 1"
+							:animate-on-mount="triggerListAnimation"
+							:animation-index="index"
+						>
+							<template v-if="ing.type === 'SELF_MADE'">
+								<view class="main-info">
+									<view class="name">{{ ing.name }}</view>
+									<view class="desc">{{ getRecipeIngredientCount(ing) }} 种原料</view>
+								</view>
+								<view class="side-info">
+									<view class="value">{{ formatWeight(ing.currentStockInGrams) }}</view>
+									<view class="desc" :class="getExpiryClass(ing)">{{ getExpiryText(ing) }}</view>
+								</view>
+							</template>
+
+							<template v-else>
 								<view class="main-info">
 									<view class="name">{{ ing.name }}</view>
 									<view class="desc">
@@ -32,85 +63,24 @@
 								</view>
 								<view class="side-info">
 									<view class="value">
-										<template v-if="ing.type === 'STANDARD' || ing.type === 'SELF_MADE'">{{ formatWeight(ing.currentStockInGrams) }}</template>
+										<template v-if="ing.type === 'STANDARD' || ing.type === 'NON_INVENTORIED'">{{ formatWeight(ing.currentStockInGrams) }}</template>
 										<template v-else>∞</template>
 									</view>
 									<view v-if="ing.totalConsumptionInGrams > 0 && ing.type !== 'UNTRACKED'" class="desc consumption">
 										已消耗: {{ formatWeight(ing.totalConsumptionInGrams) }}
 									</view>
 								</view>
-							</ListItem>
-						</view>
-						<view v-else class="empty-state">
-							<text>暂无原料信息</text>
-						</view>
-					</template>
-
-					<template v-if="ingredientFilter === 'self_made'">
-						<view v-if="selfMadeIngredients.length > 0" :key="listAnimationKey + '-self'">
-							<ListItem
-								v-for="(ing, index) in selfMadeIngredients"
-								:key="ing.id"
-								@click="navigateToDetail(ing.id)"
-								:vibrate-on-long-press="false"
-								:bleed="true"
-								:divider="index < selfMadeIngredients.length - 1"
-								:animate-on-mount="triggerListAnimation"
-								:animation-index="index"
-							>
-								<view class="main-info">
-									<view class="name">{{ ing.name }}</view>
-									<view class="desc">保质期: {{ ing.shelfLife > 0 ? ing.shelfLife + '小时' : '未设置' }}</view>
-								</view>
-								<view class="side-info">
-									<view class="value">
-										{{ formatWeight(ing.currentStockInGrams) }}
-									</view>
-									<view class="desc">当前库存</view>
-								</view>
-							</ListItem>
-						</view>
-						<view v-else class="empty-state">
-							<text>暂无自制原料</text>
-							<view class="empty-state-sub">请在“配方”中创建面种或馅料配方自动生成</view>
-						</view>
-					</template>
-
-					<template v-if="ingredientFilter === 'low'">
-						<view v-if="dataStore.ingredients.lowStockIngredients.length > 0" :key="listAnimationKey + '-low'">
-							<ListItem
-								v-for="(ing, index) in dataStore.ingredients.lowStockIngredients"
-								:key="ing.id"
-								@click="navigateToDetail(ing.id)"
-								@longpress="openIngredientActions(ing)"
-								:vibrate-on-long-press="canEdit"
-								:bleed="true"
-								:divider="index < dataStore.ingredients.lowStockIngredients.length - 1"
-								:animate-on-mount="triggerListAnimation"
-								:animation-index="index"
-							>
-								<view class="main-info">
-									<view class="name">{{ ing.name }}</view>
-									<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
-								</view>
-								<view class="side-info">
-									<view class="value-tag" :class="getStockStatusClass(ing.daysOfSupply)">
-										{{ getDaysOfSupplyText(ing.daysOfSupply) }}
-									</view>
-									<view class="desc">库存: {{ formatWeight(ing.currentStockInGrams) }}</view>
-								</view>
-							</ListItem>
-						</view>
-						<view v-else class="empty-state">
-							<text>暂无库存紧张的原料</text>
-						</view>
-					</template>
+							</template>
+						</ListItem>
+					</view>
+					<view v-else class="empty-state">
+						<text>暂无符合条件的原料</text>
+					</view>
 				</view>
 			</view>
 		</RefreshableLayout>
 
 		<ExpandingFab @click="openCreateIngredientModal" :visible="isFabVisible" />
-
 		<AppModal v-model:visible="showIngredientActionsModal" title="原料操作" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleDeleteIngredient" :bleed="true">
@@ -120,7 +90,6 @@
 				</ListItem>
 			</view>
 		</AppModal>
-
 		<AppModal v-model:visible="showDeleteIngredientConfirmModal" title="确认删除">
 			<view class="modal-prompt-text">确定要删除 “{{ selectedIngredient?.name }}” 吗？</view>
 			<view class="modal-warning-text">已被配方使用的原料将无法被删除。</view>
@@ -131,7 +100,6 @@
 				</AppButton>
 			</view>
 		</AppModal>
-
 		<AppModal v-model:visible="showCreateIngredientModal" title="新增原料">
 			<FormItem label="原料名称">
 				<input class="input-field" v-model="newIngredientForm.name" placeholder="输入原料名称" />
@@ -179,22 +147,22 @@ import AppButton from '@/components/AppButton.vue';
 import IconButton from '@/components/IconButton.vue';
 import FormItem from '@/components/FormItem.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
-import { formatWeight } from '@/utils/format';
+import { formatWeight, formatDuration } from '@/utils/format';
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
 const uiStore = useUiStore();
 
-const ingredientFilter = ref('all');
+const activeFilter = ref('standard');
+const ingredientFilterTabs = ref([
+	{ key: 'standard', label: '标准' },
+	{ key: 'self_made', label: '自制' },
+	{ key: 'all', label: '全部' }
+]);
+
 const isSubmitting = ref(false);
 const selectedIngredient = ref<Ingredient | null>(null);
-
-const ingredientFilterTabs = ref([
-	{ key: 'all', label: '全部' },
-	{ key: 'self_made', label: '自制' }, // [核心新增]
-	{ key: 'low', label: '库存紧张' }
-]);
 
 const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 const showIngredientActionsModal = ref(false);
@@ -209,6 +177,9 @@ const scrollThreshold = 5;
 const listAnimationKey = ref(Date.now());
 const triggerListAnimation = ref(false);
 const isFirstLoad = ref(true);
+
+const filterKeyword = ref('');
+const sortMode = ref<'name_asc' | 'stock_desc' | 'stock_asc'>('name_asc');
 
 const newIngredientForm = reactive<{
 	name: string;
@@ -228,9 +199,90 @@ const availableTypes = ref([
 	{ label: '非追踪原料 (水/冰等)', value: 'UNTRACKED' }
 ]);
 
-// [核心新增] 计算自制原料列表
-const selfMadeIngredients = computed(() => {
-	return dataStore.ingredients.allIngredients.filter((i) => i.type === 'SELF_MADE');
+const toggleSort = () => {
+	if (sortMode.value === 'name_asc') {
+		sortMode.value = 'stock_desc';
+		toastStore.show({ message: '按库存从高到低排序', type: 'success' });
+	} else if (sortMode.value === 'stock_desc') {
+		sortMode.value = 'stock_asc';
+		toastStore.show({ message: '按库存从低到高排序', type: 'success' });
+	} else {
+		sortMode.value = 'name_asc';
+		toastStore.show({ message: '按名称排序', type: 'success' });
+	}
+	triggerListAnimationWithKeyUpdate(true);
+};
+
+const currentSortLabel = computed(() => {
+	switch (sortMode.value) {
+		case 'stock_desc':
+			return '库存↓';
+		case 'stock_asc':
+			return '库存↑';
+		default:
+			return '名称';
+	}
+});
+
+const getRecipeIngredientCount = (ing: Ingredient) => {
+	const allRecipes = [...dataStore.recipes.preDoughs, ...dataStore.recipes.extras];
+	const family = allRecipes.find((r) => r.id === ing.recipeFamilyId) || allRecipes.find((r) => r.name === ing.name);
+	return family?.ingredientCount || 0;
+};
+
+const getExpiryText = (ing: Ingredient) => {
+	if (ing.currentStockInGrams <= 0) return '无库存';
+	if (!ing.shelfLife || ing.shelfLife <= 0) return '长期有效';
+
+	const productionTime = new Date(ing.updatedAt).getTime();
+	const expiryTime = productionTime + ing.shelfLife * 3600 * 1000;
+	const diff = expiryTime - Date.now();
+
+	if (diff <= 0) return '已过期';
+	return `有效期: ${formatDuration(diff)}`;
+};
+
+const getExpiryClass = (ing: Ingredient) => {
+	if (ing.currentStockInGrams <= 0) return '';
+	if (!ing.shelfLife || ing.shelfLife <= 0) return 'stock-safe';
+
+	const productionTime = new Date(ing.updatedAt).getTime();
+	const expiryTime = productionTime + ing.shelfLife * 3600 * 1000;
+	const diff = expiryTime - Date.now();
+
+	if (diff <= 0) return 'stock-danger';
+	if (diff < 24 * 3600 * 1000) return 'stock-warning';
+	return 'stock-safe';
+};
+
+const filteredIngredients = computed(() => {
+	let list = [...dataStore.ingredients.allIngredients];
+
+	if (activeFilter.value === 'standard') {
+		list = list.filter((i) => i.type === 'STANDARD' || i.type === 'NON_INVENTORIED' || i.type === 'UNTRACKED');
+	} else if (activeFilter.value === 'self_made') {
+		list = list.filter((i) => i.type === 'SELF_MADE');
+	}
+
+	if (filterKeyword.value) {
+		const kw = filterKeyword.value.toLowerCase();
+		list = list.filter((i) => {
+			const matchName = i.name.toLowerCase().includes(kw);
+			const matchBrand = i.activeSku?.brand?.toLowerCase().includes(kw);
+			return matchName || matchBrand;
+		});
+	}
+
+	return list.sort((a, b) => {
+		if (sortMode.value === 'name_asc') {
+			return a.name.localeCompare(b.name, 'zh-Hans-CN');
+		} else if (sortMode.value === 'stock_desc') {
+			return b.currentStockInGrams - a.currentStockInGrams;
+		} else if (sortMode.value === 'stock_asc') {
+			return a.currentStockInGrams - b.currentStockInGrams;
+		}
+		return 0;
+	});
 });
 
 const currentTypeLabel = computed(() => {
@@ -259,6 +311,9 @@ onShow(async () => {
 		await dataStore.fetchIngredientsData();
 		didFetch = true;
 	}
+	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
+		await dataStore.fetchRecipesData();
+	}
 
 	if (didFetch) {
 		if (isFirstLoad.value) {
@@ -275,7 +330,8 @@ onShow(async () => {
 const handleRefresh = async () => {
 	try {
 		dataStore.markIngredientsAsStale();
-		await dataStore.fetchIngredientsData();
+		dataStore.markRecipesAsStale();
+		await Promise.all([dataStore.fetchIngredientsData(), dataStore.fetchRecipesData()]);
 	} finally {
 		refreshableLayout.value?.finishRefresh();
 		setTimeout(() => {
@@ -309,27 +365,14 @@ const canEdit = computed(() => {
 const getIngredientTypeLabel = (type: Ingredient['type']) => {
 	switch (type) {
 		case 'UNTRACKED':
-			return '非追踪原料';
+			return '非追踪';
 		case 'NON_INVENTORIED':
 			return '即时采购';
 		case 'SELF_MADE':
-			return '自制原料';
+			return '自制';
 		default:
-			return '标准原料';
+			return '标准';
 	}
-};
-
-const getDaysOfSupplyText = (days: number) => {
-	if (!isFinite(days) || days > 365) return '充足';
-	if (days < 1 && days > 0) return '不足1天';
-	if (days <= 0) return '已用尽';
-	return `约剩 ${Math.floor(days)} 天`;
-};
-
-const getStockStatusClass = (days: number) => {
-	if (days <= 0) return 'stock-danger';
-	if (days < 7) return 'stock-warning';
-	return '';
 };
 
 const navigateToDetail = (ingredientId: string) => {
@@ -424,6 +467,7 @@ const handleCreateIngredient = async () => {
 @include list-item-content-style;
 @include list-item-option-style;
 @include form-control-styles;
+@include checkbox-style;
 
 .full-height-container {
 	height: 100%;
@@ -449,28 +493,107 @@ const handleCreateIngredient = async () => {
 	height: 24px;
 }
 
+/* [样式重构] 搜索和排序栏 - 风格更暖、更融合 */
+.search-sort-bar {
+	display: flex;
+	align-items: center;
+	padding: 0 15px 15px 15px;
+	gap: 12px;
+}
+
+.search-box {
+	flex: 1;
+	height: 38px;
+	background-color: #ffffff; /* 纯白背景 */
+	border: 1px solid #f3e9e3; /* 主题浅边框 (淡粉棕) */
+	border-radius: 19px; /* 半圆角 */
+	display: flex;
+	align-items: center;
+	padding: 0 12px;
+	box-sizing: border-box;
+	/* 阴影让它浮起一点，更精致 */
+	box-shadow: 0 2px 6px rgba(140, 90, 59, 0.05);
+}
+
+.search-icon {
+	width: 16px;
+	height: 16px;
+	margin-right: 8px;
+}
+
+.search-input {
+	flex: 1;
+	font-size: 13px;
+	color: var(--text-primary);
+	height: 100%;
+}
+
+.clear-btn {
+	width: 18px;
+	height: 18px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: #f3e9e3;
+	border-radius: 50%;
+	margin-left: 5px;
+}
+
+.clear-icon {
+	color: var(--text-secondary);
+	font-size: 12px;
+	line-height: 1;
+	margin-top: -2px;
+}
+
+.sort-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: #ffffff;
+	padding: 0 15px;
+	border-radius: 19px; /* 半圆角 */
+	border: 1px solid #f3e9e3;
+	height: 38px;
+	box-sizing: border-box;
+	min-width: 80px;
+	box-shadow: 0 2px 6px rgba(140, 90, 59, 0.05);
+	transition: background-color 0.2s;
+}
+
+.sort-btn:active {
+	background-color: #faf8f5;
+}
+
+.sort-icon {
+	width: 16px;
+	height: 16px;
+	margin-right: 4px;
+}
+
+.sort-label {
+	font-size: 13px;
+	color: var(--text-secondary); /* 使用次要文字颜色，更柔和 */
+	white-space: nowrap;
+	font-weight: 500;
+}
+
 .side-info .consumption {
 	margin-top: 2px;
 }
 
-.value-tag {
-	font-size: 12px;
-	font-weight: 500;
-	padding: 3px 8px;
-	border-radius: 6px;
+.stock-safe {
 	color: var(--text-secondary);
-	background-color: #f3f4f6;
-	display: inline-block;
 }
 
-.value-tag.stock-warning {
-	background-color: #fef3c7;
-	color: #92400e;
+.stock-warning {
+	color: #d97706; /* Amber-600 */
+	font-weight: 500;
 }
 
-.value-tag.stock-danger {
-	background-color: #fee2e2;
-	color: #991b1b;
+.stock-danger {
+	color: var(--danger-color);
+	font-weight: 500;
 }
 
 .form-row {
@@ -490,10 +613,10 @@ const handleCreateIngredient = async () => {
 	text-align: right;
 }
 
-/* [核心新增] 空状态下的辅助文本样式 */
 .empty-state-sub {
 	font-size: 13px;
 	color: var(--text-secondary);
 	margin-top: 5px;
 }
 </style>
+}

@@ -243,3 +243,16 @@ export const toDecimal = (percentageValue: number | null | undefined) => {
 	// [核心修改] 使用高精度乘法代替除法，彻底避免浮点数精度问题，无需四舍五入
 	return multiply(percentageValue, 0.01);
 };
+
+/**
+ * [核心新增] 格式化时长
+ * @param ms - 毫秒数
+ * @returns 格式化后的时长字符串
+ */
+export function formatDuration(ms: number): string {
+	if (ms <= 0) return '已过期';
+	const hours = Math.floor(ms / (1000 * 60 * 60));
+	if (hours < 24) return `${hours}小时`;
+	const days = Math.floor(hours / 24);
+	return `${days}天`;
+}
