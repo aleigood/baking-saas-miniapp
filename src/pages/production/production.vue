@@ -209,11 +209,11 @@ const triggerListAnimation = ref(false);
 const isFirstLoad = ref(true);
 
 const categoryMap: Record<string, string> = {
-	BREAD: '面包制作',
-	PASTRY: '西点制作',
-	DESSERT: '甜品制作',
-	DRINK: '饮品制作',
-	OTHER: '原料制作' // [核心新增] 增加自制原料的任务入口
+	BREAD: '制作面包',
+	PASTRY: '制作西点',
+	DESSERT: '制作甜品',
+	DRINK: '制作饮品',
+	OTHER: '制作原料' // [核心新增] 增加自制原料的任务入口
 };
 
 const isSingleCategory = computed(() => {

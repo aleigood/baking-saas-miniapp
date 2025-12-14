@@ -74,6 +74,9 @@
 										{{ selectedComponentDetails.category === 'BREAD' ? '面团总重' : '原料总重' }}:
 										{{ formatWeight(selectedComponentDetails.totalComponentWeight) }}
 									</text>
+									<text v-if="isSelfMadeComponent && selectedProductDetails" style="margin-left: 10px; font-weight: bold; color: var(--primary-color)">
+										(目标产出: {{ formatWeight(selectedProductDetails.baseComponent.quantity) }})
+									</text>
 								</view>
 								<view v-if="selectedComponentDetails.baseComponentProcedure.length > 0" class="procedure-notes">
 									<text class="notes-title">制作要点:</text>
@@ -83,100 +86,104 @@
 								</view>
 							</view>
 
-							<view class="group-title" @click="toggleCollapse('productSummary')">
-								<span>产品信息</span>
-								<span class="arrow" :class="{ collapsed: collapsedSections.has('productSummary') }">&#10095;</span>
-							</view>
-							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('productSummary') }">
-								<view class="product-tabs-container" v-if="productTabs.length > 0">
-									<FilterTabs v-model="selectedProductId" :tabs="productTabs" size="sm" align="center" />
+							<template v-if="!isSelfMadeComponent">
+								<view class="group-title" @click="toggleCollapse('productSummary')">
+									<span>{{ selectedComponentDetails.familyName }}产品</span>
+									<span class="arrow" :class="{ collapsed: collapsedSections.has('productSummary') }">&#10095;</span>
 								</view>
+								<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('productSummary') }">
+									<view class="product-tabs-container" v-if="productTabs.length > 0">
+										<FilterTabs v-model="selectedProductId" :tabs="productTabs" size="sm" align="center" />
+									</view>
 
-								<template v-if="selectedProductDetails">
-									<view class="smart-table">
-										<view class="table-header">
-											<text class="col-product-name">{{ isSelfMadeComponent ? '产品名称' : '基础原料' }}</text>
-											<text class="col-dough-weight">总重</text>
-											<text v-if="!isSelfMadeComponent" class="col-quantity">产品数量</text>
-											<text v-if="!isSelfMadeComponent" class="col-division-weight">分割重量</text>
-											<text v-if="isSelfMadeComponent" class="col-division-weight">目标产出</text>
+									<template v-if="selectedProductDetails">
+										<view class="smart-table">
+											<view class="table-header">
+												<text class="col-product-name">{{ isSelfMadeComponent ? '产品名称' : '基础原料' }}</text>
+												<text class="col-dough-weight">总重</text>
+												<text v-if="!isSelfMadeComponent" class="col-quantity">产品数量</text>
+												<text v-if="!isSelfMadeComponent" class="col-division-weight">分割重量</text>
+												<text v-if="isSelfMadeComponent" class="col-division-weight">目标产出</text>
+											</view>
+											<view class="info-row">
+												<text class="col-product-name">{{ selectedProductDetails.baseComponent.name }}</text>
+												<text class="col-dough-weight">{{ formatWeight(selectedProductDetails.baseComponent.totalBaseComponentWeight) }}</text>
+												<text v-if="!isSelfMadeComponent" class="col-quantity">{{ selectedProductDetails.baseComponent.quantity }}</text>
+												<text v-if="!isSelfMadeComponent" class="col-division-weight">
+													{{ formatWeight(selectedProductDetails.baseComponent.divisionWeight) }}
+												</text>
+												<text v-if="isSelfMadeComponent" class="col-division-weight">
+													{{ formatWeight(selectedProductDetails.baseComponent.quantity) }}
+												</text>
+											</view>
 										</view>
-										<view class="info-row">
-											<text class="col-product-name">{{ selectedProductDetails.baseComponent.name }}</text>
-											<text class="col-dough-weight">{{ formatWeight(selectedProductDetails.baseComponent.totalBaseComponentWeight) }}</text>
-											<text v-if="!isSelfMadeComponent" class="col-quantity">{{ selectedProductDetails.baseComponent.quantity }}</text>
-											<text v-if="!isSelfMadeComponent" class="col-division-weight">
-												{{ formatWeight(selectedProductDetails.baseComponent.divisionWeight) }}
+
+										<template
+											v-if="
+												selectedProductDetails.mixIns.length > 0 ||
+												selectedProductDetails.fillings.length > 0 ||
+												(selectedProductDetails.toppings && selectedProductDetails.toppings.length > 0)
+											"
+										>
+											<template v-if="selectedProductDetails.mixIns.length > 0">
+												<view class="smart-table detail-table">
+													<view class="table-header summary-header">
+														<text class="col-ingredient">辅料</text>
+														<text class="col-brand">品牌</text>
+														<text class="col-usage">总用量</text>
+													</view>
+													<view v-for="ing in selectedProductDetails.mixIns" :key="ing.id" class="table-row">
+														<text class="col-ingredient">{{ ing.name }}</text>
+														<text class="col-brand">{{ ing.brand || '-' }}</text>
+														<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+													</view>
+												</view>
+											</template>
+
+											<template v-if="selectedProductDetails.fillings.length > 0">
+												<view class="smart-table detail-table">
+													<view class="table-header summary-header">
+														<text class="col-ingredient">馅料</text>
+														<text class="col-brand">品牌</text>
+														<text class="col-per-unit">单个用量</text>
+														<text class="col-usage">总用量</text>
+													</view>
+													<view v-for="ing in selectedProductDetails.fillings" :key="ing.id" class="table-row">
+														<text class="col-ingredient">{{ ing.name }}</text>
+														<text class="col-brand">{{ ing.brand || '-' }}</text>
+														<text class="col-per-unit">{{ formatWeight(ing.weightPerUnit) }}</text>
+														<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+													</view>
+												</view>
+											</template>
+
+											<template v-if="selectedProductDetails.toppings && selectedProductDetails.toppings.length > 0">
+												<view class="smart-table detail-table">
+													<view class="table-header summary-header">
+														<text class="col-ingredient">表面装饰</text>
+														<text class="col-brand">品牌</text>
+														<text class="col-per-unit">单个用量</text>
+														<text class="col-usage">总用量</text>
+													</view>
+													<view v-for="ing in selectedProductDetails.toppings" :key="ing.id" class="table-row">
+														<text class="col-ingredient">{{ ing.name }}</text>
+														<text class="col-brand">{{ ing.brand || '-' }}</text>
+														<text class="col-per-unit">{{ formatWeight(ing.weightPerUnit) }}</text>
+														<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+													</view>
+												</view>
+											</template>
+										</template>
+
+										<view v-if="selectedProductDetails.procedure.length > 0" class="procedure-notes">
+											<text class="notes-title">制作要点:</text>
+											<text v-for="(step, stepIndex) in selectedProductDetails.procedure" :key="stepIndex" class="note-item">
+												{{ stepIndex + 1 }}. {{ step }}
 											</text>
-											<text v-if="isSelfMadeComponent" class="col-division-weight">{{ formatWeight(selectedProductDetails.baseComponent.quantity) }}</text>
 										</view>
-									</view>
-
-									<template
-										v-if="
-											selectedProductDetails.mixIns.length > 0 ||
-											selectedProductDetails.fillings.length > 0 ||
-											(selectedProductDetails.toppings && selectedProductDetails.toppings.length > 0)
-										"
-									>
-										<template v-if="selectedProductDetails.mixIns.length > 0">
-											<view class="smart-table detail-table">
-												<view class="table-header summary-header">
-													<text class="col-ingredient">辅料</text>
-													<text class="col-brand">品牌</text>
-													<text class="col-usage">总用量</text>
-												</view>
-												<view v-for="ing in selectedProductDetails.mixIns" :key="ing.id" class="table-row">
-													<text class="col-ingredient">{{ ing.name }}</text>
-													<text class="col-brand">{{ ing.brand || '-' }}</text>
-													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-												</view>
-											</view>
-										</template>
-
-										<template v-if="selectedProductDetails.fillings.length > 0">
-											<view class="smart-table detail-table">
-												<view class="table-header summary-header">
-													<text class="col-ingredient">馅料</text>
-													<text class="col-brand">品牌</text>
-													<text class="col-per-unit">单个用量</text>
-													<text class="col-usage">总用量</text>
-												</view>
-												<view v-for="ing in selectedProductDetails.fillings" :key="ing.id" class="table-row">
-													<text class="col-ingredient">{{ ing.name }}</text>
-													<text class="col-brand">{{ ing.brand || '-' }}</text>
-													<text class="col-per-unit">{{ formatWeight(ing.weightPerUnit) }}</text>
-													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-												</view>
-											</view>
-										</template>
-
-										<template v-if="selectedProductDetails.toppings && selectedProductDetails.toppings.length > 0">
-											<view class="smart-table detail-table">
-												<view class="table-header summary-header">
-													<text class="col-ingredient">表面装饰</text>
-													<text class="col-brand">品牌</text>
-													<text class="col-per-unit">单个用量</text>
-													<text class="col-usage">总用量</text>
-												</view>
-												<view v-for="ing in selectedProductDetails.toppings" :key="ing.id" class="table-row">
-													<text class="col-ingredient">{{ ing.name }}</text>
-													<text class="col-brand">{{ ing.brand || '-' }}</text>
-													<text class="col-per-unit">{{ formatWeight(ing.weightPerUnit) }}</text>
-													<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-												</view>
-											</view>
-										</template>
 									</template>
-
-									<view v-if="selectedProductDetails.procedure.length > 0" class="procedure-notes">
-										<text class="notes-title">制作要点:</text>
-										<text v-for="(step, stepIndex) in selectedProductDetails.procedure" :key="stepIndex" class="note-item">
-											{{ stepIndex + 1 }}. {{ step }}
-										</text>
-									</view>
-								</template>
-							</view>
+								</view>
+							</template>
 						</view>
 					</template>
 

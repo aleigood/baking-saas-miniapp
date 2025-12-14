@@ -92,7 +92,7 @@
 										</view>
 									</view>
 
-									<FormItem label="面种中面粉占总面粉的百分比 (%)">
+									<FormItem label="面种中面粉的比例 (%)">
 										<input
 											class="input-field"
 											type="digit"
@@ -384,7 +384,7 @@
 					</view>
 				</picker>
 			</FormItem>
-			<FormItem label="面种中面粉占总面粉的百分比 (%)">
+			<FormItem label="面种中面粉的比例 (%)">
 				<input class="input-field" type="digit" v-model="preDoughFlourRatio" placeholder="例如：20" />
 			</FormItem>
 			<view class="modal-actions">
@@ -1411,8 +1411,8 @@ const hasPreDough = computed(() => {
 .sub-group-title {
 	font-size: 14px;
 	font-weight: 500;
-	color: var(--text-primary);
-	margin-bottom: 15px;
+	color: #606266;
+	margin-bottom: 8px;
 	padding: 0px 5px;
 }
 
