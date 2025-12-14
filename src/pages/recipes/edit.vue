@@ -79,10 +79,14 @@
 
 					<template v-if="form.category === 'BREAD'">
 						<view>
+							<view class="group-title" v-if="!hasPreDough">
+								<span>面种</span>
+							</view>
+
 							<template v-for="(component, componentIndex) in form.components" :key="component.id">
 								<view class="inner-section" v-if="component.type === 'PRE_DOUGH'">
-									<view class="inner-header">
-										<span class="inner-title">{{ component.name }}</span>
+									<view class="group-title">
+										<span>{{ component.name }}</span>
 										<view class="delete-btn" @click="removeComponent(componentIndex)">
 											<image class="remove-icon" src="/static/icons/close-x.svg" />
 										</view>
@@ -123,7 +127,9 @@
 						</view>
 					</template>
 					<view>
-						<view class="inner-section-title">{{ mainComponentTitle }}</view>
+						<view class="group-title">
+							<span>{{ mainComponentTitle }}</span>
+						</view>
 
 						<view class="ingredient-header">
 							<text class="col-name">原料名称</text>
@@ -1297,6 +1303,11 @@ const handleSubmit = async () => {
 		isSubmitting.value = false;
 	}
 };
+
+// [新增] 计算属性：判断是否存在面种组件
+const hasPreDough = computed(() => {
+	return form.value.components?.some((c) => c.type === 'PRE_DOUGH');
+});
 </script>
 
 <style scoped lang="scss">
@@ -1402,6 +1413,7 @@ const handleSubmit = async () => {
 	font-weight: 500;
 	color: var(--text-primary);
 	margin-bottom: 15px;
+	padding: 0px 5px;
 }
 
 .procedure-notes {
@@ -1414,6 +1426,7 @@ const handleSubmit = async () => {
 		display: block;
 		margin-bottom: 15px;
 		font-size: 14px;
+		padding: 0px 5px;
 		color: #606266;
 	}
 
@@ -1494,19 +1507,22 @@ const handleSubmit = async () => {
 	color: var(--primary-color);
 }
 
-/* [UI优化] 内部区域头部 */
-.inner-header {
+/* [UI优化] 组标题样式 */
+.group-title {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: 15px;
-}
-
-.inner-title {
-	font-size: 15px;
-	font-weight: 500;
+	font-size: 16px;
+	font-weight: bold;
 	color: var(--text-primary);
-	flex: 1;
+	border: none;
+	margin-top: 30px;
+	position: relative;
+	background-color: #faf8f5;
+	padding: 10px 15px;
+	border-radius: 12px;
+	/* [修改] 增加底部间距，避免与下方内容紧贴 */
+	margin-bottom: 25px;
 }
 
 /* [UI优化] 只读表格样式 */
@@ -1520,7 +1536,8 @@ const handleSubmit = async () => {
 
 	.col-ratio {
 		width: 80px;
-		text-align: center;
+		text-align: right; /* 1. 改为右对齐 */
+		padding-right: 5px; /* 2. (可选) 增加一点右侧间距，避免紧贴边缘 */
 		color: var(--text-secondary);
 	}
 }
@@ -1528,7 +1545,12 @@ const handleSubmit = async () => {
 .ingredient-name-wrapper {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	/* gap: 6px; // 既然不起作用，可以删掉或注释掉 */
+
+	/* 只修改当前容器内部的 .mini-tag，不会影响全局 */
+	.mini-tag {
+		margin-left: 6px; /* 您可以在这里随意调整间距大小 */
+	}
 }
 
 .delete-btn {

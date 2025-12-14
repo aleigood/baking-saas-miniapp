@@ -334,9 +334,8 @@ watch(
 	justify-content: space-between;
 	align-items: center;
 	padding: 18px 10px;
-	background-color: #faf8f5;
 	border-radius: 12px;
-	margin-bottom: 25px;
+	margin-bottom: 15px;
 	border: none;
 }
 
