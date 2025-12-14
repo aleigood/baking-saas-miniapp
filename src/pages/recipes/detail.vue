@@ -15,7 +15,7 @@
 				/>
 
 				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" @show-popover="handleShowPopover" />
-				<SimpleRecipeDetail v-else :version="displayedVersion" @show-popover="handleShowPopover" />
+				<SimpleRecipeDetail v-else :version="displayedVersion" :shelf-life="recipeFamily.outputIngredient?.shelfLife || 0" @show-popover="handleShowPopover" />
 			</view>
 			<view class="loading-spinner" v-else>
 				<text>加载中...</text>

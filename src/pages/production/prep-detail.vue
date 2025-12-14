@@ -269,7 +269,7 @@ const filterTabs = computed(() => {
 		tabs.push({ key: 'PRE_DOUGH', label: '面种' });
 	}
 	if (extraItems.value.length > 0) {
-		tabs.push({ key: 'EXTRA', label: '馅料' });
+		tabs.push({ key: 'EXTRA', label: '自制原料' }); // [修改]
 	}
 	tabs.push({ key: 'BILL_OF_MATERIALS', label: '备料清单' });
 	return tabs;

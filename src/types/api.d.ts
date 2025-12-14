@@ -1,7 +1,3 @@
-// G-Code-Note: Client (Vue)
-// 路径: src/types/api.d.ts
-// [核心重构] 完整文件，更新 Ingredient 类型以支持自制原料和配方关联
-
 // [核心新增] 定义批量导入结果的类型
 export interface BatchImportResult {
 	totalCount: number;
@@ -253,6 +249,11 @@ export interface RecipeVersion {
 		name: string;
 		ingredients: ComponentIngredient[]; // [G-Code-Note] ComponentIngredient 类型被修改
 		procedure: string[];
+		// [核心新增] 补充详细信息字段，与服务端返回值对应
+		targetTemp?: number;
+		lossRatio?: number;
+		divisionLoss?: number;
+		customWaterContent?: number;
 		_count: {
 			ingredients: number;
 		};

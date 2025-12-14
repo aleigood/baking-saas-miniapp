@@ -5,6 +5,28 @@
 		</view>
 
 		<view class="card" v-if="selectedProduct && recipeDetails">
+			<view class="meta-grid-container">
+				<view class="meta-item" v-if="targetTempDisplay">
+					<view class="label">出缸温度</view>
+					<view class="value">{{ targetTempDisplay }}°C</view>
+				</view>
+				<view class="meta-divider" v-if="targetTempDisplay"></view>
+				<view class="meta-item">
+					<view class="label">含水量</view>
+					<view class="value">{{ calculatedWaterContent }}%</view>
+				</view>
+				<view class="meta-divider"></view>
+				<view class="meta-item">
+					<view class="label">工艺损耗</view>
+					<view class="value">{{ lossRatioDisplay }}</view>
+				</view>
+				<view class="meta-divider"></view>
+				<view class="meta-item">
+					<view class="label">分割损耗</view>
+					<view class="value">{{ divisionLossDisplay }}g</view>
+				</view>
+			</view>
+
 			<view class="data-analysis-section">
 				<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
 				<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
@@ -113,7 +135,6 @@ import LineChart from '@/components/LineChart.vue';
 import PieChart from '@/components/PieChart.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import AnimatedTabs from '@/components/AnimatedTabs.vue';
-// [核心修改] 引入 formatMoney
 import { formatNumber, formatWeight, toPercentage, formatMoney } from '@/utils/format';
 
 const instance = getCurrentInstance();
@@ -156,8 +177,54 @@ const chartTabs = ref([
 	}
 ]);
 
+const targetTempDisplay = computed(() => {
+	if (!props.version || !props.version.components[0]) return null;
+	return props.version.components[0].targetTemp || null;
+});
+
+const lossRatioDisplay = computed(() => {
+	if (!props.version || !props.version.components[0]) return '0%';
+	const loss = props.version.components[0].lossRatio || 0;
+	return toPercentage(loss) + '%';
+});
+
+const divisionLossDisplay = computed(() => {
+	if (!props.version || !props.version.components[0]) return '0';
+	return props.version.components[0].divisionLoss || 0;
+});
+
+const calculatedWaterContent = computed(() => {
+	if (!props.version || !props.version.components[0]) return '0';
+	const component = props.version.components[0];
+
+	if (component.customWaterContent != null && component.customWaterContent !== undefined) {
+		return component.customWaterContent;
+	}
+
+	if (!component.ingredients || component.ingredients.length === 0) return '0';
+
+	let totalWaterRatio = 0;
+
+	component.ingredients.forEach((ing) => {
+		const ratio = Number(ing.ratio || 0);
+		if (ratio <= 0) return;
+
+		let waterContent = 0;
+		if (ing.ingredient) {
+			if (ing.ingredient.name === '水') {
+				waterContent = 1;
+			} else {
+				waterContent = ing.ingredient.waterContent || 0;
+			}
+		}
+
+		totalWaterRatio += ratio * waterContent;
+	});
+
+	return (totalWaterRatio * 100).toFixed(1);
+});
+
 const productTabsForFilter = computed(() => {
-	// [核心修复] 移除 @ts-ignore，添加类型守卫
 	if (!props.version || !props.version.products) return [];
 
 	return props.version.products.map((p) => ({
@@ -168,7 +235,6 @@ const productTabsForFilter = computed(() => {
 
 const selectedProduct = computed(() => {
 	if (!props.version || !selectedProductId.value) return null;
-	// [核心修复] 移除 @ts-ignore，添加类型守卫
 	if (!props.version.products) return null;
 
 	return props.version.products.find((p) => p.id === selectedProductId.value);
@@ -263,6 +329,46 @@ watch(
 @import '@/styles/common.scss';
 @include table-layout;
 
+.meta-grid-container {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 18px 10px;
+	background-color: #faf8f5;
+	border-radius: 12px;
+	margin-bottom: 25px;
+	border: none;
+}
+
+.meta-item {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+}
+
+.meta-divider {
+	width: 1px;
+	height: 24px;
+	background-color: #e6dccd;
+	opacity: 0.6;
+}
+
+.meta-item .label {
+	font-size: 13px;
+	color: var(--text-secondary);
+	font-weight: 400;
+}
+
+.meta-item .value {
+	font-size: 16px; /* 统一字号 */
+	font-weight: 600;
+	color: var(--primary-color);
+	font-family: -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+	letter-spacing: -0.5px;
+}
+
 .ingredient-name-cell {
 	display: flex;
 	justify-content: space-between;
@@ -328,6 +434,12 @@ watch(
 	background-color: #faf8f5;
 	padding: 10px 15px;
 	border-radius: 12px;
+	/* 添加点击反馈 */
+	transition: background-color 0.2s;
+}
+
+.group-title:active {
+	background-color: #f0ebe5;
 }
 
 .arrow {
@@ -335,6 +447,7 @@ watch(
 	color: var(--text-secondary);
 	transform: rotate(90deg);
 	transition: transform 0.3s ease;
+	padding: 5px;
 }
 
 .arrow.collapsed {

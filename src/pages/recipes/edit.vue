@@ -5,9 +5,13 @@
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab">
 				<view class="card">
+					<view class="card-title-wrapper" style="margin-bottom: 15px">
+						<span class="card-title">基础信息</span>
+					</view>
 					<FormItem label="配方名称">
 						<input class="input-field" v-model="form.name" :placeholder="namePlaceholder" :disabled="isEditing" :class="{ 'is-disabled': isEditing }" />
 					</FormItem>
+
 					<FormItem v-if="form.type === 'MAIN'" label="配方品类">
 						<picker mode="selector" :range="recipeCategories" range-key="label" @change="onCategoryChange" :disabled="isEditing">
 							<view class="picker" :class="{ 'is-disabled': isEditing }">
@@ -16,6 +20,7 @@
 							</view>
 						</picker>
 					</FormItem>
+
 					<FormItem v-if="form.type !== 'MAIN'" label="配方类型">
 						<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange" :disabled="isEditing">
 							<view class="picker" :class="{ 'is-disabled': isEditing }">
@@ -25,91 +30,160 @@
 						</picker>
 					</FormItem>
 
-					<FormItem v-if="form.type !== 'MAIN'" label="保质期 (小时)">
-						<input class="input-field" type="number" v-model="form.shelfLife" placeholder="例如：24 (0表示长期)" />
-					</FormItem>
-
 					<FormItem v-if="isEditing" label="版本说明">
 						<input class="input-field" v-model="form.notes" placeholder="例如：夏季版本，减少水量" />
 					</FormItem>
 				</view>
 
-				<template v-if="form.type === 'MAIN' && form.category === 'BREAD'">
-					<template v-for="(component, componentIndex) in form.components" :key="component.id">
-						<view class="card" v-if="component.type === 'PRE_DOUGH'">
-							<view class="card-title-wrapper">
-								<span class="card-title">{{ component.name }}</span>
-								<view class="card-delete-btn-wrapper">
-									<IconButton @click="removeComponent(componentIndex)">
-										<image class="remove-icon" src="/static/icons/close-x.svg" />
-									</IconButton>
-								</view>
-							</view>
-
-							<FormItem label="面种中面粉占总面粉的百分比 (%)">
-								<input
-									class="input-field"
-									type="digit"
-									v-model="component.flourRatioInMainDough"
-									@input="handlePreDoughRatioChange(component)"
-									placeholder="例如: 20"
-								/>
-							</FormItem>
-
-							<view class="ingredient-header">
-								<text class="col-name">原料</text>
-								<text class="col-ratio">比例 %</text>
-							</view>
-
-							<view v-for="ing in component.ingredients" :key="ing.name" class="ingredient-row">
-								<view class="autocomplete-input-wrapper">
-									<AutocompleteInput :modelValue="ing.name" disabled :tags="getIngredientTags(ing)" />
-								</view>
-
-								<input class="input-field ratio-input is-disabled" :value="formatNumber(ing.ratio)" disabled />
-							</view>
-
-							<view v-if="component.procedure && component.procedure.length > 0" class="procedure-notes-read-only">
-								<text class="notes-title">制作要点:</text>
-								<text v-for="(step, stepIndex) in component.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
-							</view>
-						</view>
-					</template>
-					<view class="add-button-container">
-						<AppButton type="dashed" full-width size="md" @click="openAddPreDoughModal">+ 添加面种</AppButton>
+				<view class="card" v-if="form.type === 'MAIN'">
+					<view class="card-title-wrapper" style="margin-bottom: 15px">
+						<span class="card-title">工艺参数</span>
 					</view>
-				</template>
-
-				<view class="card">
-					<view class="card-title-wrapper">
-						<span class="card-title">{{ mainComponentTitle }}</span>
-					</view>
-
-					<template v-if="form.type !== 'MAIN'">
-						<FormItem label="整体含水量 (%)">
-							<input
-								class="input-field"
-								type="digit"
-								:value="waterContentInputValue"
-								@input="onCustomWaterContentInput"
-								@blur="onCustomWaterContentBlur"
-								:placeholder="waterContentPlaceholder"
-							/>
-						</FormItem>
-					</template>
-
 					<FormItem v-if="form.category === 'BREAD'" label="面团出缸温度 (°C)">
 						<input class="input-field" type="digit" v-model="form.targetTemp" placeholder="例如: 26" />
 					</FormItem>
 					<FormItem label="工艺损耗率 (%)">
 						<input class="input-field" type="digit" v-model="mainComponent.lossRatio" placeholder="例如: 1" />
 					</FormItem>
-					<FormItem v-if="form.type === 'MAIN'" label="分割定额损耗 (g)">
+					<FormItem label="分割定额损耗 (g)">
 						<input class="input-field" type="digit" v-model="mainComponent.divisionLoss" placeholder="例如: 2" />
 					</FormItem>
+				</view>
+
+				<view class="card" v-if="form.type !== 'MAIN'">
+					<view class="card-title-wrapper" style="margin-bottom: 15px">
+						<span class="card-title">工艺参数</span>
+					</view>
+					<FormItem label="保质期 (小时)">
+						<input class="input-field" type="number" v-model="form.shelfLife" placeholder="例如：24 (0表示长期)" />
+					</FormItem>
+					<FormItem label="整体含水量 (%)">
+						<input
+							class="input-field"
+							type="digit"
+							:value="waterContentInputValue"
+							@input="onCustomWaterContentInput"
+							@blur="onCustomWaterContentBlur"
+							:placeholder="waterContentPlaceholder"
+						/>
+					</FormItem>
+					<FormItem label="工艺损耗率 (%)">
+						<input class="input-field" type="digit" v-model="mainComponent.lossRatio" placeholder="例如: 1" />
+					</FormItem>
+				</view>
+
+				<view class="card" v-if="form.type === 'MAIN'">
+					<view class="card-title-wrapper">
+						<span class="card-title">配方详情</span>
+					</view>
+
+					<template v-if="form.category === 'BREAD'">
+						<view>
+							<template v-for="(component, componentIndex) in form.components" :key="component.id">
+								<view class="inner-section" v-if="component.type === 'PRE_DOUGH'">
+									<view class="inner-header">
+										<span class="inner-title">{{ component.name }}</span>
+										<view class="delete-btn" @click="removeComponent(componentIndex)">
+											<image class="remove-icon" src="/static/icons/close-x.svg" />
+										</view>
+									</view>
+
+									<FormItem label="面种中面粉占总面粉的百分比 (%)">
+										<input
+											class="input-field"
+											type="digit"
+											v-model="component.flourRatioInMainDough"
+											@input="handlePreDoughRatioChange(component)"
+											placeholder="例如: 20"
+										/>
+									</FormItem>
+
+									<view class="smart-table read-only-table">
+										<view class="table-header">
+											<text class="col-name">原料名称</text>
+											<text class="col-ratio">比例</text>
+										</view>
+										<view v-for="ing in component.ingredients" :key="ing.name" class="table-row">
+											<view class="col-name ingredient-name-wrapper">
+												<text>{{ ing.name }}</text>
+												<text v-if="ing.isFlour" class="mini-tag flour-tag">面粉</text>
+											</view>
+											<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
+										</view>
+									</view>
+
+									<view v-if="component.procedure && component.procedure.length > 0" class="procedure-notes-read-only">
+										<text class="notes-title">制作要点</text>
+										<text v-for="(step, stepIndex) in component.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+									</view>
+								</view>
+							</template>
+
+							<AppButton type="dashed" full-width size="md" @click="openAddPreDoughModal">+ 添加面种</AppButton>
+						</view>
+					</template>
+					<view>
+						<view class="inner-section-title">{{ mainComponentTitle }}</view>
+
+						<view class="ingredient-header">
+							<text class="col-name">原料名称</text>
+							<text class="col-ratio">比例%</text>
+							<text class="col-action"></text>
+						</view>
+						<view v-for="(ing, ingIndex) in mainComponent.ingredients" :key="ingIndex" class="ingredient-row">
+							<view class="autocomplete-input-wrapper">
+								<AutocompleteInput
+									v-model="ing.name"
+									:items="availableMainDoughIngredients"
+									placeholder="输入或选择原料"
+									@select="onIngredientSelect($event, ingIndex)"
+									@blur="handleIngredientBlur(ing, availableMainDoughIngredients)"
+									:tags="getIngredientTags(ing, true)"
+									:creationOptions="showFlourCheckbox ? [{ label: '新建面粉', payload: { isFlour: true } }] : []"
+								>
+									<template #item="{ item }">
+										<view class="suggestion-row-wrapper">
+											<view class="suggestion-name-text">{{ item.name }}</view>
+											<view class="suggestion-tags-wrapper">
+												<text v-if="item.isFlour" class="mini-tag flour-tag">面粉</text>
+												<text v-if="item.isRecipe" class="mini-tag recipe-tag">自制</text>
+											</view>
+										</view>
+									</template>
+								</AutocompleteInput>
+							</view>
+							<template v-if="ing.recipeType === 'PRE_DOUGH'">
+								<input class="input-field ratio-input" type="digit" v-model="ing.flourRatio" placeholder="面粉%" />
+							</template>
+							<template v-else>
+								<input class="input-field ratio-input" type="digit" v-model="ing.ratio" placeholder="%" />
+							</template>
+							<IconButton variant="field" @click="removeIngredient(ingIndex)">
+								<image class="remove-icon" src="/static/icons/trash.svg" />
+							</IconButton>
+						</view>
+						<AppButton type="dashed" full-width size="md" @click="addIngredient" class="add-button">+ 添加原料</AppButton>
+					</view>
+					<view class="procedure-notes">
+						<text class="notes-title">制作要点</text>
+						<view v-for="(step, stepIndex) in mainComponent.procedure" :key="stepIndex" class="procedure-item">
+							<input class="input-field" v-model="mainComponent.procedure[stepIndex]" placeholder="输入制作步骤" />
+							<IconButton variant="field" @click="removeProcedureStep(mainComponent, stepIndex)">
+								<image class="remove-icon" src="/static/icons/trash.svg" />
+							</IconButton>
+						</view>
+						<AppButton type="dashed" full-width size="md" @click="addProcedureStep(mainComponent)">+ 添加制作要点</AppButton>
+					</view>
+				</view>
+
+				<view class="card" v-if="form.type !== 'MAIN'">
+					<view class="card-title-wrapper">
+						<span class="card-title">配方详情</span>
+					</view>
+
 					<view class="ingredient-header">
 						<text class="col-name">原料名称</text>
-						<text class="col-ratio">{{ form.type === 'PRE_DOUGH' ? '比例%' : '比例%' }}</text>
+						<text class="col-ratio">比例%</text>
 						<text class="col-action"></text>
 					</view>
 					<view v-for="(ing, ingIndex) in mainComponent.ingredients" :key="ingIndex" class="ingredient-row">
@@ -147,14 +221,14 @@
 					<AppButton type="dashed" full-width size="md" @click="addIngredient" class="add-button">+ 添加原料</AppButton>
 
 					<view class="procedure-notes">
-						<text class="notes-title">制作要点:</text>
+						<text class="notes-title">制作要点</text>
 						<view v-for="(step, stepIndex) in mainComponent.procedure" :key="stepIndex" class="procedure-item">
 							<input class="input-field" v-model="mainComponent.procedure[stepIndex]" placeholder="输入制作步骤" />
 							<IconButton variant="field" @click="removeProcedureStep(mainComponent, stepIndex)">
 								<image class="remove-icon" src="/static/icons/trash.svg" />
 							</IconButton>
 						</view>
-						<AppButton type="dashed" full-width size="md" @click="addProcedureStep(mainComponent)">+ 添加要点</AppButton>
+						<AppButton type="dashed" full-width size="md" @click="addProcedureStep(mainComponent)">+ 添加制作要点</AppButton>
 					</view>
 				</view>
 
@@ -274,14 +348,14 @@
 							</view>
 
 							<view class="procedure-notes">
-								<text class="notes-title">制作要点:</text>
+								<text class="notes-title">制作要点</text>
 								<view v-for="(step, stepIndex) in product.procedure" :key="stepIndex" class="procedure-item">
 									<input class="input-field" v-model="product.procedure[stepIndex]" placeholder="输入制作步骤" />
 									<IconButton variant="field" @click="removeProcedureStep(product, stepIndex)">
 										<image class="remove-icon" src="/static/icons/trash.svg" />
 									</IconButton>
 								</view>
-								<AppButton type="dashed" full-width size="md" @click="addProcedureStep(product)">+ 添加要点</AppButton>
+								<AppButton type="dashed" full-width size="md" @click="addProcedureStep(product)">+ 添加制作要点</AppButton>
 							</view>
 						</view>
 					</view>
@@ -398,7 +472,6 @@ const form = ref<
 		products?: RecipeFormProduct[];
 		components: EnhancedComponent[];
 		customWaterContent?: number | null;
-		// [核心新增] 保质期字段
 		shelfLife?: number | null;
 	}
 >({
@@ -408,7 +481,7 @@ const form = ref<
 	notes: '',
 	targetTemp: null,
 	customWaterContent: null,
-	shelfLife: null, // [核心新增]
+	shelfLife: null,
 	components: [
 		{
 			id: `main_${Date.now()}`,
@@ -607,9 +680,7 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 	return Array.from(ingredientMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 });
 
-// 🟢 [核心逻辑] 计算预览含水量
 const calculatedWaterContentPreview = computed(() => {
-	// 如果是主配方，通常不需要这个预览
 	if (form.value.type === 'MAIN') return 0;
 
 	const component = mainComponent.value;
@@ -640,22 +711,17 @@ const calculatedWaterContentPreview = computed(() => {
 	return ((totalWaterUnits / totalUnits) * 100).toFixed(1);
 });
 
-// 🟢 [核心新增] 定义输入框的本地显示值和手动清空标记
 const waterContentInputValue = ref<string | number>('');
 const isManuallyCleared = ref(false);
 
-// 🟢 [核心新增] 计算占位文本
 const waterContentPlaceholder = computed(() => {
 	const val = Number(calculatedWaterContentPreview.value);
 	return val > 0 ? `${val}` : '0';
 });
 
-// 🟢 [核心新增] 同步逻辑：监听数据变化，更新输入框显示
-// 这个 watcher 负责实现“默认填充”但“允许清空”的逻辑
 watch(
 	[() => form.value.customWaterContent, calculatedWaterContentPreview],
 	([newCustom, newAuto]) => {
-		// 如果用户已经手动清空，保持输入框为空
 		if (isManuallyCleared.value) {
 			if (waterContentInputValue.value !== '') {
 				waterContentInputValue.value = '';
@@ -663,7 +729,6 @@ watch(
 			return;
 		}
 
-		// 如果数据库中有明确的覆盖值，显示它
 		if (newCustom !== null && newCustom !== undefined) {
 			if (waterContentInputValue.value !== newCustom) {
 				waterContentInputValue.value = newCustom;
@@ -671,10 +736,7 @@ watch(
 			return;
 		}
 
-		// 默认情况：数据库为 null (自动模式)，且用户未手动清空
 		const autoVal = Number(newAuto);
-
-		// 这里改为：只要不是 NaN 就填充，允许 0
 		const newVal = !isNaN(autoVal) ? autoVal : '';
 
 		if (waterContentInputValue.value !== newVal) {
@@ -684,17 +746,14 @@ watch(
 	{ immediate: true }
 );
 
-// 输入事件处理
 const onCustomWaterContentInput = (e: any) => {
 	const val = e.detail.value;
 	waterContentInputValue.value = val;
 
 	if (val === '') {
-		// 用户清空了 -> 标记为手动清空，设置 model 为 null
 		isManuallyCleared.value = true;
 		form.value.customWaterContent = null;
 	} else {
-		// 用户输入了值 -> 取消手动清空标记，设置 model 为数字
 		isManuallyCleared.value = false;
 		const numVal = Number(val);
 		form.value.customWaterContent = isNaN(numVal) ? null : numVal;
@@ -705,8 +764,6 @@ const onCustomWaterContentBlur = (e: any) => {
 	const val = Number(e.detail.value);
 	const autoVal = Number(calculatedWaterContentPreview.value);
 
-	// [核心修复] 移除 "&& val !== 0"
-	// 如果自动计算是 0，用户输入 0，也应该被视为“自动模式”（customWaterContent = null）
 	if (Math.abs(val - autoVal) < 0.1) {
 		isManuallyCleared.value = false;
 		form.value.customWaterContent = null;
@@ -731,7 +788,7 @@ const waterTagTargetName = computed(() => {
 	if (explicitWater) return '水';
 
 	let maxContribution = 0;
-	let targetName: string | null = null; // [Core Fix] Initialize as null
+	let targetName: string | null = null;
 
 	ingredients.forEach((ing) => {
 		if (ing.name && ing.ratio && ing.waterContent > 0) {
@@ -753,26 +810,21 @@ const manualWaterRatio = computed(() => {
 	return Number(targetIngredient?.ratio || 0);
 });
 
-// [核心修改] 显式水的比例
 const explicitWaterRatio = computed(() => {
 	const ingredients = mainComponent.value.ingredients;
 	const waterIng = ingredients.find((i) => i.name === '水');
 	return waterIng ? Number(waterIng.ratio || 0) : 0;
 });
 
-// [核心修改] 显示总水标签的逻辑
 const showTotalWaterTag = computed(() => {
-	// 条件1: 只有 主配方(MAIN) 且是 面包(BREAD) 才显示
 	if (form.value.type !== 'MAIN' || form.value.category !== 'BREAD') {
 		return false;
 	}
 
-	// 如果计算出的总水是 0，没必要显示
 	if (totalCalculatedWaterRatio.value <= 0) return false;
 
-	// 条件2: 只有当 [计算总水] 与 [直接添加的水] 不一致时才显示
 	const diff = Math.abs(totalCalculatedWaterRatio.value - explicitWaterRatio.value);
-	return diff > 0.1; // 使用 0.1 容差避免浮点数计算误差
+	return diff > 0.1;
 });
 
 const formatWaterRatio = (ratio: number): string => {
@@ -790,7 +842,6 @@ const getIngredientTags = (ing: MainIngredient | SubIngredientWeight | SubIngred
 		tags.push({ text: '自制', style: { backgroundColor: '#faedcd', color: 'var(--primary-color)' } });
 	}
 
-	// [Core Fix] Add check for waterTagTargetName.value (ensuring it's not null) and ing.name
 	if (isMainDough && waterTagTargetName.value && ing.name === waterTagTargetName.value && showTotalWaterTag.value) {
 		tags.push({
 			text: `总水: ${formatWaterRatio(totalCalculatedWaterRatio.value)}%`,
@@ -838,12 +889,10 @@ const initPreDoughData = (components: EnhancedComponent[]) => {
 onLoad(async (options) => {
 	if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
 
-	// [核心修复] 如果数据过期 (dataStale) 或未加载，都强制获取最新数据
 	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
 		await dataStore.fetchRecipesData();
 	}
 
-	// [核心新增] 页面加载时重置“手动清空”标记
 	isManuallyCleared.value = false;
 
 	if (options && options.familyId) {
@@ -866,12 +915,10 @@ onLoad(async (options) => {
 					}))
 				}));
 
-				// [核心修复] 从配方族数据中获取保质期 shelfLife
 				let shelfLifeVal: number | null = null;
 				if (parsedForm.type !== 'MAIN') {
-					// 尝试在本地配方列表中查找以获取 family 信息（其中包含 shelfLife）
 					const allRecipes = [...dataStore.recipes.preDoughs, ...dataStore.recipes.extras];
-					const family = allRecipes.find((f) => f.name === parsedForm.name); // 这是一个近似查找，实际上应该由 source_recipe_version_form 带入
+					const family = allRecipes.find((f) => f.name === parsedForm.name);
 					if (family && (family as any).shelfLife) {
 						shelfLifeVal = (family as any).shelfLife;
 					}
@@ -879,12 +926,11 @@ onLoad(async (options) => {
 
 				form.value = {
 					...parsedForm,
-					// [核心修复] 更严谨的空值检查，支持回显 0
 					customWaterContent:
 						parsedForm.components[0]?.customWaterContent !== undefined && parsedForm.components[0]?.customWaterContent !== null
 							? parsedForm.components[0].customWaterContent
 							: null,
-					shelfLife: shelfLifeVal, // [核心新增]
+					shelfLife: shelfLifeVal,
 					components: sanitizedComponents,
 					products: parsedForm.products || []
 				};
@@ -923,7 +969,7 @@ onLoad(async (options) => {
 			form.value.type = 'PRE_DOUGH';
 			form.value.products = [];
 			form.value.category = 'OTHER';
-			form.value.shelfLife = 0; // 默认 0
+			form.value.shelfLife = 0;
 			form.value.components = [
 				{
 					id: `main_${Date.now()}`,
@@ -946,7 +992,6 @@ onUnload(() => {
 	uni.removeStorageSync('source_recipe_version_form');
 });
 
-// ... (UI交互函数保持不变) ...
 const handleScroll = (event?: any) => {
 	if (!event || !event.detail) {
 		return;
@@ -1200,13 +1245,8 @@ const handleSubmit = async () => {
 				.filter(Boolean);
 		};
 
-		// [核心修改] 处理自定义含水量
-		// 1. 获取自动计算值
 		const autoVal = Number(calculatedWaterContentPreview.value);
-		// 2. 获取用户输入值
 		const currentCustom = form.value.customWaterContent;
-		// 3. 如果用户输入值存在且不等于自动计算值，才作为有效自定义值；否则传 null
-		// 这样确保如果用户输入了 65，而自动计算也是 65，我们传 null，维持“自动”状态
 		const finalCustomWaterContent = currentCustom !== null && currentCustom !== undefined && Math.abs(currentCustom - autoVal) > 0.1 ? Number(currentCustom) : null;
 
 		const payload = {
@@ -1217,8 +1257,8 @@ const handleSubmit = async () => {
 			targetTemp: form.value.targetTemp,
 			lossRatio: toDecimal(Number(mainComponentFromForm.lossRatio || 0)),
 			divisionLoss: Number(mainComponentFromForm.divisionLoss || 0),
-			customWaterContent: finalCustomWaterContent, // 使用处理后的值
-			shelfLife: form.value.shelfLife ? Number(form.value.shelfLife) : 0, // [核心新增] 提交保质期
+			customWaterContent: finalCustomWaterContent,
+			shelfLife: form.value.shelfLife ? Number(form.value.shelfLife) : 0,
 			procedure: mainComponentFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
 			products: form.value.products!.map((p) => ({
@@ -1342,11 +1382,6 @@ const handleSubmit = async () => {
 	}
 }
 
-.add-button-container {
-	padding: 0 15px;
-	margin: 30px 0px;
-}
-
 .add-button {
 	margin-bottom: 0;
 	min-height: 46px;
@@ -1377,7 +1412,7 @@ const handleSubmit = async () => {
 
 	.notes-title {
 		display: block;
-		margin-bottom: 8px;
+		margin-bottom: 15px;
 		font-size: 14px;
 		color: #606266;
 	}
@@ -1398,7 +1433,7 @@ const handleSubmit = async () => {
 
 .procedure-notes-read-only {
 	@include procedure-notes-style;
-	margin-top: 25px;
+	margin-top: 15px;
 }
 
 .product-tabs-wrapper {
@@ -1415,10 +1450,6 @@ const handleSubmit = async () => {
 	align-items: center;
 }
 
-/* 新增：Suggestion Wrapper 
-   专门用于解决小程序 Slot 内部 Flex 失效的问题。
-   将布局逻辑完全保留在父组件中。
-*/
 .suggestion-row-wrapper {
 	display: flex;
 	align-items: center;
@@ -1461,5 +1492,52 @@ const handleSubmit = async () => {
 .recipe-tag {
 	background-color: #faedcd;
 	color: var(--primary-color);
+}
+
+/* [UI优化] 内部区域头部 */
+.inner-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 15px;
+}
+
+.inner-title {
+	font-size: 15px;
+	font-weight: 500;
+	color: var(--text-primary);
+	flex: 1;
+}
+
+/* [UI优化] 只读表格样式 */
+.read-only-table {
+	margin-top: 15px;
+
+	.col-name {
+		flex: 1;
+		padding-left: 4px;
+	}
+
+	.col-ratio {
+		width: 80px;
+		text-align: center;
+		color: var(--text-secondary);
+	}
+}
+
+.ingredient-name-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.delete-btn {
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: #fcf7f1;
+	border-radius: 50%;
 }
 </style>

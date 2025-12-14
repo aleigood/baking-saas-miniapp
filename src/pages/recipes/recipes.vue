@@ -140,14 +140,11 @@
 </template>
 
 <script setup lang="ts">
-// [核心修改] 导入 watch
 import { ref, computed, watch } from 'vue';
-// [核心修复] 移除了 @dcloud-io- 里的破折号
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
-// [核心新增] 导入 uiStore
 import { useUiStore } from '@/store/ui';
 import { discontinueRecipe, restoreRecipe, deleteRecipe } from '@/api/recipes';
 import type { RecipeFamily } from '@/types/api';
@@ -161,16 +158,13 @@ import RefreshableLayout from '@/components/RefreshableLayout.vue';
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
-// [核心新增] 获取 uiStore 实例
 const uiStore = useUiStore();
 
-// [核心改造] 使用单一的 activeFilter 来控制当前筛选状态，默认为第一个品类
 const activeFilter = ref('BREAD');
 
 const isSubmitting = ref(false);
 const selectedRecipe = ref<RecipeFamily | null>(null);
 
-// [核心新增] 动画相关状态
 const listAnimationKey = ref(Date.now());
 const triggerListAnimation = ref(false);
 const isFirstLoad = ref(true);
@@ -178,56 +172,45 @@ const isFirstLoad = ref(true);
 const recipeTypeMap = {
 	MAIN: '面团',
 	PRE_DOUGH: '面种',
-	EXTRA: '馅料'
+	EXTRA: '自制原料'
 };
 
-// [核心新增] 定义品类 key 到中文显示名的映射
 const categoryMap = {
 	BREAD: '面包',
 	PASTRY: '西点',
 	DESSERT: '甜品',
 	DRINK: '饮品'
-	// 'OTHER' is no longer needed here
 };
 
-// 修改: 动态生成筛选标签，现在包含面种和馅料
 const filterTabs = computed(() => {
-	// 1. 从主配方中提取产品品类
 	const categories = new Set(dataStore.recipes.mainRecipes.map((r) => r.category));
 	const categoryTabs = Array.from(categories).map((cat) => ({
 		key: cat,
 		label: categoryMap[cat] || cat
 	}));
 
-	// 2. 检查是否存在面种和馅料配方，如果存在则添加对应标签
 	const otherTabs = [];
 	if (dataStore.recipes.preDoughs && dataStore.recipes.preDoughs.length > 0) {
 		otherTabs.push({ key: 'PRE_DOUGH', label: '面种' });
 	}
 	if (dataStore.recipes.extras && dataStore.recipes.extras.length > 0) {
-		otherTabs.push({ key: 'EXTRA', label: '馅料' });
+		otherTabs.push({ key: 'EXTRA', label: '自制原料' });
 	}
 
-	// 3. 处理没有任何配方时的默认情况
 	if (categoryTabs.length === 0 && otherTabs.length === 0) {
-		// [核心修改] 当没有任何配方时，返回空数组
 		return [];
 	}
 
-	// 4. 合并所有标签并返回
 	return [...categoryTabs, ...otherTabs];
 });
 
-// [核心新增] 计算属性，判断是否存在任何配方
 const hasAnyRecipe = computed(() => {
 	return dataStore.recipes.mainRecipes.length > 0 || dataStore.recipes.preDoughs.length > 0 || dataStore.recipes.extras.length > 0;
 });
 
-// 修改: 根据当前激活的筛选器 (activeFilter) 来决定显示哪个列表
 const filteredRecipes = computed(() => {
 	const filterKey = activeFilter.value;
 
-	// 根据 filterKey 返回不同的配方列表
 	if (filterKey === 'PRE_DOUGH') {
 		return dataStore.recipes.preDoughs || [];
 	}
@@ -235,19 +218,16 @@ const filteredRecipes = computed(() => {
 		return dataStore.recipes.extras || [];
 	}
 
-	// 默认行为：根据品类筛选主配方列表
 	return dataStore.recipes.mainRecipes.filter((r) => r.category === filterKey);
 });
 
 const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
 const isNavigating = ref(false);
-// [核心改造] 新增本地 ref 用于控制弹窗
 const showRecipeActionsModal = ref(false);
 const showDeleteRecipeConfirmModal = ref(false);
 const showDiscontinueRecipeConfirmModal = ref(false);
 const showRestoreRecipeConfirmModal = ref(false);
 
-// [核心新增] FAB 按钮可见性控制
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
@@ -261,19 +241,17 @@ const fabActions = computed(() => {
 		},
 		{
 			icon: '/static/icons/add.svg',
-			text: '其他配方', // [核心用语] 组件配方 -> 其他配方
+			text: '其他配方', // [核心修改] 恢复为“其他配方”
 			action: () => navigateToEditPage('EXTRA')
 		}
 	];
 });
 
-// [核心新增] 动画辅助函数
 const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
 	listAnimationKey.value = Date.now();
 	triggerListAnimation.value = playAnimation;
 };
 
-// [核心新增] 监听 Tab 切换
 watch(
 	() => uiStore.activeTab,
 	(newTab, oldTab) => {
@@ -285,19 +263,16 @@ watch(
 
 onShow(async () => {
 	isNavigating.value = false;
-	let didFetch = false; // [中文注释] 动画标志
+	let didFetch = false;
 
-	// [核心修改] 移除此处的 Toast 消费逻辑，统一由 main.vue 处理
 	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
 		await dataStore.fetchRecipesData();
-		// [核心新增] 数据加载后，如果当前激活的筛选器不存在，则重置为第一个
 		if (filterTabs.value.length > 0 && !filterTabs.value.some((t) => t.key === activeFilter.value)) {
 			activeFilter.value = filterTabs.value[0].key;
 		}
-		didFetch = true; // [中文注释] 标记已获取数据
+		didFetch = true;
 	}
 
-	// [核心新增] 动画状态逻辑
 	if (didFetch) {
 		if (isFirstLoad.value) {
 			triggerListAnimationWithKeyUpdate(true);
@@ -315,18 +290,13 @@ const handleRefresh = async () => {
 		dataStore.markRecipesAsStale();
 		await dataStore.fetchRecipesData();
 	} finally {
-		// 1. 告诉 spinner "开始" 隐藏
 		refreshableLayout.value?.finishRefresh();
-
-		// 2. [核心修复] 延迟 300毫秒 (等待 spinner 隐藏动画结束)
 		setTimeout(() => {
-			// 3. 真正开始播放列表动画
 			triggerListAnimationWithKeyUpdate(true);
-		}, 700); // (这个 300ms 是估计值, 你可以根据 RefreshableLayout 的实际动画时长调整)
+		}, 700);
 	}
 };
 
-// [核心新增] 滚动事件处理函数
 const handleScroll = (event: any) => {
 	const scrollTop = event.detail.scrollTop;
 
@@ -369,7 +339,6 @@ const canEditRecipe = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
 
-// [核心改造] 更新导航函数，使其更通用
 const navigateToEditPage = (type: 'MAIN' | 'EXTRA') => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
@@ -413,10 +382,9 @@ const confirmDiscontinueRecipe = async () => {
 		await discontinueRecipe(selectedRecipe.value.id);
 		toastStore.show({ message: '配方已停用', type: 'success' });
 		dataStore.markRecipesAsStale();
-		// [核心修正] 增加这一行，标记用于创建任务的产品列表数据为过期
 		dataStore.markProductsForTaskCreationAsStale();
 		await dataStore.fetchRecipesData();
-		triggerListAnimationWithKeyUpdate(true); // [中文注释] 操作后播放动画
+		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
 		console.error('Failed to discontinue recipe:', error);
 	} finally {
@@ -433,10 +401,9 @@ const confirmRestoreRecipe = async () => {
 		await restoreRecipe(selectedRecipe.value.id);
 		toastStore.show({ message: '配方已恢复', type: 'success' });
 		dataStore.markRecipesAsStale();
-		// [核心修正] 增加这一行，标记用于创建任务的产品列表数据为过期
 		dataStore.markProductsForTaskCreationAsStale();
 		await dataStore.fetchRecipesData();
-		triggerListAnimationWithKeyUpdate(true); // [中文注释] 操作后播放动画
+		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
 		console.error('Failed to restore recipe:', error);
 	} finally {
@@ -454,7 +421,7 @@ const confirmDeleteRecipe = async () => {
 		toastStore.show({ message: '删除成功', type: 'success' });
 		dataStore.markRecipesAsStale();
 		await dataStore.fetchRecipesData();
-		triggerListAnimationWithKeyUpdate(true); // [中文注释] 操作后播放动画
+		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
 		console.error('Failed to delete recipe:', error);
 	} finally {
@@ -564,7 +531,6 @@ const confirmDeleteRecipe = async () => {
 	padding: 10px 0px;
 }
 
-// [核心新增] 品类筛选标签的样式
 .category-filter-wrapper {
 	padding: 0px 15px 15px;
 	border-bottom: 1px solid var(--border-color);
