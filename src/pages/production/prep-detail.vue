@@ -5,11 +5,6 @@
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab">
 				<template v-if="task">
-					<view class="stock-deduction-notice" v-if="activeTab !== 'BILL_OF_MATERIALS'">
-						<text class="notice-symbol">ⓘ</text>
-						<text class="notice-text">需制作量已自动扣减自制原料的现有库存。</text>
-					</view>
-
 					<view class="filter-wrapper">
 						<FilterTabs v-model="activeTab" :tabs="filterTabs" />
 					</view>
@@ -106,12 +101,30 @@
 									</view>
 
 									<view class="total-weight-summary">
-										<template v-if="item.targetWeight != null">
-											<text>总量：{{ formatWeight(item.totalWeight) }} (需求量：{{ formatWeight(item.targetWeight) }})</text>
-										</template>
-										<template v-else>
-											<text>总量：{{ formatWeight(item.totalWeight) }}</text>
-										</template>
+										<view class="summary-item">
+											<text class="summary-label">需求总量</text>
+											<text class="summary-value">{{ formatWeight((item.targetWeight || item.totalWeight) + (item.stockWeight || 0)) }}</text>
+										</view>
+
+										<view class="summary-divider"></view>
+
+										<view class="summary-item">
+											<text class="summary-label">库存抵扣</text>
+											<text class="summary-value">{{ formatWeight(item.stockWeight || 0) }}</text>
+										</view>
+
+										<view class="summary-divider"></view>
+
+										<view v-if="item.targetWeight != null" class="summary-item">
+											<text class="summary-label">目标产出</text>
+											<text class="summary-value highlight-value">{{ formatWeight(item.targetWeight) }}</text>
+										</view>
+
+										<view v-if="item.targetWeight != null" class="summary-divider"></view>
+										<view class="summary-item">
+											<text class="summary-label">预计投料</text>
+											<text class="summary-value text-secondary">{{ formatWeight(item.totalWeight) }}</text>
+										</view>
 									</view>
 
 									<view v-if="item.procedure && item.procedure.length > 0" class="procedure-notes">
@@ -269,7 +282,7 @@ const filterTabs = computed(() => {
 		tabs.push({ key: 'PRE_DOUGH', label: '面种' });
 	}
 	if (extraItems.value.length > 0) {
-		tabs.push({ key: 'EXTRA', label: '自制原料' }); // [修改]
+		tabs.push({ key: 'EXTRA', label: '自制原料' });
 	}
 	tabs.push({ key: 'BILL_OF_MATERIALS', label: '备料清单' });
 	return tabs;
@@ -549,13 +562,41 @@ onLoad(async (options) => {
 	}
 }
 
+/* [核心修改] 统计区域样式：靠右、垂直居中对齐 */
 .total-weight-summary {
 	display: flex;
-	justify-content: flex-end;
-	padding: 15px 4px;
-	font-size: 13px;
-	color: var(--text-secondary);
+	justify-content: flex-end; /* 整体靠右 */
+	align-items: center; /* 垂直居中，保证分隔线居中 */
+	padding: 15px 0;
 	border-top: 1px solid var(--border-color);
+	margin-top: 20px;
+}
+
+/* [新增] 分隔线样式 */
+.summary-divider {
+	width: 1px;
+	height: 20px; /* 适当的高度，适应两行文字 */
+	background-color: var(--border-color); /* 使用主题边框色 */
+	margin: 0 16px; /* 左右间距，控制紧凑程度 */
+}
+
+.summary-item {
+	display: flex;
+	flex-direction: column; /* 上下排列 */
+	align-items: flex-end; /* 文字靠右对齐 */
+	flex: none;
+}
+
+.summary-label {
+	font-size: 12px;
+	color: var(--text-secondary);
+	margin-bottom: 4px;
+}
+
+.summary-value {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--text-primary);
 }
 
 .procedure-notes {
@@ -609,32 +650,17 @@ onLoad(async (options) => {
 	transform: rotate(45deg) translateY(-1px) translateX(-1px);
 }
 
-/* [核心新增] 提示条样式 */
-.stock-deduction-notice {
-	display: flex;
-	align-items: center;
-	background-color: #e3f2fd;
-	color: #0277bd;
-	padding: 10px 15px;
-	border-radius: 8px;
-	margin-bottom: 20px;
-	font-size: 13px;
-}
-
-.notice-symbol {
-	font-size: 14px;
-	margin-right: 6px;
-	font-weight: bold;
-}
-
-.notice-text {
-	line-height: 1.4;
-}
-
-/* [核心新增] 空状态副标题 */
 .empty-state-sub {
 	font-size: 13px;
 	color: var(--text-secondary);
 	margin-top: 5px;
+}
+
+.highlight-value {
+	color: var(--primary-color);
+	font-weight: bold;
+}
+.text-secondary {
+	color: #999;
 }
 </style>
