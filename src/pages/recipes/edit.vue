@@ -102,20 +102,23 @@
 										/>
 									</FormItem>
 
-									<view class="smart-table read-only-table">
-										<view class="table-header">
-											<text class="col-name">原料名称</text>
-											<text class="col-ratio">比例</text>
-										</view>
-										<view v-for="ing in component.ingredients" :key="ing.name" class="table-row">
-											<view class="col-name ingredient-name-wrapper">
-												<text>{{ ing.name }}</text>
-												<text v-if="ing.isFlour" class="mini-tag flour-tag">面粉</text>
+									<view class="table-wrapper">
+										<view class="smart-table read-only-table">
+											<view class="table-header">
+												<text class="col-name">原料名称</text>
+												<text class="col-ratio">比例</text>
 											</view>
-											<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
+											<view v-for="ing in component.ingredients" :key="ing.name" class="table-row">
+												<view class="col-name">
+													<view class="ingredient-name-wrapper">
+														<text>{{ ing.name }}</text>
+														<text v-if="ing.isFlour" class="mini-tag flour-tag">面粉</text>
+													</view>
+												</view>
+												<text class="col-ratio">{{ formatNumber(ing.ratio) }}%</text>
+											</view>
 										</view>
 									</view>
-
 									<view v-if="component.procedure && component.procedure.length > 0" class="procedure-notes-read-only">
 										<text class="notes-title">制作要点</text>
 										<text v-for="(step, stepIndex) in component.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
@@ -1527,8 +1530,6 @@ const hasPreDough = computed(() => {
 
 /* [UI优化] 只读表格样式 */
 .read-only-table {
-	margin-top: 15px;
-
 	.col-name {
 		flex: 1;
 		padding-left: 4px;
@@ -1540,6 +1541,13 @@ const hasPreDough = computed(() => {
 		padding-right: 5px; /* 2. (可选) 增加一点右侧间距，避免紧贴边缘 */
 		color: var(--text-secondary);
 	}
+}
+
+.table-wrapper {
+	background-color: #fbfbf9;
+	padding: 10px 15px;
+	border-radius: 12px;
+	margin-bottom: 15px;
 }
 
 .ingredient-name-wrapper {

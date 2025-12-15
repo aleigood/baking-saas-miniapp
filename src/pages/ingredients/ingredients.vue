@@ -18,12 +18,12 @@
 						<input
 							class="search-input"
 							v-model="filterKeyword"
-							placeholder="搜索..."
+							placeholder="搜索名称或品牌"
 							confirm-type="search"
-							placeholder-style="color: #a98467; opacity: 0.6; font-size: 13px;"
+							placeholder-style="color: #a98467; opacity: 0.6; font-size: 14px;"
 						/>
 						<view v-if="filterKeyword" class="clear-btn" @click="filterKeyword = ''">
-							<text class="clear-icon">×</text>
+							<image class="clear-icon-svg" src="/static/icons/close.svg" mode="aspectFit" />
 						</view>
 					</view>
 				</view>
@@ -48,7 +48,7 @@
 								</view>
 								<view class="side-info">
 									<view class="value">{{ formatWeight(ing.currentStockInGrams) }}</view>
-									<view class="desc" :class="getExpiryClass(ing)">{{ getExpiryText(ing) }}</view>
+									<view class="desc" :class="getExpiryClass(ing)" v-if="ing.currentStockInGrams > 0">{{ getExpiryText(ing) }}</view>
 								</view>
 							</template>
 
@@ -571,12 +571,13 @@ const handleCreateIngredient = async () => {
 /* 紧凑型搜索框 */
 .search-box-compact {
 	flex: 1; /* 占据剩余空间 */
+	height: 32px; /* 与胶囊同高 */
 	background-color: #f3e9e3; /* [修改] 统一浅米色背景 */
 	/* border: 1px solid #e6dccd; */ /* [修改] 移除边框 */
 	border-radius: 16px;
 	display: flex;
 	align-items: center;
-	padding: 8px 12px;
+	padding: 0 10px;
 	box-sizing: border-box;
 }
 
@@ -589,27 +590,29 @@ const handleCreateIngredient = async () => {
 
 .search-input {
 	flex: 1;
-	font-size: 14px;
+	font-size: 14px; /* [核心修改] 字体大小修正为 14px */
 	color: var(--text-primary);
 	height: 100%;
 }
 
 .clear-btn {
-	width: 16px;
-	height: 16px;
+	width: 18px; /* [UI微调] 稍微调大一点，适应图标 */
+	height: 18px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	background-color: rgba(140, 90, 59, 0.1); /* [修改] 微调清除按钮背景 */
 	border-radius: 50%;
 	margin-left: 5px;
+	padding: 3px; /* 内边距，控制图标大小 */
+	box-sizing: border-box;
 }
 
-.clear-icon {
-	color: var(--text-secondary);
-	font-size: 10px;
-	line-height: 1;
-	margin-top: -1px;
+/* [核心修改] SVG 图标样式 */
+.clear-icon-svg {
+	width: 100%;
+	height: 100%;
+	opacity: 0.6; /* 与原来的文本颜色透明度一致 */
 }
 
 .side-info .consumption {

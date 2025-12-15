@@ -75,8 +75,8 @@ const animationStyle = computed(() => {
 	if (!props.animateOnMount) {
 		return {};
 	}
-	// [中文注释] 每个item延迟50ms，最多延迟1000ms
-	const delayMs = Math.min(props.animationIndex * 50, 1000);
+	// [核心修改] 加快动画交错速度：从 50ms 改为 30ms，让列表展开更迅速
+	const delayMs = Math.min(props.animationIndex * 30, 1000);
 	return {
 		'--animation-delay': `${delayMs}ms`
 	};
@@ -159,7 +159,8 @@ const handleLongPress = (event: Event) => {
 
 /* [中文注释] 新增：将动画应用到 .animate-in 类上 */
 .list-item.animate-in {
-	animation: fadeInUp 0.35s ease-out forwards;
+	/* [核心修改] 加快动画持续时间：从 0.35s 改为 0.2s */
+	animation: fadeInUp 0.2s ease-out forwards;
 	opacity: 0; /* [中文注释] 动画初始状态 (配合 forwards) */
 	animation-delay: var(--animation-delay, 0ms); /* [中文注释] 使用 CSS 变量设置延迟 */
 }
