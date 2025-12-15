@@ -530,15 +530,14 @@ const handleCreateIngredient = async () => {
 }
 
 /* 统一的胶囊样式 (筛选和排序) */
-/* [UI优化] 仿照库存流水的胶囊样式: 浅米色底，无边框 */
 .filter-capsule {
 	display: flex;
+	height: 32px;
 	align-items: center;
 	justify-content: center;
 	background-color: #f3e9e3; /* [修改] 浅米色背景 */
-	padding: 8px 12px;
+	padding: 6px 12px;
 	border-radius: 16px;
-	/* border: 1px solid #e6dccd; */ /* [修改] 移除边框 */
 	min-width: 70px;
 	box-sizing: border-box;
 	font-size: 14px;
@@ -571,13 +570,12 @@ const handleCreateIngredient = async () => {
 /* 紧凑型搜索框 */
 .search-box-compact {
 	flex: 1; /* 占据剩余空间 */
-	height: 32px; /* 与胶囊同高 */
+	height: 32px;
 	background-color: #f3e9e3; /* [修改] 统一浅米色背景 */
-	/* border: 1px solid #e6dccd; */ /* [修改] 移除边框 */
 	border-radius: 16px;
 	display: flex;
 	align-items: center;
-	padding: 0 10px;
+	padding: 6px 12px;
 	box-sizing: border-box;
 }
 
