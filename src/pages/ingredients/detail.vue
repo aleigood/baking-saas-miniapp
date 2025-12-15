@@ -5,23 +5,37 @@
 
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
-				<view class="top-info-bar" v-if="ingredient.type !== 'UNTRACKED'">
-					<view class="tag-group">
-						<template v-if="ingredient.type === 'SELF_MADE'">
-							<span class="tag">保质期: {{ ingredient.shelfLife > 0 ? ingredient.shelfLife + '小时' : '未设置' }}</span>
-						</template>
-						<template v-else>
-							<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
-						</template>
-						<span class="tag">单价: {{ ingredientPricePerKg }}</span>
-						<span class="tag" v-if="ingredient.type === 'STANDARD' || ingredient.type === 'SELF_MADE'">库存: {{ formatWeight(ingredient.currentStockInGrams) }}</span>
-					</view>
-				</view>
-
 				<view class="card">
-					<AnimatedTabs v-model="detailChartTab" :tabs="visibleChartTabs" />
-					<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
-					<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix="" unit-suffix="kg" />
+					<view class="meta-grid-container" v-if="ingredient.type !== 'UNTRACKED'">
+						<view class="meta-item">
+							<view class="label">{{ ingredient.type === 'SELF_MADE' ? '保质期' : '品牌' }}</view>
+							<view class="value">
+								{{
+									ingredient.type === 'SELF_MADE'
+										? ingredient.shelfLife > 0
+											? ingredient.shelfLife + '小时'
+											: '未设置'
+										: ingredient.activeSku?.brand || '未设置'
+								}}
+							</view>
+						</view>
+						<view class="meta-divider"></view>
+						<view class="meta-item">
+							<view class="label">单价</view>
+							<view class="value">{{ ingredientPricePerKg }}</view>
+						</view>
+						<view class="meta-divider"></view>
+						<view class="meta-item">
+							<view class="label">当前库存</view>
+							<view class="value">{{ ingredient.type === 'STANDARD' || ingredient.type === 'SELF_MADE' ? formatWeight(ingredient.currentStockInGrams) : '-' }}</view>
+						</view>
+					</view>
+
+					<view :class="{ 'chart-wrapper': ingredient.type !== 'UNTRACKED' }">
+						<AnimatedTabs v-model="detailChartTab" :tabs="visibleChartTabs" />
+						<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
+						<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix="" unit-suffix="kg" />
+					</view>
 				</view>
 
 				<template v-if="ingredient.type === 'STANDARD' || ingredient.type === 'NON_INVENTORIED'">
@@ -36,20 +50,7 @@
 				</template>
 
 				<template v-if="ingredient.type === 'SELF_MADE'">
-					<view class="card no-padding">
-						<ListItem @click="navigateToLedger" :bleed="true">
-							<view class="nav-item-content">
-								<view class="nav-icon-wrapper">
-									<image class="nav-icon" src="/static/icons/log.svg" />
-								</view>
-								<view class="main-info">
-									<view class="name">生产与库存记录</view>
-									<view class="desc">查看入库、消耗与损耗明细</view>
-								</view>
-								<view class="arrow-icon">&#10095;</view>
-							</view>
-						</ListItem>
-					</view>
+					<IngredientProductionList :records="productionRecords" />
 				</template>
 			</view>
 			<view class="loading-spinner" v-else>
@@ -99,8 +100,6 @@
 					:class="{ 'is-disabled': ingredient?.type === 'SELF_MADE' }"
 				/>
 			</view>
-
-			<view v-if="ingredient?.type === 'SELF_MADE'" class="modal-warning-text" style="margin-top: 10px">注：自制原料的名称、含水量由配方自动同步，无需手动修改。</view>
 
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditModal = false">取消</AppButton>
@@ -339,6 +338,7 @@ import AppButton from '@/components/AppButton.vue';
 import AnimatedTabs from '@/components/AnimatedTabs.vue';
 import IngredientSkuList from '@/components/IngredientSkuList.vue';
 import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
+import IngredientProductionList from '@/components/IngredientProductionList.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
@@ -415,6 +415,7 @@ const procurementForm = ref<{
 
 const costHistory = ref<{ cost: number }[]>([]);
 const usageHistory = ref<{ cost: number }[]>([]);
+const productionRecords = ref<IngredientLedgerEntry[]>([]);
 const showActivateSkuConfirmModal = ref(false);
 const showSkuOptionsModal = ref(false);
 const showDeleteSkuConfirmModal = ref(false);
@@ -445,7 +446,7 @@ const ingredientForm = reactive<{
 	type: 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED' | 'SELF_MADE';
 	isFlour: boolean;
 	waterContent: number | null;
-	shelfLife: number | null; // [核心新增]
+	shelfLife: number | null;
 }>({
 	name: '',
 	type: 'STANDARD',
@@ -499,15 +500,32 @@ const fabActions = computed(() => {
 		actions.push({ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() });
 	}
 
-	actions.push({ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() });
+	if (ingredient.value.type === 'SELF_MADE') {
+		// [核心修改] 将“编辑配方”改为“配方详情”，并调用简单的跳转逻辑
+		actions.push({ icon: '/static/icons/property.svg', text: '配方详情', action: () => navigateToRecipeDetail() });
+	} else {
+		actions.push({ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() });
+	}
 
-	// [核心修改] 自制原料也允许调整库存（如报损、盘点）
 	if ((ingredient.value.type === 'STANDARD' || ingredient.value.type === 'SELF_MADE') && (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN')) {
 		actions.push({ icon: '/static/icons/adjust.svg', text: '库存调整', action: () => openUpdateStockModal() });
 	}
 
+	actions.push({ icon: '/static/icons/log.svg', text: '库存流水', action: () => navigateToLedger() });
+
 	return actions;
 });
+
+// [核心修改] 简化后的跳转逻辑，直接去配方详情页
+const navigateToRecipeDetail = () => {
+	if (!ingredient.value?.recipeFamily?.id) {
+		toastStore.show({ message: '未找到关联的配方', type: 'error' });
+		return;
+	}
+	uni.navigateTo({
+		url: `/pages/recipes/detail?familyId=${ingredient.value.recipeFamily.id}`
+	});
+};
 
 watch(
 	() => [newSkuForm.value.volumeInML, newSkuForm.value.density],
@@ -542,6 +560,13 @@ const onEditSkuDensityChange = (e: any) => {
 	if (!editSkuForm.value.density) {
 		editSkuForm.value.specWeightInGrams = null;
 		editSkuForm.value.volumeInML = null;
+	}
+};
+
+const onTypeChange = (e: any) => {
+	const selectedIndex = e.detail.value;
+	if (availableTypes.value && availableTypes.value[selectedIndex]) {
+		ingredientForm.type = availableTypes.value[selectedIndex].value as any;
 	}
 };
 
@@ -592,11 +617,23 @@ const loadIngredientData = async (id: string) => {
 		costHistory.value = historyData;
 		usageHistory.value = usageData;
 
+		if (ingredientData.type === 'SELF_MADE') {
+			try {
+				const ledgerRes = await getIngredientLedger(id, {
+					page: 1,
+					limit: 10,
+					type: '库存调整' as any
+				});
+				productionRecords.value = ledgerRes.data.filter((item) => item.type === '生产入库');
+			} catch (e) {
+				console.error('Failed to load production records:', e);
+			}
+		}
+
 		ingredientForm.name = ingredientData.name;
 		ingredientForm.type = ingredientData.type;
 		ingredientForm.isFlour = ingredientData.isFlour;
 		ingredientForm.waterContent = ingredientData.waterContent * 100;
-		// [核心新增] 初始化保质期
 		ingredientForm.shelfLife = ingredientData.shelfLife || null;
 
 		if (ingredientData.type === 'UNTRACKED') {
@@ -635,33 +672,26 @@ const availableTypes = ref([
 	{ label: '标准原料 (追踪库存和成本)', value: 'STANDARD' },
 	{ label: '即时采购 (仅追踪成本)', value: 'NON_INVENTORIED' },
 	{ label: '非追踪原料 (水/冰等)', value: 'UNTRACKED' },
-	{ label: '自制原料 (由配方产出)', value: 'SELF_MADE' } // [核心新增]
+	{ label: '自制原料 (由配方产出)', value: 'SELF_MADE' }
 ]);
 
 const currentTypeLabel = computed(() => {
 	return availableTypes.value.find((t) => t.value === ingredientForm.type)?.label || '未知类型';
 });
 
-const onTypeChange = (e: any) => {
-	ingredientForm.type = availableTypes.value[e.detail.value].value as any;
-};
-
 const ingredientPricePerKg = computed(() => {
 	const ing = ingredient.value;
 	if (!ing) return '¥0.00/kg';
 
-	// [核心修改] 对于标准原料和自制原料，优先使用当前库存价值计算单价
 	if (ing.type === 'STANDARD' || ing.type === 'SELF_MADE') {
 		if (ing.currentStockInGrams > 0) {
 			const pricePerGram = ing.currentStockValue / ing.currentStockInGrams;
 			const price = multiply(pricePerGram, 1000);
 			return `¥${formatMoney(price)}/kg`;
 		}
-		// 如果没有库存，尝试显示上次成本（自制原料可能没有 SKU，所以这里可能显示 0）
 		if (ing.type === 'SELF_MADE') return '¥0.00/kg';
 	}
 
-	// 对于采购原料，如果没有库存，尝试用上次采购价
 	if (ing.activeSku && ing.currentPricePerPackage && ing.activeSku.specWeightInGrams) {
 		const pricePerGram = Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams;
 		const price = multiply(pricePerGram, 1000);
@@ -888,7 +918,7 @@ const handleUpdateIngredient = async () => {
 			type: ingredientForm.type,
 			isFlour: ingredientForm.isFlour,
 			waterContent: (Number(ingredientForm.waterContent) || 0) / 100,
-			shelfLife: ingredientForm.shelfLife ? Number(ingredientForm.shelfLife) : 0 // [核心新增]
+			shelfLife: ingredientForm.shelfLife ? Number(ingredientForm.shelfLife) : 0
 		});
 		toastStore.show({ message: '保存成功', type: 'success' });
 		showEditModal.value = false;
@@ -1018,7 +1048,7 @@ const navigateToLedger = () => {
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 
-@include list-item-content-style; // [核心新增] 确保内部内容样式正确应用
+@include list-item-content-style;
 @include list-item-option-style;
 @include form-control-styles;
 
@@ -1033,21 +1063,47 @@ const navigateToLedger = () => {
 	height: 24px;
 }
 
-.top-info-bar {
+.meta-grid-container {
 	display: flex;
 	justify-content: space-between;
-	align-items: start;
-	margin-bottom: 20px;
-	gap: 10px;
+	align-items: center;
+	padding: 18px 10px;
+	border-radius: 12px;
+	margin-bottom: 15px;
+	border: none;
 }
 
-.tag-group {
+.meta-item {
 	flex: 1;
-	margin-bottom: 0;
-	padding: 0;
 	display: flex;
-	flex-wrap: wrap;
-	gap: 5px;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+}
+
+.meta-divider {
+	width: 1px;
+	height: 24px;
+	background-color: #e6dccd;
+	opacity: 0.6;
+}
+
+.meta-item .label {
+	font-size: 13px;
+	color: var(--text-secondary);
+	font-weight: 400;
+}
+
+.meta-item .value {
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--primary-color);
+	font-family: -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+	letter-spacing: -0.5px;
+	white-space: nowrap;
+}
+
+.chart-wrapper {
 }
 
 .form-row {
@@ -1078,7 +1134,6 @@ const navigateToLedger = () => {
 	margin-top: 5px;
 }
 
-/* [核心新增] 列表导航样式，复用 list-item-content-style */
 .nav-item-content {
 	display: flex;
 	align-items: center;
@@ -1110,9 +1165,8 @@ const navigateToLedger = () => {
 	margin-left: 8px;
 }
 
-/* 确保 card no-padding 能正确移除内边距 */
 .card.no-padding {
 	padding: 0;
-	overflow: hidden; /* 确保圆角裁剪 */
+	overflow: hidden;
 }
 </style>

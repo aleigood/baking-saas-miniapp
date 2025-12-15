@@ -204,12 +204,21 @@ const limit = ref(20);
 const hasMore = ref(true);
 const isLoadingMore = ref(false);
 
-onLoad(async () => {
+// [核心修改] 接收 options 参数并初始化 filters
+onLoad(async (options) => {
 	if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
 	if (!dataStore.dataLoaded.members) await dataStore.fetchMembersData();
 
-	if (allIngredients.value.length > 0) {
+	// 如果从详情页跳转过来，会带有 ingredientId 参数
+	if (options && options.ingredientId) {
+		filters.ingredientId = options.ingredientId;
+	} else if (allIngredients.value.length > 0) {
+		// 如果没有指定，默认选中第一个（或者保持 null 让用户自己选）
 		filters.ingredientId = allIngredients.value[0].id;
+	}
+
+	// 只要有 ingredientId 就加载数据
+	if (filters.ingredientId) {
 		await fetchLedgerData(false);
 	}
 });
