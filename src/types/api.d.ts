@@ -331,22 +331,22 @@ export interface RecipeDetails {
 export interface Ingredient {
 	id: string;
 	name: string;
-	type: IngredientType; // [核心修改] 使用更新后的类型 (包含 SELF_MADE)
+	type: IngredientType;
 	isFlour: boolean;
 	waterContent: number;
 	activeSku: IngredientSKU | null;
 	skus: IngredientSKU[];
 	currentStockInGrams: number;
 	currentPricePerPackage: number;
-	avgConsumptionPerTask: number;
-	daysOfSupply: number;
-	avgDailyConsumption: number;
+	// [核心修改] 移除已废弃的字段
+	// avgConsumptionPerTask: number;
+	// daysOfSupply: number;
+	// avgDailyConsumption: number;
 	totalConsumptionInGrams: number;
 
-	// [核心新增] 自制原料相关字段
+	// 自制原料相关字段
 	shelfLife: number;
 	recipeFamilyId?: string | null;
-	// [核心新增] 关联的配方族信息 (用于详情页跳转)
 	recipeFamily?: {
 		id: string;
 		name: string;
@@ -362,7 +362,8 @@ export interface Ingredient {
 
 export interface IngredientsListResponse {
 	allIngredients: Ingredient[];
-	lowStockIngredients: Ingredient[];
+	// [核心修改] 移除已废弃的字段
+	// lowStockIngredients: Ingredient[];
 }
 
 export interface IngredientSKU {
