@@ -88,7 +88,7 @@
 
 							<template v-if="!isSelfMadeComponent">
 								<view class="group-title" @click="toggleCollapse('productSummary')">
-									<span>{{ selectedComponentDetails.familyName }}产品</span>
+									<span>产品信息</span>
 									<span class="arrow" :class="{ collapsed: collapsedSections.has('productSummary') }">&#10095;</span>
 								</view>
 								<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('productSummary') }">
