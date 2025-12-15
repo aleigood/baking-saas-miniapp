@@ -3,14 +3,20 @@
 		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll" class="full-height-wrapper">
 			<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
 				<view class="tools-bar">
-					<view class="filter-capsule" @click="showFilterSelector = true">
-						<text>{{ currentFilterLabel }}</text>
-						<view class="arrow-down"></view>
+					<view class="filter-capsule" id="filter-capsule-btn" @touchstart="handleTouchStart($event, 'filter')" @click="showFilterSelector = true">
+						<span v-for="ripple in ripples['filter']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
+						<view class="capsule-content">
+							<text>{{ currentFilterLabel }}</text>
+							<view class="arrow-down"></view>
+						</view>
 					</view>
 
-					<view class="filter-capsule" @click="toggleSort">
-						<text>{{ currentSortLabel }}</text>
-						<image class="sort-icon-mini" src="/static/icons/sort.svg" />
+					<view class="filter-capsule" id="sort-capsule-btn" @touchstart="handleTouchStart($event, 'sort')" @click="toggleSort">
+						<span v-for="ripple in ripples['sort']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
+						<view class="capsule-content">
+							<text>{{ currentSortLabel }}</text>
+							<image class="sort-icon-mini" src="/static/icons/sort.svg" />
+						</view>
 					</view>
 
 					<view class="search-box-compact">
@@ -144,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch } from 'vue';
+import { ref, computed, reactive, watch, getCurrentInstance } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
@@ -164,6 +170,9 @@ const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
 const uiStore = useUiStore();
+
+const instance = getCurrentInstance();
+const ripples = reactive<Record<string, any[]>>({});
 
 const activeFilter = ref('standard');
 const showFilterSelector = ref(false);
@@ -228,6 +237,38 @@ const fabActions = computed(() => {
 	return actions;
 });
 
+const handleTouchStart = (event: any, key: string) => {
+	if (!ripples[key]) ripples[key] = [];
+	const touch = event.touches[0];
+	const targetId = event.currentTarget.id;
+
+	if (!targetId) return;
+
+	const query = uni.createSelectorQuery().in(instance);
+	query
+		.select('#' + targetId)
+		.boundingClientRect((rect) => {
+			if (rect) {
+				const x = touch.clientX - rect.left;
+				const y = touch.clientY - rect.top;
+				const size = Math.max(rect.width, rect.height) * 2;
+				ripples[key].push({
+					id: Date.now(),
+					style: {
+						width: `${size}px`,
+						height: `${size}px`,
+						top: `${y - size / 2}px`,
+						left: `${x - size / 2}px`
+					}
+				});
+				setTimeout(() => {
+					if (ripples[key] && ripples[key].length > 0) ripples[key].shift();
+				}, 600);
+			}
+		})
+		.exec();
+};
+
 const handleFilterSelect = (key: string) => {
 	activeFilter.value = key;
 	showFilterSelector.value = false;
@@ -242,13 +283,10 @@ const currentFilterLabel = computed(() => {
 const toggleSort = () => {
 	if (sortMode.value === 'name_asc') {
 		sortMode.value = 'stock_desc';
-		toastStore.show({ message: '按库存从高到低排序', type: 'success' });
 	} else if (sortMode.value === 'stock_desc') {
 		sortMode.value = 'stock_asc';
-		toastStore.show({ message: '按库存从低到高排序', type: 'success' });
 	} else {
 		sortMode.value = 'name_asc';
-		toastStore.show({ message: '按名称排序', type: 'success' });
 	}
 	triggerListAnimationWithKeyUpdate(true);
 };
@@ -531,6 +569,9 @@ const handleCreateIngredient = async () => {
 
 /* 统一的胶囊样式 (筛选和排序) */
 .filter-capsule {
+	position: relative;
+	overflow: hidden;
+	transform: translateZ(0); /* 开启硬件加速，修复部分机型圆角溢出问题 */
 	display: flex;
 	height: 32px;
 	align-items: center;
@@ -543,10 +584,15 @@ const handleCreateIngredient = async () => {
 	font-size: 14px;
 	color: var(--text-secondary);
 	font-weight: 500;
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
 
-	/* 点击效果 */
-	&:active {
-		opacity: 0.8;
+	.capsule-content {
+		position: relative;
+		z-index: 1; /* 确保文字在水波纹之上 */
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.arrow-down {
