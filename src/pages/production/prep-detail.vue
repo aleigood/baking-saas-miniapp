@@ -13,7 +13,8 @@
 						<template v-if="hasMaterials">
 							<view v-if="billOfMaterials.standardItems.length > 0" class="card">
 								<view class="card-title-wrapper" @click="toggleCollapse('standardItems')">
-									<span class="card-title">标准原料</span>
+									<span class="card-title title-text">标准原料</span>
+									<view class="spacer"></view>
 									<span class="arrow" :class="{ collapsed: collapsedSections.has('standardItems') }">&#10095;</span>
 								</view>
 								<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('standardItems') }">
@@ -36,7 +37,8 @@
 
 							<view v-if="billOfMaterials.nonInventoriedItems.length > 0" class="card">
 								<view class="card-title-wrapper" @click="toggleCollapse('nonInventoriedItems')">
-									<span class="card-title">即时采购原料</span>
+									<span class="card-title title-text">即时采购原料</span>
+									<view class="spacer"></view>
 									<span class="arrow" :class="{ collapsed: collapsedSections.has('nonInventoriedItems') }">&#10095;</span>
 								</view>
 								<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('nonInventoriedItems') }">
@@ -69,7 +71,11 @@
 											<view v-if="completedItems.has(item.id)" class="check-mark"></view>
 										</view>
 									</view>
-									<span class="card-title">{{ item.name }}</span>
+
+									<span class="card-title title-text" @click.stop="toggleItemCompleted(item.id)">{{ item.name }}</span>
+
+									<view class="spacer"></view>
+
 									<span class="arrow" :class="{ collapsed: collapsedSections.has(item.id) }">&#10095;</span>
 								</view>
 
@@ -482,26 +488,47 @@ onLoad(async (options) => {
 	transition: opacity 0.3s ease;
 }
 
+/* [核心修改] 标题栏容器：高度严格限制为 29px */
 .card-title-wrapper {
 	margin-bottom: 0px;
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 0;
+	height: 29px; /* 固定高度 */
+	min-height: 29px;
+	padding: 0; /* 移除内边距，完全紧凑 */
 }
 
+/* 标题文字 */
 .card-title {
-	flex: 1;
 	min-width: 0;
 	transition: text-decoration 0.3s ease;
+	flex: none;
+	font-weight: 600;
+	font-size: 16px;
+	color: var(--text-primary);
+	line-height: 29px; /* 文字垂直居中 */
+	padding: 0; /* 移除内边距 */
 }
 
+/* 占位符 */
+.spacer {
+	flex: 1;
+	height: 100%;
+	background: transparent;
+}
+
+/* 箭头图标 */
 .arrow {
 	font-size: 14px;
 	color: var(--text-secondary);
 	transform: rotate(90deg);
 	transition: transform 0.3s ease;
-	padding: 5px;
+	padding: 0 10px; /* 左右保留点击范围 */
 	flex-shrink: 0;
+	height: 100%; /* 撑满高度 */
+	display: flex; /* Flex 布局居中 */
+	align-items: center;
 }
 
 .arrow.collapsed {
@@ -562,28 +589,26 @@ onLoad(async (options) => {
 	}
 }
 
-/* [核心修改] 统计区域样式：靠右、垂直居中对齐 */
 .total-weight-summary {
 	display: flex;
-	justify-content: flex-end; /* 整体靠右 */
-	align-items: center; /* 垂直居中，保证分隔线居中 */
+	justify-content: flex-end;
+	align-items: center;
 	padding: 15px 0;
 	border-top: 1px solid var(--border-color);
 	margin-top: 20px;
 }
 
-/* [新增] 分隔线样式 */
 .summary-divider {
 	width: 1px;
-	height: 20px; /* 适当的高度，适应两行文字 */
-	background-color: var(--border-color); /* 使用主题边框色 */
-	margin: 0 16px; /* 左右间距，控制紧凑程度 */
+	height: 20px;
+	background-color: var(--border-color);
+	margin: 0 16px;
 }
 
 .summary-item {
 	display: flex;
-	flex-direction: column; /* 上下排列 */
-	align-items: flex-end; /* 文字靠右对齐 */
+	flex-direction: column;
+	align-items: flex-end;
 	flex: none;
 }
 
@@ -618,11 +643,14 @@ onLoad(async (options) => {
 	}
 }
 
+/* 复选框容器 */
 .completion-toggle {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
+	height: 100%; /* 撑满高度 */
+	padding-right: 8px; /* 仅保留右侧间距 */
 }
 
 .check-icon {
@@ -635,6 +663,8 @@ onLoad(async (options) => {
 	justify-content: center;
 	transition: all 0.2s ease;
 	box-sizing: border-box;
+	/* 允许在 Icon 上点击触发事件 */
+	pointer-events: auto;
 }
 
 .check-icon.is-checked {
