@@ -82,7 +82,7 @@
 
 		<AppModal v-model:visible="showRecipeActionsModal" title="配方操作" :no-header-line="true">
 			<view class="options-list">
-				<template v-if="selectedRecipe?.deletedAt === null">
+				<template v-if="!selectedRecipe?.deletedAt">
 					<ListItem class="option-item" @click="handleDiscontinueRecipe" :bleed="true">
 						<view class="main-info">
 							<view class="name">停用配方</view>
@@ -241,7 +241,7 @@ const fabActions = computed(() => {
 		},
 		{
 			icon: '/static/icons/add.svg',
-			text: '其他配方', // [核心修改] 恢复为“其他配方”
+			text: '其他配方',
 			action: () => navigateToEditPage('EXTRA')
 		}
 	];

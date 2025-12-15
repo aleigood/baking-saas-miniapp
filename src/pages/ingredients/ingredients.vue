@@ -2,30 +2,29 @@
 	<view class="full-height-container">
 		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll" class="full-height-wrapper">
 			<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
-				<view class="filter-bar">
-					<FilterTabs v-model="activeFilter" :tabs="ingredientFilterTabs" />
-					<IconButton @click="navigateToLedger">
-						<image class="header-icon" src="/static/icons/log.svg" />
-					</IconButton>
-				</view>
+				<view class="tools-bar">
+					<view class="filter-capsule" @click="showFilterSelector = true">
+						<text>{{ currentFilterLabel }}</text>
+						<view class="arrow-down"></view>
+					</view>
 
-				<view class="search-sort-bar">
-					<view class="search-box">
+					<view class="filter-capsule" @click="toggleSort">
+						<text>{{ currentSortLabel }}</text>
+						<image class="sort-icon-mini" src="/static/icons/sort.svg" />
+					</view>
+
+					<view class="search-box-compact">
 						<image class="search-icon" src="/static/icons/search.svg" mode="aspectFit" />
 						<input
 							class="search-input"
 							v-model="filterKeyword"
-							placeholder="搜索原料名称或品牌"
+							placeholder="搜索..."
 							confirm-type="search"
-							placeholder-style="color: #a98467; opacity: 0.5; font-size: 13px;"
+							placeholder-style="color: #a98467; opacity: 0.6; font-size: 13px;"
 						/>
 						<view v-if="filterKeyword" class="clear-btn" @click="filterKeyword = ''">
 							<text class="clear-icon">×</text>
 						</view>
-					</view>
-					<view class="sort-btn" @click="toggleSort">
-						<image class="sort-icon" src="/static/icons/sort.svg" />
-						<text class="sort-label">{{ currentSortLabel }}</text>
 					</view>
 				</view>
 
@@ -80,7 +79,21 @@
 			</view>
 		</RefreshableLayout>
 
-		<ExpandingFab @click="openCreateIngredientModal" :visible="isFabVisible" />
+		<ExpandingFab :actions="fabActions" :visible="isFabVisible" />
+
+		<AppModal :visible="showFilterSelector" @update:visible="showFilterSelector = false" title="选择原料类型" :no-header-line="true">
+			<view class="options-list">
+				<ListItem v-for="option in filterOptions" :key="option.key" @click="handleFilterSelect(option.key)" class="option-item" :bleed="true">
+					<view class="main-info">
+						<view class="name">{{ option.label }}</view>
+					</view>
+					<view class="side-info" v-if="activeFilter === option.key">
+						<view class="value checkmark-icon">✓</view>
+					</view>
+				</ListItem>
+			</view>
+		</AppModal>
+
 		<AppModal v-model:visible="showIngredientActionsModal" title="原料操作" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleDeleteIngredient" :bleed="true">
@@ -141,10 +154,8 @@ import { createIngredient, deleteIngredient } from '@/api/ingredients';
 import type { Ingredient } from '@/types/api';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import ListItem from '@/components/ListItem.vue';
-import FilterTabs from '@/components/FilterTabs.vue';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
-import IconButton from '@/components/IconButton.vue';
 import FormItem from '@/components/FormItem.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
 import { formatWeight, formatDuration } from '@/utils/format';
@@ -155,11 +166,13 @@ const toastStore = useToastStore();
 const uiStore = useUiStore();
 
 const activeFilter = ref('standard');
-const ingredientFilterTabs = ref([
+const showFilterSelector = ref(false);
+
+const filterOptions = [
 	{ key: 'standard', label: '标准' },
 	{ key: 'self_made', label: '自制' },
 	{ key: 'all', label: '全部' }
-]);
+];
 
 const isSubmitting = ref(false);
 const selectedIngredient = ref<Ingredient | null>(null);
@@ -198,6 +211,33 @@ const availableTypes = ref([
 	{ label: '即时采购 (仅追踪成本)', value: 'NON_INVENTORIED' },
 	{ label: '非追踪原料 (水/冰等)', value: 'UNTRACKED' }
 ]);
+
+const fabActions = computed(() => {
+	const actions = [
+		{
+			icon: '/static/icons/add.svg',
+			text: '新增原料',
+			action: () => openCreateIngredientModal()
+		},
+		{
+			icon: '/static/icons/log.svg',
+			text: '库存流水',
+			action: () => navigateToLedger()
+		}
+	];
+	return actions;
+});
+
+const handleFilterSelect = (key: string) => {
+	activeFilter.value = key;
+	showFilterSelector.value = false;
+	triggerListAnimationWithKeyUpdate(true);
+};
+
+const currentFilterLabel = computed(() => {
+	const option = filterOptions.find((o) => o.key === activeFilter.value);
+	return option ? option.label : '筛选';
+});
 
 const toggleSort = () => {
 	if (sortMode.value === 'name_asc') {
@@ -481,101 +521,95 @@ const handleCreateIngredient = async () => {
 	flex-direction: column;
 }
 
-.filter-bar {
+/* [核心样式修改] 工具栏容器 */
+.tools-bar {
 	display: flex;
-	justify-content: space-between;
 	align-items: center;
 	padding: 10px 15px;
+	gap: 10px; /* 元素间距 */
 }
 
-.header-icon {
-	width: 24px;
-	height: 24px;
-}
-
-/* [样式重构] 搜索和排序栏 - 风格更暖、更融合 */
-.search-sort-bar {
+/* 统一的胶囊样式 (筛选和排序) */
+/* [UI优化] 仿照库存流水的胶囊样式: 浅米色底，无边框 */
+.filter-capsule {
 	display: flex;
 	align-items: center;
-	padding: 0 15px 15px 15px;
-	gap: 12px;
-}
-
-.search-box {
-	flex: 1;
-	height: 38px;
-	background-color: #ffffff; /* 纯白背景 */
-	border: 1px solid #f3e9e3; /* 主题浅边框 (淡粉棕) */
-	border-radius: 19px; /* 半圆角 */
-	display: flex;
-	align-items: center;
-	padding: 0 12px;
+	justify-content: center;
+	background-color: #f3e9e3; /* [修改] 浅米色背景 */
+	padding: 8px 12px;
+	border-radius: 16px;
+	/* border: 1px solid #e6dccd; */ /* [修改] 移除边框 */
+	min-width: 70px;
 	box-sizing: border-box;
-	/* 阴影让它浮起一点，更精致 */
-	box-shadow: 0 2px 6px rgba(140, 90, 59, 0.05);
+	font-size: 14px;
+	color: var(--text-secondary);
+	font-weight: 500;
+
+	/* 点击效果 */
+	&:active {
+		opacity: 0.8;
+	}
+
+	.arrow-down {
+		width: 0;
+		height: 0;
+		border-left: 4px solid transparent;
+		border-right: 4px solid transparent;
+		border-top: 4px solid #8d6e63; /* [修改] 深棕色箭头 */
+		margin-left: 6px;
+		opacity: 0.8;
+	}
+
+	.sort-icon-mini {
+		width: 14px;
+		height: 14px;
+		margin-left: 4px;
+		opacity: 0.7;
+	}
+}
+
+/* 紧凑型搜索框 */
+.search-box-compact {
+	flex: 1; /* 占据剩余空间 */
+	background-color: #f3e9e3; /* [修改] 统一浅米色背景 */
+	/* border: 1px solid #e6dccd; */ /* [修改] 移除边框 */
+	border-radius: 16px;
+	display: flex;
+	align-items: center;
+	padding: 8px 12px;
+	box-sizing: border-box;
 }
 
 .search-icon {
-	width: 16px;
-	height: 16px;
-	margin-right: 8px;
+	width: 14px;
+	height: 14px;
+	margin-right: 6px;
+	opacity: 0.6;
 }
 
 .search-input {
 	flex: 1;
-	font-size: 13px;
+	font-size: 14px;
 	color: var(--text-primary);
 	height: 100%;
 }
 
 .clear-btn {
-	width: 18px;
-	height: 18px;
+	width: 16px;
+	height: 16px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background-color: #f3e9e3;
+	background-color: rgba(140, 90, 59, 0.1); /* [修改] 微调清除按钮背景 */
 	border-radius: 50%;
 	margin-left: 5px;
 }
 
 .clear-icon {
 	color: var(--text-secondary);
-	font-size: 12px;
+	font-size: 10px;
 	line-height: 1;
-	margin-top: -2px;
-}
-
-.sort-btn {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background-color: #ffffff;
-	padding: 0 15px;
-	border-radius: 19px; /* 半圆角 */
-	border: 1px solid #f3e9e3;
-	height: 38px;
-	box-sizing: border-box;
-	min-width: 80px;
-	box-shadow: 0 2px 6px rgba(140, 90, 59, 0.05);
-	transition: background-color 0.2s;
-}
-
-.sort-btn:active {
-	background-color: #faf8f5;
-}
-
-.sort-icon {
-	width: 16px;
-	height: 16px;
-	margin-right: 4px;
-}
-
-.sort-label {
-	font-size: 13px;
-	color: var(--text-secondary); /* 使用次要文字颜色，更柔和 */
-	white-space: nowrap;
-	font-weight: 500;
+	margin-top: -1px;
 }
 
 .side-info .consumption {
@@ -618,5 +652,11 @@ const handleCreateIngredient = async () => {
 	color: var(--text-secondary);
 	margin-top: 5px;
 }
-</style>
+
+/* 模态框内的选项样式 */
+.checkmark-icon {
+	color: var(--primary-color);
+	font-weight: bold;
+	font-size: 16px;
 }
+</style>
