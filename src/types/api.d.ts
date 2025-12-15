@@ -30,12 +30,14 @@ export interface CalculatedRecipeIngredient {
 	isRecipe: boolean;
 	extraInfo?: string;
 }
+
 export interface CalculatedRecipeDetails {
 	id: string;
 	name: string;
 	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	totalWeight: number;
 	targetWeight?: number;
+	stockWeight?: number;
 	procedure: string[];
 	ingredients: CalculatedRecipeIngredient[];
 }

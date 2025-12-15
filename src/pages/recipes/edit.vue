@@ -92,7 +92,7 @@
 										</view>
 									</view>
 
-									<FormItem label="面粉的比例 (%)">
+									<FormItem label="面粉占比 (%)">
 										<input
 											class="input-field"
 											type="digit"
@@ -1424,7 +1424,7 @@ const hasPreDough = computed(() => {
 
 	.notes-title {
 		display: block;
-		margin-bottom: 15px;
+		margin-bottom: 8px;
 		font-size: 14px;
 		padding: 0px 5px;
 		color: #606266;
