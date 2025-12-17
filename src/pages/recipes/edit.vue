@@ -92,7 +92,7 @@
 										</view>
 									</view>
 
-									<FormItem label="面粉占比 (%)">
+									<FormItem label="面种用粉占比 (%)">
 										<input
 											class="input-field"
 											type="digit"
@@ -387,7 +387,7 @@
 					</view>
 				</picker>
 			</FormItem>
-			<FormItem label="面种中面粉占面粉总量的比例 (%)">
+			<FormItem label="面种用粉占比 (%)">
 				<input class="input-field" type="digit" v-model="preDoughFlourRatio" placeholder="例如：20" />
 			</FormItem>
 			<view class="modal-actions">

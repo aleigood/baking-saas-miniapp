@@ -26,16 +26,16 @@ const list = ref([
 		selectedIconPath: '/static/tabbar/production_active.svg'
 	},
 	{
-		key: 'ingredients',
-		text: '原料',
-		iconPath: '/static/tabbar/ingredients.svg',
-		selectedIconPath: '/static/tabbar/ingredients_active.svg'
-	},
-	{
 		key: 'recipes',
 		text: '配方',
 		iconPath: '/static/tabbar/recipes.svg',
 		selectedIconPath: '/static/tabbar/recipes_active.svg'
+	},
+	{
+		key: 'ingredients',
+		text: '原料',
+		iconPath: '/static/tabbar/ingredients.svg',
+		selectedIconPath: '/static/tabbar/ingredients_active.svg'
 	},
 	{
 		key: 'personnel',
