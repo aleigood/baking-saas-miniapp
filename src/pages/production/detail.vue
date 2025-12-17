@@ -69,14 +69,23 @@
 										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 									</view>
 								</view>
+
 								<view class="total-weight-summary">
-									<text>
-										{{ selectedComponentDetails.category === 'BREAD' ? '面团总重' : '原料总重' }}:
-										{{ formatWeight(selectedComponentDetails.totalComponentWeight) }}
-									</text>
-									<text v-if="isSelfMadeComponent && selectedProductDetails" style="margin-left: 10px; font-weight: bold; color: var(--primary-color)">
-										(目标产出: {{ formatWeight(selectedProductDetails.baseComponent.quantity) }})
-									</text>
+									<view class="summary-left-alert" v-if="componentMixInSummary.length > 0">
+										<image class="summary-alert-icon" src="/static/icons/warning.svg" mode="aspectFit"></image>
+										<text>含辅料需后加，请勿遗漏</text>
+									</view>
+									<view v-else></view>
+
+									<view class="summary-right-info">
+										<text>
+											{{ selectedComponentDetails.category === 'BREAD' ? '面团总重' : '原料总重' }}:
+											{{ formatWeight(selectedComponentDetails.totalComponentWeight) }}
+										</text>
+										<text v-if="isSelfMadeComponent && selectedProductDetails" class="highlight-output">
+											(目标产出: {{ formatWeight(selectedProductDetails.baseComponent.quantity) }})
+										</text>
+									</view>
 								</view>
 								<view v-if="selectedComponentDetails.baseComponentProcedure.length > 0" class="procedure-notes">
 									<text class="notes-title">制作要点:</text>
@@ -132,8 +141,19 @@
 														<text class="col-brand">品牌</text>
 														<text class="col-usage">总用量</text>
 													</view>
-													<view v-for="ing in selectedProductDetails.mixIns" :key="ing.id" class="table-row">
-														<text class="col-ingredient">{{ ing.name }}</text>
+													<view
+														v-for="ing in selectedProductDetails.mixIns"
+														:key="ing.id"
+														class="table-row"
+														@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${selectedProductDetails.id}-mixin-${ing.id}`)"
+													>
+														<view class="col-ingredient ingredient-name-cell">
+															<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${selectedProductDetails.id}-mixin-${ing.id}`">
+																<text>{{ ing.name }}</text>
+																<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
+															</view>
+															<text v-else>{{ ing.name }}</text>
+														</view>
 														<text class="col-brand">{{ ing.brand || '-' }}</text>
 														<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 													</view>
@@ -148,8 +168,23 @@
 														<text class="col-per-unit">单个用量</text>
 														<text class="col-usage">总用量</text>
 													</view>
-													<view v-for="ing in selectedProductDetails.fillings" :key="ing.id" class="table-row">
-														<text class="col-ingredient">{{ ing.name }}</text>
+													<view
+														v-for="ing in selectedProductDetails.fillings"
+														:key="ing.id"
+														class="table-row"
+														@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${selectedProductDetails.id}-filling-${ing.id}`)"
+													>
+														<view class="col-ingredient ingredient-name-cell">
+															<view
+																v-if="ing.extraInfo"
+																class="ingredient-with-icon"
+																:id="`info-icon-${selectedProductDetails.id}-filling-${ing.id}`"
+															>
+																<text>{{ ing.name }}</text>
+																<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
+															</view>
+															<text v-else>{{ ing.name }}</text>
+														</view>
 														<text class="col-brand">{{ ing.brand || '-' }}</text>
 														<text class="col-per-unit">{{ formatWeight(ing.weightPerUnit) }}</text>
 														<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
@@ -165,8 +200,23 @@
 														<text class="col-per-unit">单个用量</text>
 														<text class="col-usage">总用量</text>
 													</view>
-													<view v-for="ing in selectedProductDetails.toppings" :key="ing.id" class="table-row">
-														<text class="col-ingredient">{{ ing.name }}</text>
+													<view
+														v-for="ing in selectedProductDetails.toppings"
+														:key="ing.id"
+														class="table-row"
+														@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${selectedProductDetails.id}-topping-${ing.id}`)"
+													>
+														<view class="col-ingredient ingredient-name-cell">
+															<view
+																v-if="ing.extraInfo"
+																class="ingredient-with-icon"
+																:id="`info-icon-${selectedProductDetails.id}-topping-${ing.id}`"
+															>
+																<text>{{ ing.name }}</text>
+																<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
+															</view>
+															<text v-else>{{ ing.name }}</text>
+														</view>
 														<text class="col-brand">{{ ing.brand || '-' }}</text>
 														<text class="col-per-unit">{{ formatWeight(ing.weightPerUnit) }}</text>
 														<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
@@ -831,6 +881,34 @@ const formatProductQuantity = (product: { name: string; plannedQuantity: number 
 	}
 	return `${product.plannedQuantity}`;
 };
+
+// [新增] 计算当前选中组件组下所有产品的辅料汇总
+const componentMixInSummary = computed(() => {
+	if (!selectedComponentDetails.value) return [];
+
+	// 使用 Map 来合并相同的原料
+	const summaryMap = new Map<string, { name: string; products: string[] }>();
+
+	selectedComponentDetails.value.productDetails.forEach((product) => {
+		// 遍历每个产品的 mixIns (辅料)
+		if (product.mixIns && product.mixIns.length > 0) {
+			product.mixIns.forEach((ing) => {
+				// 以原料名称为 key
+				if (!summaryMap.has(ing.name)) {
+					summaryMap.set(ing.name, { name: ing.name, products: [] });
+				}
+				summaryMap.get(ing.name)!.products.push(product.name);
+			});
+		}
+	});
+
+	// 转换为数组并格式化
+	return Array.from(summaryMap.values()).map((item) => ({
+		name: item.name,
+		// 如果产品太多，可以做个截断，或者只显示 "等x个产品"
+		productNames: item.products.join(', ')
+	}));
+});
 </script>
 
 <style scoped lang="scss">
@@ -1117,5 +1195,49 @@ const formatProductQuantity = (product: { name: string; plannedQuantity: number 
 	margin-top: 30px;
 	margin-bottom: 30px;
 	--tabs-container-bg-rgb: 255, 255, 255;
+}
+/* [核心修改] 调整汇总栏布局 */
+.total-weight-summary {
+	display: flex;
+	justify-content: space-between; /* 两端对齐：左边是警示，右边是总重 */
+	align-items: center; /* 垂直居中 */
+	padding: 15px 4px;
+	font-size: 13px;
+	color: var(--text-secondary);
+	border-top: 1px solid var(--border-color);
+	margin-top: 10px;
+}
+
+/* 右侧信息（原有的总重） */
+.summary-right-info {
+	display: flex;
+	align-items: center;
+	text-align: right;
+}
+
+.highlight-output {
+	margin-left: 10px;
+	font-weight: bold;
+	color: var(--primary-color);
+}
+
+/* [新增] 左侧轻量级警示样式 */
+.summary-left-alert {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.summary-left-alert text {
+	font-size: 13px;
+	color: var(--text-secondary);
+	font-weight: 500;
+}
+
+.summary-alert-icon {
+	width: 16px;
+	height: 16px;
+	/* 确保图标垂直居中 */
+	display: block;
 }
 </style>
