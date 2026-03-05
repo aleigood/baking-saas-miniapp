@@ -450,6 +450,10 @@ const resetCompletionForm = () => {
 };
 
 const openCompleteTaskModal = async () => {
+	// [新增] 如果任务数据还没加载完，直接不执行，防止误触或幽灵触发
+	if (!task.value || !task.value.items) {
+		return;
+	}
 	resetCompletionForm();
 	if (spoilageStages.value.length === 0) {
 		spoilageStages.value = await getSpoilageStages();
