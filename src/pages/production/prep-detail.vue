@@ -7,9 +7,10 @@
 				<template v-if="task">
 					<view class="filter-header-container">
 						<FilterTabs v-model="activeTab" :tabs="filterTabs" />
-						<view v-if="task.sourceTasks && task.sourceTasks.length > 1" class="task-filter-btn" @click="openTaskFilter">
-							<image src="/static/icons/filter.svg" class="filter-icon" mode="aspectFit" />
-						</view>
+						
+						<IconButton v-if="task.sourceTasks && task.sourceTasks.length > 1" @click="openTaskFilter" style="margin-left: 10px;">
+							<image class="header-icon" src="/static/icons/filter.svg" mode="aspectFit" />
+						</IconButton>
 					</view>
 
 					<view v-if="activeTab === 'BILL_OF_MATERIALS'">
@@ -201,6 +202,7 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import { formatWeight } from '@/utils/format';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
+import IconButton from '@/components/IconButton.vue'; // [新增] 引入 IconButton 组件
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppPopover from '@/components/AppPopover.vue';
@@ -209,7 +211,7 @@ defineOptions({
 	inheritAttrs: false
 });
 
-const instance = getCurrentInstance();
+const instance = getCurrentInstance(); 
 const dataStore = useDataStore();
 const userStore = useUserStore();
 const toastStore = useToastStore();
@@ -376,7 +378,11 @@ const toggleTaskSelection = (id: string) => {
 };
 
 const isAllTasksSelected = computed(() => {
-	return task.value?.sourceTasks && task.value.sourceTasks.length > 0 && tempSelectedTaskIds.value.length === task.value.sourceTasks.length;
+	return (
+		task.value?.sourceTasks &&
+		task.value.sourceTasks.length > 0 &&
+		tempSelectedTaskIds.value.length === task.value.sourceTasks.length
+	);
 });
 
 const toggleSelectAllTasks = () => {
@@ -391,13 +397,10 @@ const toggleSelectAllTasks = () => {
 };
 
 const applyTaskFilter = () => {
-	// 1. 先保存选中的状态
 	selectedTaskIds.value = [...tempSelectedTaskIds.value];
-	// 2. 触发弹窗关闭动画
 	showTaskFilterModal.value = false;
 
-	// 3. 【核心修复】等待 300ms (弹窗彻底从 DOM 中卸载) 后，再执行数据刷新
-	// 彻底隔离 DOM 销毁与数据重绘的冲突，消除 unknown removedNode 错误
+	// [修复] 解决由于 DOM 元素卸载引起的unknown removedNode 报错
 	setTimeout(async () => {
 		await fetchTaskData();
 	}, 300);
@@ -493,7 +496,6 @@ const toggleItemCompleted = (itemId: string) => {
 const fetchTaskData = async () => {
 	isLoading.value = true;
 	try {
-		// 如果用户取消了所有勾选，直接清空本地数据，不再请求后台
 		if (task.value?.sourceTasks && selectedTaskIds.value.length === 0) {
 			task.value = {
 				...task.value,
@@ -504,7 +506,6 @@ const fetchTaskData = async () => {
 			return;
 		}
 
-		// 只有在明确知道总数，且选中数量小于总数时，才给后端传递过滤参数
 		let taskIdsParam = undefined;
 		if (task.value?.sourceTasks && selectedTaskIds.value.length < task.value.sourceTasks.length) {
 			taskIdsParam = selectedTaskIds.value;
@@ -515,7 +516,6 @@ const fetchTaskData = async () => {
 		const taskData = await getPrepTaskDetails(taskDate.value!, taskIdsParam);
 		task.value = taskData;
 
-		// 首次加载如果没有选中记录，默认全选
 		if (task.value?.sourceTasks && selectedTaskIds.value.length === 0) {
 			selectedTaskIds.value = task.value.sourceTasks.map((t) => t.id);
 			tempSelectedTaskIds.value = [...selectedTaskIds.value];
@@ -598,24 +598,10 @@ onLoad(async (options) => {
 	margin-bottom: 20px;
 }
 
-/* 筛选图标按钮样式 */
-.task-filter-btn {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	padding: 5px;
-	margin-left: 10px;
-	border-radius: 6px;
-	background-color: transparent;
-
-	&:active {
-		background-color: rgba(0, 0, 0, 0.05);
-	}
-
-	.filter-icon {
-		width: 22px;
-		height: 22px;
-	}
+/* [新增] 参照 production.vue 的图标样式 */
+.header-icon {
+	width: 24px;
+	height: 24px;
 }
 
 /* 弹窗内任务列表样式 */

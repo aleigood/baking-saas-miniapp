@@ -1,7 +1,7 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<DetailHeader title="原料制作" />
+		<DetailHeader :title="pageTitle" />
 		<DetailPageLayout>
 			<view class="page-content">
 				<view class="card">
@@ -46,7 +46,7 @@
 						</view>
 						<view v-else class="summary-placeholder">
 							<view class="summary-group-item is-placeholder">
-								<text class="placeholder-text">请选择配方并输入重量</text>
+								<text class="placeholder-text">请选择配方并输入原料重量</text>
 							</view>
 						</view>
 					</view>
@@ -90,7 +90,7 @@
 
 				<view class="bottom-actions-container">
 					<AppButton type="primary" full-width :disabled="!canSubmit" @click="handleSubmit" :loading="isCreating">
-						创建 {{ summaryItems.length > 0 ? summaryItems.length : '' }} 个任务
+						{{ isCreating ? '' : isEditMode ? '确认修改' : '创建任务' }}
 					</AppButton>
 				</view>
 			</view>
@@ -100,19 +100,22 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
+// 修改：引入 onUnload 清除缓存
+import { onLoad, onUnload } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
 import { useUserStore } from '@/store/user';
-import { createTask } from '@/api/tasks';
+// 修改：引入 updateTask API
+import { createTask, updateTask } from '@/api/tasks';
 import { getRecipeFamily } from '@/api/recipes';
 import { getLocalDate } from '@/utils/format';
 import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import CssAnimatedTabs from '@/components/CssAnimatedTabs.vue';
-import type { RecipeFamily } from '@/types/api';
+// 修改：引入 ProductionTaskDto 类型
+import type { RecipeFamily, ProductionTaskDto } from '@/types/api';
 
 defineOptions({
 	inheritAttrs: false
@@ -129,6 +132,16 @@ const userStore = useUserStore();
 
 const isCreating = ref(false);
 const isLoadingDetails = ref(false);
+
+// --- 新增：编辑模式状态管理 ---
+const isEditMode = ref(false);
+const editingTaskId = ref<string | null>(null);
+
+const pageTitle = computed(() => {
+	return isEditMode.value ? '修改任务' : '原料制作';
+});
+// ------------------------------
+
 const today = getLocalDate();
 const taskForm = reactive({
 	startDate: today,
@@ -364,6 +377,77 @@ onLoad(async (options) => {
 	}
 
 	initRecipeStates();
+
+	// --- 新增：编辑模式处理逻辑 ---
+	if (options && options.taskId) {
+		isEditMode.value = true;
+		editingTaskId.value = options.taskId;
+
+		const taskJson = uni.getStorageSync('task_to_edit');
+		if (taskJson) {
+			try {
+				const taskToEdit: ProductionTaskDto = JSON.parse(taskJson);
+
+				taskForm.startDate = getLocalDate(new Date(taskToEdit.startDate));
+				taskForm.endDate = taskToEdit.endDate ? getLocalDate(new Date(taskToEdit.endDate)) : taskForm.startDate;
+
+				let firstTabSet = false;
+
+				for (const item of taskToEdit.items) {
+					// 找到对应的配方状态
+					const stateKey = Object.keys(recipeStates).find((key) => recipeStates[key].productId === item.product.id);
+
+					if (stateKey) {
+						const state = recipeStates[stateKey];
+
+						// 如果详情未加载，先加载详情以获取比例和损耗系数
+						if (!state.detailsLoaded) {
+							await loadRecipeDetails(state);
+						}
+
+						// 逆向反推总投入量： state.totalWeight = (目标产出数量 * 分母) / (1 - 损耗比例)
+						const lossRatio = state.lossRatio || 0;
+						const divLoss = state.divisionLoss || 0;
+						const baseWeight = state.baseDoughWeight || 1;
+						const denominator = baseWeight + divLoss > 0 ? baseWeight + divLoss : 1;
+
+						const calculatedTotalWeight = (item.quantity * denominator) / (1 - lossRatio);
+
+						state.totalWeight = calculatedTotalWeight;
+						state.totalDisplay = parseFloat(calculatedTotalWeight.toFixed(2)).toString();
+
+						// 顺势计算填充该配方下各个原料的具体重量
+						const totalRatio = getTotalRatio(state.ingredients);
+						if (totalRatio > 0) {
+							state.ingredients.forEach((ing) => {
+								const weight = (calculatedTotalWeight * ing.ratio) / totalRatio;
+								ing.weight = weight;
+								ing.weightDisplay = weight > 0 ? parseFloat(weight.toFixed(2)).toString() : '';
+							});
+						}
+
+						// 将第一个找到的数据设为当前激活的 Tab
+						if (!firstTabSet) {
+							activeTabKey.value = stateKey;
+							firstTabSet = true;
+						}
+					}
+				}
+			} catch (e) {
+				console.error('Failed to parse task data from storage:', e);
+				toastStore.show({ message: '加载任务信息失败', type: 'error' });
+				uni.navigateBack();
+			}
+		} else {
+			toastStore.show({ message: '找不到要编辑的任务信息', type: 'error' });
+			uni.navigateBack();
+		}
+	}
+});
+
+// 新增：离开页面时清除编辑状态缓存
+onUnload(() => {
+	uni.removeStorageSync('task_to_edit');
 });
 
 const handleSubmit = async () => {
@@ -373,9 +457,7 @@ const handleSubmit = async () => {
 	const productsToSubmit = Object.values(recipeStates)
 		.filter((state) => state.totalWeight && state.totalWeight > 0)
 		.map((state) => {
-			// [核心修复] 将前端的“总投入重量”反推计算出后端的“目标产出数量”
-			// 后端的 BOM 算法是根据产出求投入：InputWeight = Quantity * (baseDoughWeight + divisionLoss) / (1 - lossRatio)
-			// 所以前端提交的数量应该是：Quantity = InputWeight * (1 - lossRatio) / (baseDoughWeight + divisionLoss)
+			// 将前端的“总投入重量”反推计算出后端的“目标产出数量”
 			const lossRatio = state.lossRatio || 0;
 			const divLoss = state.divisionLoss || 0;
 			const baseWeight = state.baseDoughWeight || 1;
@@ -403,12 +485,17 @@ const handleSubmit = async () => {
 		const currentUserRole = userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role;
 		const target = currentUserRole === 'MEMBER' ? '/pages/baker/main' : '/pages/main/main';
 
-		const res = await createTask(payload);
-
-		if (res.warning) {
-			uiStore.setNextPageToast({ message: res.warning, type: 'error', duration: 3000 }, target);
+		// 修改：根据编辑模式调用对应的 API
+		if (isEditMode.value && editingTaskId.value) {
+			await updateTask(editingTaskId.value, payload);
+			uiStore.setNextPageToast({ message: '任务修改成功', type: 'success' }, target);
 		} else {
-			uiStore.setNextPageToast({ message: `成功创建 ${productsToSubmit.length} 个原料制作任务`, type: 'success' }, target);
+			const res = await createTask(payload);
+			if (res.warning) {
+				uiStore.setNextPageToast({ message: res.warning, type: 'error', duration: 3000 }, target);
+			} else {
+				uiStore.setNextPageToast({ message: `成功创建 ${productsToSubmit.length} 个原料制作任务`, type: 'success' }, target);
+			}
 		}
 
 		dataStore.markProductionAsStale();
@@ -416,8 +503,8 @@ const handleSubmit = async () => {
 		dataStore.markIngredientsAsStale();
 		uni.navigateBack();
 	} catch (error) {
-		console.error('Failed to create ingredient tasks:', error);
-		toastStore.show({ message: '创建失败', type: 'error' });
+		console.error('Failed to create/update ingredient tasks:', error);
+		toastStore.show({ message: isEditMode.value ? '修改失败' : '创建失败', type: 'error' });
 	} finally {
 		isCreating.value = false;
 	}

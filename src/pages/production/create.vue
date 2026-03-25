@@ -29,10 +29,7 @@
 				</view>
 
 				<view class="card">
-					<view class="card-title">
-						{{ isSelfMadeCategory ? '制作重量' : '产品数量' }}
-						<text v-if="isSelfMadeCategory" class="subtitle-text">(单位: 克)</text>
-					</view>
+					<view class="card-title">产品数量</view>
 					<view class="summary-card no-frame">
 						<view v-if="summaryGroups.length > 0" class="summary-content">
 							<view v-for="(group, groupIndex) in summaryGroups" :key="groupIndex" class="summary-group-item">
@@ -55,7 +52,7 @@
 						</view>
 						<view v-else class="summary-placeholder">
 							<view class="summary-group-item is-placeholder">
-								<text class="placeholder-text">{{ isSelfMadeCategory ? '请填写制作重量' : '请填写产品数量' }}</text>
+								<text class="placeholder-text">请选择配方并输入产品数量</text>
 							</view>
 						</view>
 					</view>
@@ -68,7 +65,7 @@
 							<input
 								class="input-field quantity-input"
 								type="number"
-								:placeholder="quantityPlaceholder"
+								placeholder="数量"
 								:value="taskQuantities[product.id]"
 								@input="onQuantityInput(product.id, $event)"
 							/>
@@ -120,23 +117,15 @@ const categoryMap: Record<string, string> = {
 	BREAD: '面包',
 	PASTRY: '西点',
 	DESSERT: '甜品',
-	DRINK: '饮品',
-	OTHER: '自制原料'
+	DRINK: '饮品'
+	// [清理] 移除了 OTHER 分类
 };
-
-const isSelfMadeCategory = computed(() => {
-	return selectedCategory.value === 'OTHER';
-});
-
-const quantityPlaceholder = computed(() => {
-	return isSelfMadeCategory.value ? '重量(g)' : '数量';
-});
 
 const pageTitle = computed(() => {
 	if (isEditMode.value) return '修改任务';
 	if (selectedCategory.value) {
 		const catName = categoryMap[selectedCategory.value] || '生产';
-		return `新建${catName}任务`;
+		return `${catName}制作`;
 	}
 	return '新建任务';
 });
@@ -189,7 +178,8 @@ onLoad(async (options) => {
 					const firstProductId = taskToEdit.items[0].product.id;
 
 					let foundCategory: RecipeCategory | null = null;
-					const allCategories = Object.keys(dataStore.productsForTaskCreation) as RecipeCategory[];
+					// 只遍历当前支持的分类（面包、西点等）
+					const allCategories = Object.keys(categoryMap) as RecipeCategory[];
 
 					for (const category of allCategories) {
 						const familiesInCat = dataStore.productsForTaskCreation[category];
@@ -197,7 +187,7 @@ onLoad(async (options) => {
 
 						for (const familyName of Object.keys(familiesInCat)) {
 							const products = familiesInCat[familyName];
-							if (products.some((p) => p.id === firstProductId)) {
+							if (products && products.some((p) => p.id === firstProductId)) {
 								foundCategory = category;
 								break;
 							}
@@ -229,8 +219,8 @@ onLoad(async (options) => {
 	} else if (options && options.category) {
 		selectedCategory.value = options.category as RecipeCategory;
 	} else {
-		const availableCats = Object.keys(dataStore.productsForTaskCreation) as RecipeCategory[];
-		if (availableCats.length === 1) {
+		const availableCats = Object.keys(categoryMap) as RecipeCategory[];
+		if (availableCats.length > 0) {
 			selectedCategory.value = availableCats[0];
 		} else {
 			toastStore.show({ message: '未指定任务品类', type: 'error' });
@@ -308,8 +298,8 @@ const updateSummary = () => {
 				name: groupName,
 				totalQuantity: totalQty,
 				items: quantifiedProducts.map((p) => {
-					const unit = isSelfMadeCategory.value ? 'g' : 'x';
-					return isSelfMadeCategory.value ? `${p.name} ${p.quantity}${unit}` : `${p.name} ${unit}${p.quantity}`;
+					// [清理] 固化单位为 'x'
+					return `${p.name} x${p.quantity}`;
 				})
 			});
 		}
@@ -326,8 +316,8 @@ const handleSubmit = async () => {
 		}));
 
 	if (productsToSubmit.length === 0) {
-		const msg = isSelfMadeCategory.value ? '请输入制作重量' : '请输入要生产的数量';
-		toastStore.show({ message: msg, type: 'error' });
+		// [清理] 固定提示语
+		toastStore.show({ message: '请选择配方并输入要生产的数量', type: 'error' });
 		return;
 	}
 
@@ -421,7 +411,7 @@ const handleSubmit = async () => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	min-height: 80px;
+	min-height: 40px;
 	background-color: transparent;
 	border: 1px dashed #f0e6d2;
 }
@@ -483,7 +473,6 @@ const handleSubmit = async () => {
 	}
 }
 
-/* [样式优化] 使用 svg 图片样式保证居中并设定合适大小 */
 .clear-icon-img {
 	width: 10px;
 	height: 10px;
@@ -539,12 +528,5 @@ const handleSubmit = async () => {
 	max-width: 120px;
 	flex-shrink: 0;
 	text-align: center;
-}
-
-.subtitle-text {
-	font-size: 12px;
-	color: var(--text-secondary);
-	font-weight: normal;
-	margin-left: 5px;
 }
 </style>
