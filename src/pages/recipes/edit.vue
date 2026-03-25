@@ -675,7 +675,8 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 	});
 
 	dataStore.allIngredients.forEach((i) => {
-		ingredientMap.set(i.id, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0, recipeType: null });
+		// [修改部分] 将原来的 i.id 改为 i.name，以确保与下方 extras 的 e.name 匹配并正确去重
+		ingredientMap.set(i.name, { id: i.id, name: i.name, isFlour: i.isFlour, isRecipe: false, waterContent: i.waterContent || 0, recipeType: null });
 	});
 
 	const extras = dataStore.recipes.extras || [];

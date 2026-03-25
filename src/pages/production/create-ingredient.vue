@@ -74,7 +74,7 @@
 
 							<view class="ingredient-item total-weight-row">
 								<view class="ingredient-info">
-									<text class="ingredient-name total-label">目标总重量</text>
+									<text class="ingredient-name total-label">总投入量</text>
 								</view>
 								<input
 									class="input-field weight-input total-input-small"
@@ -157,62 +157,65 @@ interface RecipeState {
 	totalWeight: number | null;
 	totalDisplay: string;
 	ingredients: CalculationItem[];
-	detailsLoaded: boolean; // 标记是否已加载配方详情
+	detailsLoaded: boolean;
+	// 新增：保存配方的损耗属性，以便精准反推提交给后端的数量
+	lossRatio: number;
+	divisionLoss: number;
+	baseDoughWeight: number;
 }
 
 // 核心状态：存储所有配方的输入数据
-// Key: recipeName (对应 Tab Key)
 const recipeStates = reactive<Record<string, RecipeState>>({});
 
 // 生成标签页配置
 const recipeTabs = computed(() => {
 	const otherProducts = dataStore.productsForTaskCreation['OTHER'] || {};
-	// OTHER 下的 key 通常是配方名 (Family Name)
 	return Object.keys(otherProducts).map((name) => ({
 		key: name,
 		label: name
 	}));
 });
 
-// 初始化配方基础信息 (从 store)
+// 初始化配方基础信息
 const initRecipeStates = () => {
 	const otherProducts = dataStore.productsForTaskCreation['OTHER'] || {};
 	const allRecipes = [...dataStore.recipes.preDoughs, ...dataStore.recipes.extras];
 
 	Object.keys(otherProducts).forEach((name) => {
-		// 如果状态已存在，跳过
 		if (recipeStates[name]) return;
 
 		const products = otherProducts[name];
 		if (!products || products.length === 0) return;
 
-		// 找到对应的配方族 ID
 		const family = allRecipes.find((f) => f.name === name);
 
 		if (family) {
+			// 安全获取产品基础重量，默认为 1
+			const baseWeight = (products[0] as any).baseDoughWeight ? Number((products[0] as any).baseDoughWeight) : 1;
+
 			recipeStates[name] = {
-				productId: products[0].id, // 自制原料通常只有一个产品ID
+				productId: products[0].id,
 				recipeFamilyId: family.id,
 				totalWeight: null,
 				totalDisplay: '',
 				ingredients: [],
-				detailsLoaded: false
+				detailsLoaded: false,
+				lossRatio: 0,
+				divisionLoss: 0,
+				baseDoughWeight: baseWeight
 			};
 		}
 	});
 
-	// 设置默认激活标签
 	if (!activeTabKey.value && recipeTabs.value.length > 0) {
 		activeTabKey.value = recipeTabs.value[0].key;
 	}
 };
 
-// 当前激活配方的状态
 const activeRecipeState = computed(() => {
 	return recipeStates[activeTabKey.value];
 });
 
-// 监听标签切换，加载详情
 watch(
 	activeTabKey,
 	async (newKey) => {
@@ -235,6 +238,11 @@ const loadRecipeDetails = async (state: RecipeState) => {
 
 		if (version && version.components && version.components.length > 0) {
 			const component = version.components[0];
+
+			// 记录配方的损耗系数，用于反推计算后端需要的 Quantity（成品目标重量）
+			state.lossRatio = Number(component.lossRatio || 0);
+			state.divisionLoss = Number(component.divisionLoss || 0);
+
 			state.ingredients = (component.ingredients || []).map((ing) => ({
 				id: ing.ingredient?.id || ing.linkedPreDough?.id || ing.linkedExtra?.id || null,
 				name: ing.ingredient?.name || ing.linkedPreDough?.name || ing.linkedExtra?.name || '未知原料',
@@ -252,19 +260,6 @@ const loadRecipeDetails = async (state: RecipeState) => {
 	} finally {
 		isLoadingDetails.value = false;
 	}
-};
-
-// --- 计算逻辑 (针对 activeRecipeState) ---
-
-const resetActiveWeights = () => {
-	if (!activeRecipeState.value) return;
-	const state = activeRecipeState.value;
-	state.totalWeight = null;
-	state.totalDisplay = '';
-	state.ingredients.forEach((item) => {
-		item.weight = null;
-		item.weightDisplay = '';
-	});
 };
 
 const clearRecipe = (recipeName: string) => {
@@ -293,7 +288,6 @@ const onTotalWeightInput = (e: any) => {
 
 	if (!isNaN(num) && num >= 0) {
 		state.totalWeight = num;
-		// 重新计算所有分项
 		const totalRatio = getTotalRatio(state.ingredients);
 		if (totalRatio > 0) {
 			state.ingredients.forEach((item) => {
@@ -321,14 +315,12 @@ const onIngredientWeightInput = (index: number, e: any) => {
 	const num = parseFloat(val);
 
 	if (!isNaN(num) && num >= 0 && item.ratio > 0) {
-		// 反推总重量
 		const totalRatio = getTotalRatio(state.ingredients);
 		const newTotal = (num / item.ratio) * totalRatio;
 
 		state.totalWeight = newTotal;
 		state.totalDisplay = parseFloat(newTotal.toFixed(2)).toString();
 
-		// 更新其他分项
 		state.ingredients.forEach((other, idx) => {
 			if (idx === index) {
 				other.weight = num;
@@ -341,7 +333,6 @@ const onIngredientWeightInput = (index: number, e: any) => {
 	}
 };
 
-// 汇总显示
 const summaryItems = computed(() => {
 	const items: { name: string; weight: number }[] = [];
 	Object.keys(recipeStates).forEach((key) => {
@@ -381,10 +372,23 @@ const handleSubmit = async () => {
 	// 收集所有有效任务
 	const productsToSubmit = Object.values(recipeStates)
 		.filter((state) => state.totalWeight && state.totalWeight > 0)
-		.map((state) => ({
-			productId: state.productId,
-			quantity: Number(state.totalWeight)
-		}));
+		.map((state) => {
+			// [核心修复] 将前端的“总投入重量”反推计算出后端的“目标产出数量”
+			// 后端的 BOM 算法是根据产出求投入：InputWeight = Quantity * (baseDoughWeight + divisionLoss) / (1 - lossRatio)
+			// 所以前端提交的数量应该是：Quantity = InputWeight * (1 - lossRatio) / (baseDoughWeight + divisionLoss)
+			const lossRatio = state.lossRatio || 0;
+			const divLoss = state.divisionLoss || 0;
+			const baseWeight = state.baseDoughWeight || 1;
+
+			// 避免除以0的安全防护
+			const denominator = baseWeight + divLoss > 0 ? baseWeight + divLoss : 1;
+			const targetQuantity = (state.totalWeight! * (1 - lossRatio)) / denominator;
+
+			return {
+				productId: state.productId,
+				quantity: Number(targetQuantity.toFixed(4)) // 提交带有精度的目标产出值
+			};
+		});
 
 	if (productsToSubmit.length === 0) return;
 
@@ -527,7 +531,6 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	}
 }
 
-/* [样式优化] 使用 svg 图片样式保证居中并设定合适大小 */
 .clear-icon-img {
 	width: 8px;
 	height: 8px;
