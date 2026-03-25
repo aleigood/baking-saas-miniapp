@@ -7,8 +7,8 @@
 				<template v-if="task">
 					<view class="filter-header-container">
 						<FilterTabs v-model="activeTab" :tabs="filterTabs" />
-						
-						<IconButton v-if="task.sourceTasks && task.sourceTasks.length > 1" @click="openTaskFilter" style="margin-left: 10px;">
+
+						<IconButton v-if="task.sourceTasks && task.sourceTasks.length > 1" @click="openTaskFilter" style="margin-left: 10px">
 							<image class="header-icon" src="/static/icons/filter.svg" mode="aspectFit" />
 						</IconButton>
 					</view>
@@ -211,7 +211,7 @@ defineOptions({
 	inheritAttrs: false
 });
 
-const instance = getCurrentInstance(); 
+const instance = getCurrentInstance();
 const dataStore = useDataStore();
 const userStore = useUserStore();
 const toastStore = useToastStore();
@@ -368,7 +368,6 @@ const openTaskFilter = () => {
 };
 
 const toggleTaskSelection = (id: string) => {
-	uni.vibrateShort({});
 	const idx = tempSelectedTaskIds.value.indexOf(id);
 	if (idx > -1) {
 		tempSelectedTaskIds.value.splice(idx, 1);
@@ -378,15 +377,10 @@ const toggleTaskSelection = (id: string) => {
 };
 
 const isAllTasksSelected = computed(() => {
-	return (
-		task.value?.sourceTasks &&
-		task.value.sourceTasks.length > 0 &&
-		tempSelectedTaskIds.value.length === task.value.sourceTasks.length
-	);
+	return task.value?.sourceTasks && task.value.sourceTasks.length > 0 && tempSelectedTaskIds.value.length === task.value.sourceTasks.length;
 });
 
 const toggleSelectAllTasks = () => {
-	uni.vibrateShort({});
 	if (task.value?.sourceTasks) {
 		if (isAllTasksSelected.value) {
 			tempSelectedTaskIds.value = [];
