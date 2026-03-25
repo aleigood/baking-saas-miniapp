@@ -272,11 +272,16 @@
 }
 .page-header {
 	background: transparent;
-	position: sticky;
+	/* [修改] 将 sticky 改为 fixed，让它完全悬浮盖在页面之上 */
+	position: fixed;
+	left: 0;
+	right: 0;
 	top: 0;
-	z-index: 10;
-	backdrop-filter: saturate(180%) blur(20px);
-	background-color: rgba(253, 248, 242, 0.85);
+	/* [修改] 提高 z-index 确保盖住列表，但必须小于 TabBar(98) 和 弹窗(99) */
+	z-index: 90;
+	/* [修改] 降低不透明度并加大模糊度，实现通透的毛玻璃效果 */
+	backdrop-filter: saturate(200%) blur(25px);
+	background-color: rgba(253, 248, 242, 0.45);
 	box-sizing: border-box;
 }
 .header-content {
@@ -311,6 +316,8 @@
 }
 .page-content {
 	padding: 15px;
+	/* [修改] 强制增加顶部内边距：动态 Header 高度 + 原本的 15px 基础边距，加 !important 确保不被覆盖 */
+	padding-top: calc(var(--header-height, 80px) + 15px) !important;
 	padding-bottom: calc(32px + constant(safe-area-inset-bottom));
 	padding-bottom: calc(32px + env(safe-area-inset-bottom));
 }

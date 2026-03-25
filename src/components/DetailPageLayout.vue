@@ -1,14 +1,6 @@
 <template>
-	<view class="detail-page-layout-wrapper">
-		<scroll-view
-			:scroll-y="true"
-			:show-scrollbar="false"
-			class="scroll-area"
-			:style="{ height: scrollAreaHeight }"
-			enhanced
-			@scrolltolower="$emit('scrolltolower')"
-			@scroll="(e) => $emit('scroll', e)"
-		>
+	<view class="detail-page-layout-wrapper" :style="{ '--header-height': systemStore.headerHeight + 'px' }">
+		<scroll-view :scroll-y="true" :show-scrollbar="false" class="scroll-area" enhanced @scrolltolower="$emit('scrolltolower')" @scroll="(e) => $emit('scroll', e)">
 			<slot></slot>
 		</scroll-view>
 		<Toast />
@@ -16,7 +8,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useSystemStore } from '@/store/system';
 import Toast from '@/components/Toast.vue';
 
@@ -24,31 +15,27 @@ defineEmits(['scrolltolower', 'scroll']);
 
 // 引入系统信息 store
 const systemStore = useSystemStore();
-
-// 动态计算滚动区域的高度，这是确保小程序正常滚动的关键
-const scrollAreaHeight = computed(() => {
-	// 100vh 是整个屏幕的高度
-	// systemStore.headerHeight 是顶部自定义导航栏的高度
-	// 滚动区域的高度就是视口高度减去头部高度
-	return `calc(100vh - ${systemStore.headerHeight}px)`;
-});
 </script>
 
 <style scoped lang="scss">
-/* 这个包装容器是关键。
-	   在父页面中，它将作为 flex: 1 的子元素，从而获得一个明确的、由 flexbox 计算出的高度。
-	*/
 .detail-page-layout-wrapper {
-	flex: 1;
-	min-height: 0;
-	position: relative;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 100%;
+	height: 100%;
+	/* [终极杀招 1] 开启溢出隐藏，准备“截断”超出屏幕的滚动条 */
+	overflow: hidden;
 }
 
-/* 滚动区域不再需要 flex 相关的样式。
-	   它的高度完全由 <script> 部分计算出的 scrollAreaHeight 来控制。
-	   这避免了样式冲突，是小程序兼容性的关键。
-	*/
 .scroll-area {
+	/* [终极杀招 2] 强行让 scroll-view 的宽度超出屏幕 30px，把滚动条挤到屏幕外面去！ */
+	width: calc(100% + 30px);
+	height: 100%;
 	box-sizing: border-box;
+	/* [终极杀招 3] 用 30px 的右内边距把内容区域再“挤”回来，确保内容布局丝毫不受影响 */
+	padding-right: 30px;
 }
 </style>

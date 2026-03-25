@@ -110,7 +110,10 @@ defineExpose({ finishRefresh });
 	align-items: center;
 	overflow: hidden;
 	position: absolute;
-	top: 0;
+
+	/* [修改] 原本是 top: 0; 现在让它往下偏移一个 Header 的高度，刚好从毛玻璃下边缘露出来 */
+	top: var(--header-height, 80px);
+
 	left: 0;
 	z-index: 1;
 }

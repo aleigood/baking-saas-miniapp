@@ -1,5 +1,5 @@
 <template>
-	<view v-if="isOpen && actions.length > 1" class="fab-overlay" @click="toggleMenu"></view>
+	<view v-if="isOpen && actions.length > 1" class="fab-overlay" :class="{ 'with-tab-bar': !noTabBar }" @click="toggleMenu"></view>
 	<view class="fab-container" :class="{ 'fab-no-tab-bar': noTabBar, 'is-hidden': !visible }">
 		<view v-if="actions.length > 1" class="fab-options" :class="{ 'is-open': isOpen }">
 			<view
@@ -169,7 +169,7 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.2), 0 6px 10px 0 rgba(0, 0, 0, 0.14), 0 1px 18px 0 rgba(0, 0, 0, 0.12);
+	box-shadow: 0 10px 24px rgba(140, 90, 59, 0.35), 0 4px 8px rgba(0, 0, 0, 0.1);
 	z-index: 2;
 	transform: translateZ(0);
 	overflow: hidden;
@@ -236,7 +236,8 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 	border-radius: 8px;
 	margin-right: 12px;
 	font-size: 14px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	/* 修改：使用强烈的双层弥散阴影，彻底和下方白色的任务卡片区分开 */
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
 	white-space: nowrap;
 }
 
@@ -248,7 +249,7 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
 	// 必须设置 overflow: hidden 隐藏原始图标
 	overflow: hidden;
 	transform: translateZ(0);

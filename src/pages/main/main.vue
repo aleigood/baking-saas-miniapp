@@ -3,7 +3,7 @@
 	<view class="main-page-container" :class="{ 'personnel-active-bg': uiStore.activeTab === 'personnel' }">
 		<MainHeader v-if="uiStore.activeTab !== 'personnel'" :transparent="uiStore.activeTab === 'personnel'" />
 
-		<view class="content-area">
+		<view class="content-area" :style="{ '--header-height': (uiStore.activeTab !== 'personnel' ? systemStore.headerHeight : 0) + 'px' }">
 			<ProductionPage v-show="uiStore.activeTab === 'production'" />
 			<IngredientsPage v-show="uiStore.activeTab === 'ingredients'" />
 			<RecipesPage v-show="uiStore.activeTab === 'recipes'" />
@@ -23,6 +23,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { useUiStore } from '@/store/ui';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
+import { useSystemStore } from '@/store/system';
 
 import CustomTabBar from '@/components/CustomTabBar.vue';
 import MainHeader from '@/components/MainHeader.vue';
@@ -38,6 +39,7 @@ import PersonnelPage from '@/pages/personnel/personnel.vue';
 const uiStore = useUiStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
+const systemStore = useSystemStore();
 
 // [核心重构] onShow 只负责加载全局性的基础数据和消费 Toast
 onShow(async () => {
@@ -52,7 +54,6 @@ onShow(async () => {
 		await dataStore.fetchTenants();
 	}
 });
-
 </script>
 
 <style scoped lang="scss">

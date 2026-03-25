@@ -113,8 +113,10 @@ const switchTab = (item: { key: string }) => {
 	/* [核心修复] 移除此行。子项的 flex: 1 会自动处理均分，此属性可能引入了不可预见的初始偏移 */
 	/* justify-content: space-around; */
 	align-items: center;
-	backdrop-filter: saturate(180%) blur(20px);
-	background-color: rgba(255, 255, 255, 0.85);
+	/* 修改：加大模糊半径，增加色彩饱和度让透底的颜色更鲜艳 */
+	backdrop-filter: saturate(200%) blur(25px);
+	/* 修改：将不透明度从 0.85 降到 0.65，让光透进来 */
+	background-color: rgba(255, 255, 255, 0.45);
 	border-top: 1px solid rgba(0, 0, 0, 0.08);
 	box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 	z-index: 98;
@@ -124,17 +126,15 @@ const switchTab = (item: { key: string }) => {
 .active-indicator {
 	position: absolute;
 	top: 0px;
-	/* 与顶部保持间距 */
 	height: 60px;
-	/* 指示器高度 */
-	background-color: #f7f4ef;
-	/* 使用一个柔和的背景色 */
-	border-radius: 0px;
-	/* 圆角使其成为胶囊状 */
+
+	/* 修改：将实心颜色改为带透明度的柔和主题色（淡淡的棕色透明底） */
+	background-color: rgba(140, 90, 59, 0.08);
+
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-	/* 添加轻微阴影增加立体感 */
+
+	border-radius: 0px;
 	z-index: 0;
-	/* [核心] 为 transform 和 width 属性添加平滑的过渡动画 */
 	transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
