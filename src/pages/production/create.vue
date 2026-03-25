@@ -33,20 +33,30 @@
 						{{ isSelfMadeCategory ? '制作重量' : '产品数量' }}
 						<text v-if="isSelfMadeCategory" class="subtitle-text">(单位: 克)</text>
 					</view>
-					<view class="summary-card">
+					<view class="summary-card no-frame">
 						<view v-if="summaryGroups.length > 0" class="summary-content">
-							<view v-for="(group, groupIndex) in summaryGroups" :key="groupIndex" class="summary-group">
-								<text class="summary-group-title">{{ group.name }}:</text>
-								<view class="summary-items-wrapper">
-									<view v-for="(item, itemIndex) in group.items" :key="itemIndex" class="summary-item">
-										{{ item }}
-										<span v-if="itemIndex < group.items.length - 1">、</span>
+							<view v-for="(group, groupIndex) in summaryGroups" :key="groupIndex" class="summary-group-item">
+								<view class="summary-group-header">
+									<text class="summary-group-name">{{ group.name }}</text>
+									<view class="summary-header-right">
+										<view class="summary-group-total">
+											<text class="total-label">共计</text>
+											<text class="total-number">{{ group.totalQuantity }}</text>
+										</view>
+										<view class="clear-btn" @click.stop="clearGroup(group.name)">
+											<image class="clear-icon-img" src="/static/icons/close-x.svg" mode="aspectFit" />
+										</view>
 									</view>
+								</view>
+								<view class="summary-group-details">
+									{{ group.items.join('、') }}
 								</view>
 							</view>
 						</view>
 						<view v-else class="summary-placeholder">
-							{{ isSelfMadeCategory ? '请填写制作重量' : '请填写产品数量' }}
+							<view class="summary-group-item is-placeholder">
+								<text class="placeholder-text">{{ isSelfMadeCategory ? '请填写制作重量' : '请填写产品数量' }}</text>
+							</view>
 						</view>
 					</view>
 					<view class="product-tabs-container" v-if="productTabs.length > 0">
@@ -111,11 +121,10 @@ const categoryMap: Record<string, string> = {
 	PASTRY: '西点',
 	DESSERT: '甜品',
 	DRINK: '饮品',
-	OTHER: '自制原料' // [核心修改] 增加 OTHER 分类的映射
+	OTHER: '自制原料'
 };
 
 const isSelfMadeCategory = computed(() => {
-	// 如果是 "OTHER" 分类，通常意味着是面种或馅料的制作
 	return selectedCategory.value === 'OTHER';
 });
 
@@ -139,7 +148,7 @@ const taskForm = reactive({
 });
 
 const taskQuantities = reactive<Record<string, number | null>>({});
-const summaryGroups = ref<{ name: string; items: string[] }[]>([]);
+const summaryGroups = ref<{ name: string; items: string[]; totalQuantity: number }[]>([]);
 const activeTab = ref('');
 
 const productTabs = computed(() => {
@@ -220,7 +229,6 @@ onLoad(async (options) => {
 	} else if (options && options.category) {
 		selectedCategory.value = options.category as RecipeCategory;
 	} else {
-		// [容错] 如果没有指定品类，且只有一个品类可用，则自动选择
 		const availableCats = Object.keys(dataStore.productsForTaskCreation) as RecipeCategory[];
 		if (availableCats.length === 1) {
 			selectedCategory.value = availableCats[0];
@@ -253,6 +261,18 @@ const onQuantityInput = (productId: string, event: any) => {
 	updateSummary();
 };
 
+const clearGroup = (groupName: string) => {
+	if (!selectedCategory.value) return;
+	const productsInCategory = dataStore.productsForTaskCreation[selectedCategory.value] || {};
+	const productsInGroup = productsInCategory[groupName] || [];
+
+	productsInGroup.forEach((p) => {
+		taskQuantities[p.id] = null;
+	});
+
+	updateSummary();
+};
+
 const isCreatable = computed(() => {
 	return Object.values(taskQuantities).some((qty) => qty && qty > 0);
 });
@@ -274,7 +294,7 @@ const updateSummary = () => {
 		summaryGroups.value = [];
 		return;
 	}
-	const groups: { name: string; items: string[] }[] = [];
+	const groups: { name: string; items: string[]; totalQuantity: number }[] = [];
 	const productsInCategory = dataStore.productsForTaskCreation[selectedCategory.value] || {};
 
 	for (const groupName in productsInCategory) {
@@ -282,12 +302,13 @@ const updateSummary = () => {
 		const quantifiedProducts = productsInGroup.map((p) => ({ name: p.name, quantity: taskQuantities[p.id] || 0 })).filter((p) => p.quantity > 0);
 
 		if (quantifiedProducts.length > 0) {
+			const totalQty = quantifiedProducts.reduce((sum, p) => sum + p.quantity, 0);
+
 			groups.push({
 				name: groupName,
+				totalQuantity: totalQty,
 				items: quantifiedProducts.map((p) => {
-					// [核心修改] 根据类型显示单位
 					const unit = isSelfMadeCategory.value ? 'g' : 'x';
-					// 对于自制原料，数量显示为 "1000g"；对于产品，显示为 "x10"
 					return isSelfMadeCategory.value ? `${p.name} ${p.quantity}${unit}` : `${p.name} ${unit}${p.quantity}`;
 				})
 			});
@@ -374,47 +395,113 @@ const handleSubmit = async () => {
 }
 
 .summary-card {
-	background-color: #faf8f5;
 	border-radius: 12px;
-	padding: 15px;
-	min-height: 100px;
 	margin-bottom: 20px;
 }
 
+.summary-card.no-frame {
+	background-color: transparent;
+	padding: 0;
+}
+
 .summary-content {
-	color: var(--text-primary);
-	font-size: 13px;
-	line-height: 1.8;
-}
-
-.summary-group {
 	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
+	flex-direction: column;
+	gap: 10px;
 }
 
-.summary-group-title {
-	font-weight: 600;
-	color: var(--primary-color);
-	margin-right: 5px;
-	flex-shrink: 0;
+.summary-group-item {
+	background-color: #faf8f5;
+	border-radius: 8px;
+	padding: 10px 12px;
+	border: 1px solid #f0e6d2;
 }
 
-.summary-items-wrapper {
-	display: inline;
-}
-
-.summary-item {
-	display: inline-block;
-}
-
-.summary-placeholder {
-	font-size: 13px;
+.summary-group-item.is-placeholder {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	height: 100%;
-	min-height: 100px;
+	min-height: 80px;
+	background-color: transparent;
+	border: 1px dashed #f0e6d2;
+}
+
+.summary-group-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 6px;
+	padding-bottom: 6px;
+	border-bottom: 1px dashed #f0e6d2;
+}
+
+.summary-group-name {
+	font-weight: 600;
+	color: var(--text-primary);
+	font-size: 14px;
+}
+
+.summary-header-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.summary-group-total {
+	display: flex;
+	align-items: center;
+	background-color: #fdf8f2;
+	padding: 2px 8px;
+	border-radius: 12px;
+}
+
+.total-label {
+	font-size: 11px;
+	color: var(--text-secondary);
+	margin-right: 4px;
+}
+
+.total-number {
+	font-size: 13px;
+	font-weight: bold;
+	color: var(--primary-color);
+}
+
+.clear-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	background-color: rgba(140, 90, 59, 0.08);
+	border-radius: 10px;
+	cursor: pointer;
+	transition: background-color 0.2s;
+
+	&:active {
+		background-color: rgba(140, 90, 59, 0.15);
+	}
+}
+
+/* [样式优化] 使用 svg 图片样式保证居中并设定合适大小 */
+.clear-icon-img {
+	width: 10px;
+	height: 10px;
+}
+
+.summary-group-details {
+	font-size: 13px;
+	color: var(--text-secondary);
+	line-height: 1.6;
+	word-break: break-all;
+}
+
+.summary-placeholder {
+	display: block;
+}
+
+.placeholder-text {
+	font-size: 13px;
 	color: #ced4da;
 }
 

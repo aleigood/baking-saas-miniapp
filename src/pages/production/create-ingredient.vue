@@ -29,17 +29,26 @@
 				</view>
 
 				<view class="card">
-					<view class="card-title">制作列表</view>
-					<view class="summary-card">
-						<view v-if="summaryItems.length > 0" class="summary-content">
-							<view class="summary-items-wrapper">
-								<view v-for="(item, index) in summaryItems" :key="index" class="summary-item">
-									{{ item }}
-									<span v-if="index < summaryItems.length - 1">、</span>
+					<view class="card-title">原料列表</view>
+
+					<view class="summary-card no-frame">
+						<view v-if="summaryItems.length > 0" class="summary-tags-container">
+							<view v-for="(item, index) in summaryItems" :key="index" class="summary-tag">
+								<text class="tag-name">{{ item.name }}</text>
+								<view class="tag-value-box">
+									<text class="tag-value">{{ item.weight }}</text>
+									<text class="tag-unit">g</text>
+								</view>
+								<view class="clear-tag-btn" @click.stop="clearRecipe(item.name)">
+									<image class="clear-icon-img" src="/static/icons/close-x.svg" mode="aspectFit" />
 								</view>
 							</view>
 						</view>
-						<view v-else class="summary-placeholder">请选择配方并输入重量</view>
+						<view v-else class="summary-placeholder">
+							<view class="summary-group-item is-placeholder">
+								<text class="placeholder-text">请选择配方并输入重量</text>
+							</view>
+						</view>
 					</view>
 
 					<view class="tabs-container" v-if="recipeTabs.length > 0">
@@ -258,6 +267,18 @@ const resetActiveWeights = () => {
 	});
 };
 
+const clearRecipe = (recipeName: string) => {
+	const state = recipeStates[recipeName];
+	if (state) {
+		state.totalWeight = null;
+		state.totalDisplay = '';
+		state.ingredients.forEach((item) => {
+			item.weight = null;
+			item.weightDisplay = '';
+		});
+	}
+};
+
 const getTotalRatio = (ingredients: CalculationItem[]) => {
 	return ingredients.reduce((sum, item) => sum + item.ratio, 0);
 };
@@ -322,13 +343,12 @@ const onIngredientWeightInput = (index: number, e: any) => {
 
 // 汇总显示
 const summaryItems = computed(() => {
-	const items: string[] = [];
+	const items: { name: string; weight: number }[] = [];
 	Object.keys(recipeStates).forEach((key) => {
 		const state = recipeStates[key];
 		if (state.totalWeight && state.totalWeight > 0) {
-			// [核心修改] 格式化重量，与输入框显示逻辑保持一致 (最多2位小数)
 			const formattedWeight = parseFloat(state.totalWeight.toFixed(2));
-			items.push(`${key} ${formattedWeight}g`);
+			items.push({ name: key, weight: formattedWeight });
 		}
 	});
 	return items;
@@ -441,34 +461,95 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	display: block;
 }
 
-.summary-card {
-	background-color: #faf8f5;
-	border-radius: 12px;
-	padding: 15px;
-	min-height: 60px;
+.summary-card.no-frame {
+	background-color: transparent;
+	padding: 0;
 	margin-bottom: 15px;
 }
 
-.summary-content {
-	color: var(--text-primary);
-	font-size: 13px;
-	line-height: 1.6;
+.summary-tags-container {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
 }
 
-.summary-item {
-	display: inline-block;
-	color: var(--primary-color);
+.summary-tag {
+	display: flex;
+	align-items: center;
+	background-color: #ffffff;
+	border: 1px solid #f0e6d2;
+	border-radius: 6px;
+	padding: 6px 8px 6px 10px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.tag-name {
+	font-size: 13px;
+	color: var(--text-primary);
 	font-weight: 500;
+	margin-right: 8px;
+}
+
+.tag-value-box {
+	display: flex;
+	align-items: baseline;
+	background-color: #fdf8f2;
+	padding: 2px 6px;
+	border-radius: 4px;
+}
+
+.tag-value {
+	font-size: 13px;
+	font-weight: bold;
+	color: var(--primary-color);
+}
+
+.tag-unit {
+	font-size: 10px;
+	color: var(--text-secondary);
+	margin-left: 2px;
+}
+
+.clear-tag-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	margin-left: 6px;
+	background-color: rgba(140, 90, 59, 0.08);
+	border-radius: 50%;
+	cursor: pointer;
+	transition: background-color 0.2s;
+
+	&:active {
+		background-color: rgba(140, 90, 59, 0.15);
+	}
+}
+
+/* [样式优化] 使用 svg 图片样式保证居中并设定合适大小 */
+.clear-icon-img {
+	width: 8px;
+	height: 8px;
 }
 
 .summary-placeholder {
-	font-size: 13px;
-	color: #ced4da;
+	display: block;
+}
+
+.summary-group-item.is-placeholder {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	min-height: 60px;
-	height: 100%;
+	background-color: transparent;
+	border: 1px dashed #f0e6d2;
+	border-radius: 8px;
+}
+
+.placeholder-text {
+	font-size: 13px;
+	color: #ced4da;
 }
 
 .tabs-container {
@@ -519,7 +600,6 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	gap: 12px;
 }
 
-/* 复用 ingredient-item 样式 */
 .ingredient-item {
 	display: flex;
 	align-items: center;
@@ -530,9 +610,9 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 .ingredient-info {
 	width: calc(50% - 6px);
 	display: flex;
-	flex-direction: row; /* [核心修改] 变为行布局，使标签在名字后面 */
+	flex-direction: row;
 	align-items: center;
-	justify-content: flex-end; /* 内容靠右 */
+	justify-content: flex-end;
 	min-width: 0;
 }
 
@@ -543,7 +623,7 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	text-overflow: ellipsis;
 	color: var(--text-primary);
 	text-align: right;
-	width: auto; /* [核心修改] 宽度自适应，不占满 */
+	width: auto;
 	flex-shrink: 1;
 }
 
@@ -554,8 +634,8 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 .tags {
 	display: flex;
 	gap: 4px;
-	margin-top: 0; /* [核心修改] 移除顶部间距 */
-	margin-left: 4px; /* [核心修改] 增加左侧间距 */
+	margin-top: 0;
+	margin-left: 4px;
 	justify-content: flex-end;
 	flex-shrink: 0;
 }

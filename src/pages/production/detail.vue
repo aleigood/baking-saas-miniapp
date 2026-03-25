@@ -71,7 +71,7 @@
 								</view>
 
 								<view class="total-weight-summary">
-									<view class="summary-left-alert" v-if="componentMixInSummary.length > 0">
+									<view class="summary-left-alert" :class="{ 'pulse-highlight': showPulseAnimation }" v-if="componentMixInSummary.length > 0">
 										<image class="summary-alert-icon" src="/static/icons/warning.svg" mode="aspectFit"></image>
 										<text>含辅料需后加，请勿遗漏</text>
 									</view>
@@ -374,6 +374,9 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
+// [新增] 用于控制辅料提示框高亮呼吸动画的响应式变量
+const showPulseAnimation = ref(false);
+
 const popover = reactive<{
 	visible: boolean;
 	content: string;
@@ -450,7 +453,6 @@ const resetCompletionForm = () => {
 };
 
 const openCompleteTaskModal = async () => {
-	// [新增] 如果任务数据还没加载完，直接不执行，防止误触或幽灵触发
 	if (!task.value || !task.value.items) {
 		return;
 	}
@@ -770,6 +772,27 @@ const toggleCollapse = (sectionName: string) => {
 	collapsedSections.value = newSet;
 };
 
+// [修改逻辑] 检查配方完成状态，并触发动画的方法
+const checkAndTriggerAnimation = (familyId: string) => {
+	if (!selectedComponentDetails.value || selectedComponentDetails.value.familyId !== familyId) return;
+
+	const ingredients = selectedComponentDetails.value.baseComponentIngredients;
+	if (!ingredients || ingredients.length === 0) return;
+
+	// 检查该配方下所有原料是否都已被划掉
+	const allAdded = ingredients.every((ing) => addedIngredientsMap.has(`${familyId}-${ing.id}`));
+
+	// 如果全部完成，并且当前组件含有辅料信息
+	if (allAdded && componentMixInSummary.value.length > 0) {
+		showPulseAnimation.value = true;
+
+		// [修改] 动画单次 0.8 秒，闪烁 3 次总计 2.4 秒。这里设置为 2.5 秒后结束并恢复原状
+		setTimeout(() => {
+			showPulseAnimation.value = false;
+		}, 2500);
+	}
+};
+
 const toggleIngredientAdded = (componentFamilyId: string, ingredientId: string) => {
 	if (isReadOnly.value || !taskId.value) return;
 	uni.vibrateShort({});
@@ -780,6 +803,9 @@ const toggleIngredientAdded = (componentFamilyId: string, ingredientId: string) 
 		addedIngredientsMap.delete(compositeKey);
 	} else {
 		addedIngredientsMap.add(compositeKey);
+
+		// [新增逻辑] 每次增加原料完成记录后，检查是否触发动画
+		checkAndTriggerAnimation(componentFamilyId);
 	}
 
 	dataStore.saveTaskProgress(taskId.value, addedIngredientsMap);
@@ -865,20 +891,15 @@ const productTabs = computed(() => {
 	}));
 });
 
-// [核心新增] 判断是否为自制原料任务
 const isSelfMadeComponent = computed(() => {
 	if (!selectedComponentDetails.value) return false;
 	return selectedComponentDetails.value.category === 'OTHER';
 });
 
 const isSelfMadeTask = computed(() => {
-	// 简单的判断逻辑：如果当前选中的组件是 'OTHER'，或者任务中任意一个组件是 'OTHER'，
-	// 可以认为这是一个自制原料任务。
-	// 这里更严谨一点：基于 selectedComponentDetails 判断当前显示的视图
 	return isSelfMadeComponent.value;
 });
 
-// [核心新增] 格式化产品计划数量显示
 const formatProductQuantity = (product: { name: string; plannedQuantity: number }) => {
 	if (isSelfMadeTask.value) {
 		return `${product.plannedQuantity}g`;
@@ -886,18 +907,14 @@ const formatProductQuantity = (product: { name: string; plannedQuantity: number 
 	return `${product.plannedQuantity}`;
 };
 
-// [新增] 计算当前选中组件组下所有产品的辅料汇总
 const componentMixInSummary = computed(() => {
 	if (!selectedComponentDetails.value) return [];
 
-	// 使用 Map 来合并相同的原料
 	const summaryMap = new Map<string, { name: string; products: string[] }>();
 
 	selectedComponentDetails.value.productDetails.forEach((product) => {
-		// 遍历每个产品的 mixIns (辅料)
 		if (product.mixIns && product.mixIns.length > 0) {
 			product.mixIns.forEach((ing) => {
-				// 以原料名称为 key
 				if (!summaryMap.has(ing.name)) {
 					summaryMap.set(ing.name, { name: ing.name, products: [] });
 				}
@@ -906,10 +923,8 @@ const componentMixInSummary = computed(() => {
 		}
 	});
 
-	// 转换为数组并格式化
 	return Array.from(summaryMap.values()).map((item) => ({
 		name: item.name,
-		// 如果产品太多，可以做个截断，或者只显示 "等x个产品"
 		productNames: item.products.join(', ')
 	}));
 });
@@ -919,8 +934,6 @@ const componentMixInSummary = computed(() => {
 @import '@/styles/common.scss';
 @include list-item-content-style;
 @include table-layout;
-
-/* [修改] 移除原有的 .bottom-actions-container.two-buttons 样式，不再需要双按钮布局 */
 
 .collapsible-content {
 	max-height: 1000px;
@@ -1164,11 +1177,71 @@ const componentMixInSummary = computed(() => {
 
 .total-weight-summary {
 	display: flex;
-	justify-content: flex-end;
+	justify-content: space-between;
+	align-items: center;
 	padding: 15px 4px;
 	font-size: 13px;
 	color: var(--text-secondary);
 	border-top: 1px solid var(--border-color);
+	margin-top: 10px;
+}
+
+.summary-right-info {
+	display: flex;
+	align-items: center;
+	text-align: right;
+}
+
+.highlight-output {
+	margin-left: 10px;
+	font-weight: bold;
+	color: var(--primary-color);
+}
+
+/* [新增] 左侧轻量级警示样式 */
+.summary-left-alert {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	/* [修复位移] 把内边距和圆角固定在基础样式里，避免动画结束时移除类名导致布局跳动 */
+	padding: 4px 8px;
+	margin-left: -8px;
+	border-radius: 6px;
+}
+
+.summary-left-alert text {
+	font-size: 13px;
+	color: var(--text-secondary);
+	font-weight: 500;
+}
+
+.summary-alert-icon {
+	width: 16px;
+	height: 16px;
+	/* 确保图标垂直居中 */
+	display: block;
+}
+
+/* [修改样式] 辅料提示呼吸高亮动画 */
+@keyframes pulse-bg-highlight {
+	0% {
+		background-color: transparent;
+		box-shadow: none;
+	}
+	50% {
+		background-color: #faedcd; /* 使用柔和的警告底色 */
+		box-shadow: 0 0 8px rgba(250, 237, 205, 0.8);
+	}
+	100% {
+		background-color: transparent;
+		box-shadow: none;
+	}
+}
+
+/* 动态添加的类名 */
+.pulse-highlight {
+	/* [修改] 动画单次0.8秒，ease-in-out平滑过渡，连闪3次 (总长2.4秒) */
+	animation: pulse-bg-highlight 0.8s ease-in-out 3;
 }
 
 .procedure-notes {
@@ -1176,7 +1249,6 @@ const componentMixInSummary = computed(() => {
 	margin-top: 25px;
 }
 
-/* [中文注释] 为有4列的详情表格重新分配列宽，以适应新增的“单个用量”列 */
 .detail-table .table-header,
 .detail-table .table-row {
 	.col-ingredient {
@@ -1199,49 +1271,5 @@ const componentMixInSummary = computed(() => {
 	margin-top: 30px;
 	margin-bottom: 30px;
 	--tabs-container-bg-rgb: 255, 255, 255;
-}
-/* [核心修改] 调整汇总栏布局 */
-.total-weight-summary {
-	display: flex;
-	justify-content: space-between; /* 两端对齐：左边是警示，右边是总重 */
-	align-items: center; /* 垂直居中 */
-	padding: 15px 4px;
-	font-size: 13px;
-	color: var(--text-secondary);
-	border-top: 1px solid var(--border-color);
-	margin-top: 10px;
-}
-
-/* 右侧信息（原有的总重） */
-.summary-right-info {
-	display: flex;
-	align-items: center;
-	text-align: right;
-}
-
-.highlight-output {
-	margin-left: 10px;
-	font-weight: bold;
-	color: var(--primary-color);
-}
-
-/* [新增] 左侧轻量级警示样式 */
-.summary-left-alert {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-}
-
-.summary-left-alert text {
-	font-size: 13px;
-	color: var(--text-secondary);
-	font-weight: 500;
-}
-
-.summary-alert-icon {
-	width: 16px;
-	height: 16px;
-	/* 确保图标垂直居中 */
-	display: block;
 }
 </style>
