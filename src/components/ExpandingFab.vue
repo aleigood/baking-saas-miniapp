@@ -1,7 +1,7 @@
 <template>
-	<view v-if="isOpen" class="fab-overlay" @click="toggleMenu"></view>
+	<view v-if="isOpen && actions.length > 1" class="fab-overlay" @click="toggleMenu"></view>
 	<view class="fab-container" :class="{ 'fab-no-tab-bar': noTabBar, 'is-hidden': !visible }">
-		<view class="fab-options" :class="{ 'is-open': isOpen }">
+		<view v-if="actions.length > 1" class="fab-options" :class="{ 'is-open': isOpen }">
 			<view
 				v-for="(item, index) in actions"
 				:key="index"
@@ -18,7 +18,11 @@
 
 		<view :id="`fab-ripple-main`" class="fab-main ripple-container" @touchstart="handleTouchStart($event, 'main')" @click="handleMainButtonClick">
 			<span v-for="ripple in ripples['main']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
-			<image class="fab-icon" :class="{ 'is-open': isOpen }" :src="isOpen ? '/static/icons/fab-add.svg' : icon" />
+			<image
+				class="fab-icon"
+				:class="{ 'is-open': isOpen && actions.length > 1 }"
+				:src="actions.length === 1 ? actions[0].icon : isOpen ? '/static/icons/fab-add.svg' : icon"
+			/>
 		</view>
 	</view>
 </template>
@@ -66,6 +70,12 @@ const handleMainButtonClick = () => {
 		emit('click');
 		return;
 	}
+	// 如果只有一个操作按钮，点击主按钮直接触发该功能
+	if (props.actions.length === 1) {
+		props.actions[0].action();
+		return;
+	}
+	// 如果有多个操作按钮，点击则展开或收起菜单
 	toggleMenu();
 };
 
@@ -188,7 +198,7 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 /* --- 弹出菜单样式 --- */
 .fab-options {
 	position: absolute;
-	bottom: calc(100% + 15px);
+	bottom: calc(100% + 20px);
 	right: 0;
 	display: flex;
 	flex-direction: column;
@@ -197,7 +207,7 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 	padding: 0;
 	margin: 0;
 	z-index: 1;
-	gap: 15px;
+	gap: 20px;
 	pointer-events: none;
 }
 
