@@ -1205,7 +1205,8 @@ const componentMixInSummary = computed(() => {
 	gap: 5px;
 	/* [修复位移] 把内边距和圆角固定在基础样式里，避免动画结束时移除类名导致布局跳动 */
 	padding: 4px 8px;
-	margin-left: -8px;
+	/* [修复裁剪问题] 将原来的 -8px 修改为 -4px，避免被外层 overflow: hidden 裁剪掉左侧圆角 */
+	margin-left: -4px;
 	border-radius: 6px;
 }
 
