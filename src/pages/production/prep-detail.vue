@@ -5,8 +5,11 @@
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab">
 				<template v-if="task">
-					<view class="filter-wrapper">
+					<view class="filter-header-container">
 						<FilterTabs v-model="activeTab" :tabs="filterTabs" />
+						<view v-if="task.sourceTasks && task.sourceTasks.length > 1" class="task-filter-btn" @click="openTaskFilter">
+							<image src="/static/icons/filter.svg" class="filter-icon" mode="aspectFit" />
+						</view>
 					</view>
 
 					<view v-if="activeTab === 'BILL_OF_MATERIALS'">
@@ -58,7 +61,7 @@
 							</view>
 						</template>
 						<view v-else class="empty-state">
-							<text>今日无需采购任何原料</text>
+							<text>选中任务下无需采购任何原料</text>
 						</view>
 					</view>
 
@@ -152,6 +155,28 @@
 			</view>
 		</DetailPageLayout>
 
+		<AppModal v-model:visible="showTaskFilterModal" title="筛选生产任务">
+			<scroll-view scroll-y class="task-filter-list">
+				<view class="task-filter-item ripple-container" @click="toggleSelectAllTasks">
+					<view class="check-icon" :class="{ 'is-checked': isAllTasksSelected }">
+						<view v-if="isAllTasksSelected" class="check-mark"></view>
+					</view>
+					<text class="task-name font-bold">全选当前日期的所有任务</text>
+				</view>
+				<view v-for="sourceTask in task?.sourceTasks" :key="sourceTask.id" class="task-filter-item ripple-container" @click="toggleTaskSelection(sourceTask.id)">
+					<view class="check-icon" :class="{ 'is-checked': tempSelectedTaskIds.includes(sourceTask.id) }">
+						<view v-if="tempSelectedTaskIds.includes(sourceTask.id)" class="check-mark"></view>
+					</view>
+					<text class="task-name">{{ sourceTask.name }}</text>
+				</view>
+			</scroll-view>
+
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showTaskFilterModal = false">取消</AppButton>
+				<AppButton type="primary" @click="applyTaskFilter">确定</AppButton>
+			</view>
+		</AppModal>
+
 		<AppModal v-model:visible="showCalculatorModal" title="发酵计算器">
 			<FermentationCalculator :pre-doughs="preDoughItems" @close="showCalculatorModal = false" />
 		</AppModal>
@@ -175,6 +200,7 @@ import DetailHeader from '@/components/DetailHeader.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import { formatWeight } from '@/utils/format';
 import AppModal from '@/components/AppModal.vue';
+import AppButton from '@/components/AppButton.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppPopover from '@/components/AppPopover.vue';
@@ -192,6 +218,11 @@ const isLoading = ref(true);
 const isPrinting = ref(false);
 const task = ref<PrepTask | null>(null);
 const taskDate = ref<string | null>(null);
+
+// 筛选功能相关状态
+const selectedTaskIds = ref<string[]>([]);
+const tempSelectedTaskIds = ref<string[]>([]);
+const showTaskFilterModal = ref(false);
 
 const addedIngredientsMap = reactive(new Set<string>());
 const completedItems = ref(new Set<string>());
@@ -328,6 +359,50 @@ const toggleCollapse = (itemId: string) => {
 	collapsedSections.value = newSet;
 };
 
+// 筛选弹窗相关方法
+const openTaskFilter = () => {
+	tempSelectedTaskIds.value = [...selectedTaskIds.value];
+	showTaskFilterModal.value = true;
+};
+
+const toggleTaskSelection = (id: string) => {
+	uni.vibrateShort({});
+	const idx = tempSelectedTaskIds.value.indexOf(id);
+	if (idx > -1) {
+		tempSelectedTaskIds.value.splice(idx, 1);
+	} else {
+		tempSelectedTaskIds.value.push(id);
+	}
+};
+
+const isAllTasksSelected = computed(() => {
+	return task.value?.sourceTasks && task.value.sourceTasks.length > 0 && tempSelectedTaskIds.value.length === task.value.sourceTasks.length;
+});
+
+const toggleSelectAllTasks = () => {
+	uni.vibrateShort({});
+	if (task.value?.sourceTasks) {
+		if (isAllTasksSelected.value) {
+			tempSelectedTaskIds.value = [];
+		} else {
+			tempSelectedTaskIds.value = task.value.sourceTasks.map((t) => t.id);
+		}
+	}
+};
+
+const applyTaskFilter = () => {
+	// 1. 先保存选中的状态
+	selectedTaskIds.value = [...tempSelectedTaskIds.value];
+	// 2. 触发弹窗关闭动画
+	showTaskFilterModal.value = false;
+
+	// 3. 【核心修复】等待 300ms (弹窗彻底从 DOM 中卸载) 后，再执行数据刷新
+	// 彻底隔离 DOM 销毁与数据重绘的冲突，消除 unknown removedNode 错误
+	setTimeout(async () => {
+		await fetchTaskData();
+	}, 300);
+};
+
 const showExtraInfo = (info: string | null | undefined, elementId: string) => {
 	if (!info) {
 		hidePopover();
@@ -415,8 +490,48 @@ const toggleItemCompleted = (itemId: string) => {
 	}
 };
 
-onLoad(async (options) => {
+const fetchTaskData = async () => {
 	isLoading.value = true;
+	try {
+		// 如果用户取消了所有勾选，直接清空本地数据，不再请求后台
+		if (task.value?.sourceTasks && selectedTaskIds.value.length === 0) {
+			task.value = {
+				...task.value,
+				items: [],
+				billOfMaterials: { standardItems: [], nonInventoriedItems: [] }
+			};
+			isLoading.value = false;
+			return;
+		}
+
+		// 只有在明确知道总数，且选中数量小于总数时，才给后端传递过滤参数
+		let taskIdsParam = undefined;
+		if (task.value?.sourceTasks && selectedTaskIds.value.length < task.value.sourceTasks.length) {
+			taskIdsParam = selectedTaskIds.value;
+		} else if (!task.value?.sourceTasks && selectedTaskIds.value.length > 0) {
+			taskIdsParam = selectedTaskIds.value;
+		}
+
+		const taskData = await getPrepTaskDetails(taskDate.value!, taskIdsParam);
+		task.value = taskData;
+
+		// 首次加载如果没有选中记录，默认全选
+		if (task.value?.sourceTasks && selectedTaskIds.value.length === 0) {
+			selectedTaskIds.value = task.value.sourceTasks.map((t) => t.id);
+			tempSelectedTaskIds.value = [...selectedTaskIds.value];
+		}
+
+		if (filterTabs.value.length > 0 && !filterTabs.value.find((t) => t.key === activeTab.value)) {
+			activeTab.value = filterTabs.value[0].key;
+		}
+	} catch (error) {
+		console.error('获取前置任务详情失败:', error);
+	} finally {
+		isLoading.value = false;
+	}
+};
+
+onLoad(async (options) => {
 	if (options && options.date) {
 		taskDate.value = options.date;
 
@@ -438,19 +553,15 @@ onLoad(async (options) => {
 			addedIngredients.forEach((key) => addedIngredientsMap.add(key));
 			completedItems.value = loadedCompletedItems;
 
-			const taskData = await getPrepTaskDetails(options.date);
-			task.value = taskData;
-
-			if (filterTabs.value.length > 0) {
-				activeTab.value = filterTabs.value[0].key;
-			}
+			await fetchTaskData();
 		} catch (error) {
-			console.error('获取前置任务详情失败:', error);
+			console.error('初始化任务数据失败:', error);
+			isLoading.value = false;
 		}
 	} else {
 		console.error('缺少 date 参数，无法加载前置任务');
+		isLoading.value = false;
 	}
-	isLoading.value = false;
 });
 </script>
 
@@ -479,8 +590,60 @@ onLoad(async (options) => {
 	height: 100vh;
 }
 
-.filter-wrapper {
+/* 顶部标签和筛选按钮容器 */
+.filter-header-container {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 	margin-bottom: 20px;
+}
+
+/* 筛选图标按钮样式 */
+.task-filter-btn {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 5px;
+	margin-left: 10px;
+	border-radius: 6px;
+	background-color: transparent;
+
+	&:active {
+		background-color: rgba(0, 0, 0, 0.05);
+	}
+
+	.filter-icon {
+		width: 22px;
+		height: 22px;
+	}
+}
+
+/* 弹窗内任务列表样式 */
+.task-filter-list {
+	max-height: 50vh;
+	overflow-y: auto;
+	margin-top: 10px;
+}
+
+.task-filter-item {
+	display: flex;
+	align-items: center;
+	padding: 12px 0;
+	border-bottom: 1px solid var(--border-color);
+
+	&:last-child {
+		border-bottom: none;
+	}
+}
+
+.task-name {
+	margin-left: 10px;
+	font-size: 14px;
+	color: var(--text-primary);
+}
+
+.font-bold {
+	font-weight: 600;
 }
 
 .card {
@@ -488,15 +651,15 @@ onLoad(async (options) => {
 	transition: opacity 0.3s ease;
 }
 
-/* [核心修改] 标题栏容器：高度严格限制为 29px */
+/* 标题栏容器：高度严格限制为 29px */
 .card-title-wrapper {
 	margin-bottom: 0px;
 	display: flex;
 	align-items: center;
 	gap: 0;
-	height: 29px; /* 固定高度 */
+	height: 29px;
 	min-height: 29px;
-	padding: 0; /* 移除内边距，完全紧凑 */
+	padding: 0;
 }
 
 /* 标题文字 */
@@ -507,8 +670,8 @@ onLoad(async (options) => {
 	font-weight: 600;
 	font-size: 16px;
 	color: var(--text-primary);
-	line-height: 29px; /* 文字垂直居中 */
-	padding: 0; /* 移除内边距 */
+	line-height: 29px;
+	padding: 0;
 }
 
 /* 占位符 */
@@ -524,10 +687,10 @@ onLoad(async (options) => {
 	color: var(--text-secondary);
 	transform: rotate(90deg);
 	transition: transform 0.3s ease;
-	padding: 0 10px; /* 左右保留点击范围 */
+	padding: 0 10px;
 	flex-shrink: 0;
-	height: 100%; /* 撑满高度 */
-	display: flex; /* Flex 布局居中 */
+	height: 100%;
+	display: flex;
 	align-items: center;
 }
 
@@ -649,8 +812,8 @@ onLoad(async (options) => {
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
-	height: 100%; /* 撑满高度 */
-	padding-right: 8px; /* 仅保留右侧间距 */
+	height: 100%;
+	padding-right: 8px;
 }
 
 .check-icon {
@@ -663,7 +826,6 @@ onLoad(async (options) => {
 	justify-content: center;
 	transition: all 0.2s ease;
 	box-sizing: border-box;
-	/* 允许在 Icon 上点击触发事件 */
 	pointer-events: auto;
 }
 

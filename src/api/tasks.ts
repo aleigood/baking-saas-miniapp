@@ -49,12 +49,16 @@ export function getTasks(date?: string): Promise<ProductionDataPayload> {
 
 /**
  * [新增] 获取指定日期的前置准备任务详情 (重量级)
+ * [修改] 增加 taskIds 数组参数，用于过滤指定任务
  */
-export const getPrepTaskDetails = (date: string): Promise<PrepTask | null> => {
+export const getPrepTaskDetails = (date: string, taskIds?: string[]): Promise<PrepTask | null> => {
 	return request({
 		url: `/production-tasks/prep-task-details`,
 		method: 'GET',
-		data: { date }
+		data: {
+			date,
+			taskIds: taskIds && taskIds.length > 0 ? taskIds.join(',') : undefined
+		}
 	});
 };
 
