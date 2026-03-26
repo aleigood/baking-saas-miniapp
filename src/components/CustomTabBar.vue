@@ -113,8 +113,9 @@ const switchTab = (item: { key: string }) => {
 	/* [核心修复] 移除此行。子项的 flex: 1 会自动处理均分，此属性可能引入了不可预见的初始偏移 */
 	/* justify-content: space-around; */
 	align-items: center;
-	/* 修改：加大模糊半径，增加色彩饱和度让透底的颜色更鲜艳 */
-	backdrop-filter: saturate(200%) blur(25px);
+	/* [核心修复 1] 必须加上 -webkit- 前缀，拯救 iOS 真机！ */
+	-webkit-backdrop-filter: saturate(180%) blur(20px);
+	backdrop-filter: saturate(180%) blur(20px);
 	/* 修改：将不透明度从 0.85 降到 0.65，让光透进来 */
 	background-color: rgba(255, 255, 255, 0.45);
 	border-top: 1px solid rgba(0, 0, 0, 0.08);

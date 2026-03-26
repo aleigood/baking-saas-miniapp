@@ -4,7 +4,7 @@
 		<DetailHeader :title="ingredient?.name || '加载中...'" />
 
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
+			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="ingredient">
 				<view class="card">
 					<view class="meta-grid-container" v-if="ingredient.type !== 'UNTRACKED'">
 						<view class="meta-item">
@@ -53,9 +53,20 @@
 					<IngredientProductionList :records="productionRecords" />
 				</template>
 			</view>
-			<view class="loading-spinner" v-else>
-				<text>加载中...</text>
+
+			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
+				<SkeletonCard v-for="i in 3" :key="i" />
 			</view>
+
+			<EmptyState
+				v-if="!isLoading && !ingredient"
+				icon="/static/icons/network-error.svg"
+				title="加载失败"
+				subtitle="请检查网络连接后重试"
+				:showAction="true"
+				actionText="重新加载"
+				@action="ingredientId && loadIngredientData(ingredientId)"
+			/>
 		</DetailPageLayout>
 
 		<ExpandingFab :actions="fabActions" :no-tab-bar="true" :visible="isFabVisible" />
@@ -343,6 +354,9 @@ import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import { formatChineseDate, formatDateTime, formatNumber, formatWeight, multiply, formatMoney } from '@/utils/format';
+// [新增] 引入骨架屏和空状态组件
+import SkeletonCard from '@/components/SkeletonCard.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 const densityOptions = [
 	{ label: '手动输入重量(g)', value: null },
@@ -501,7 +515,6 @@ const fabActions = computed(() => {
 	}
 
 	if (ingredient.value.type === 'SELF_MADE') {
-		// [核心修改] 将“编辑配方”改为“配方详情”，并调用简单的跳转逻辑
 		actions.push({ icon: '/static/icons/property.svg', text: '配方详情', action: () => navigateToRecipeDetail() });
 	} else {
 		actions.push({ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() });
@@ -516,7 +529,6 @@ const fabActions = computed(() => {
 	return actions;
 });
 
-// [核心修改] 简化后的跳转逻辑，直接去配方详情页
 const navigateToRecipeDetail = () => {
 	if (!ingredient.value?.recipeFamily?.id) {
 		toastStore.show({ message: '未找到关联的配方', type: 'error' });
@@ -652,8 +664,12 @@ const loadIngredientData = async (id: string) => {
 		}
 	} catch (error) {
 		console.error('Failed to load ingredient data:', error);
+		ingredient.value = null; // [修改] 出错时置空数据，触发底部的 EmptyState
 	} finally {
-		isLoading.value = false;
+		// [修改] 给排版留出渲染时间
+		setTimeout(() => {
+			isLoading.value = false;
+		}, 200);
 	}
 };
 

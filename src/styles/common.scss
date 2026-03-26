@@ -279,9 +279,13 @@
 	top: 0;
 	/* [修改] 提高 z-index 确保盖住列表，但必须小于 TabBar(98) 和 弹窗(99) */
 	z-index: 90;
-	/* [修改] 降低不透明度并加大模糊度，实现通透的毛玻璃效果 */
-	backdrop-filter: saturate(200%) blur(25px);
-	background-color: rgba(253, 248, 242, 0.45);
+	/* [核心修复 1] 必须加上 -webkit- 前缀，拯救 iOS 真机！ */
+	-webkit-backdrop-filter: saturate(180%) blur(20px);
+	backdrop-filter: saturate(180%) blur(20px);
+
+	/* [核心修复 2] 适当调高不透明度 (0.45 -> 0.65)。
+	   完全透明反而没有玻璃的“厚度感”。0.65 能模拟出优质磨砂玻璃的漫反射效果 */
+	background-color: rgba(253, 248, 242, 0.65);
 	box-sizing: border-box;
 }
 .header-content {

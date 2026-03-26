@@ -3,7 +3,7 @@
 	<view class="page-wrapper">
 		<DetailHeader title="库存流水" />
 		<DetailPageLayout @scrolltolower="handleLoadMore">
-			<view class="page-content">
+			<view class="page-content animated-content" :class="{ 'is-revealed': !isLoading && isInitialFetchDone }">
 				<view class="filter-container">
 					<AdvancedFilterBar
 						:model-value="filters"
@@ -15,10 +15,7 @@
 					/>
 				</view>
 
-				<view v-if="isLoading" class="loading-spinner">
-					<text>加载中...</text>
-				</view>
-				<template v-else-if="ledgerEntries.length > 0">
+				<template v-if="ledgerEntries.length > 0">
 					<view class="procurement-list">
 						<view class="list-header ledger-header">
 							<text class="col-date-operator">日期/操作人</text>
@@ -43,13 +40,17 @@
 						</ListItem>
 					</view>
 					<view class="load-more-container">
-						<view v-if="isLoadingMore" class="loading-spinner">加载中...</view>
+						<view v-if="isLoadingMore" class="loading-spinner" style="padding-top: 10px">加载中...</view>
 						<view v-if="!hasMore && !isLoading && ledgerEntries.length > 0" class="no-more-tasks">没有更多了</view>
 					</view>
 				</template>
-				<view v-else class="empty-state">
-					<text>暂无符合条件的流水记录</text>
-				</view>
+
+				<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="暂无流水记录" subtitle="当前筛选条件下没有找到符合的数据" />
+			</view>
+
+			<view v-if="isLoading && page === 1" class="page-content skeleton-overlay">
+				<view style="height: 50px"></view>
+				<SkeletonList :count="8" />
 			</view>
 		</DetailPageLayout>
 
@@ -132,12 +133,17 @@ import AppModal from '@/components/AppModal.vue';
 import AdvancedFilterBar from '@/components/AdvancedFilterBar.vue';
 import AppButton from '@/components/AppButton.vue';
 import FormItem from '@/components/FormItem.vue';
+import SkeletonList from '@/components/SkeletonList.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 defineOptions({
 	inheritAttrs: false
 });
 
 const isLoading = ref(false);
+// [新增] 用于标记是否已经完成了首次拉取，避免一进页面就看到空状态
+const isInitialFetchDone = ref(false);
+
 const toastStore = useToastStore();
 const dataStore = useDataStore();
 
@@ -204,20 +210,16 @@ const limit = ref(20);
 const hasMore = ref(true);
 const isLoadingMore = ref(false);
 
-// [核心修改] 接收 options 参数并初始化 filters
 onLoad(async (options) => {
 	if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
 	if (!dataStore.dataLoaded.members) await dataStore.fetchMembersData();
 
-	// 如果从详情页跳转过来，会带有 ingredientId 参数
 	if (options && options.ingredientId) {
 		filters.ingredientId = options.ingredientId;
 	} else if (allIngredients.value.length > 0) {
-		// 如果没有指定，默认选中第一个（或者保持 null 让用户自己选）
 		filters.ingredientId = allIngredients.value[0].id;
 	}
 
-	// 只要有 ingredientId 就加载数据
 	if (filters.ingredientId) {
 		await fetchLedgerData(false);
 	}
@@ -283,7 +285,6 @@ const fetchLedgerData = async (loadMore = false) => {
 	} else {
 		isLoading.value = true;
 		page.value = 1;
-		ledgerEntries.value = [];
 	}
 
 	try {
@@ -295,18 +296,30 @@ const fetchLedgerData = async (loadMore = false) => {
 		Object.keys(params).forEach((key) => (params[key] == null || params[key] === '') && delete params[key]);
 
 		const response = await getIngredientLedger(filters.ingredientId, params);
+
+		// 拿到数据立刻赋值触发 DOM 预渲染
 		if (loadMore) {
 			ledgerEntries.value.push(...response.data);
 		} else {
 			ledgerEntries.value = response.data;
 		}
+
 		hasMore.value = response.meta.hasMore;
+		isInitialFetchDone.value = true;
 	} catch (error) {
 		console.error('Failed to fetch ingredient ledger:', error);
-		toastStore.show({ message: '获取库存流水失败', type: 'error' });
+		if (!loadMore) {
+			ledgerEntries.value = [];
+		}
 	} finally {
-		isLoading.value = false;
-		isLoadingMore.value = false;
+		// [修改] 为第一页的数据加载留下充足的预渲染排版时间
+		if (loadMore) {
+			isLoadingMore.value = false;
+		} else {
+			setTimeout(() => {
+				isLoading.value = false;
+			}, 200);
+		}
 	}
 };
 
@@ -485,14 +498,12 @@ const getPillText = (filter: any) => {
 	font-size: 18px;
 }
 
-/* [核心重构] 更新日期选择模态框的内部样式 */
 .date-picker-modal-content {
 	display: flex;
 	flex-direction: column;
 	padding: 10px 0;
 }
 
-/* [核心新增] 与“新建任务”页面保持一致的紧凑日期选择器样式 */
 .date-picker-row {
 	display: flex;
 	justify-content: space-between;

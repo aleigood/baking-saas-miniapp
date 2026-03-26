@@ -3,7 +3,7 @@
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader :title="recipeFamily?.name || '加载中...'" />
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content page-content-with-fab" v-if="!isLoading && recipeFamily">
+			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="recipeFamily">
 				<RecipeVersionList
 					:versions="recipeVersions"
 					:selected-version-id="displayedVersionId"
@@ -17,9 +17,20 @@
 				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" @show-popover="handleShowPopover" />
 				<SimpleRecipeDetail v-else :version="displayedVersion" :shelf-life="recipeFamily.outputIngredient?.shelfLife || 0" @show-popover="handleShowPopover" />
 			</view>
-			<view class="loading-spinner" v-else>
-				<text>加载中...</text>
+
+			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
+				<SkeletonCard v-for="i in 3" :key="i" />
 			</view>
+
+			<EmptyState
+				v-if="!isLoading && !recipeFamily"
+				icon="/static/icons/network-error.svg"
+				title="加载失败"
+				subtitle="请检查网络连接后重试"
+				:showAction="true"
+				actionText="重新加载"
+				@action="familyId && loadRecipeData(familyId)"
+			/>
 		</DetailPageLayout>
 
 		<AppModal ref="versionOptionsModalRef" v-model:visible="showVersionOptionsModal" title="配方版本" :no-header-line="true">
@@ -90,6 +101,9 @@ import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import AppPopover from '@/components/AppPopover.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
+// [新增] 引入骨架屏和空状态组件
+import SkeletonCard from '@/components/SkeletonCard.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 defineOptions({
 	inheritAttrs: false
@@ -111,7 +125,6 @@ const showVersionOptionsModal = ref(false);
 const showDeleteVersionConfirmModal = ref(false);
 const selectedVersionForAction = ref<RecipeVersion | null>(null);
 
-// [核心修改] 添加 modal ref
 const versionOptionsModalRef = ref<InstanceType<typeof AppModal> | null>(null);
 
 const isFabVisible = ref(true);
@@ -182,6 +195,8 @@ const loadRecipeData = async (id: string) => {
 	isLoading.value = true;
 	try {
 		const fullFamilyData = await getRecipeFamily(id);
+
+		// 拿到数据立刻赋值，触发底层 DOM 创建
 		recipeFamily.value = fullFamilyData;
 		recipeVersions.value = fullFamilyData.versions.sort((a, b) => b.version - a.version);
 
@@ -197,12 +212,13 @@ const loadRecipeData = async (id: string) => {
 		}
 	} catch (error) {
 		console.error('Failed to fetch recipe details:', error);
-		toastStore.show({
-			message: '获取配方详情失败',
-			type: 'error'
-		});
+		// 出现错误时，不再使用 toastStore 弹窗，而是置空数据，展示 EmptyState 兜底页面
+		recipeFamily.value = null;
 	} finally {
-		isLoading.value = false;
+		// 预留 200ms 排版时间，等 CPU 闲下来再揭开骨架屏幕布
+		setTimeout(() => {
+			isLoading.value = false;
+		}, 200);
 	}
 };
 
@@ -287,7 +303,6 @@ const handleVersionLongPressAction = (version: RecipeVersion) => {
 	showVersionOptionsModal.value = true;
 };
 
-// [核心修改] 使用 closeAndRun 避免闪烁
 const handleEditVersionOption = () => {
 	if (recipeFamily.value && selectedVersionForAction.value) {
 		if (versionOptionsModalRef.value) {
