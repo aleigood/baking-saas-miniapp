@@ -58,7 +58,8 @@ export const getPrepTaskDetails = (date: string, taskIds?: string[]): Promise<Pr
 		data: {
 			date,
 			taskIds: taskIds && taskIds.length > 0 ? taskIds.join(',') : undefined
-		}
+		},
+		hideErrorToast: true
 	});
 };
 
@@ -88,7 +89,8 @@ export function getSpoilageStages(): Promise<{ key: string; label: string }[]> {
 export function getTaskDetail(taskId: string, params?: Partial<TemperatureSettings>): Promise<ProductionTaskDetailDto> {
 	return request<ProductionTaskDetailDto>({
 		url: `/production-tasks/${taskId}`,
-		data: params
+		data: params,
+		hideErrorToast: true
 	});
 }
 

@@ -175,7 +175,7 @@ const fetchTemperatures = async () => {
 	try {
 		availableTemperatures.value = await getAvailableTemperatures(form.type);
 	} catch (error) {
-		toastStore.show({ message: '获取温度列表失败', type: 'error' });
+		console.error('获取温度列表失败:', error);
 	}
 };
 
@@ -184,7 +184,7 @@ const fetchTimes = async () => {
 	try {
 		availableTimes.value = await getAvailableTimes(form.type, form.temperatureC);
 	} catch (error) {
-		toastStore.show({ message: '获取时间列表失败', type: 'error' });
+		console.error('获取时间列表失败:', error);
 	}
 };
 
@@ -213,7 +213,7 @@ const handleCalculate = async () => {
 			result.value = '无适用数据';
 		}
 	} catch (error) {
-		toastStore.show({ message: '计算失败', type: 'error' });
+		console.error('计算失败:', error);
 		result.value = '计算出错';
 	} finally {
 		isLoading.value = false;

@@ -314,9 +314,9 @@
 .icon-button.user-avatar {
 	padding: 0;
 }
+/* 1. 纯粹的布局容器，不带任何动画 */
 .page-content {
 	padding: 15px;
-	/* [修改] 强制增加顶部内边距：动态 Header 高度 + 原本的 15px 基础边距，加 !important 确保不被覆盖 */
 	padding-top: calc(var(--header-height, 80px) + 15px) !important;
 	padding-bottom: calc(32px + constant(safe-area-inset-bottom));
 	padding-bottom: calc(32px + env(safe-area-inset-bottom));
@@ -336,6 +336,37 @@
 	padding-bottom: calc(90px + constant(safe-area-inset-bottom));
 	padding-bottom: calc(90px + env(safe-area-inset-bottom));
 }
+
+/* 2. [修改] 真实数据的容器：初始状态为隐藏，沉在下方准备 */
+.animated-content {
+	opacity: 0;
+	/* 将移动和硬件加速合并，防止被覆盖 */
+	transform: translateY(15px) translateZ(0);
+	/* 放弃 keyframes，改用 transition 控制 */
+	transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+	will-change: transform, opacity;
+	backface-visibility: hidden;
+}
+
+/* 3. [新增] 触发显示的类：数据排版完后加上，触发平滑上浮 */
+.animated-content.is-revealed {
+	opacity: 1;
+	transform: translateY(0) translateZ(0);
+}
+
+/* 4. [新增] 骨架屏幕布：绝对定位，在预渲染时盖在真实数据上面 */
+.skeleton-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	min-height: 100%;
+	background-color: #fdf8f2;
+	z-index: 10;
+	box-sizing: border-box;
+}
+
+/* 至于下面的 ripple 动画等，保持不变... */
 
 /* Water ripple effect */
 .ripple {
@@ -489,7 +520,7 @@
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	padding-top: 100px;
+	padding-top: calc(var(--header-height, 80px) + 50px);
 	color: var(--text-secondary);
 }
 

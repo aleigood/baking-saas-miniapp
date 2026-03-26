@@ -12,7 +12,8 @@ import type { FermentationType, YeastBrand } from '@/types/fermentation';
 export function getAvailableTemperatures(type: FermentationType): Promise<number[]> {
 	return request<number[]>({
 		url: '/fermentation/temperatures',
-		data: { type }
+		data: { type },
+		hideErrorToast: true
 	});
 }
 
@@ -24,7 +25,8 @@ export function getAvailableTemperatures(type: FermentationType): Promise<number
 export function getAvailableTimes(type: FermentationType, temperatureC: number): Promise<number[]> {
 	return request<number[]>({
 		url: '/fermentation/times',
-		data: { type, temperatureC }
+		data: { type, temperatureC },
+		hideErrorToast: true
 	});
 }
 
@@ -36,6 +38,7 @@ export function getAvailableTimes(type: FermentationType, temperatureC: number):
 export function findAmount(params: { type: FermentationType; brand: YeastBrand; temperatureC: number; time: number }): Promise<number[]> {
 	return request<number[]>({
 		url: '/fermentation/amount',
-		data: params
+		data: params,
+		hideErrorToast: true
 	});
 }

@@ -3,159 +3,162 @@
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader title="前置任务" />
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content page-content-with-fab">
-				<template v-if="task">
-					<view class="filter-header-container">
-						<FilterTabs v-model="activeTab" :tabs="filterTabs" />
+			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="task">
+				<view class="filter-header-container">
+					<FilterTabs v-model="activeTab" :tabs="filterTabs" />
 
-						<IconButton v-if="task.sourceTasks && task.sourceTasks.length > 1" @click="openTaskFilter" style="margin-left: 10px">
-							<image class="header-icon" src="/static/icons/filter.svg" mode="aspectFit" />
-						</IconButton>
-					</view>
+					<IconButton v-if="task.sourceTasks && task.sourceTasks.length > 1" @click="openTaskFilter" style="margin-left: 10px">
+						<image class="header-icon" src="/static/icons/filter.svg" mode="aspectFit" />
+					</IconButton>
+				</view>
 
-					<view v-if="activeTab === 'BILL_OF_MATERIALS'">
-						<template v-if="hasMaterials">
-							<view v-if="billOfMaterials.standardItems.length > 0" class="card">
-								<view class="card-title-wrapper" @click="toggleCollapse('standardItems')">
-									<span class="card-title title-text">标准原料</span>
-									<view class="spacer"></view>
-									<span class="arrow" :class="{ collapsed: collapsedSections.has('standardItems') }">&#10095;</span>
-								</view>
-								<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('standardItems') }">
-									<view class="smart-table">
-										<view class="table-header">
-											<text class="col-ingredient">原料</text>
-											<text class="col-brand">品牌</text>
-											<text class="col-stock">库存</text>
-											<text class="col-usage">需求量</text>
-										</view>
-										<view v-for="item in billOfMaterials.standardItems" :key="item.ingredientId" class="table-row">
-											<text class="col-ingredient">{{ item.ingredientName }}</text>
-											<text class="col-brand">{{ item.brand || '-' }}</text>
-											<text class="col-stock">{{ formatWeight(item.currentStock) }}</text>
-											<text class="col-usage" :class="{ highlight: item.currentStock < item.totalRequired }">{{ formatWeight(item.totalRequired) }}</text>
-										</view>
+				<view v-if="activeTab === 'BILL_OF_MATERIALS'">
+					<template v-if="hasMaterials">
+						<view v-if="billOfMaterials.standardItems.length > 0" class="card">
+							<view class="card-title-wrapper" @click="toggleCollapse('standardItems')">
+								<span class="card-title title-text">标准原料</span>
+								<view class="spacer"></view>
+								<span class="arrow" :class="{ collapsed: collapsedSections.has('standardItems') }">&#10095;</span>
+							</view>
+							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('standardItems') }">
+								<view class="smart-table">
+									<view class="table-header">
+										<text class="col-ingredient">原料</text>
+										<text class="col-brand">品牌</text>
+										<text class="col-stock">库存</text>
+										<text class="col-usage">需求量</text>
+									</view>
+									<view v-for="item in billOfMaterials.standardItems" :key="item.ingredientId" class="table-row">
+										<text class="col-ingredient">{{ item.ingredientName }}</text>
+										<text class="col-brand">{{ item.brand || '-' }}</text>
+										<text class="col-stock">{{ formatWeight(item.currentStock) }}</text>
+										<text class="col-usage" :class="{ highlight: item.currentStock < item.totalRequired }">{{ formatWeight(item.totalRequired) }}</text>
 									</view>
 								</view>
 							</view>
-
-							<view v-if="billOfMaterials.nonInventoriedItems.length > 0" class="card">
-								<view class="card-title-wrapper" @click="toggleCollapse('nonInventoriedItems')">
-									<span class="card-title title-text">即时采购原料</span>
-									<view class="spacer"></view>
-									<span class="arrow" :class="{ collapsed: collapsedSections.has('nonInventoriedItems') }">&#10095;</span>
-								</view>
-								<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('nonInventoriedItems') }">
-									<view class="smart-table">
-										<view class="table-header">
-											<text class="col-ingredient">原料</text>
-											<text class="col-brand">品牌</text>
-											<text class="col-usage">需求量</text>
-										</view>
-										<view v-for="item in billOfMaterials.nonInventoriedItems" :key="item.ingredientId" class="table-row">
-											<text class="col-ingredient">{{ item.ingredientName }}</text>
-											<text class="col-brand">{{ item.brand || '-' }}</text>
-											<text class="col-usage highlight">{{ formatWeight(item.totalRequired) }}</text>
-										</view>
-									</view>
-								</view>
-							</view>
-						</template>
-						<view v-else class="empty-state">
-							<text>选中任务下无需采购任何原料</text>
 						</view>
-					</view>
 
-					<view v-if="activeTab !== 'BILL_OF_MATERIALS'">
-						<view v-if="filteredPrepItems.length > 0">
-							<view v-for="item in filteredPrepItems" :key="item.id" class="card recipe-card" :class="{ 'is-completed': completedItems.has(item.id) }">
-								<view class="card-title-wrapper" @click="toggleCollapse(item.id)">
-									<view class="completion-toggle" @click.stop="toggleItemCompleted(item.id)">
-										<view class="check-icon" :class="{ 'is-checked': completedItems.has(item.id) }">
-											<view v-if="completedItems.has(item.id)" class="check-mark"></view>
-										</view>
+						<view v-if="billOfMaterials.nonInventoriedItems.length > 0" class="card">
+							<view class="card-title-wrapper" @click="toggleCollapse('nonInventoriedItems')">
+								<span class="card-title title-text">即时采购原料</span>
+								<view class="spacer"></view>
+								<span class="arrow" :class="{ collapsed: collapsedSections.has('nonInventoriedItems') }">&#10095;</span>
+							</view>
+							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('nonInventoriedItems') }">
+								<view class="smart-table">
+									<view class="table-header">
+										<text class="col-ingredient">原料</text>
+										<text class="col-brand">品牌</text>
+										<text class="col-usage">需求量</text>
 									</view>
+									<view v-for="item in billOfMaterials.nonInventoriedItems" :key="item.ingredientId" class="table-row">
+										<text class="col-ingredient">{{ item.ingredientName }}</text>
+										<text class="col-brand">{{ item.brand || '-' }}</text>
+										<text class="col-usage highlight">{{ formatWeight(item.totalRequired) }}</text>
+									</view>
+								</view>
+							</view>
+						</view>
+					</template>
+					<EmptyState v-else icon="/static/icons/empty-box.svg" title="无需采购" subtitle="选中任务下无需采购任何原料" />
+				</view>
 
-									<span class="card-title title-text" @click.stop="toggleItemCompleted(item.id)">{{ item.name }}</span>
-
-									<view class="spacer"></view>
-
-									<span class="arrow" :class="{ collapsed: collapsedSections.has(item.id) }">&#10095;</span>
+				<view v-if="activeTab !== 'BILL_OF_MATERIALS'">
+					<view v-if="filteredPrepItems.length > 0">
+						<view v-for="item in filteredPrepItems" :key="item.id" class="card recipe-card" :class="{ 'is-completed': completedItems.has(item.id) }">
+							<view class="card-title-wrapper" @click="toggleCollapse(item.id)">
+								<view class="completion-toggle" @click.stop="toggleItemCompleted(item.id)">
+									<view class="check-icon" :class="{ 'is-checked': completedItems.has(item.id) }">
+										<view v-if="completedItems.has(item.id)" class="check-mark"></view>
+									</view>
 								</view>
 
-								<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(item.id) }">
-									<view class="fixed-grid-table">
-										<view class="table-header">
-											<text class="col-ingredient">原料</text>
-											<text class="col-brand">品牌</text>
-											<text class="col-usage">用量</text>
-										</view>
-										<view
-											v-for="(ing, index) in item.ingredients"
-											:key="item.id + '-' + index"
-											class="table-row"
-											:class="{ 'is-added': addedIngredientsMap.has(`${item.id}-${index}`) }"
-											@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${item.id}-${index}`)"
-											@longpress.prevent="toggleIngredientAdded(item.id, index)"
-										>
-											<view class="col-ingredient ingredient-name-cell">
-												<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${item.id}-${index}`">
-													<text>{{ ing.name }}</text>
-													<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
-												</view>
-												<text v-else>{{ ing.name }}</text>
+								<span class="card-title title-text" @click.stop="toggleItemCompleted(item.id)">{{ item.name }}</span>
+
+								<view class="spacer"></view>
+
+								<span class="arrow" :class="{ collapsed: collapsedSections.has(item.id) }">&#10095;</span>
+							</view>
+
+							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(item.id) }">
+								<view class="fixed-grid-table">
+									<view class="table-header">
+										<text class="col-ingredient">原料</text>
+										<text class="col-brand">品牌</text>
+										<text class="col-usage">用量</text>
+									</view>
+									<view
+										v-for="(ing, index) in item.ingredients"
+										:key="item.id + '-' + index"
+										class="table-row"
+										:class="{ 'is-added': addedIngredientsMap.has(`${item.id}-${index}`) }"
+										@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${item.id}-${index}`)"
+										@longpress.prevent="toggleIngredientAdded(item.id, index)"
+									>
+										<view class="col-ingredient ingredient-name-cell">
+											<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${item.id}-${index}`">
+												<text>{{ ing.name }}</text>
+												<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 											</view>
-											<text class="col-brand">{{ ing.isRecipe ? '自制' : ing.brand || '-' }}</text>
-											<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+											<text v-else>{{ ing.name }}</text>
 										</view>
+										<text class="col-brand">{{ ing.isRecipe ? '自制' : ing.brand || '-' }}</text>
+										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
+									</view>
+								</view>
+
+								<view class="total-weight-summary">
+									<view class="summary-item">
+										<text class="summary-label">需求总量</text>
+										<text class="summary-value">{{ formatWeight((item.targetWeight || item.totalWeight) + (item.stockWeight || 0)) }}</text>
 									</view>
 
-									<view class="total-weight-summary">
-										<view class="summary-item">
-											<text class="summary-label">需求总量</text>
-											<text class="summary-value">{{ formatWeight((item.targetWeight || item.totalWeight) + (item.stockWeight || 0)) }}</text>
-										</view>
+									<view class="summary-divider"></view>
 
-										<view class="summary-divider"></view>
-
-										<view class="summary-item">
-											<text class="summary-label">库存抵扣</text>
-											<text class="summary-value">{{ formatWeight(item.stockWeight || 0) }}</text>
-										</view>
-
-										<view class="summary-divider"></view>
-
-										<view v-if="item.targetWeight != null" class="summary-item">
-											<text class="summary-label">目标产出</text>
-											<text class="summary-value highlight-value">{{ formatWeight(item.targetWeight) }}</text>
-										</view>
-
-										<view v-if="item.targetWeight != null" class="summary-divider"></view>
-										<view class="summary-item">
-											<text class="summary-label">预计投料</text>
-											<text class="summary-value text-secondary">{{ formatWeight(item.totalWeight) }}</text>
-										</view>
+									<view class="summary-item">
+										<text class="summary-label">库存抵扣</text>
+										<text class="summary-value">{{ formatWeight(item.stockWeight || 0) }}</text>
 									</view>
 
-									<view v-if="item.procedure && item.procedure.length > 0" class="procedure-notes">
-										<text class="notes-title">制作要点:</text>
-										<text v-for="(step, stepIndex) in item.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+									<view class="summary-divider"></view>
+
+									<view v-if="item.targetWeight != null" class="summary-item">
+										<text class="summary-label">目标产出</text>
+										<text class="summary-value highlight-value">{{ formatWeight(item.targetWeight) }}</text>
 									</view>
+
+									<view v-if="item.targetWeight != null" class="summary-divider"></view>
+									<view class="summary-item">
+										<text class="summary-label">预计投料</text>
+										<text class="summary-value text-secondary">{{ formatWeight(item.totalWeight) }}</text>
+									</view>
+								</view>
+
+								<view v-if="item.procedure && item.procedure.length > 0" class="procedure-notes">
+									<text class="notes-title">制作要点:</text>
+									<text v-for="(step, stepIndex) in item.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 								</view>
 							</view>
 						</view>
-						<view v-else class="empty-state">
-							<text>该分类下暂无备料</text>
-							<view class="empty-state-sub">或库存充足无需制作</view>
-						</view>
 					</view>
-				</template>
-				<view v-else-if="isLoading" class="loading-spinner">
-					<text>加载中...</text>
+					<EmptyState v-else icon="/static/icons/empty-list.svg" title="暂无备料" subtitle="该分类下暂无备料，或库存充足无需制作" />
 				</view>
 			</view>
-		</DetailPageLayout>
 
+			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
+				<SkeletonCard v-for="i in 3" :key="i" />
+			</view>
+
+			<EmptyState
+				v-if="!isLoading && !task"
+				icon="/static/icons/network-error.svg"
+				title="获取任务失败"
+				subtitle="未获取到任务数据或网络异常"
+				:showAction="true"
+				actionText="重新加载"
+				@action="fetchTaskData"
+			/>
+		</DetailPageLayout>
 		<AppModal v-model:visible="showTaskFilterModal" title="筛选生产任务">
 			<scroll-view scroll-y class="task-filter-list">
 				<view class="task-filter-item ripple-container" @click="toggleSelectAllTasks">
@@ -189,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, getCurrentInstance } from 'vue';
+import { ref, reactive, computed, getCurrentInstance, shallowRef } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import type { PrepTask, BillOfMaterialsResponseDto } from '@/types/api';
 import { getPrepTaskDetails, getPrepTaskPdfUrl } from '@/api/tasks';
@@ -202,10 +205,12 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import { formatWeight } from '@/utils/format';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
-import IconButton from '@/components/IconButton.vue'; // [新增] 引入 IconButton 组件
+import IconButton from '@/components/IconButton.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppPopover from '@/components/AppPopover.vue';
+import SkeletonCard from '@/components/SkeletonCard.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 defineOptions({
 	inheritAttrs: false
@@ -218,10 +223,9 @@ const toastStore = useToastStore();
 
 const isLoading = ref(true);
 const isPrinting = ref(false);
-const task = ref<PrepTask | null>(null);
+const task = shallowRef<PrepTask | null>(null);
 const taskDate = ref<string | null>(null);
 
-// 筛选功能相关状态
 const selectedTaskIds = ref<string[]>([]);
 const tempSelectedTaskIds = ref<string[]>([]);
 const showTaskFilterModal = ref(false);
@@ -254,13 +258,11 @@ const popover = reactive<{
 
 const fabActions = computed(() => {
 	const actions = [];
-
 	actions.push({
 		icon: '/static/icons/print.svg',
 		text: '打印备料单',
 		action: handlePrintPrepTask
 	});
-
 	if (preDoughItems.value.length > 0) {
 		actions.push({
 			icon: '/static/icons/calculator.svg',
@@ -270,7 +272,6 @@ const fabActions = computed(() => {
 			}
 		});
 	}
-
 	return actions;
 });
 
@@ -361,7 +362,6 @@ const toggleCollapse = (itemId: string) => {
 	collapsedSections.value = newSet;
 };
 
-// 筛选弹窗相关方法
 const openTaskFilter = () => {
 	tempSelectedTaskIds.value = [...selectedTaskIds.value];
 	showTaskFilterModal.value = true;
@@ -394,7 +394,6 @@ const applyTaskFilter = () => {
 	selectedTaskIds.value = [...tempSelectedTaskIds.value];
 	showTaskFilterModal.value = false;
 
-	// [修复] 解决由于 DOM 元素卸载引起的unknown removedNode 报错
 	setTimeout(async () => {
 		await fetchTaskData();
 	}, 300);
@@ -496,7 +495,9 @@ const fetchTaskData = async () => {
 				items: [],
 				billOfMaterials: { standardItems: [], nonInventoriedItems: [] }
 			};
-			isLoading.value = false;
+			setTimeout(() => {
+				isLoading.value = false;
+			}, 200);
 			return;
 		}
 
@@ -508,6 +509,8 @@ const fetchTaskData = async () => {
 		}
 
 		const taskData = await getPrepTaskDetails(taskDate.value!, taskIdsParam);
+
+		// 赋值瞬间，骨架屏挡在上方，内部开始构建庞大的 DOM 结构
 		task.value = taskData;
 
 		if (task.value?.sourceTasks && selectedTaskIds.value.length === 0) {
@@ -520,8 +523,13 @@ const fetchTaskData = async () => {
 		}
 	} catch (error) {
 		console.error('获取前置任务详情失败:', error);
+		// 确保错误时任务为空，以便触发底层空状态
+		task.value = null;
 	} finally {
-		isLoading.value = false;
+		// 预留 200ms 给浏览器在后台进行排版，之后再撤走骨架屏幕布
+		setTimeout(() => {
+			isLoading.value = false;
+		}, 200);
 	}
 };
 
@@ -550,6 +558,7 @@ onLoad(async (options) => {
 			await fetchTaskData();
 		} catch (error) {
 			console.error('初始化任务数据失败:', error);
+			// 确保 isLoading 在报错后也会置为 false 触发兜底的 EmptyState
 			isLoading.value = false;
 		}
 	} else {
@@ -592,7 +601,6 @@ onLoad(async (options) => {
 	margin-bottom: 20px;
 }
 
-/* [新增] 参照 production.vue 的图标样式 */
 .header-icon {
 	width: 24px;
 	height: 24px;

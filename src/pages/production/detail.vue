@@ -3,7 +3,7 @@
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader title="任务详情" />
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content page-content-with-fab" v-if="!isLoading && task">
+			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="task">
 				<view class="detail-page">
 					<view v-if="task.stockWarning && !isReadOnly" class="warning-card card">
 						<view class="warning-content">
@@ -242,9 +242,20 @@
 					</view>
 				</view>
 			</view>
-			<view class="loading-spinner" v-else>
-				<text>加载中...</text>
+
+			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
+				<SkeletonCard v-for="i in 3" :key="i" />
 			</view>
+
+			<EmptyState
+				v-if="!isLoading && !task"
+				icon="/static/icons/network-error.svg"
+				title="加载失败"
+				subtitle="请检查网络连接后重试"
+				:showAction="true"
+				actionText="重新加载"
+				@action="loadTaskData(taskId)"
+			/>
 		</DetailPageLayout>
 
 		<ExpandingFab v-if="isStarted" icon="/static/icons/print.svg" @click="handlePrintTask" :no-tab-bar="true" :visible="isFabVisible" />
@@ -303,7 +314,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch, nextTick, getCurrentInstance } from 'vue';
+import { ref, computed, reactive, watch, nextTick, getCurrentInstance, shallowRef } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
@@ -322,6 +333,8 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import AppPopover from '@/components/AppPopover.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import { formatWeight } from '@/utils/format';
+import SkeletonCard from '@/components/SkeletonCard.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 defineOptions({
 	inheritAttrs: false
@@ -337,7 +350,7 @@ const instance = getCurrentInstance();
 const isLoading = ref(true);
 const isSubmitting = ref(false);
 const isPrinting = ref(false);
-const task = ref<ProductionTaskDetailDto | null>(null);
+const task = shallowRef<ProductionTaskDetailDto | null>(null);
 const taskId = ref<string | null>(null);
 const showCompleteTaskModal = ref(false);
 const isStarted = ref(false);
@@ -374,7 +387,6 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-// [新增] 用于控制辅料提示框高亮呼吸动画的响应式变量
 const showPulseAnimation = ref(false);
 
 const popover = reactive<{
@@ -512,6 +524,7 @@ const loadTaskData = async (id: string) => {
 	try {
 		temperatureStore.initTemperatureSettings();
 		const response = await getTaskDetail(id, temperatureStore.settings);
+		// 立刻赋值触发DOM预渲染
 		task.value = response;
 
 		addedIngredientsMap.clear();
@@ -532,8 +545,13 @@ const loadTaskData = async (id: string) => {
 		}
 	} catch (error) {
 		console.error('Failed to load task details:', error);
+		// 接口报错时确保数据置空，触发 EmptyState
+		task.value = null;
 	} finally {
-		isLoading.value = false;
+		// 留出排版时间，与 prep-detail 统一使用 200ms
+		setTimeout(() => {
+			isLoading.value = false;
+		}, 200);
 	}
 };
 
@@ -772,21 +790,17 @@ const toggleCollapse = (sectionName: string) => {
 	collapsedSections.value = newSet;
 };
 
-// [修改逻辑] 检查配方完成状态，并触发动画的方法
 const checkAndTriggerAnimation = (familyId: string) => {
 	if (!selectedComponentDetails.value || selectedComponentDetails.value.familyId !== familyId) return;
 
 	const ingredients = selectedComponentDetails.value.baseComponentIngredients;
 	if (!ingredients || ingredients.length === 0) return;
 
-	// 检查该配方下所有原料是否都已被划掉
 	const allAdded = ingredients.every((ing) => addedIngredientsMap.has(`${familyId}-${ing.id}`));
 
-	// 如果全部完成，并且当前组件含有辅料信息
 	if (allAdded && componentMixInSummary.value.length > 0) {
 		showPulseAnimation.value = true;
 
-		// [修改] 动画单次 0.8 秒，闪烁 3 次总计 2.4 秒。这里设置为 2.5 秒后结束并恢复原状
 		setTimeout(() => {
 			showPulseAnimation.value = false;
 		}, 2500);
@@ -803,8 +817,6 @@ const toggleIngredientAdded = (componentFamilyId: string, ingredientId: string) 
 		addedIngredientsMap.delete(compositeKey);
 	} else {
 		addedIngredientsMap.add(compositeKey);
-
-		// [新增逻辑] 每次增加原料完成记录后，检查是否触发动画
 		checkAndTriggerAnimation(componentFamilyId);
 	}
 
@@ -1198,14 +1210,12 @@ const componentMixInSummary = computed(() => {
 	color: var(--primary-color);
 }
 
-/* [新增] 左侧轻量级警示样式 */
+/* 左侧轻量级警示样式 */
 .summary-left-alert {
 	display: flex;
 	align-items: center;
 	gap: 5px;
-	/* [修复位移] 把内边距和圆角固定在基础样式里，避免动画结束时移除类名导致布局跳动 */
 	padding: 4px 8px;
-	/* [修复裁剪问题] 将原来的 -8px 修改为 -4px，避免被外层 overflow: hidden 裁剪掉左侧圆角 */
 	margin-left: -4px;
 	border-radius: 6px;
 }
@@ -1219,18 +1229,17 @@ const componentMixInSummary = computed(() => {
 .summary-alert-icon {
 	width: 16px;
 	height: 16px;
-	/* 确保图标垂直居中 */
 	display: block;
 }
 
-/* [修改样式] 辅料提示呼吸高亮动画 */
+/* 辅料提示呼吸高亮动画 */
 @keyframes pulse-bg-highlight {
 	0% {
 		background-color: transparent;
 		box-shadow: none;
 	}
 	50% {
-		background-color: #faedcd; /* 使用柔和的警告底色 */
+		background-color: #faedcd;
 		box-shadow: 0 0 8px rgba(250, 237, 205, 0.8);
 	}
 	100% {
@@ -1239,9 +1248,7 @@ const componentMixInSummary = computed(() => {
 	}
 }
 
-/* 动态添加的类名 */
 .pulse-highlight {
-	/* [修改] 动画单次0.8秒，ease-in-out平滑过渡，连闪3次 (总长2.4秒) */
 	animation: pulse-bg-highlight 0.8s ease-in-out 3;
 }
 
