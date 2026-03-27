@@ -50,34 +50,40 @@ const handleAction = () => {
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	/* [修复 1: 避开 Header] 引入系统的 var(--header-height)，确保顶部有足够的安全距离 */
-	padding: calc(var(--header-height, 80px) + 80px) 20px 80px;
+	/* [专业设计]: 优化顶部留白，营造更好的开阔感和精致感 */
+	padding: 80px 20px 60px;
 	width: 100%;
 	box-sizing: border-box;
 }
 
 .empty-icon {
-	/* [修复 2: 缩小尺寸] 从 120px 缩小到 80px，让视觉比例更精致 */
-	width: 80px;
-	height: 80px;
-	margin-bottom: 24px;
-	/* [修复 3: 柔化颜色] 大幅降低不透明度（0.85 -> 0.35），让深色的图标在浅色背景上显得非常柔和淡雅 */
-	opacity: 0.35;
+	/* [修复]: 将尺寸从 80px 缩小到 48px，使视觉比例更精致、更协调 */
+	width: 48px;
+	height: 48px;
+	margin-bottom: 20px;
+	/* [修复]: 大幅降低不透明度至 0.28，颜色非常淡雅、柔和，与背景更好融合，减少突兀感 */
+	opacity: 0.28;
 }
 
 .empty-title {
 	font-size: 16px;
-	color: var(--text-primary);
+	/* [核心修改/协调性优化]: 删除了全局的 var(--text-primary)，改为定义专属的、中等深度的暖棕色 */
+	/* 这样能极大降低纯黑文字带来的生硬感和 stark 感，与淡化后的图标更协调。 */
+	color: #4a3328;
 	font-weight: 500;
 	margin-bottom: 8px;
 }
 
 .empty-subtitle {
 	font-size: 13px;
-	color: var(--text-secondary);
+	/* [核心修改/协调性优化]: 删除了全局的 var(--text-secondary)，改为定义专属的、更柔和的暖灰色。 */
+	/* 降低其视觉权重，使其柔和地融入背景中。 */
+	color: #8c7f76;
 	text-align: center;
 	margin-bottom: 24px;
 	line-height: 1.5;
+	/* [专业设计]: 微调排版细节，增加精致感 */
+	letter-spacing: 0.5px;
 }
 
 .action-btn {

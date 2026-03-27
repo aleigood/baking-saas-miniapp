@@ -71,13 +71,13 @@
 								</template>
 							</ListItem>
 						</view>
-						<EmptyState v-else-if="!isLoading" icon="/static/icons/empty-list.svg" title="暂无配方" subtitle="该分类下暂无配方" />
+						<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="暂无配方" subtitle="该分类下暂无配方" />
 					</template>
-					<EmptyState v-else-if="!isLoading" icon="/static/icons/empty-box.svg" title="暂无配方" subtitle="暂无任何配方，快去创建吧！" />
+					<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-box.svg" title="暂无配方" subtitle="暂无任何配方，快去创建吧！" />
 				</view>
 			</view>
 
-			<view v-if="isLoading" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
+			<view v-if="isLoading && uiStore.activeTab === 'recipes'" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
 				<view class="content-padding">
 					<view style="height: 160px; margin-bottom: 20px; border-radius: 20px; background-color: #faf8f5"></view>
 					<view style="height: 36px; margin-bottom: 10px; border-radius: 18px; background-color: #faf8f5; width: 60%"></view>
@@ -175,6 +175,7 @@ const uiStore = useUiStore();
 // [核心重构] 默认全部关闭，完全靠按需苏醒触发
 const isLoading = ref(false);
 const hasBeenActivated = ref(false); // 记录此 Tab 是否被用户点开过
+const isInitialFetchDone = ref(false); // [新增] 用于精确控制 EmptyState 渲染时机
 
 const activeFilter = ref('BREAD');
 const isSubmitting = ref(false);
@@ -266,7 +267,7 @@ const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
 	triggerListAnimation.value = playAnimation;
 };
 
-// [核心机制] 按需加载驱动引擎
+// [核心机制] 按需加载驱动引擎：增加静默刷新处理
 const loadDataIfNeeded = async () => {
 	// 如果用户当前没有点到“配方”页，直接 return，不在后台浪费一丝性能
 	if (uiStore.activeTab !== 'recipes') return;
@@ -276,10 +277,10 @@ const loadDataIfNeeded = async () => {
 
 	if (isFirstTimeOpening) {
 		hasBeenActivated.value = true;
-		isLoading.value = true; // 第一次点击配方页：强制开启骨架屏！无论缓存里有没有数据！
-	} else if (needsFetch) {
-		isLoading.value = true; // 页面已经被唤醒过了，但数据过期了，重新显示骨架屏加载
+		isLoading.value = true; // 第一次点击配方页：强制开启骨架屏
 	}
+	// [核心修改] 删除了 else if (needsFetch) { isLoading.value = true; }
+	// 实现静默刷新：后台更新数据，前端保留老界面，杜绝闪烁
 
 	try {
 		if (needsFetch) {
@@ -288,13 +289,12 @@ const loadDataIfNeeded = async () => {
 				activeFilter.value = filterTabs.value[0].key;
 			}
 		}
+		isInitialFetchDone.value = true; // 确保数据拉取完成后标记为完成，以便渲染 EmptyState
 	} catch (error) {
 		console.error('Failed to load recipes data:', error);
+		isInitialFetchDone.value = true; // [兜底] 即使报错，也允许渲染空状态避免白屏
 	} finally {
 		if (isFirstTimeOpening || needsFetch) {
-			// [体验核心] 只要是首次打开，就算数据在 Pinia 里是秒出的，也必须等 200ms。
-			// 此时 DOM 正在后台疯狂重排。
-			// 👉 你可以在这里把 200 改成 2000 来测试你的骨架屏！
 			setTimeout(() => {
 				isLoading.value = false;
 				triggerListAnimationWithKeyUpdate(false);

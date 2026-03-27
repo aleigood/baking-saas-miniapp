@@ -385,6 +385,7 @@ const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
 	listAnimationKey.value = Date.now();
 	triggerListAnimation.value = playAnimation;
 };
+// [核心机制] 按需加载驱动引擎：增加静默刷新处理
 const loadDataIfNeeded = async () => {
 	if (uiStore.activeTab !== 'ingredients') return;
 
@@ -393,10 +394,10 @@ const loadDataIfNeeded = async () => {
 
 	if (isFirstTimeOpening) {
 		hasBeenActivated.value = true;
-		isLoading.value = true;
-	} else if (needsFetch) {
-		isLoading.value = true;
+		isLoading.value = true; // 仅首次加载开启骨架屏
 	}
+	// [核心修改] 删除了 else if (needsFetch) { isLoading.value = true; }
+	// 从子页面返回或数据过期时，触发静默刷新，不遮挡当前视图
 
 	try {
 		let didFetch = false;

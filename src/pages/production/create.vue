@@ -32,7 +32,7 @@
 					<view class="card-title">产品数量</view>
 					<view class="summary-card no-frame">
 						<view v-if="summaryGroups.length > 0" class="summary-content">
-							<view v-for="(group, groupIndex) in summaryGroups" :key="groupIndex" class="summary-group-item">
+							<view v-for="(group, groupIndex) in summaryGroups" :key="groupIndex" class="summary-group-item clickable-summary" @click="handleGroupClick(group.name)">
 								<view class="summary-group-header">
 									<text class="summary-group-name">{{ group.name }}</text>
 									<view class="summary-header-right">
@@ -118,7 +118,6 @@ const categoryMap: Record<string, string> = {
 	PASTRY: '西点',
 	DESSERT: '甜品',
 	DRINK: '饮品'
-	// [清理] 移除了 OTHER 分类
 };
 
 const pageTitle = computed(() => {
@@ -152,6 +151,10 @@ const productsInCurrentTab = computed(() => {
 	return productsInCategory ? productsInCategory[activeTab.value] || [] : [];
 });
 
+const handleGroupClick = (groupName: string) => {
+	activeTab.value = groupName;
+};
+
 onLoad(async (options) => {
 	isLoading.value = true;
 
@@ -178,7 +181,6 @@ onLoad(async (options) => {
 					const firstProductId = taskToEdit.items[0].product.id;
 
 					let foundCategory: RecipeCategory | null = null;
-					// 只遍历当前支持的分类（面包、西点等）
 					const allCategories = Object.keys(categoryMap) as RecipeCategory[];
 
 					for (const category of allCategories) {
@@ -234,7 +236,9 @@ onLoad(async (options) => {
 		taskForm.endDate = initialDate;
 	}
 
-	if (productTabs.value.length > 0) {
+	if (isEditMode.value && summaryGroups.value.length > 0) {
+		activeTab.value = summaryGroups.value[0].name;
+	} else if (productTabs.value.length > 0) {
 		activeTab.value = productTabs.value[0].key;
 	}
 
@@ -298,7 +302,6 @@ const updateSummary = () => {
 				name: groupName,
 				totalQuantity: totalQty,
 				items: quantifiedProducts.map((p) => {
-					// [清理] 固化单位为 'x'
 					return `${p.name} x${p.quantity}`;
 				})
 			});
@@ -316,7 +319,6 @@ const handleSubmit = async () => {
 		}));
 
 	if (productsToSubmit.length === 0) {
-		// [清理] 固定提示语
 		toastStore.show({ message: '请选择配方并输入要生产的数量', type: 'error' });
 		return;
 	}
@@ -405,6 +407,19 @@ const handleSubmit = async () => {
 	border-radius: 8px;
 	padding: 10px 12px;
 	border: 1px solid #f0e6d2;
+}
+
+/* 修复：移除系统高亮并增加组件一致的缩放点击动效 */
+.clickable-summary {
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	outline: none;
+	transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
+
+	&:active {
+		background-color: #f5eedf;
+		transform: scale(0.98);
+	}
 }
 
 .summary-group-item.is-placeholder {

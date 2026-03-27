@@ -33,7 +33,7 @@
 
 					<view class="summary-card no-frame">
 						<view v-if="summaryItems.length > 0" class="summary-tags-container">
-							<view v-for="(item, index) in summaryItems" :key="index" class="summary-tag">
+							<view v-for="(item, index) in summaryItems" :key="index" class="summary-tag clickable-tag" @click="handleTagClick(item.name)">
 								<text class="tag-name">{{ item.name }}</text>
 								<view class="tag-value-box">
 									<text class="tag-value">{{ item.weight }}</text>
@@ -100,13 +100,11 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from 'vue';
-// 修改：引入 onUnload 清除缓存
 import { onLoad, onUnload } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
 import { useUserStore } from '@/store/user';
-// 修改：引入 updateTask API
 import { createTask, updateTask } from '@/api/tasks';
 import { getRecipeFamily } from '@/api/recipes';
 import { getLocalDate } from '@/utils/format';
@@ -114,7 +112,6 @@ import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import CssAnimatedTabs from '@/components/CssAnimatedTabs.vue';
-// 修改：引入 ProductionTaskDto 类型
 import type { RecipeFamily, ProductionTaskDto } from '@/types/api';
 
 defineOptions({
@@ -133,22 +130,18 @@ const userStore = useUserStore();
 const isCreating = ref(false);
 const isLoadingDetails = ref(false);
 
-// --- 新增：编辑模式状态管理 ---
 const isEditMode = ref(false);
 const editingTaskId = ref<string | null>(null);
 
 const pageTitle = computed(() => {
 	return isEditMode.value ? '修改任务' : '原料制作';
 });
-// ------------------------------
 
 const today = getLocalDate();
 const taskForm = reactive({
 	startDate: today,
 	endDate: today
 });
-
-// --- 多任务状态管理 ---
 
 // 标签页状态
 const activeTabKey = ref('');
@@ -171,7 +164,6 @@ interface RecipeState {
 	totalDisplay: string;
 	ingredients: CalculationItem[];
 	detailsLoaded: boolean;
-	// 新增：保存配方的损耗属性，以便精准反推提交给后端的数量
 	lossRatio: number;
 	divisionLoss: number;
 	baseDoughWeight: number;
@@ -240,6 +232,10 @@ watch(
 	},
 	{ immediate: true }
 );
+
+const handleTagClick = (tagName: string) => {
+	activeTabKey.value = tagName;
+};
 
 // 加载配方详细比例
 const loadRecipeDetails = async (state: RecipeState) => {
@@ -378,7 +374,6 @@ onLoad(async (options) => {
 
 	initRecipeStates();
 
-	// --- 新增：编辑模式处理逻辑 ---
 	if (options && options.taskId) {
 		isEditMode.value = true;
 		editingTaskId.value = options.taskId;
@@ -445,7 +440,6 @@ onLoad(async (options) => {
 	}
 });
 
-// 新增：离开页面时清除编辑状态缓存
 onUnload(() => {
 	uni.removeStorageSync('task_to_edit');
 });
@@ -485,7 +479,6 @@ const handleSubmit = async () => {
 		const currentUserRole = userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role;
 		const target = currentUserRole === 'MEMBER' ? '/pages/baker/main' : '/pages/main/main';
 
-		// 修改：根据编辑模式调用对应的 API
 		if (isEditMode.value && editingTaskId.value) {
 			await updateTask(editingTaskId.value, payload);
 			uiStore.setNextPageToast({ message: '任务修改成功', type: 'success' }, target);
@@ -572,6 +565,19 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	border-radius: 6px;
 	padding: 6px 8px 6px 10px;
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+/* 修改：移除系统高亮并增加组件一致的缩放点击动效 */
+.clickable-tag {
+	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
+	outline: none;
+	transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
+
+	&:active {
+		background-color: #f5eedf;
+		transform: scale(0.96); /* 因为 tag 较小，缩放比例稍微大一点点反馈更明显 */
+	}
 }
 
 .tag-name {

@@ -3,7 +3,8 @@
 		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll" class="full-height-wrapper">
 			<view
 				class="page-content animated-content"
-				:class="[{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }, { 'is-revealed': !isLoading && isInitialFetchDone }]"
+				:class="[{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }, { 'is-revealed': !isLoading && hasBeenActivated }]"
+				v-if="hasBeenActivated"
 			>
 				<view class="summary-card">
 					<div>
@@ -60,7 +61,11 @@
 				<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="所选日期暂无任务" subtitle="点击下方按钮创建新的生产任务" />
 			</view>
 
-			<view v-if="isLoading" class="page-content skeleton-overlay" :class="{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }">
+			<view
+				v-if="isLoading && uiStore.activeTab === 'production'"
+				class="page-content skeleton-overlay"
+				:class="{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }"
+			>
 				<view style="height: 120px; margin-bottom: 20px; border-radius: 20px; background-color: #faf8f5"></view>
 				<SkeletonList :count="5" />
 			</view>
@@ -211,8 +216,9 @@ const uiStore = useUiStore();
 const toastStore = useToastStore();
 const temperatureStore = useTemperatureStore();
 
-// [新增] 双缓冲局部状态
-const isLoading = ref(true);
+// [新增] 双缓冲局部状态及按需激活状态
+const isLoading = ref(false);
+const hasBeenActivated = ref(false);
 const isInitialFetchDone = ref(false);
 
 const listAnimationKey = ref(Date.now());
@@ -310,43 +316,42 @@ const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
 	triggerListAnimation.value = playAnimation;
 };
 
-watch(
-	() => uiStore.activeTab,
-	(newTab, oldTab) => {
-		if (oldTab === 'production' && newTab !== 'production') {
-			triggerListAnimation.value = false;
-		}
+// [修改] 优化静默刷新逻辑：从子页面返回时不再展示骨架屏闪烁
+const loadDataIfNeeded = async () => {
+	if (uiStore.activeTab !== 'production') return;
+
+	const isFirstTimeOpening = !hasBeenActivated.value;
+	const needsFetch =
+		dataStore.dataStale.productsForTaskCreation ||
+		!dataStore.dataLoaded.productsForTaskCreation ||
+		dataStore.dataStale.recipes ||
+		dataStore.dataStale.production ||
+		!dataStore.dataLoaded.production;
+
+	if (isFirstTimeOpening) {
+		hasBeenActivated.value = true;
+		isLoading.value = true; // 仅首次进入时开启骨架屏
 	}
-);
-
-onLoad(() => {
-	temperatureStore.initTemperatureSettings();
-});
-
-onShow(async () => {
-	isNavigating.value = false;
-	showTaskActionsModal.value = false;
-
-	let didFetchProduction = false;
+	// [核心修改] 删除了 else if (needsFetch) { isLoading.value = true; }
+	// 如果页面已经激活过，即使数据过期 (needsFetch)，也不显示骨架屏，只在后台静默拉取新数据
 
 	try {
+		let didFetchProduction = false;
 		if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation || dataStore.dataStale.recipes) {
 			await dataStore.fetchProductsForTaskCreation();
 		}
 		if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
-			isLoading.value = true;
 			await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 			didFetchProduction = true;
-			isInitialFetchDone.value = true;
-		} else {
-			isInitialFetchDone.value = true;
-			if (isLoading.value) isLoading.value = false;
 		}
+		isInitialFetchDone.value = true;
+		return didFetchProduction;
 	} catch (error) {
 		console.error('Failed to load data on show:', error);
 		isInitialFetchDone.value = true;
+		return false;
 	} finally {
-		if (didFetchProduction) {
+		if (isFirstTimeOpening || needsFetch) {
 			setTimeout(() => {
 				isLoading.value = false;
 				if (isFirstLoad.value) {
@@ -357,9 +362,32 @@ onShow(async () => {
 				}
 			}, 200);
 		} else {
-			triggerListAnimation.value = false;
+			isLoading.value = false;
+			triggerListAnimationWithKeyUpdate(false);
 		}
 	}
+};
+
+watch(
+	() => uiStore.activeTab,
+	(newTab, oldTab) => {
+		if (newTab === 'production') {
+			loadDataIfNeeded();
+		} else if (oldTab === 'production') {
+			triggerListAnimation.value = false;
+		}
+	},
+	{ immediate: true }
+);
+
+onLoad(() => {
+	temperatureStore.initTemperatureSettings();
+});
+
+onShow(() => {
+	isNavigating.value = false;
+	showTaskActionsModal.value = false;
+	loadDataIfNeeded();
 });
 
 const handleScroll = (event: any) => {
