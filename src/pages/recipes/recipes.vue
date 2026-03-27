@@ -1,7 +1,11 @@
 <template>
 	<view class="full-height-container">
 		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll" class="full-height-wrapper">
-			<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
+			<view
+				class="page-content page-content-with-tabbar-fab no-horizontal-padding animated-content"
+				:class="{ 'is-revealed': !isLoading && hasBeenActivated }"
+				v-if="hasBeenActivated"
+			>
 				<view class="content-padding">
 					<view class="card">
 						<view class="card-title"><span>本周制作排行</span></view>
@@ -67,13 +71,19 @@
 								</template>
 							</ListItem>
 						</view>
-						<view v-else class="empty-state">
-							<text>该分类下暂无配方</text>
-						</view>
+						<EmptyState v-else-if="!isLoading" icon="/static/icons/empty-list.svg" title="暂无配方" subtitle="该分类下暂无配方" />
 					</template>
-					<view v-else class="empty-state">
-						<text>暂无配方，快去创建吧！</text>
-					</view>
+					<EmptyState v-else-if="!isLoading" icon="/static/icons/empty-box.svg" title="暂无配方" subtitle="暂无任何配方，快去创建吧！" />
+				</view>
+			</view>
+
+			<view v-if="isLoading" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
+				<view class="content-padding">
+					<view style="height: 160px; margin-bottom: 20px; border-radius: 20px; background-color: #faf8f5"></view>
+					<view style="height: 36px; margin-bottom: 10px; border-radius: 18px; background-color: #faf8f5; width: 60%"></view>
+				</view>
+				<view style="padding: 0 15px">
+					<SkeletonList :count="5" />
 				</view>
 			</view>
 		</RefreshableLayout>
@@ -154,20 +164,24 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
+import SkeletonList from '@/components/SkeletonList.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
 const uiStore = useUiStore();
 
-const activeFilter = ref('BREAD');
+// [核心重构] 默认全部关闭，完全靠按需苏醒触发
+const isLoading = ref(false);
+const hasBeenActivated = ref(false); // 记录此 Tab 是否被用户点开过
 
+const activeFilter = ref('BREAD');
 const isSubmitting = ref(false);
 const selectedRecipe = ref<RecipeFamily | null>(null);
 
 const listAnimationKey = ref(Date.now());
 const triggerListAnimation = ref(false);
-const isFirstLoad = ref(true);
 
 const recipeTypeMap = {
 	MAIN: '面团',
@@ -175,7 +189,7 @@ const recipeTypeMap = {
 	EXTRA: '自制原料'
 };
 
-const categoryMap = {
+const categoryMap: Record<string, string> = {
 	BREAD: '面包',
 	PASTRY: '西点',
 	DESSERT: '甜品',
@@ -252,37 +266,64 @@ const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
 	triggerListAnimation.value = playAnimation;
 };
 
+// [核心机制] 按需加载驱动引擎
+const loadDataIfNeeded = async () => {
+	// 如果用户当前没有点到“配方”页，直接 return，不在后台浪费一丝性能
+	if (uiStore.activeTab !== 'recipes') return;
+
+	const isFirstTimeOpening = !hasBeenActivated.value;
+	const needsFetch = dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes;
+
+	if (isFirstTimeOpening) {
+		hasBeenActivated.value = true;
+		isLoading.value = true; // 第一次点击配方页：强制开启骨架屏！无论缓存里有没有数据！
+	} else if (needsFetch) {
+		isLoading.value = true; // 页面已经被唤醒过了，但数据过期了，重新显示骨架屏加载
+	}
+
+	try {
+		if (needsFetch) {
+			await dataStore.fetchRecipesData();
+			if (filterTabs.value.length > 0 && !filterTabs.value.some((t) => t.key === activeFilter.value)) {
+				activeFilter.value = filterTabs.value[0].key;
+			}
+		}
+	} catch (error) {
+		console.error('Failed to load recipes data:', error);
+	} finally {
+		if (isFirstTimeOpening || needsFetch) {
+			// [体验核心] 只要是首次打开，就算数据在 Pinia 里是秒出的，也必须等 200ms。
+			// 此时 DOM 正在后台疯狂重排。
+			// 👉 你可以在这里把 200 改成 2000 来测试你的骨架屏！
+			setTimeout(() => {
+				isLoading.value = false;
+				triggerListAnimationWithKeyUpdate(false);
+			}, 200);
+		} else {
+			// 如果不是第一次点开，且数据没过期，则毫无延迟，瞬间展示内容
+			isLoading.value = false;
+			triggerListAnimationWithKeyUpdate(false);
+		}
+	}
+};
+
+// 监听 Tab 切换
 watch(
 	() => uiStore.activeTab,
 	(newTab, oldTab) => {
-		if (oldTab === 'recipes' && newTab !== 'recipes') {
-			triggerListAnimation.value = false;
+		if (newTab === 'recipes') {
+			loadDataIfNeeded();
+		} else if (oldTab === 'recipes') {
+			triggerListAnimation.value = false; // 切走时关闭动画状态避免切回来重播
 		}
-	}
+	},
+	{ immediate: true }
 );
 
-onShow(async () => {
+// 应对从子页面详情返回的情况
+onShow(() => {
 	isNavigating.value = false;
-	let didFetch = false;
-
-	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
-		await dataStore.fetchRecipesData();
-		if (filterTabs.value.length > 0 && !filterTabs.value.some((t) => t.key === activeFilter.value)) {
-			activeFilter.value = filterTabs.value[0].key;
-		}
-		didFetch = true;
-	}
-
-	if (didFetch) {
-		if (isFirstLoad.value) {
-			triggerListAnimationWithKeyUpdate(true);
-			isFirstLoad.value = false;
-		} else {
-			triggerListAnimationWithKeyUpdate(false);
-		}
-	} else {
-		triggerListAnimation.value = false;
-	}
+	loadDataIfNeeded();
 });
 
 const handleRefresh = async () => {

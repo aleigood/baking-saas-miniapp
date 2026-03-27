@@ -1,7 +1,11 @@
 <template>
 	<view class="full-height-container">
 		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll" class="full-height-wrapper">
-			<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
+			<view
+				class="page-content page-content-with-tabbar-fab no-horizontal-padding animated-content"
+				:class="{ 'is-revealed': !isLoading && hasBeenActivated }"
+				v-if="hasBeenActivated"
+			>
 				<view class="tools-bar">
 					<view class="filter-capsule" id="filter-capsule-btn" @touchstart="handleTouchStart($event, 'filter')" @click="showFilterSelector = true">
 						<span v-for="ripple in ripples['filter']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
@@ -78,9 +82,13 @@
 							</template>
 						</ListItem>
 					</view>
-					<view v-else class="empty-state">
-						<text>暂无符合条件的原料</text>
-					</view>
+					<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="暂无原料" subtitle="暂无符合条件的原料" />
+				</view>
+			</view>
+			<view v-if="isLoading && uiStore.activeTab === 'ingredients'" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
+				<view style="height: 44px; margin: 10px 15px 20px 15px; border-radius: 22px; background-color: #faf8f5"></view>
+				<view style="padding: 0 15px">
+					<SkeletonList :count="8" />
 				</view>
 			</view>
 		</RefreshableLayout>
@@ -165,11 +173,17 @@ import AppButton from '@/components/AppButton.vue';
 import FormItem from '@/components/FormItem.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
 import { formatWeight, formatDuration } from '@/utils/format';
+import SkeletonList from '@/components/SkeletonList.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
 const uiStore = useUiStore();
+
+const isLoading = ref(false);
+const hasBeenActivated = ref(false);
+const isInitialFetchDone = ref(false);
 
 const instance = getCurrentInstance();
 const ripples = reactive<Record<string, any[]>>({});
@@ -371,38 +385,65 @@ const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
 	listAnimationKey.value = Date.now();
 	triggerListAnimation.value = playAnimation;
 };
+const loadDataIfNeeded = async () => {
+	if (uiStore.activeTab !== 'ingredients') return;
 
+	const isFirstTimeOpening = !hasBeenActivated.value;
+	const needsFetch = dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients || dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes;
+
+	if (isFirstTimeOpening) {
+		hasBeenActivated.value = true;
+		isLoading.value = true;
+	} else if (needsFetch) {
+		isLoading.value = true;
+	}
+
+	try {
+		let didFetch = false;
+		if (dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients) {
+			await dataStore.fetchIngredientsData();
+			didFetch = true;
+		}
+		if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
+			await dataStore.fetchRecipesData();
+			didFetch = true;
+		}
+		isInitialFetchDone.value = true;
+	} catch (error) {
+		console.error('Failed to load ingredients data:', error);
+		isInitialFetchDone.value = true;
+	} finally {
+		if (isFirstTimeOpening || needsFetch) {
+			setTimeout(() => {
+				isLoading.value = false;
+				if (isFirstLoad.value) {
+					triggerListAnimationWithKeyUpdate(false);
+					isFirstLoad.value = false;
+				} else {
+					triggerListAnimationWithKeyUpdate(false);
+				}
+			}, 200);
+		} else {
+			isLoading.value = false;
+			triggerListAnimationWithKeyUpdate(false);
+		}
+	}
+};
 watch(
 	() => uiStore.activeTab,
 	(newTab, oldTab) => {
-		if (oldTab === 'ingredients' && newTab !== 'ingredients') {
+		if (newTab === 'ingredients') {
+			loadDataIfNeeded();
+		} else if (oldTab === 'ingredients') {
 			triggerListAnimation.value = false;
 		}
-	}
+	},
+	{ immediate: true }
 );
 
-onShow(async () => {
+onShow(() => {
 	isNavigating.value = false;
-	let didFetch = false;
-
-	if (dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients) {
-		await dataStore.fetchIngredientsData();
-		didFetch = true;
-	}
-	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
-		await dataStore.fetchRecipesData();
-	}
-
-	if (didFetch) {
-		if (isFirstLoad.value) {
-			triggerListAnimationWithKeyUpdate(true);
-			isFirstLoad.value = false;
-		} else {
-			triggerListAnimationWithKeyUpdate(false);
-		}
-	} else {
-		triggerListAnimation.value = false;
-	}
+	loadDataIfNeeded();
 });
 
 const handleRefresh = async () => {

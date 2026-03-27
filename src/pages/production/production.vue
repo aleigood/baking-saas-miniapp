@@ -1,7 +1,10 @@
 <template>
 	<view class="full-height-container">
 		<RefreshableLayout ref="refreshableLayout" @refresh="handleRefresh" @scroll="handleScroll" class="full-height-wrapper">
-			<view class="page-content" :class="{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }">
+			<view
+				class="page-content animated-content"
+				:class="[{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }, { 'is-revealed': !isLoading && isInitialFetchDone }]"
+			>
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ dataStore.homeStats.pendingCount }}</view>
@@ -29,31 +32,37 @@
 					</view>
 				</view>
 
-				<view v-if="dataStore.production.length > 0" :key="listAnimationKey">
-					<ListItem
-						v-for="(task, index) in dataStore.production"
-						:key="`${task.id}_${task.status}`"
-						@click="navigateToDetail(task)"
-						@longpress="openTaskActions(task)"
-						:vibrate-on-long-press="true"
-						card-mode
-						:animation-index="index"
-						:animate-on-mount="triggerListAnimation"
-						:style="{ '--card-border-color': (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).color }"
-					>
-						<view class="task-info">
-							<view class="title">{{ getTaskTitle(task) }}</view>
-							<view class="details">{{ getTaskDetails(task) }}</view>
-						</view>
+				<template v-if="dataStore.production.length > 0">
+					<view :key="listAnimationKey">
+						<ListItem
+							v-for="(task, index) in dataStore.production"
+							:key="`${task.id}_${task.status}`"
+							@click="navigateToDetail(task)"
+							@longpress="openTaskActions(task)"
+							:vibrate-on-long-press="true"
+							card-mode
+							:animation-index="index"
+							:animate-on-mount="triggerListAnimation"
+							:style="{ '--card-border-color': (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).color }"
+						>
+							<view class="task-info">
+								<view class="title">{{ getTaskTitle(task) }}</view>
+								<view class="details">{{ getTaskDetails(task) }}</view>
+							</view>
 
-						<view class="status-tag" :class="(STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).className">
-							{{ (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).text }}
-						</view>
-					</ListItem>
-				</view>
-				<view v-else class="empty-state">
-					<text>所选日期暂无任务</text>
-				</view>
+							<view class="status-tag" :class="(STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).className">
+								{{ (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).text }}
+							</view>
+						</ListItem>
+					</view>
+				</template>
+
+				<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="所选日期暂无任务" subtitle="点击下方按钮创建新的生产任务" />
+			</view>
+
+			<view v-if="isLoading" class="page-content skeleton-overlay" :class="{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }">
+				<view style="height: 120px; margin-bottom: 20px; border-radius: 20px; background-color: #faf8f5"></view>
+				<SkeletonList :count="5" />
 			</view>
 		</RefreshableLayout>
 
@@ -145,7 +154,6 @@
 </template>
 
 <script setup lang="ts">
-// [核心修复] 从 vue 导入 watch
 import { ref, computed, reactive, watch } from 'vue';
 import { onShow, onLoad } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
@@ -160,6 +168,9 @@ import IconButton from '@/components/IconButton.vue';
 import AppButton from '@/components/AppButton.vue';
 import CalendarModal from '@/components/CalendarModal.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
+// [新增] 引入双缓冲组件
+import SkeletonList from '@/components/SkeletonList.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import type { ProductionTaskDto, PrepTask, RecipeCategory, ProductionTaskSummaryDto } from '@/types/api';
 import { updateTaskStatus, getTaskDates, deleteTask } from '@/api/tasks';
 import { formatChineseDate, formatWeight } from '@/utils/format';
@@ -200,12 +211,12 @@ const uiStore = useUiStore();
 const toastStore = useToastStore();
 const temperatureStore = useTemperatureStore();
 
-// [中文注释] 用于控制列表动画的 Key
-const listAnimationKey = ref(Date.now());
-// [核心修改] 控制列表动画是否播放的标志
-const triggerListAnimation = ref(false);
+// [新增] 双缓冲局部状态
+const isLoading = ref(true);
+const isInitialFetchDone = ref(false);
 
-// [核心修复] 新增一个标志，用于判断是否是组件首次加载
+const listAnimationKey = ref(Date.now());
+const triggerListAnimation = ref(false);
 const isFirstLoad = ref(true);
 
 const categoryMap: Record<string, string> = {
@@ -213,7 +224,7 @@ const categoryMap: Record<string, string> = {
 	PASTRY: '制作西点',
 	DESSERT: '制作甜品',
 	DRINK: '制作饮品',
-	OTHER: '制作原料' // [核心新增] 增加自制原料的任务入口
+	OTHER: '制作原料'
 };
 
 const isSingleCategory = computed(() => {
@@ -235,8 +246,6 @@ const fabActions = computed(() => {
 });
 
 const refreshableLayout = ref<InstanceType<typeof RefreshableLayout> | null>(null);
-
-// [核心修改] 添加 Modal 的引用，用于调用 closeAndRun
 const taskActionsModalRef = ref<InstanceType<typeof AppModal> | null>(null);
 
 const isSubmitting = ref(false);
@@ -296,19 +305,15 @@ const pageTitle = computed(() => {
 	return `${date.getMonth() + 1}月${date.getDate()}日任务`;
 });
 
-// [核心修改] 触发列表动画 (现在接受一个参数)
 const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
-	listAnimationKey.value = Date.now(); // 强制列表重新渲染
-	triggerListAnimation.value = playAnimation; // 告知新列表项是否播放动画
+	listAnimationKey.value = Date.now();
+	triggerListAnimation.value = playAnimation;
 };
 
-// [核心修复] 监听 activeTab 的变化
 watch(
 	() => uiStore.activeTab,
 	(newTab, oldTab) => {
-		// 当用户从“制作”页切换到 *其他* 页面时
 		if (oldTab === 'production' && newTab !== 'production') {
-			// 立刻重置动画标志，这样下次切回来时它就是 false
 			triggerListAnimation.value = false;
 		}
 	}
@@ -316,43 +321,44 @@ watch(
 
 onLoad(() => {
 	temperatureStore.initTemperatureSettings();
-	// [核心修复] 注意：onLoad 在 v-show 架构下只运行一次
-	// 我们不在 onShow 中设置 isFirstLoad，而是在 ref 中默认为 true
 });
 
 onShow(async () => {
 	isNavigating.value = false;
-	// [核心修复] 页面显示时强制关闭操作弹窗，防止返回时出现残影
 	showTaskActionsModal.value = false;
 
-	let didFetchProduction = false; // [中文注释] 标记是否获取了新数据
+	let didFetchProduction = false;
 
 	try {
 		if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation || dataStore.dataStale.recipes) {
 			await dataStore.fetchProductsForTaskCreation();
 		}
 		if (dataStore.dataStale.production || !dataStore.dataLoaded.production) {
+			isLoading.value = true;
 			await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
-			didFetchProduction = true; // [中文注释] 标记为 true
+			didFetchProduction = true;
+			isInitialFetchDone.value = true;
+		} else {
+			isInitialFetchDone.value = true;
+			if (isLoading.value) isLoading.value = false;
 		}
 	} catch (error) {
 		console.error('Failed to load data on show:', error);
-	}
-
-	// [核心修复] 重新编排 onShow 逻辑
-	if (didFetchProduction) {
-		// 如果获取了新数据
-		if (isFirstLoad.value) {
-			// 并且这是第一次加载
-			triggerListAnimationWithKeyUpdate(true); // 播放动画
-			isFirstLoad.value = false; // 关闭“首次加载”开关
+		isInitialFetchDone.value = true;
+	} finally {
+		if (didFetchProduction) {
+			setTimeout(() => {
+				isLoading.value = false;
+				if (isFirstLoad.value) {
+					triggerListAnimationWithKeyUpdate(false);
+					isFirstLoad.value = false;
+				} else {
+					triggerListAnimationWithKeyUpdate(false);
+				}
+			}, 200);
 		} else {
-			// 否则 (这是 Tab 切换回来时发现数据过期了)
-			triggerListAnimationWithKeyUpdate(false); // 不播放动画
+			triggerListAnimation.value = false;
 		}
-	} else {
-		// 如果没有获取新数据 (只是普通的 Tab 切换)
-		triggerListAnimation.value = false; // 确保不播放动画
 	}
 });
 
@@ -378,33 +384,28 @@ const handleRefresh = async () => {
 		dataStore.markProductsForTaskCreationAsStale();
 		await Promise.all([dataStore.fetchProductsForTaskCreation(), dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} finally {
-		// 1. 告诉 spinner "开始" 隐藏
 		refreshableLayout.value?.finishRefresh();
-
-		// 2. [核心修复] 延迟 300毫秒 (等待 spinner 隐藏动画结束)
 		setTimeout(() => {
-			// 3. 真正开始播放列表动画
 			triggerListAnimationWithKeyUpdate(true);
-		}, 700); // (这个 300ms 是估计值, 你可以根据 RefreshableLayout 的实际动画时长调整)
+		}, 700);
 	}
 };
 
 const handleDateSelect = async (date: string) => {
 	selectedDate.value = date;
 	isCalendarVisible.value = false;
+	isLoading.value = true;
 	await dataStore.fetchProductionData(date);
-	// [核心修改] 选择日期：强制刷新 Key，*并* 播放动画
-	triggerListAnimationWithKeyUpdate(true);
+	setTimeout(() => {
+		isLoading.value = false;
+		triggerListAnimationWithKeyUpdate(true);
+	}, 200);
 };
 
-// [核心新增] 判断是否为自制原料任务
 const isSelfMadeItem = (item: any) => {
-	// 注意：这里的类型定义是不完整的，使用 any 来访问嵌套属性
-	// 服务端已经更新 taskListItemsInclude 来返回 recipeVersion.family.category
 	return item.product?.recipeVersion?.family?.category === 'OTHER';
 };
 
-// [修改] getTaskTitle 函数
 const getTaskTitle = (task: ProductionTaskDto | PrepTask) => {
 	if (task.status === 'PREP') {
 		return (task as PrepTask).title;
@@ -412,25 +413,18 @@ const getTaskTitle = (task: ProductionTaskDto | PrepTask) => {
 	const regularTask = task as ProductionTaskDto;
 	if (!regularTask.items || regularTask.items.length === 0) return '未知任务';
 
-	// [修改逻辑] 如果是自制原料，显示克重(g)；如果是普通产品，显示数量(xN)
 	return regularTask.items
 		.map((item) => {
 			if (isSelfMadeItem(item)) {
-				// 自制原料：显示 "波兰种 2000g"
-				// 注意：这里假设您有 formatWeight 工具函数，如果没有可以直接用 item.quantity + 'g'
 				return `${item.product.name} ${item.quantity}g`;
 			}
-			// 普通产品：显示 "法棍 x10"
 			return `${item.product.name} x${item.quantity}`;
 		})
 		.join('、');
 };
 
-// [修改] getTotalQuantity 函数
 const getTotalQuantity = (task: ProductionTaskDto) => {
 	if (!task.items) return 0;
-
-	// [修改逻辑] 统计总数时，自制原料任务算作 1 个任务单位，而不是累加克重
 	return task.items.reduce((sum, item) => {
 		if (isSelfMadeItem(item)) {
 			return sum + 1;
@@ -501,24 +495,10 @@ const handleEditTask = () => {
 	if (isNavigating.value || !selectedTaskForAction.value) return;
 	isNavigating.value = true;
 
-	// [优化] 由于 productionTaskSummary 不包含完整信息，编辑前需要 taskDetail
-	// 但这里我们假设 create 页面会重新 fetch details based on ID
-	// 或者我们把 summary 存进去，让 create 页面处理
-	// 实际上 create 页面确实会根据 taskId 加载数据，但它也会读取 storage
-	// 这里的 task 对象结构可能不完全匹配 full DTO，但通常足够用于 id 跳转
-
-	// 注意：这里我们不需要清除进度，因为那是 detail 页面的事
-	// dataStore.clearTaskProgress(selectedTaskForAction.value.id);
-
-	// 保存摘要信息到本地，虽然 create 页面可能重新 fetch，但作为后备
 	uni.setStorageSync('task_to_edit', JSON.stringify(selectedTaskForAction.value));
 
-	// [核心修改] 使用组件暴露的 closeAndRun 方法
 	if (taskActionsModalRef.value) {
 		taskActionsModalRef.value.closeAndRun(() => {
-			// 检查是否为自制原料任务
-			// 这里的 selectedTaskForAction.value 已经是 summary DTO
-			// 我们可以检查第一个 item 的 category
 			const firstItem = selectedTaskForAction.value?.items[0];
 			if (firstItem && isSelfMadeItem(firstItem)) {
 				uni.navigateTo({
@@ -560,7 +540,6 @@ const handleConfirmDeleteTask = async () => {
 		dataStore.markProductionAsStale();
 
 		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
-		// [核心修改] 删除任务：强制刷新 Key，*并* 播放动画
 		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
 		console.error('Failed to delete task:', error);
@@ -584,7 +563,6 @@ const handleConfirmCancelTask = async () => {
 		dataStore.markHistoricalTasksAsStale();
 
 		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
-		// [核心修改] 取消任务：强制刷新 Key，*并* 播放动画
 		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
 		console.error('Failed to cancel task:', error);
@@ -598,7 +576,6 @@ const handleConfirmCancelTask = async () => {
 const navigateToCreatePage = (category: RecipeCategory) => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
-	// [核心修改] 如果是自制原料，跳转到专用页面
 	if (category === 'OTHER') {
 		uni.navigateTo({ url: `/pages/production/create-ingredient?date=${selectedDate.value}` });
 	} else {
