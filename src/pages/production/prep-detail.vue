@@ -146,11 +146,16 @@
 			</view>
 
 			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
-				<SkeletonCard v-for="i in 3" :key="i" />
+				<view class="filter-header-container">
+					<view class="skeleton-block shimmer" style="height: 36px; width: 200px; border-radius: 18px"></view>
+					<view class="skeleton-block shimmer" style="height: 40px; width: 40px; border-radius: 50%; margin-left: 10px"></view>
+				</view>
+				<SkeletonDetail :meta-count="0" :show-chart="false" :list-count="0" :table-groups="3" :show-notes="true" />
 			</view>
 
 			<EmptyState
 				v-if="!isLoading && !task"
+				:full-page="true"
 				icon="/static/icons/network-error.svg"
 				title="获取任务失败"
 				subtitle="未获取到任务数据或网络异常"
@@ -209,8 +214,9 @@ import IconButton from '@/components/IconButton.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppPopover from '@/components/AppPopover.vue';
-import SkeletonCard from '@/components/SkeletonCard.vue';
 import EmptyState from '@/components/EmptyState.vue';
+// 引入通用骨架屏
+import SkeletonDetail from '@/components/SkeletonDetail.vue';
 
 defineOptions({
 	inheritAttrs: false
@@ -571,6 +577,33 @@ onLoad(async (options) => {
 <style scoped lang="scss">
 @import '@/styles/common.scss';
 @include table-layout;
+
+/* [添加内联骨架块的样式，保持和组件统一] */
+.skeleton-block {
+	background-color: #f0f2f5;
+}
+
+.shimmer {
+	position: relative;
+	overflow: hidden;
+}
+
+.shimmer::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: -100%;
+	width: 200%;
+	height: 100%;
+	background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
+	animation: shimmer-sweep 1.5s infinite linear;
+}
+
+@keyframes shimmer-sweep {
+	100% {
+		transform: translateX(100%);
+	}
+}
 
 .collapsible-content {
 	max-height: 10000px;

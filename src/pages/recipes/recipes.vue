@@ -79,11 +79,11 @@
 
 			<view v-if="isLoading && uiStore.activeTab === 'recipes'" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
 				<view class="content-padding">
-					<view style="height: 160px; margin-bottom: 20px; border-radius: 20px; background-color: #faf8f5"></view>
-					<view style="height: 36px; margin-bottom: 10px; border-radius: 18px; background-color: #faf8f5; width: 60%"></view>
+					<SkeletonCard mode="ranking" />
+					<view class="skeleton-block shimmer" style="height: 36px; margin-top: 10px; margin-bottom: 20px; border-radius: 18px; width: 60%"></view>
 				</view>
-				<view style="padding: 0 15px">
-					<SkeletonList :count="5" />
+				<view class="list-wrapper">
+					<SkeletonListItem v-for="i in 5" :key="i" :bleed="true" :divider="i < 5" />
 				</view>
 			</view>
 		</RefreshableLayout>
@@ -164,18 +164,20 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
-import SkeletonList from '@/components/SkeletonList.vue';
 import EmptyState from '@/components/EmptyState.vue';
+
+// 修改：引入新的骨架屏组件，移除 SkeletonList
+import SkeletonCard from '@/components/SkeletonCard.vue';
+import SkeletonListItem from '@/components/SkeletonListItem.vue';
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
 const uiStore = useUiStore();
 
-// [核心重构] 默认全部关闭，完全靠按需苏醒触发
 const isLoading = ref(false);
-const hasBeenActivated = ref(false); // 记录此 Tab 是否被用户点开过
-const isInitialFetchDone = ref(false); // [新增] 用于精确控制 EmptyState 渲染时机
+const hasBeenActivated = ref(false);
+const isInitialFetchDone = ref(false);
 
 const activeFilter = ref('BREAD');
 const isSubmitting = ref(false);
@@ -267,9 +269,7 @@ const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
 	triggerListAnimation.value = playAnimation;
 };
 
-// [核心机制] 按需加载驱动引擎：增加静默刷新处理
 const loadDataIfNeeded = async () => {
-	// 如果用户当前没有点到“配方”页，直接 return，不在后台浪费一丝性能
 	if (uiStore.activeTab !== 'recipes') return;
 
 	const isFirstTimeOpening = !hasBeenActivated.value;
@@ -277,10 +277,8 @@ const loadDataIfNeeded = async () => {
 
 	if (isFirstTimeOpening) {
 		hasBeenActivated.value = true;
-		isLoading.value = true; // 第一次点击配方页：强制开启骨架屏
+		isLoading.value = true;
 	}
-	// [核心修改] 删除了 else if (needsFetch) { isLoading.value = true; }
-	// 实现静默刷新：后台更新数据，前端保留老界面，杜绝闪烁
 
 	try {
 		if (needsFetch) {
@@ -289,10 +287,10 @@ const loadDataIfNeeded = async () => {
 				activeFilter.value = filterTabs.value[0].key;
 			}
 		}
-		isInitialFetchDone.value = true; // 确保数据拉取完成后标记为完成，以便渲染 EmptyState
+		isInitialFetchDone.value = true;
 	} catch (error) {
 		console.error('Failed to load recipes data:', error);
-		isInitialFetchDone.value = true; // [兜底] 即使报错，也允许渲染空状态避免白屏
+		isInitialFetchDone.value = true;
 	} finally {
 		if (isFirstTimeOpening || needsFetch) {
 			setTimeout(() => {
@@ -300,27 +298,24 @@ const loadDataIfNeeded = async () => {
 				triggerListAnimationWithKeyUpdate(false);
 			}, 200);
 		} else {
-			// 如果不是第一次点开，且数据没过期，则毫无延迟，瞬间展示内容
 			isLoading.value = false;
 			triggerListAnimationWithKeyUpdate(false);
 		}
 	}
 };
 
-// 监听 Tab 切换
 watch(
 	() => uiStore.activeTab,
 	(newTab, oldTab) => {
 		if (newTab === 'recipes') {
 			loadDataIfNeeded();
 		} else if (oldTab === 'recipes') {
-			triggerListAnimation.value = false; // 切走时关闭动画状态避免切回来重播
+			triggerListAnimation.value = false;
 		}
 	},
 	{ immediate: true }
 );
 
-// 应对从子页面详情返回的情况
 onShow(() => {
 	isNavigating.value = false;
 	loadDataIfNeeded();
@@ -575,5 +570,32 @@ const confirmDeleteRecipe = async () => {
 .category-filter-wrapper {
 	padding: 0px 15px 15px;
 	border-bottom: 1px solid var(--border-color);
+}
+
+/* --- 新增：页面内联骨架屏相关的通用样式 --- */
+.skeleton-block {
+	background-color: #f0f2f5;
+}
+
+.shimmer {
+	position: relative;
+	overflow: hidden;
+}
+
+.shimmer::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: -100%;
+	width: 200%;
+	height: 100%;
+	background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
+	animation: shimmer-sweep 1.5s infinite linear;
+}
+
+@keyframes shimmer-sweep {
+	100% {
+		transform: translateX(100%);
+	}
 }
 </style>

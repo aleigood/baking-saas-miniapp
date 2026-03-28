@@ -66,8 +66,19 @@
 				class="page-content skeleton-overlay"
 				:class="{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }"
 			>
-				<view style="height: 120px; margin-bottom: 20px; border-radius: 20px; background-color: #faf8f5"></view>
-				<SkeletonList :count="5" />
+				<SkeletonCard mode="summary" />
+
+				<view class="card-title-wrapper">
+					<view class="skeleton-block shimmer" style="width: 130px; height: 24px; border-radius: 6px"></view>
+					<view class="header-actions" style="gap: 8px">
+						<view class="skeleton-block shimmer" style="width: 40px; height: 40px; border-radius: 50%"></view>
+						<view class="skeleton-block shimmer" style="width: 40px; height: 40px; border-radius: 50%"></view>
+					</view>
+				</view>
+
+				<view>
+					<SkeletonListItem v-for="i in 5" :key="i" :divider="false" />
+				</view>
 			</view>
 		</RefreshableLayout>
 
@@ -173,12 +184,14 @@ import IconButton from '@/components/IconButton.vue';
 import AppButton from '@/components/AppButton.vue';
 import CalendarModal from '@/components/CalendarModal.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
-// [新增] 引入双缓冲组件
-import SkeletonList from '@/components/SkeletonList.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import type { ProductionTaskDto, PrepTask, RecipeCategory, ProductionTaskSummaryDto } from '@/types/api';
 import { updateTaskStatus, getTaskDates, deleteTask } from '@/api/tasks';
 import { formatChineseDate, formatWeight } from '@/utils/format';
+
+// 修改：引入新的骨架屏组件，移除旧的 SkeletonList
+import SkeletonCard from '@/components/SkeletonCard.vue';
+import SkeletonListItem from '@/components/SkeletonListItem.vue';
 
 const STATUS_MAP = {
 	PENDING: {
@@ -332,8 +345,6 @@ const loadDataIfNeeded = async () => {
 		hasBeenActivated.value = true;
 		isLoading.value = true; // 仅首次进入时开启骨架屏
 	}
-	// [核心修改] 删除了 else if (needsFetch) { isLoading.value = true; }
-	// 如果页面已经激活过，即使数据过期 (needsFetch)，也不显示骨架屏，只在后台静默拉取新数据
 
 	try {
 		let didFetchProduction = false;
@@ -840,5 +851,32 @@ const handleSaveTemperatureSettings = () => {
 	min-width: 120px;
 	width: auto;
 	text-align: right;
+}
+
+/* --- 新增：页面内联骨架屏相关的通用样式 --- */
+.skeleton-block {
+	background-color: #f0f2f5;
+}
+
+.shimmer {
+	position: relative;
+	overflow: hidden;
+}
+
+.shimmer::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: -100%;
+	width: 200%;
+	height: 100%;
+	background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
+	animation: shimmer-sweep 1.5s infinite linear;
+}
+
+@keyframes shimmer-sweep {
+	100% {
+		transform: translateX(100%);
+	}
 }
 </style>

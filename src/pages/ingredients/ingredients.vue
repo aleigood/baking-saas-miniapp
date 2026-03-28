@@ -85,10 +85,16 @@
 					<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="暂无原料" subtitle="暂无符合条件的原料" />
 				</view>
 			</view>
+
 			<view v-if="isLoading && uiStore.activeTab === 'ingredients'" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
-				<view style="height: 44px; margin: 10px 15px 20px 15px; border-radius: 22px; background-color: #faf8f5"></view>
-				<view style="padding: 0 15px">
-					<SkeletonList :count="8" />
+				<view class="tools-bar" style="margin-bottom: 4px">
+					<view class="skeleton-block shimmer" style="width: 70px; height: 32px; border-radius: 16px"></view>
+					<view class="skeleton-block shimmer" style="width: 70px; height: 32px; border-radius: 16px"></view>
+					<view class="skeleton-block shimmer" style="flex: 1; height: 32px; border-radius: 16px"></view>
+				</view>
+
+				<view class="list-wrapper">
+					<SkeletonListItem v-for="i in 8" :key="i" :bleed="true" :divider="i < 8" />
 				</view>
 			</view>
 		</RefreshableLayout>
@@ -173,8 +179,10 @@ import AppButton from '@/components/AppButton.vue';
 import FormItem from '@/components/FormItem.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
 import { formatWeight, formatDuration } from '@/utils/format';
-import SkeletonList from '@/components/SkeletonList.vue';
 import EmptyState from '@/components/EmptyState.vue';
+
+// 修改：引入新的组件
+import SkeletonListItem from '@/components/SkeletonListItem.vue';
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
@@ -385,7 +393,7 @@ const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
 	listAnimationKey.value = Date.now();
 	triggerListAnimation.value = playAnimation;
 };
-// [核心机制] 按需加载驱动引擎：增加静默刷新处理
+
 const loadDataIfNeeded = async () => {
 	if (uiStore.activeTab !== 'ingredients') return;
 
@@ -394,10 +402,8 @@ const loadDataIfNeeded = async () => {
 
 	if (isFirstTimeOpening) {
 		hasBeenActivated.value = true;
-		isLoading.value = true; // 仅首次加载开启骨架屏
+		isLoading.value = true;
 	}
-	// [核心修改] 删除了 else if (needsFetch) { isLoading.value = true; }
-	// 从子页面返回或数据过期时，触发静默刷新，不遮挡当前视图
 
 	try {
 		let didFetch = false;
@@ -430,6 +436,7 @@ const loadDataIfNeeded = async () => {
 		}
 	}
 };
+
 watch(
 	() => uiStore.activeTab,
 	(newTab, oldTab) => {
@@ -601,24 +608,22 @@ const handleCreateIngredient = async () => {
 	flex-direction: column;
 }
 
-/* [核心样式修改] 工具栏容器 */
 .tools-bar {
 	display: flex;
 	align-items: center;
 	padding: 10px 15px;
-	gap: 10px; /* 元素间距 */
+	gap: 10px;
 }
 
-/* 统一的胶囊样式 (筛选和排序) */
 .filter-capsule {
 	position: relative;
 	overflow: hidden;
-	transform: translateZ(0); /* 开启硬件加速，修复部分机型圆角溢出问题 */
+	transform: translateZ(0);
 	display: flex;
 	height: 32px;
 	align-items: center;
 	justify-content: center;
-	background-color: #f3e9e3; /* [修改] 浅米色背景 */
+	background-color: #f3e9e3;
 	padding: 6px 12px;
 	border-radius: 16px;
 	min-width: 70px;
@@ -631,7 +636,7 @@ const handleCreateIngredient = async () => {
 
 	.capsule-content {
 		position: relative;
-		z-index: 1; /* 确保文字在水波纹之上 */
+		z-index: 1;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -642,7 +647,7 @@ const handleCreateIngredient = async () => {
 		height: 0;
 		border-left: 4px solid transparent;
 		border-right: 4px solid transparent;
-		border-top: 4px solid #8d6e63; /* [修改] 深棕色箭头 */
+		border-top: 4px solid #8d6e63;
 		margin-left: 6px;
 		opacity: 0.8;
 	}
@@ -655,11 +660,10 @@ const handleCreateIngredient = async () => {
 	}
 }
 
-/* 紧凑型搜索框 */
 .search-box-compact {
-	flex: 1; /* 占据剩余空间 */
+	flex: 1;
 	height: 32px;
-	background-color: #f3e9e3; /* [修改] 统一浅米色背景 */
+	background-color: #f3e9e3;
 	border-radius: 16px;
 	display: flex;
 	align-items: center;
@@ -676,29 +680,28 @@ const handleCreateIngredient = async () => {
 
 .search-input {
 	flex: 1;
-	font-size: 14px; /* [核心修改] 字体大小修正为 14px */
+	font-size: 14px;
 	color: var(--text-primary);
 	height: 100%;
 }
 
 .clear-btn {
-	width: 18px; /* [UI微调] 稍微调大一点，适应图标 */
+	width: 18px;
 	height: 18px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background-color: rgba(140, 90, 59, 0.1); /* [修改] 微调清除按钮背景 */
+	background-color: rgba(140, 90, 59, 0.1);
 	border-radius: 50%;
 	margin-left: 5px;
-	padding: 3px; /* 内边距，控制图标大小 */
+	padding: 3px;
 	box-sizing: border-box;
 }
 
-/* [核心修改] SVG 图标样式 */
 .clear-icon-svg {
 	width: 100%;
 	height: 100%;
-	opacity: 0.6; /* 与原来的文本颜色透明度一致 */
+	opacity: 0.6;
 }
 
 .side-info .consumption {
@@ -710,7 +713,7 @@ const handleCreateIngredient = async () => {
 }
 
 .stock-warning {
-	color: #d97706; /* Amber-600 */
+	color: #d97706;
 	font-weight: 500;
 }
 
@@ -742,10 +745,36 @@ const handleCreateIngredient = async () => {
 	margin-top: 5px;
 }
 
-/* 模态框内的选项样式 */
 .checkmark-icon {
 	color: var(--primary-color);
 	font-weight: bold;
 	font-size: 16px;
+}
+
+/* --- 新增：页面内联骨架屏相关的通用样式 --- */
+.skeleton-block {
+	background-color: #f0f2f5;
+}
+
+.shimmer {
+	position: relative;
+	overflow: hidden;
+}
+
+.shimmer::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: -100%;
+	width: 200%;
+	height: 100%;
+	background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
+	animation: shimmer-sweep 1.5s infinite linear;
+}
+
+@keyframes shimmer-sweep {
+	100% {
+		transform: translateX(100%);
+	}
 }
 </style>

@@ -55,11 +55,12 @@
 			</view>
 
 			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
-				<SkeletonCard v-for="i in 3" :key="i" />
+				<SkeletonDetail :meta-count="3" :show-chart="true" :list-count="2" :table-groups="0" />
 			</view>
 
 			<EmptyState
 				v-if="!isLoading && !ingredient"
+				:full-page="true"
 				icon="/static/icons/network-error.svg"
 				title="加载失败"
 				subtitle="请检查网络连接后重试"
@@ -355,7 +356,7 @@ import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 import { formatChineseDate, formatDateTime, formatNumber, formatWeight, multiply, formatMoney } from '@/utils/format';
 // [新增] 引入骨架屏和空状态组件
-import SkeletonCard from '@/components/SkeletonCard.vue';
+import SkeletonDetail from '@/components/SkeletonDetail.vue';
 import EmptyState from '@/components/EmptyState.vue';
 
 const densityOptions = [

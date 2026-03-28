@@ -19,7 +19,7 @@
 			</view>
 
 			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
-				<SkeletonCard v-for="i in 3" :key="i" />
+				<SkeletonDetail :show-tabs="true" :meta-count="4" :show-chart="true" :list-count="0" :table-groups="2" :show-notes="true" />
 			</view>
 
 			<EmptyState
@@ -28,6 +28,7 @@
 				title="加载失败"
 				subtitle="请检查网络连接后重试"
 				:showAction="true"
+				:full-page="true"
 				actionText="重新加载"
 				@action="familyId && loadRecipeData(familyId)"
 			/>
@@ -102,7 +103,7 @@ import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import AppPopover from '@/components/AppPopover.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 // [新增] 引入骨架屏和空状态组件
-import SkeletonCard from '@/components/SkeletonCard.vue';
+import SkeletonDetail from '@/components/SkeletonDetail.vue';
 import EmptyState from '@/components/EmptyState.vue';
 
 defineOptions({

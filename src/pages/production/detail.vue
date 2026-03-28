@@ -244,11 +244,12 @@
 			</view>
 
 			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
-				<SkeletonCard v-for="i in 3" :key="i" />
+				<SkeletonDetail :meta-count="0" :show-chart="false" :list-count="2" :table-groups="1" :show-notes="true" />
 			</view>
 
 			<EmptyState
 				v-if="!isLoading && !task"
+				:full-page="true"
 				icon="/static/icons/network-error.svg"
 				title="加载失败"
 				subtitle="请检查网络连接后重试"
@@ -333,7 +334,7 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import AppPopover from '@/components/AppPopover.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import { formatWeight } from '@/utils/format';
-import SkeletonCard from '@/components/SkeletonCard.vue';
+import SkeletonDetail from '@/components/SkeletonDetail.vue';
 import EmptyState from '@/components/EmptyState.vue';
 
 defineOptions({

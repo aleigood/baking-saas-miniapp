@@ -49,8 +49,35 @@
 			</view>
 
 			<view v-if="isLoading && page === 1" class="page-content skeleton-overlay">
-				<view style="height: 50px"></view>
-				<SkeletonList :count="8" />
+				<view class="filter-container">
+					<view class="skeleton-block shimmer" style="height: 36px; border-radius: 18px; margin-bottom: 10px"></view>
+				</view>
+
+				<view class="procurement-list">
+					<view class="list-header ledger-header">
+						<text class="col-date-operator">日期/操作人</text>
+						<text class="col-type">类型</text>
+						<text class="col-change">变动</text>
+						<text class="col-details">详情</text>
+					</view>
+					<ListItem v-for="i in 10" :key="i" class="procurement-item" :no-padding="true" :divider="i < 10">
+						<view class="procurement-item-content ledger-item-content">
+							<view class="col-date-operator">
+								<view class="skeleton-block shimmer" style="width: 80%; height: 14px; margin-bottom: 6px"></view>
+								<view class="skeleton-block shimmer" style="width: 60%; height: 12px"></view>
+							</view>
+							<view class="col-type" style="display: flex; justify-content: center">
+								<view class="skeleton-block shimmer" style="width: 48px; height: 20px; border-radius: 4px"></view>
+							</view>
+							<view class="col-change" style="display: flex; justify-content: center">
+								<view class="skeleton-block shimmer" style="width: 40px; height: 14px"></view>
+							</view>
+							<view class="col-details" style="display: flex; justify-content: flex-end">
+								<view class="skeleton-block shimmer" style="width: 70%; height: 14px"></view>
+							</view>
+						</view>
+					</ListItem>
+				</view>
 			</view>
 		</DetailPageLayout>
 
@@ -133,7 +160,6 @@ import AppModal from '@/components/AppModal.vue';
 import AdvancedFilterBar from '@/components/AdvancedFilterBar.vue';
 import AppButton from '@/components/AppButton.vue';
 import FormItem from '@/components/FormItem.vue';
-import SkeletonList from '@/components/SkeletonList.vue';
 import EmptyState from '@/components/EmptyState.vue';
 
 defineOptions({
@@ -141,7 +167,6 @@ defineOptions({
 });
 
 const isLoading = ref(false);
-// [新增] 用于标记是否已经完成了首次拉取，避免一进页面就看到空状态
 const isInitialFetchDone = ref(false);
 
 const toastStore = useToastStore();
@@ -297,7 +322,6 @@ const fetchLedgerData = async (loadMore = false) => {
 
 		const response = await getIngredientLedger(filters.ingredientId, params);
 
-		// 拿到数据立刻赋值触发 DOM 预渲染
 		if (loadMore) {
 			ledgerEntries.value.push(...response.data);
 		} else {
@@ -312,7 +336,6 @@ const fetchLedgerData = async (loadMore = false) => {
 			ledgerEntries.value = [];
 		}
 	} finally {
-		// [修改] 为第一页的数据加载留下充足的预渲染排版时间
 		if (loadMore) {
 			isLoadingMore.value = false;
 		} else {
@@ -376,6 +399,34 @@ const getPillText = (filter: any) => {
 @import '@/styles/common.scss';
 @include list-item-option-style;
 @include form-control-styles;
+
+/* 页面特有的骨架屏动效支持 */
+.skeleton-block {
+	background-color: #f0f2f5;
+	border-radius: 4px;
+}
+
+.shimmer {
+	position: relative;
+	overflow: hidden;
+}
+
+.shimmer::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: -100%;
+	width: 200%;
+	height: 100%;
+	background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
+	animation: shimmer-sweep 1.5s infinite linear;
+}
+
+@keyframes shimmer-sweep {
+	100% {
+		transform: translateX(100%);
+	}
+}
 
 .page-wrapper {
 	display: flex;
