@@ -215,7 +215,6 @@ import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import AppPopover from '@/components/AppPopover.vue';
 import EmptyState from '@/components/EmptyState.vue';
-// 引入通用骨架屏
 import SkeletonDetail from '@/components/SkeletonDetail.vue';
 
 defineOptions({
@@ -239,7 +238,8 @@ const showTaskFilterModal = ref(false);
 const addedIngredientsMap = reactive(new Set<string>());
 const completedItems = ref(new Set<string>());
 
-const activeTab = ref('BILL_OF_MATERIALS');
+// [核心修复1] 初始值设置为空，加载完成后自动匹配左侧第一个
+const activeTab = ref('');
 const collapsedSections = ref(new Set<string>());
 
 const showCalculatorModal = ref(false);
@@ -578,7 +578,6 @@ onLoad(async (options) => {
 @import '@/styles/common.scss';
 @include table-layout;
 
-/* [添加内联骨架块的样式，保持和组件统一] */
 .skeleton-block {
 	background-color: #f0f2f5;
 }
@@ -657,10 +656,13 @@ onLoad(async (options) => {
 	}
 }
 
+/* [核心修复2] 优化长文本换行，防止挤压左侧复选框 */
 .task-name {
 	margin-left: 10px;
 	font-size: 14px;
 	color: var(--text-primary);
+	flex: 1; /* 占据所有剩余空间 */
+	word-break: break-all; /* 允许长文本强制换行 */
 }
 
 .font-bold {
@@ -837,6 +839,7 @@ onLoad(async (options) => {
 	padding-right: 8px;
 }
 
+/* [核心修复2] 增加 flex-shrink: 0 防止被长文本挤扁 */
 .check-icon {
 	width: 20px;
 	height: 20px;
@@ -848,6 +851,7 @@ onLoad(async (options) => {
 	transition: all 0.2s ease;
 	box-sizing: border-box;
 	pointer-events: auto;
+	flex-shrink: 0;
 }
 
 .check-icon.is-checked {
