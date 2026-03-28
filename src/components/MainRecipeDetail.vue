@@ -309,12 +309,20 @@ watch(selectedProductId, (newProductId) => {
 	fetchCostData(newProductId);
 });
 
+// [核心修复] 改进版本变更时的逻辑监听
 watch(
 	() => props.version,
 	(newVersion) => {
 		if (newVersion && newVersion.products.length > 0) {
-			// @ts-ignore
-			selectedProductId.value = newVersion.products[0].id;
+			const newId = newVersion.products[0].id;
+			if (selectedProductId.value === newId) {
+				// ID未改变（例如修改了同一配方并返回），不会触发上面的 selectedProductId watch，
+				// 所以这里必须手动强制触发重新获取数据，确保显示的是修改后的最新数据。
+				fetchCostData(newId);
+			} else {
+				// 如果是正常切换产品，赋值后会触发上面的 selectedProductId watch 来拉取数据。
+				selectedProductId.value = newId;
+			}
 		} else {
 			selectedProductId.value = null;
 		}
