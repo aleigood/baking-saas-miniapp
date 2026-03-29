@@ -108,30 +108,49 @@
 								</view>
 
 								<view class="total-weight-summary">
-									<view class="summary-item">
-										<text class="summary-label">需求总量</text>
-										<text class="summary-value">{{ formatWeight((item.targetWeight || item.totalWeight) + (item.stockWeight || 0)) }}</text>
-									</view>
+									<template v-if="item.stockWeight && item.stockWeight > 0">
+										<view class="summary-item">
+											<text class="summary-label">需求总量</text>
+											<text class="summary-value">
+												{{ formatWeight((item.targetWeight != null ? item.targetWeight : item.totalWeight) + item.stockWeight) }}
+											</text>
+										</view>
 
-									<view class="summary-divider"></view>
+										<view class="summary-divider"></view>
 
-									<view class="summary-item">
-										<text class="summary-label">库存抵扣</text>
-										<text class="summary-value">{{ formatWeight(item.stockWeight || 0) }}</text>
-									</view>
+										<view class="summary-item">
+											<text class="summary-label">库存抵扣</text>
+											<text class="summary-value">{{ formatWeight(item.stockWeight) }}</text>
+										</view>
 
-									<view class="summary-divider"></view>
+										<view class="summary-divider"></view>
 
-									<view v-if="item.targetWeight != null" class="summary-item">
-										<text class="summary-label">目标产出</text>
-										<text class="summary-value highlight-value">{{ formatWeight(item.targetWeight) }}</text>
-									</view>
+										<view class="summary-item">
+											<text class="summary-label">预计投料</text>
+											<text class="summary-value text-secondary">{{ formatWeight(item.totalWeight) }}</text>
+										</view>
 
-									<view v-if="item.targetWeight != null" class="summary-divider"></view>
-									<view class="summary-item">
-										<text class="summary-label">预计投料</text>
-										<text class="summary-value text-secondary">{{ formatWeight(item.totalWeight) }}</text>
-									</view>
+										<view class="summary-divider"></view>
+
+										<view class="summary-item">
+											<text class="summary-label">目标产出</text>
+											<text class="summary-value highlight-value">{{ formatWeight(item.targetWeight != null ? item.targetWeight : item.totalWeight) }}</text>
+										</view>
+									</template>
+
+									<template v-else>
+										<view class="summary-item">
+											<text class="summary-label">预计投料</text>
+											<text class="summary-value text-secondary">{{ formatWeight(item.totalWeight) }}</text>
+										</view>
+
+										<view class="summary-divider"></view>
+
+										<view class="summary-item">
+											<text class="summary-label">目标产出</text>
+											<text class="summary-value highlight-value">{{ formatWeight(item.targetWeight != null ? item.targetWeight : item.totalWeight) }}</text>
+										</view>
+									</template>
 								</view>
 
 								<view v-if="item.procedure && item.procedure.length > 0" class="procedure-notes">
@@ -238,7 +257,6 @@ const showTaskFilterModal = ref(false);
 const addedIngredientsMap = reactive(new Set<string>());
 const completedItems = ref(new Set<string>());
 
-// [核心修复1] 初始值设置为空，加载完成后自动匹配左侧第一个
 const activeTab = ref('');
 const collapsedSections = ref(new Set<string>());
 
@@ -529,10 +547,8 @@ const fetchTaskData = async () => {
 		}
 	} catch (error) {
 		console.error('获取前置任务详情失败:', error);
-		// 确保错误时任务为空，以便触发底层空状态
 		task.value = null;
 	} finally {
-		// 预留 200ms 给浏览器在后台进行排版，之后再撤走骨架屏幕布
 		setTimeout(() => {
 			isLoading.value = false;
 		}, 200);
@@ -564,7 +580,6 @@ onLoad(async (options) => {
 			await fetchTaskData();
 		} catch (error) {
 			console.error('初始化任务数据失败:', error);
-			// 确保 isLoading 在报错后也会置为 false 触发兜底的 EmptyState
 			isLoading.value = false;
 		}
 	} else {
@@ -656,13 +671,13 @@ onLoad(async (options) => {
 	}
 }
 
-/* [核心修复2] 优化长文本换行，防止挤压左侧复选框 */
+/* 优化长文本换行，防止挤压左侧复选框 */
 .task-name {
 	margin-left: 10px;
 	font-size: 14px;
 	color: var(--text-primary);
-	flex: 1; /* 占据所有剩余空间 */
-	word-break: break-all; /* 允许长文本强制换行 */
+	flex: 1;
+	word-break: break-all;
 }
 
 .font-bold {
@@ -775,6 +790,7 @@ onLoad(async (options) => {
 	}
 }
 
+/* --- 恢复到最初的横向排列样式 --- */
 .total-weight-summary {
 	display: flex;
 	justify-content: flex-end;
@@ -810,6 +826,15 @@ onLoad(async (options) => {
 	color: var(--text-primary);
 }
 
+.highlight-value {
+	color: var(--primary-color);
+	font-weight: bold;
+}
+
+.text-secondary {
+	color: #999;
+}
+
 .procedure-notes {
 	@include procedure-notes-style;
 	margin-top: 25px;
@@ -839,7 +864,7 @@ onLoad(async (options) => {
 	padding-right: 8px;
 }
 
-/* [核心修复2] 增加 flex-shrink: 0 防止被长文本挤扁 */
+/* 增加 flex-shrink: 0 防止被长文本挤扁 */
 .check-icon {
 	width: 20px;
 	height: 20px;
@@ -871,13 +896,5 @@ onLoad(async (options) => {
 	font-size: 13px;
 	color: var(--text-secondary);
 	margin-top: 5px;
-}
-
-.highlight-value {
-	color: var(--primary-color);
-	font-weight: bold;
-}
-.text-secondary {
-	color: #999;
 }
 </style>

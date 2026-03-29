@@ -1,14 +1,16 @@
 <template>
-	<view>
+	<view class="page-wrapper">
 		<view class="page-content page-content-with-tabbar">
-			<view class="profile-card" @click="navigateToCurrentUserDetail" :style="{ marginTop: systemStore.headerHeight + 'px' }">
-				<view class="avatar">
-					<image v-if="userStore.userInfo && userStore.userInfo.avatarUrl" :src="userStore.userInfo.avatarUrl" class="avatar-image"></image>
-					<text v-else>{{ userStore.userInfo?.name?.[0] || '管' }}</text>
+			<view class="profile-section ripple-container" @click="navigateToCurrentUserDetail" :style="{ marginTop: systemStore.headerHeight + 10 + 'px' }">
+				<view class="avatar-wrapper">
+					<view class="avatar">
+						<image v-if="userStore.userInfo && userStore.userInfo.avatarUrl" :src="userStore.userInfo.avatarUrl" class="avatar-image"></image>
+						<text v-else>{{ userStore.userInfo?.name?.[0] || '管' }}</text>
+					</view>
 				</view>
 				<view class="user-info">
 					<view class="name">{{ userStore.userInfo?.name || '未设置昵称' }}</view>
-					<view class="role">{{ currentTenantRoleDisplay }}</view>
+					<view class="role-badge">{{ currentTenantRoleDisplay }}</view>
 				</view>
 				<view class="arrow-icon">&#10095;</view>
 			</view>
@@ -37,22 +39,26 @@
 			<view class="action-list">
 				<ListItem v-if="isOwner" class="action-item" @click="navigateToTenantList" :bleed="true">
 					<view class="action-item-content">
-						<image class="action-icon" src="/static/icons/store.svg" />
-						<text>店铺管理</text>
+						<view class="action-left">
+							<image class="action-icon" src="/static/icons/store.svg" />
+							<text>店铺管理</text>
+						</view>
+						<view class="action-right">&#10095;</view>
 					</view>
 				</ListItem>
-				<ListItem v-if="canManagePersonnel" class="action-item" @click="navigateToPersonnelList" :bleed="true">
+				<ListItem v-if="canManagePersonnel" class="action-item" @click="navigateToPersonnelList" :bleed="true" :divider="false">
 					<view class="action-item-content">
-						<image class="action-icon" src="/static/icons/person.svg" />
-						<text>人员管理</text>
+						<view class="action-left">
+							<image class="action-icon" src="/static/icons/person.svg" />
+							<text>人员管理</text>
+						</view>
+						<view class="action-right">&#10095;</view>
 					</view>
 				</ListItem>
-				<ListItem class="action-item" @click="handleOpenLogoutConfirm" :bleed="true">
-					<view class="action-item-content">
-						<image class="action-icon" src="/static/icons/logout.svg" />
-						<text>退出登录</text>
-					</view>
-				</ListItem>
+			</view>
+
+			<view class="logout-card ripple-container" @click="handleOpenLogoutConfirm">
+				<text class="logout-text">退出登录</text>
 			</view>
 		</view>
 
@@ -89,7 +95,6 @@ const isNavigating = ref(false);
 const stats = ref<Partial<DashboardStats>>({});
 const isLoadingStats = ref(false);
 
-// [核心修改] 定义 ref
 const logoutModalRef = ref<InstanceType<typeof AppModal> | null>(null);
 
 const fetchDashboardStats = async () => {
@@ -163,7 +168,6 @@ const handleOpenLogoutConfirm = () => {
 	uiStore.openModal(MODAL_KEYS.LOGOUT_CONFIRM);
 };
 
-// [核心修改] 使用 closeAndRun 优雅退出
 const handleLogout = () => {
 	if (logoutModalRef.value) {
 		logoutModalRef.value.closeAndRun(() => {
@@ -180,26 +184,45 @@ const handleLogout = () => {
 @import '@/styles/common.scss';
 @include list-item-content-style;
 
-.personnel-header {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	background-color: rgba(253, 248, 242, 0.85);
-	backdrop-filter: saturate(180%) blur(20px);
-	z-index: 10;
-	box-sizing: border-box;
-}
-.header-title-container {
+/* --- [保持一致] 页面容器与全局背景色完美统一 --- */
+.page-wrapper {
 	display: flex;
-	align-items: center;
-	justify-content: center;
+	flex-direction: column;
+	min-height: 100vh;
+	background-color: #fdf8f2; /* 绝对统一的暖白底色，绝不发暗 */
 	position: relative;
+	overflow: hidden;
 }
-.header-title {
-	font-size: 18px;
-	font-weight: 600;
-	color: var(--text-primary);
+
+/* 环境光斑基础设置 */
+.page-wrapper::before,
+.page-wrapper::after {
+	content: '';
+	position: absolute;
+	border-radius: 50%;
+	filter: blur(60px); /* 加大模糊，让光晕像雾气一样柔和 */
+	z-index: 0;
+	pointer-events: none;
+}
+
+/* 主光斑：右上角的主题色柔光 */
+.page-wrapper::before {
+	width: 320px;
+	height: 320px;
+	background-color: rgba(212, 163, 115, 0.22); /* 降低浓度，只留下一抹淡淡的暖咖色呼吸光 */
+	top: -80px;
+	right: -60px;
+	animation: aurora-float-1 15s infinite ease-in-out alternate;
+}
+
+/* 辅光斑：左侧的明亮暖光 */
+.page-wrapper::after {
+	width: 280px;
+	height: 280px;
+	background-color: rgba(250, 237, 205, 0.6); /* 极高明度的亮暖色，起提亮和增加层次的作用 */
+	top: 60px;
+	left: -50px;
+	animation: aurora-float-2 18s infinite ease-in-out alternate-reverse;
 }
 
 .page-content {
@@ -208,27 +231,59 @@ const handleLogout = () => {
 	z-index: 1;
 }
 
-.profile-card {
+/* --- 舒缓的动态呼吸轨迹 --- */
+@keyframes aurora-float-1 {
+	0% {
+		transform: translate(0, 0) scale(1);
+	}
+	50% {
+		transform: translate(-30px, 20px) scale(1.05);
+	}
+	100% {
+		transform: translate(15px, -15px) scale(0.95);
+	}
+}
+
+@keyframes aurora-float-2 {
+	0% {
+		transform: translate(0, 0) scale(1);
+	}
+	50% {
+		transform: translate(40px, -20px) scale(1.1);
+	}
+	100% {
+		transform: translate(-15px, 30px) scale(1);
+	}
+}
+
+/* --- 以下为组件精细化样式 --- */
+.profile-section {
 	display: flex;
 	align-items: center;
-	padding: 20px;
+	padding: 15px 10px;
 	border-radius: 20px;
-	margin-bottom: 30px;
+	margin-bottom: 25px;
 	position: relative;
 }
 
+.avatar-wrapper {
+	position: relative;
+	margin-right: 18px;
+}
+
 .avatar {
-	width: 60px;
-	height: 60px;
+	width: 64px;
+	height: 64px;
 	border-radius: 50%;
 	background-color: var(--primary-color);
+	border: 3px solid #ffffff;
+	box-shadow: 0 4px 12px rgba(212, 163, 115, 0.25);
 	color: white;
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	font-size: 24px;
+	font-size: 26px;
 	font-weight: bold;
-	margin-right: 15px;
 	overflow: hidden;
 }
 
@@ -239,33 +294,46 @@ const handleLogout = () => {
 
 .user-info {
 	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
 }
 
 .user-info .name {
-	font-size: 18px;
-	font-weight: 600;
+	font-size: 20px;
+	font-weight: 700;
 	color: var(--text-primary);
+	margin-bottom: 4px;
 }
 
-.user-info .role {
-	font-size: 14px;
-	color: var(--text-secondary);
-	margin-top: 5px;
+.role-badge {
+	display: inline-block;
+	font-size: 12px;
+	color: var(--primary-color);
+	background-color: rgba(212, 163, 115, 0.12);
+	padding: 3px 10px;
+	border-radius: 12px;
+	font-weight: 500;
 }
 
 .arrow-icon {
-	font-size: 20px;
-	color: var(--text-secondary);
+	font-size: 16px;
+	color: #cccccc;
+	margin-right: 5px;
 }
 
 .stats-card {
-	padding: 30px 0;
-	margin-bottom: 40px;
+	padding: 25px 0;
+	margin-bottom: 30px;
+	border-radius: 20px;
+	background-color: #ffffff;
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
 }
 
 .stats-grid {
 	display: flex;
 	justify-content: space-around;
+	align-items: center;
 	text-align: center;
 }
 
@@ -276,33 +344,53 @@ const handleLogout = () => {
 	justify-content: center;
 	flex: 1;
 	padding: 5px 0;
+	position: relative;
+}
+
+.stat-item:not(:last-child)::after {
+	content: '';
+	position: absolute;
+	right: 0;
+	top: 20%;
+	height: 60%;
+	width: 1px;
+	background-color: rgba(0, 0, 0, 0.05);
 }
 
 .stat-value {
 	font-size: 24px;
-	font-weight: 600;
+	font-weight: 700;
 	color: var(--primary-color);
+	line-height: 1.2;
 }
 
 .stat-label {
-	font-size: 13px;
+	font-size: 12px;
 	color: var(--text-secondary);
-	margin-top: 5px;
+	margin-top: 6px;
 }
 
 .action-list {
 	background-color: var(--card-bg);
 	border-radius: 20px;
 	overflow: hidden;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+	margin-bottom: 20px;
 }
 
 .action-item-content {
 	display: flex;
 	align-items: center;
+	justify-content: space-between;
 	width: 100%;
-	padding: 5px 5px;
-	font-size: 16px;
+	padding: 12px 5px;
+}
+
+.action-left {
+	display: flex;
+	align-items: center;
+	font-size: 15px;
+	font-weight: 500;
 	color: var(--text-primary);
 }
 
@@ -310,6 +398,28 @@ const handleLogout = () => {
 	width: 22px;
 	height: 22px;
 	margin-right: 15px;
+}
+
+.action-right {
+	font-size: 14px;
+	color: #d8d8d8;
+}
+
+.logout-card {
+	background-color: var(--card-bg);
+	border-radius: 20px;
+	padding: 16px 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+	margin-bottom: 40px;
+}
+
+.logout-text {
+	color: #e63946;
+	font-size: 16px;
+	font-weight: 500;
 }
 
 .modal-prompt-text {
