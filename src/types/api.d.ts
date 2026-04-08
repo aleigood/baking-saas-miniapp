@@ -315,7 +315,8 @@ export interface CalculatedExtraIngredientInfo {
 	cost: number;
 	weightInGrams: number;
 	ratio?: number;
-	isRecipe: boolean; // [G-Code-Note] [核心新增] 确保成本计算 API 也返回这个
+	isRecipe: boolean; 
+	ingredients?: CalculatedExtraIngredientInfo[]; // [核心新增] 递归展示子原料
 }
 export interface RecipeDetails {
 	totalCost: number;

@@ -79,6 +79,7 @@
 						</view>
 					</view>
 				</view>
+
 				<view v-if="hasOtherIngredients" class="other-ingredients-section">
 					<view class="group-title" @click="toggleCollapse('otherIngredients')">
 						<span>{{ selectedProduct.name }}</span>
@@ -94,17 +95,47 @@
 										<text class="col-usage">{{ getUsageColumnHeader(groupName as string) }}</text>
 										<text class="col-total">成本</text>
 									</view>
-									<view v-for="ing in ingredients" :key="ing.id" class="table-row">
-										<view class="col-ingredient ingredient-name-cell">
-											<view class="ingredient-name-wrapper">
-												<text>{{ ing.name }}</text>
-												<text class="recipe-tag" v-if="ing.isRecipe">自制</text>
+
+									<template v-for="ing in ingredients" :key="ing.id">
+										<view
+											class="table-row group-main-row"
+											:class="{ 'is-interactive': ing.isRecipe && ing.ingredients && ing.ingredients.length > 0 }"
+											@click="ing.isRecipe && ing.ingredients && toggleExtraRow(ing.id)"
+										>
+											<view class="col-ingredient ingredient-name-cell">
+												<view class="ingredient-name-wrapper">
+													<text
+														class="expand-chevron"
+														:class="{ expanded: expandedExtraRows.has(ing.id) }"
+														v-if="ing.isRecipe && ing.ingredients && ing.ingredients.length > 0"
+													>
+														›
+													</text>
+													<text>{{ ing.name }}</text>
+													<text class="recipe-tag" v-if="ing.isRecipe">自制</text>
+												</view>
 											</view>
+											<text v-if="groupName === '搅拌原料'" class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
+											<text class="col-usage">{{ getUsageDisplay(ing) }}</text>
+											<text class="col-total">¥{{ formatMoney(ing.cost) }}</text>
 										</view>
-										<text v-if="groupName === '搅拌原料'" class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
-										<text class="col-usage">{{ getUsageDisplay(ing) }}</text>
-										<text class="col-total">¥{{ formatMoney(ing.cost) }}</text>
-									</view>
+
+										<template v-if="expandedExtraRows.has(ing.id) && ing.ingredients && ing.ingredients.length > 0">
+											<view
+												class="table-row nested-item-row"
+												:class="{ 'is-last-item': subIdx === ing.ingredients.length - 1 }"
+												v-for="(sub, subIdx) in ing.ingredients"
+												:key="subIdx"
+											>
+												<view class="col-ingredient">
+													<text>{{ sub.name }}</text>
+												</view>
+												<text v-if="groupName === '搅拌原料'" class="col-ratio"></text>
+												<text class="col-usage">{{ formatWeight(sub.weightInGrams) }}</text>
+												<text class="col-total">¥{{ formatMoney(sub.cost) }}</text>
+											</view>
+										</template>
+									</template>
 								</view>
 							</view>
 						</template>
@@ -165,6 +196,9 @@ const costBreakdown = ref<
 >([]);
 const detailChartTab = ref<'trend' | 'breakdown'>('trend');
 const collapsedSections = ref(new Set<string>());
+
+// 记录展开的额外原料
+const expandedExtraRows = ref(new Set<string>());
 
 const chartTabs = ref([
 	{
@@ -294,6 +328,17 @@ const toggleCollapse = (sectionName: string) => {
 	collapsedSections.value = newSet;
 };
 
+// 切换额外原料内部明细展示
+const toggleExtraRow = (rowId: string) => {
+	const newSet = new Set(expandedExtraRows.value);
+	if (newSet.has(rowId)) {
+		newSet.delete(rowId);
+	} else {
+		newSet.add(rowId);
+	}
+	expandedExtraRows.value = newSet;
+};
+
 const getUsageColumnHeader = (groupName: string): string => {
 	if (groupName === '馅料' || groupName === '表面装饰') {
 		return '单个用量';
@@ -309,18 +354,14 @@ watch(selectedProductId, (newProductId) => {
 	fetchCostData(newProductId);
 });
 
-// [核心修复] 改进版本变更时的逻辑监听
 watch(
 	() => props.version,
 	(newVersion) => {
 		if (newVersion && newVersion.products.length > 0) {
 			const newId = newVersion.products[0].id;
 			if (selectedProductId.value === newId) {
-				// ID未改变（例如修改了同一配方并返回），不会触发上面的 selectedProductId watch，
-				// 所以这里必须手动强制触发重新获取数据，确保显示的是修改后的最新数据。
 				fetchCostData(newId);
 			} else {
-				// 如果是正常切换产品，赋值后会触发上面的 selectedProductId watch 来拉取数据。
 				selectedProductId.value = newId;
 			}
 		} else {
@@ -369,7 +410,7 @@ watch(
 }
 
 .meta-item .value {
-	font-size: 16px; /* 统一字号 */
+	font-size: 16px;
 	font-weight: 600;
 	color: var(--primary-color);
 	font-family: -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
@@ -441,7 +482,6 @@ watch(
 	background-color: #faf8f5;
 	padding: 10px 15px;
 	border-radius: 12px;
-	/* 添加点击反馈 */
 	transition: background-color 0.2s;
 }
 
@@ -481,6 +521,80 @@ watch(
 		}
 	}
 }
+
+/* --- [核心样式优化] 嵌套明细直观视觉方案 --- */
+.group-main-row.is-interactive {
+	transition: background-color 0.2s ease;
+	&:active {
+		background-color: #f7f4ed; /* 点击反馈 */
+	}
+}
+
+.expand-chevron {
+	font-size: 18px;
+	color: #c5bba8;
+	display: inline-block;
+	transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	margin-right: 4px;
+	transform-origin: center;
+	line-height: 1;
+	font-family: monospace;
+	font-weight: 300;
+}
+
+.expand-chevron.expanded {
+	transform: rotate(90deg) translateX(1px); /* 微调旋转后的视觉居中 */
+}
+
+/* 直接对齐 cell 施加极浅的背景模拟内嵌卡片 */
+.nested-header-row {
+	.col-ingredient,
+	.col-ratio,
+	.col-usage,
+	.col-total {
+		background-color: #fdfcf9; /* 与图片相符的极浅米色 */
+		color: #a89d8e;
+		font-size: 12px;
+		border-bottom: 1px dashed #efe8df; /* 虚线底边 */
+		padding-top: 14px;
+		padding-bottom: 8px;
+	}
+	.col-ingredient {
+		padding-left: 28px; /* 通过缩进拉开视觉层级 */
+	}
+}
+
+.nested-item-row {
+	.col-ingredient,
+	.col-ratio,
+	.col-usage,
+	.col-total {
+		background-color: #fdfcf9;
+		color: #857a6b;
+		font-size: 13px;
+		border-bottom: none; /* 内部条目不含横线 */
+		padding-top: 8px;
+		padding-bottom: 8px;
+	}
+	.col-ingredient {
+		padding-left: 28px;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	/* 为最后一行预留下方呼吸空间 */
+	&.is-last-item {
+		.col-ingredient,
+		.col-ratio,
+		.col-usage,
+		.col-total {
+			padding-bottom: 16px;
+		}
+	}
+}
+
+/* ------------------------------------- */
 
 .procedure-notes {
 	@include procedure-notes-style;
