@@ -718,6 +718,8 @@ const handleConfirmComplete = async () => {
 		const item: {
 			productId: string;
 			completedQuantity: number;
+			// [解释决策和约束] 补充 actualYieldInGrams 类型定义，以支持将物理称重数据传递给后端修正蒸发损耗
+			actualYieldInGrams?: number;
 			spoilageDetails?: {
 				stage: string;
 				quantity: number;
@@ -727,6 +729,12 @@ const handleConfirmComplete = async () => {
 			productId,
 			completedQuantity: data.completedQuantity!
 		};
+
+		// [解释决策和约束] 自制原料任务的 UI 输入原本就是“实际产出(g)”，
+		// 直接将 completedQuantity 赋值给 actualYieldInGrams，避免前端重复造轮子添加多余输入框。
+		if (isSelfMadeTask.value) {
+			item.actualYieldInGrams = data.completedQuantity!;
+		}
 
 		if (data.completedQuantity! < data.plannedQuantity) {
 			item.spoilageDetails = Object.entries(data.spoilageDetails)

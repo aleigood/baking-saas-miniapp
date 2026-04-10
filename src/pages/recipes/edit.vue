@@ -929,8 +929,8 @@ onLoad(async (options) => {
 				if (parsedForm.type !== 'MAIN') {
 					const allRecipes = [...dataStore.recipes.preDoughs, ...dataStore.recipes.extras];
 					const family = allRecipes.find((f) => f.name === parsedForm.name);
-					if (family && (family as any).shelfLife) {
-						shelfLifeVal = (family as any).shelfLife;
+					if (family && family.shelfLife) {
+						shelfLifeVal = family.shelfLife;
 					}
 				}
 

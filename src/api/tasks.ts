@@ -136,6 +136,7 @@ interface CompletedTaskItem {
 	productId: string;
 	completedQuantity: number;
 	spoilageDetails?: SpoilageDetail[];
+	actualYieldInGrams?: number;
 }
 
 /**

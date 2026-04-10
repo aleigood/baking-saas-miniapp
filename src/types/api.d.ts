@@ -140,6 +140,7 @@ export interface RecipeFamily {
 	productCount?: number;
 	ingredientCount?: number;
 	usageCount?: number;
+	shelfLife?: number;
 }
 
 export interface RecipesListResponse {
@@ -315,7 +316,7 @@ export interface CalculatedExtraIngredientInfo {
 	cost: number;
 	weightInGrams: number;
 	ratio?: number;
-	isRecipe: boolean; 
+	isRecipe: boolean;
 	ingredients?: CalculatedExtraIngredientInfo[]; // [核心新增] 递归展示子原料
 }
 export interface RecipeDetails {
