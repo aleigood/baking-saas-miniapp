@@ -634,6 +634,11 @@ const productsWithSpoilage = computed(() => {
 });
 
 const hasSpoilage = computed(() => {
+	// [解释决策和约束] 自制原料任务产出的差值通常是因为水分蒸发等正常的物理损耗。
+	// 这部分损耗不属于车间生产工艺异常，因此不需要进入第二步让工人填报具体环节的报损。
+	if (isSelfMadeTask.value) {
+		return false;
+	}
 	return Object.values(completionForm).some((item) => item.completedQuantity !== null && item.completedQuantity < item.plannedQuantity);
 });
 
@@ -1038,7 +1043,7 @@ const componentMixInSummary = computed(() => {
 	padding: 0 10px;
 	text-align: center;
 	font-size: 15px;
-	width: 95px;
+	width: 115px;
 	box-sizing: border-box;
 	border: 1px solid var(--border-color);
 	height: 36px;
