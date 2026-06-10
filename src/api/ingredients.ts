@@ -5,7 +5,7 @@
 import { request } from '@/utils/request';
 // [核心修改] 导入新的分页响应类型
 // [修改] 导入 UpdateSkuDto
-import type { Ingredient, IngredientLedgerResponse, IngredientsListResponse, UpdateSkuDto } from '@/types/api';
+import type { Ingredient, IngredientConsumptionLedgerResponse, IngredientsListResponse, UpdateSkuDto } from '@/types/api';
 
 /**
  * 获取当前店铺的原料列表
@@ -27,25 +27,12 @@ export function getIngredient(ingredientId: string): Promise<Ingredient> {
 	});
 }
 
-/**
- * [核心改造] 获取原料的库存流水（支持高级筛选和分页）
- * @param ingredientId 原料的ID
- * @param params 包含分页和筛选条件的对象
- */
-export function getIngredientLedger(
+export function getIngredientConsumptionLedger(
 	ingredientId: string,
-	params: {
-		page: number;
-		limit: number;
-		type?: string;
-		userId?: string;
-		startDate?: string;
-		endDate?: string;
-		keyword?: string;
-	}
-): Promise<IngredientLedgerResponse> {
-	return request<IngredientLedgerResponse>({
-		url: `/ingredients/${ingredientId}/ledger`,
+	params: { page?: number; limit?: number; startDate?: string; endDate?: string; keyword?: string } = {}
+): Promise<IngredientConsumptionLedgerResponse> {
+	return request<IngredientConsumptionLedgerResponse>({
+		url: `/ingredients/${ingredientId}/consumption-ledger`,
 		data: params
 	});
 }
@@ -54,7 +41,7 @@ export function getIngredientLedger(
  * [新增] 创建一个新的原料品类
  * @param data 包含原料名称等信息
  */
-export function createIngredient(data: { name: string; type: 'STANDARD' | 'UNTRACKED'; isFlour: boolean; waterContent: number }): Promise<{ id: string }> {
+export function createIngredient(data: { name: string; type: 'STANDARD' | 'NON_INVENTORIED' | 'UNTRACKED'; isFlour: boolean; waterContent: number }): Promise<{ id: string }> {
 	return request({
 		url: '/ingredients',
 		method: 'POST',
@@ -67,22 +54,9 @@ export function createIngredient(data: { name: string; type: 'STANDARD' | 'UNTRA
  * @param ingredientId 原料的ID
  * @param data 要更新的数据
  */
-export function updateIngredient(ingredientId: string, data: { name?: string; type?: 'STANDARD' | 'UNTRACKED'; isFlour?: boolean; waterContent?: number }): Promise<Ingredient> {
+export function updateIngredient(ingredientId: string, data: { name?: string; type?: 'STANDARD' | 'NON_INVENTORIED' | 'UNTRACKED' | 'SELF_MADE'; isFlour?: boolean; waterContent?: number; shelfLife?: number }): Promise<Ingredient> {
 	return request<Ingredient>({
 		url: `/ingredients/${ingredientId}`,
-		method: 'PATCH',
-		data
-	});
-}
-
-/**
- * [核心修改] 调整原料的库存 (原子操作)
- * @param ingredientId 原料的ID
- * @param data 包含库存变化量和原因的对象
- */
-export function adjustStock(ingredientId: string, data: { changeInGrams: number; reason?: string; initialCostPerKg?: number }): Promise<Ingredient> {
-	return request<Ingredient>({
-		url: `/ingredients/${ingredientId}/stock`,
 		method: 'PATCH',
 		data
 	});
@@ -137,38 +111,25 @@ export function deleteSku(skuId: string): Promise<any> {
 }
 
 /**
- * [新增] 创建一条采购记录
- * @param data 包含SKU ID、采购数量和价格
+ * 创建一条价格记录
+ * @param data 包含SKU ID、数量和价格
  */
-// [核心修改] 修正 createProcurement 函数，确保 skuId 在 URL 中，并使 purchaseDate 成为必需字段
-export function createProcurement(data: { skuId: string; packagesPurchased: number; pricePerPackage: number }): Promise<any> {
+export function createPriceRecord(data: { skuId: string; packageCount: number; pricePerPackage: number }): Promise<any> {
 	return request({
-		url: `/ingredients/skus/${data.skuId}/procurements`,
+		url: `/ingredients/skus/${data.skuId}/price-records`,
 		method: 'POST',
 		data: data
 	});
 }
 
 /**
- * [核心新增] 删除一条采购记录
- * @param procurementId 采购记录的ID
- */
-export function deleteProcurement(procurementId: string): Promise<any> {
-	return request({
-		url: `/ingredients/procurements/${procurementId}`,
-		method: 'DELETE'
-	});
-}
-
-/**
- * [新增] 更新一条采购记录
- * @param procurementId 采购记录的ID
+ * 更新一条价格记录
+ * @param priceRecordId 价格记录的ID
  * @param data 包含新价格的对象
  */
-// 修改：根据业务需求，只允许更新 pricePerPackage
-export function updateProcurement(procurementId: string, data: { pricePerPackage: number }): Promise<any> {
+export function updatePriceRecord(priceRecordId: string, data: { pricePerPackage: number }): Promise<any> {
 	return request({
-		url: `/ingredients/procurements/${procurementId}`,
+		url: `/ingredients/price-records/${priceRecordId}`,
 		method: 'PATCH',
 		data
 	});

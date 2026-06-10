@@ -57,8 +57,7 @@
 									<view class="desc">{{ getRecipeIngredientCount(ing) }} 种原料</view>
 								</view>
 								<view class="side-info">
-									<view class="value">{{ formatWeight(ing.currentStockInGrams) }}</view>
-									<view class="desc" :class="getExpiryClass(ing)" v-if="ing.currentStockInGrams > 0">{{ getExpiryText(ing) }}</view>
+									<view class="value">{{ getSelfMadeProductionCount(ing) }} 次</view>
 								</view>
 							</template>
 
@@ -72,11 +71,8 @@
 								</view>
 								<view class="side-info">
 									<view class="value">
-										<template v-if="ing.type === 'STANDARD' || ing.type === 'NON_INVENTORIED'">{{ formatWeight(ing.currentStockInGrams) }}</template>
-										<template v-else>∞</template>
-									</view>
-									<view v-if="ing.totalConsumptionInGrams > 0 && ing.type !== 'UNTRACKED'" class="desc consumption">
-										已消耗: {{ formatWeight(ing.totalConsumptionInGrams) }}
+										<template v-if="ing.type === 'STANDARD' || ing.type === 'NON_INVENTORIED'">{{ getIngredientUnitPriceLabel(ing) }}</template>
+										<template v-else>不计成本</template>
 									</view>
 								</view>
 							</template>
@@ -178,7 +174,7 @@ import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
 import FormItem from '@/components/FormItem.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
-import { formatWeight, formatDuration } from '@/utils/format';
+import { formatMoney, multiply } from '@/utils/format';
 import EmptyState from '@/components/EmptyState.vue';
 
 // 修改：引入新的组件
@@ -201,8 +197,7 @@ const showFilterSelector = ref(false);
 
 const filterOptions = [
 	{ key: 'standard', label: '标准' },
-	{ key: 'self_made', label: '自制' },
-	{ key: 'all', label: '全部' }
+	{ key: 'self_made', label: '自制' }
 ];
 
 const isSubmitting = ref(false);
@@ -223,7 +218,10 @@ const triggerListAnimation = ref(false);
 const isFirstLoad = ref(true);
 
 const filterKeyword = ref('');
-const sortMode = ref<'name_asc' | 'stock_desc' | 'stock_asc'>('name_asc');
+type SortMode = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'production_asc' | 'production_desc';
+const sortMode = ref<SortMode>('name_asc');
+const standardSortModes: SortMode[] = ['name_asc', 'name_desc', 'price_asc', 'price_desc'];
+const selfMadeSortModes: SortMode[] = ['name_asc', 'name_desc', 'production_asc', 'production_desc'];
 
 const newIngredientForm = reactive<{
 	name: string;
@@ -238,26 +236,18 @@ const newIngredientForm = reactive<{
 });
 
 const availableTypes = ref([
-	{ label: '标准原料 (追踪库存和成本)', value: 'STANDARD' },
-	{ label: '即时采购 (仅追踪成本)', value: 'NON_INVENTORIED' },
-	{ label: '非追踪原料 (水/冰等)', value: 'UNTRACKED' }
+	{ label: '计入成本原料', value: 'STANDARD' },
+	{ label: '即时采购原料', value: 'NON_INVENTORIED' },
+	{ label: '不计成本原料 (水/冰等)', value: 'UNTRACKED' }
 ]);
 
-const fabActions = computed(() => {
-	const actions = [
-		{
-			icon: '/static/icons/add.svg',
-			text: '新增原料',
-			action: () => openCreateIngredientModal()
-		},
-		{
-			icon: '/static/icons/log.svg',
-			text: '库存流水',
-			action: () => navigateToLedger()
-		}
-	];
-	return actions;
-});
+const fabActions = computed(() => [
+	{
+		icon: '/static/icons/add.svg',
+		text: '新增原料',
+		action: () => openCreateIngredientModal()
+	}
+]);
 
 const handleTouchStart = (event: any, key: string) => {
 	if (!ripples[key]) ripples[key] = [];
@@ -294,6 +284,7 @@ const handleTouchStart = (event: any, key: string) => {
 const handleFilterSelect = (key: string) => {
 	activeFilter.value = key;
 	showFilterSelector.value = false;
+	sortMode.value = 'name_asc';
 	triggerListAnimationWithKeyUpdate(true);
 };
 
@@ -303,56 +294,53 @@ const currentFilterLabel = computed(() => {
 });
 
 const toggleSort = () => {
-	if (sortMode.value === 'name_asc') {
-		sortMode.value = 'stock_desc';
-	} else if (sortMode.value === 'stock_desc') {
-		sortMode.value = 'stock_asc';
-	} else {
-		sortMode.value = 'name_asc';
-	}
+	const modes = activeFilter.value === 'self_made' ? selfMadeSortModes : standardSortModes;
+	const currentIndex = modes.indexOf(sortMode.value);
+	sortMode.value = modes[(currentIndex + 1) % modes.length];
 	triggerListAnimationWithKeyUpdate(true);
 };
 
 const currentSortLabel = computed(() => {
-	switch (sortMode.value) {
-		case 'stock_desc':
-			return '库存↓';
-		case 'stock_asc':
-			return '库存↑';
-		default:
-			return '名称';
-	}
+	const labels: Record<SortMode, string> = {
+		name_asc: '名称',
+		name_desc: '名称',
+		price_asc: '价格',
+		price_desc: '价格',
+		production_asc: '制作',
+		production_desc: '制作'
+	};
+	return labels[sortMode.value];
 });
 
-const getRecipeIngredientCount = (ing: Ingredient) => {
+const currentSortDirection = computed(() => (sortMode.value.endsWith('_asc') ? 'up' : 'down'));
+
+const getSelfMadeRecipeFamily = (ing: Ingredient) => {
 	const allRecipes = [...dataStore.recipes.preDoughs, ...dataStore.recipes.extras];
-	const family = allRecipes.find((r) => r.id === ing.recipeFamilyId) || allRecipes.find((r) => r.name === ing.name);
+	return allRecipes.find((r) => r.id === ing.recipeFamilyId) || allRecipes.find((r) => r.name === ing.name);
+};
+
+const getRecipeIngredientCount = (ing: Ingredient) => {
+	const family = getSelfMadeRecipeFamily(ing);
 	return family?.ingredientCount || 0;
 };
 
-const getExpiryText = (ing: Ingredient) => {
-	if (ing.currentStockInGrams <= 0) return '无库存';
-	if (!ing.shelfLife || ing.shelfLife <= 0) return '长期有效';
-
-	const productionTime = new Date(ing.updatedAt).getTime();
-	const expiryTime = productionTime + ing.shelfLife * 3600 * 1000;
-	const diff = expiryTime - Date.now();
-
-	if (diff <= 0) return '已过期';
-	return `有效期: ${formatDuration(diff)}`;
+const getSelfMadeProductionCount = (ing: Ingredient) => {
+	const family = getSelfMadeRecipeFamily(ing);
+	return family?.productionTaskCount || 0;
 };
 
-const getExpiryClass = (ing: Ingredient) => {
-	if (ing.currentStockInGrams <= 0) return '';
-	if (!ing.shelfLife || ing.shelfLife <= 0) return 'stock-safe';
+const getIngredientUnitPrice = (ing: Ingredient) => {
+	if (!ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
+		return 0;
+	}
 
-	const productionTime = new Date(ing.updatedAt).getTime();
-	const expiryTime = productionTime + ing.shelfLife * 3600 * 1000;
-	const diff = expiryTime - Date.now();
+	const pricePerGram = Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams;
+	return multiply(pricePerGram, 1000);
+};
 
-	if (diff <= 0) return 'stock-danger';
-	if (diff < 24 * 3600 * 1000) return 'stock-warning';
-	return 'stock-safe';
+const getIngredientUnitPriceLabel = (ing: Ingredient) => {
+	const price = getIngredientUnitPrice(ing);
+	return price > 0 ? `¥${formatMoney(price)}/kg` : '¥0.00';
 };
 
 const filteredIngredients = computed(() => {
@@ -374,15 +362,29 @@ const filteredIngredients = computed(() => {
 	}
 
 	return list.sort((a, b) => {
-		if (sortMode.value === 'name_asc') {
-			return a.name.localeCompare(b.name, 'zh-Hans-CN');
-		} else if (sortMode.value === 'stock_desc') {
-			return b.currentStockInGrams - a.currentStockInGrams;
-		} else if (sortMode.value === 'stock_asc') {
-			return a.currentStockInGrams - b.currentStockInGrams;
+		switch (sortMode.value) {
+			case 'name_desc':
+				return b.name.localeCompare(a.name, 'zh-Hans-CN');
+			case 'price_asc':
+				return getIngredientUnitPrice(a) - getIngredientUnitPrice(b);
+			case 'price_desc':
+				return getIngredientUnitPrice(b) - getIngredientUnitPrice(a);
+			case 'production_asc':
+				return getSelfMadeProductionCount(a) - getSelfMadeProductionCount(b);
+			case 'production_desc':
+				return getSelfMadeProductionCount(b) - getSelfMadeProductionCount(a);
+			case 'name_asc':
+			default:
+				return a.name.localeCompare(b.name, 'zh-Hans-CN');
 		}
-		return 0;
 	});
+});
+
+watch(activeFilter, () => {
+	const modes = activeFilter.value === 'self_made' ? selfMadeSortModes : standardSortModes;
+	if (!modes.includes(sortMode.value)) {
+		sortMode.value = 'name_asc';
+	}
 });
 
 const currentTypeLabel = computed(() => {
@@ -510,14 +512,6 @@ const navigateToDetail = (ingredientId: string) => {
 	});
 };
 
-const navigateToLedger = () => {
-	if (isNavigating.value) return;
-	isNavigating.value = true;
-	uni.navigateTo({
-		url: '/pages/ingredients/ledger'
-	});
-};
-
 const openIngredientActions = (ingredient: Ingredient) => {
 	if (!canEdit.value) return;
 	selectedIngredient.value = ingredient;
@@ -576,7 +570,7 @@ const handleCreateIngredient = async () => {
 			isFlour: newIngredientForm.isFlour,
 			waterContent: (Number(newIngredientForm.waterContent) || 0) / 100
 		});
-		toastStore.show({ message: '创建成功，请继续添加SKU和采购', type: 'success', duration: 3000 });
+		toastStore.show({ message: '创建成功，请继续添加规格和价格', type: 'success', duration: 3000 });
 		showCreateIngredientModal.value = false;
 		dataStore.markIngredientsAsStale();
 		await dataStore.fetchIngredientsData();
@@ -706,20 +700,6 @@ const handleCreateIngredient = async () => {
 
 .side-info .consumption {
 	margin-top: 2px;
-}
-
-.stock-safe {
-	color: var(--text-secondary);
-}
-
-.stock-warning {
-	color: #d97706;
-	font-weight: 500;
-}
-
-.stock-danger {
-	color: var(--danger-color);
-	font-weight: 500;
 }
 
 .form-row {

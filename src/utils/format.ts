@@ -196,7 +196,7 @@ export function formatWeight(grams: number | null | undefined): string {
 }
 
 /**
- * 新增：格式化日期时间函数，用于采购记录列表
+ * 格式化日期时间函数，用于价格记录列表
  * @param date - 日期对象或字符串
  * @param format - 格式，默认为 'YYYY-MM-DD HH:mm'
  * @returns 格式化后的日期字符串

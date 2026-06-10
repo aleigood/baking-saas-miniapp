@@ -4,7 +4,6 @@ import { useSystemStore } from '@/store/system';
 
 export default defineComponent({
 	onLaunch: async function () {
-		console.log('App Launch');
 		const systemStore = useSystemStore();
 		systemStore.initSystemInfo();
 

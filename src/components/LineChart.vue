@@ -11,7 +11,7 @@ import { ref, onMounted, watch, nextTick, getCurrentInstance } from 'vue';
 
 const props = defineProps({
 	chartData: {
-		type: Array as () => { cost: number }[],
+		type: Array as () => { cost: number; label?: string }[],
 		default: () => []
 	},
 	unitPrefix: {
@@ -88,7 +88,7 @@ const drawChart = () => {
 
 	ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-	const padding = { top: 30, right: 20, bottom: 20, left: 20 };
+	const padding = { top: 30, right: 20, bottom: 34, left: 20 };
 	const data = props.chartData.map((d) => d.cost);
 	const yMin = Math.min(...data);
 	const yMax = Math.max(...data);
@@ -125,7 +125,41 @@ const drawChart = () => {
 		ctx!.fillText(text, p.x, p.y - 10);
 	});
 
+	drawXAxisLabels(padding);
+
 	// [核心修改] 新版 API 无需 draw()
+};
+
+const drawXAxisLabels = (padding: { top: number; right: number; bottom: number; left: number }) => {
+	if (!ctx || props.chartData.length <= 1) return;
+
+	const firstLabel = props.chartData[0]?.label;
+	const lastLabel = props.chartData[props.chartData.length - 1]?.label;
+	if (!firstLabel && !lastLabel) return;
+
+	const y = canvasHeight - 10;
+	ctx.font = '11px sans-serif';
+	ctx.fillStyle = '#a98467';
+	ctx.textBaseline = 'middle';
+
+	if (firstLabel) {
+		ctx.textAlign = 'left';
+		ctx.fillText(formatAxisLabel(firstLabel), padding.left, y);
+	}
+
+	if (lastLabel) {
+		ctx.textAlign = 'right';
+		ctx.fillText(formatAxisLabel(lastLabel), canvasWidth - padding.right, y);
+	}
+};
+
+const formatAxisLabel = (value: string) => {
+	if (/^\d{4}-\d{2}$/.test(value)) {
+		return value.slice(5);
+	}
+	const date = new Date(value);
+	if (isNaN(date.getTime())) return value;
+	return `${date.getMonth() + 1}/${date.getDate()}`;
 };
 
 const drawSpline = (points: { x: number; y: number }[], isFill: boolean, padding: { top: number; right: number; bottom: number; left: number }) => {

@@ -25,14 +25,12 @@
 									<view class="table-header">
 										<text class="col-ingredient">原料</text>
 										<text class="col-brand">品牌</text>
-										<text class="col-stock">库存</text>
 										<text class="col-usage">需求量</text>
 									</view>
 									<view v-for="item in billOfMaterials.standardItems" :key="item.ingredientId" class="table-row">
 										<text class="col-ingredient">{{ item.ingredientName }}</text>
 										<text class="col-brand">{{ item.brand || '-' }}</text>
-										<text class="col-stock">{{ formatWeight(item.currentStock) }}</text>
-										<text class="col-usage" :class="{ highlight: item.currentStock < item.totalRequired }">{{ formatWeight(item.totalRequired) }}</text>
+										<text class="col-usage highlight">{{ formatWeight(item.totalRequired) }}</text>
 									</view>
 								</view>
 							</view>
@@ -60,7 +58,7 @@
 							</view>
 						</view>
 					</template>
-					<EmptyState v-else icon="/static/icons/empty-box.svg" title="无需采购" subtitle="选中任务下无需采购任何原料" />
+					<EmptyState v-else icon="/static/icons/empty-box.svg" title="暂无原料需求" subtitle="选中任务下暂无需要准备的原料" />
 				</view>
 
 				<view v-if="activeTab !== 'BILL_OF_MATERIALS'">
@@ -108,49 +106,17 @@
 								</view>
 
 								<view class="total-weight-summary">
-									<template v-if="item.stockWeight && item.stockWeight > 0">
-										<view class="summary-item">
-											<text class="summary-label">需求总量</text>
-											<text class="summary-value">
-												{{ formatWeight((item.targetWeight != null ? item.targetWeight : item.totalWeight) + item.stockWeight) }}
-											</text>
-										</view>
+									<view class="summary-item">
+										<text class="summary-label">预计投料</text>
+										<text class="summary-value text-secondary">{{ formatWeight(item.totalWeight) }}</text>
+									</view>
 
-										<view class="summary-divider"></view>
+									<view class="summary-divider"></view>
 
-										<view class="summary-item">
-											<text class="summary-label">库存抵扣</text>
-											<text class="summary-value">{{ formatWeight(item.stockWeight) }}</text>
-										</view>
-
-										<view class="summary-divider"></view>
-
-										<view class="summary-item">
-											<text class="summary-label">预计投料</text>
-											<text class="summary-value text-secondary">{{ formatWeight(item.totalWeight) }}</text>
-										</view>
-
-										<view class="summary-divider"></view>
-
-										<view class="summary-item">
-											<text class="summary-label">目标产出</text>
-											<text class="summary-value highlight-value">{{ formatWeight(item.targetWeight != null ? item.targetWeight : item.totalWeight) }}</text>
-										</view>
-									</template>
-
-									<template v-else>
-										<view class="summary-item">
-											<text class="summary-label">预计投料</text>
-											<text class="summary-value text-secondary">{{ formatWeight(item.totalWeight) }}</text>
-										</view>
-
-										<view class="summary-divider"></view>
-
-										<view class="summary-item">
-											<text class="summary-label">目标产出</text>
-											<text class="summary-value highlight-value">{{ formatWeight(item.targetWeight != null ? item.targetWeight : item.totalWeight) }}</text>
-										</view>
-									</template>
+									<view class="summary-item">
+										<text class="summary-label">目标产出</text>
+										<text class="summary-value highlight-value">{{ formatWeight(item.targetWeight != null ? item.targetWeight : item.totalWeight) }}</text>
+									</view>
 								</view>
 
 								<view v-if="item.procedure && item.procedure.length > 0" class="procedure-notes">
@@ -160,7 +126,7 @@
 							</view>
 						</view>
 					</view>
-					<EmptyState v-else icon="/static/icons/empty-list.svg" title="暂无备料" subtitle="该分类下暂无备料，或库存充足无需制作" />
+					<EmptyState v-else icon="/static/icons/empty-list.svg" title="暂无备料" subtitle="该分类下暂无备料" />
 				</view>
 			</view>
 
@@ -316,14 +282,12 @@ const handlePrintPrepTask = () => {
 		success: function (res) {
 			if (res.statusCode === 200) {
 				const filePath = res.tempFilePath;
-				uni.openDocument({
-					filePath: filePath,
-					fileType: 'pdf',
-					showMenu: true,
-					success: function () {
-						console.log('打开文档成功');
-					},
-					fail: function (err) {
+					uni.openDocument({
+						filePath: filePath,
+						fileType: 'pdf',
+						showMenu: true,
+						success: function () {},
+						fail: function (err) {
 						toastStore.show({ message: '无法预览文件', type: 'error' });
 					}
 				});
@@ -567,8 +531,7 @@ onLoad(async (options) => {
 			const day = todayForCache.getDate().toString().padStart(2, '0');
 			const yesterdayStr = `${year}-${month}-${day}`;
 			dataStore.clearPrepTaskProgress(yesterdayStr);
-		} catch (e) {
-			console.warn('Failed to clear yesterday prep task progress', e);
+		} catch {
 		}
 
 		try {

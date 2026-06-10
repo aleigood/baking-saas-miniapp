@@ -12,8 +12,6 @@ export interface BillOfMaterialsItem {
 	ingredientName: string;
 	brand?: string | null;
 	totalRequired: number; // 总需求量 (g)
-	currentStock?: number; // 当前库存 (g)，仅标准原料有
-	suggestedPurchase: number; // 建议采购量 (g)
 }
 
 export interface BillOfMaterialsResponseDto {
@@ -37,7 +35,6 @@ export interface CalculatedRecipeDetails {
 	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	totalWeight: number;
 	targetWeight?: number;
-	stockWeight?: number;
 	procedure: string[];
 	ingredients: CalculatedRecipeIngredient[];
 }
@@ -227,8 +224,6 @@ export interface DisplayIngredient {
 	category?: RecipeCategory;
 	isFlour: boolean;
 	waterContent: number;
-	currentStockInGrams: number;
-	currentStockValue: number;
 	activeSkuId: string | null;
 	createdAt: Date;
 	updatedAt: Date;
@@ -329,7 +324,7 @@ export interface RecipeDetails {
 	productProcedure: string[];
 }
 
-// --- 原料与库存 ---
+// --- 原料 ---
 export interface Ingredient {
 	id: string;
 	name: string;
@@ -338,13 +333,9 @@ export interface Ingredient {
 	waterContent: number;
 	activeSku: IngredientSKU | null;
 	skus: IngredientSKU[];
-	currentStockInGrams: number;
 	currentPricePerPackage: number;
-	// [核心修改] 移除已废弃的字段
-	// avgConsumptionPerTask: number;
-	// daysOfSupply: number;
-	// avgDailyConsumption: number;
 	totalConsumptionInGrams: number;
+	monthlyConsumptionInGrams?: number;
 
 	// 自制原料相关字段
 	shelfLife: number;
@@ -364,8 +355,31 @@ export interface Ingredient {
 
 export interface IngredientsListResponse {
 	allIngredients: Ingredient[];
-	// [核心修改] 移除已废弃的字段
-	// lowStockIngredients: Ingredient[];
+}
+
+export interface IngredientConsumptionLedgerEntry {
+	id: string;
+	date: string;
+	taskId: string;
+	taskProducts: {
+		name: string;
+		quantity: number;
+	}[];
+	quantityInGrams: number;
+	sku: {
+		brand: string | null;
+		specName: string;
+	} | null;
+}
+
+export interface IngredientConsumptionLedgerResponse {
+	data: IngredientConsumptionLedgerEntry[];
+	meta: {
+		total: number;
+		page: number;
+		limit: number;
+		hasMore: boolean;
+	};
 }
 
 export interface IngredientSKU {
@@ -374,15 +388,15 @@ export interface IngredientSKU {
 	specName: string;
 	specWeightInGrams: number;
 	status: 'ACTIVE' | 'INACTIVE';
-	procurementRecords?: ProcurementRecord[];
+	priceRecords?: PriceRecord[];
 	createdAt: string;
 }
 
-export interface ProcurementRecord {
+export interface PriceRecord {
 	id: string;
-	packagesPurchased: number;
+	packageCount: number;
 	pricePerPackage: number;
-	purchaseDate: string;
+	recordedAt: string;
 }
 
 // [核心新增] 定义 SKU 更新的数据类型
@@ -390,24 +404,6 @@ export interface UpdateSkuDto {
 	brand?: string;
 	specName?: string;
 	specWeightInGGrams?: number;
-}
-
-export interface IngredientLedgerEntry {
-	date: string;
-	type: '采购入库' | '生产消耗' | '库存调整' | '生产损耗' | '生产入库'; // [核心新增] 增加 '生产入库'
-	change: number; // 单位: 克
-	details: string;
-	operator: string;
-}
-
-export interface IngredientLedgerResponse {
-	data: IngredientLedgerEntry[];
-	meta: {
-		total: number;
-		page: number;
-		limit: number;
-		hasMore: boolean;
-	};
 }
 
 // --- 生产任务 ---
@@ -444,7 +440,6 @@ export interface ProductionTaskDto {
 			};
 		};
 	}[];
-	stockWarning?: string;
 }
 
 export interface CreateTaskResponse {
@@ -554,7 +549,6 @@ export interface ProductionTaskDetailDto {
 	id: string;
 	status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 	notes: string | null;
-	stockWarning: string | null;
 	// [G-Code-Note] [需求修改] 移除 prepTask 字段
 	// prepTask: PrepTask | null;
 	componentGroups: ComponentGroup[];

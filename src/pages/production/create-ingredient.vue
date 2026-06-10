@@ -72,17 +72,24 @@
 								<input class="input-field weight-input" type="number" :value="ing.weightDisplay" @input="onIngredientWeightInput(index, $event)" placeholder="0" />
 							</view>
 
+							<view class="ingredient-item target-weight-row">
+								<view class="ingredient-info">
+									<text class="ingredient-name total-label">目标产出量</text>
+								</view>
+								<input
+									class="input-field weight-input total-input-small"
+									type="digit"
+									:value="activeRecipeState.targetDisplay"
+									@input="onTargetWeightInput"
+									placeholder="0"
+								/>
+							</view>
+
 							<view class="ingredient-item total-weight-row">
 								<view class="ingredient-info">
 									<text class="ingredient-name total-label">总投入量</text>
 								</view>
-								<input
-									class="input-field weight-input total-input-small"
-									type="number"
-									:value="activeRecipeState.totalDisplay"
-									@input="onTotalWeightInput"
-									placeholder="0"
-								/>
+								<view class="readonly-weight-value">{{ activeRecipeState.totalDisplay || '0' }}</view>
 							</view>
 						</view>
 					</view>
@@ -162,6 +169,8 @@ interface RecipeState {
 	recipeFamilyId: string;
 	totalWeight: number | null;
 	totalDisplay: string;
+	targetWeight: number | null;
+	targetDisplay: string;
 	ingredients: CalculationItem[];
 	detailsLoaded: boolean;
 	lossRatio: number;
@@ -203,6 +212,8 @@ const initRecipeStates = () => {
 				recipeFamilyId: family.id,
 				totalWeight: null,
 				totalDisplay: '',
+				targetWeight: null,
+				targetDisplay: '',
 				ingredients: [],
 				detailsLoaded: false,
 				lossRatio: 0,
@@ -276,6 +287,8 @@ const clearRecipe = (recipeName: string) => {
 	if (state) {
 		state.totalWeight = null;
 		state.totalDisplay = '';
+		state.targetWeight = null;
+		state.targetDisplay = '';
 		state.ingredients.forEach((item) => {
 			item.weight = null;
 			item.weightDisplay = '';
@@ -287,30 +300,73 @@ const getTotalRatio = (ingredients: CalculationItem[]) => {
 	return ingredients.reduce((sum, item) => sum + item.ratio, 0);
 };
 
-const onTotalWeightInput = (e: any) => {
-	if (!activeRecipeState.value) return;
-	const state = activeRecipeState.value;
-	const val = e.detail.value;
+const formatWeightInputValue = (value: number) => {
+	return value > 0 ? parseFloat(value.toFixed(2)).toString() : '';
+};
 
-	state.totalDisplay = val;
-	const num = parseFloat(val);
+const getOutputDenominator = (state: RecipeState) => {
+	const baseWeight = state.baseDoughWeight || 1;
+	const divLoss = state.divisionLoss || 0;
+	return baseWeight + divLoss > 0 ? baseWeight + divLoss : 1;
+};
 
-	if (!isNaN(num) && num >= 0) {
-		state.totalWeight = num;
+const calculateTotalFromTarget = (state: RecipeState, targetWeight: number) => {
+	const divisor = 1 - (state.lossRatio || 0);
+	if (divisor <= 0) return null;
+	return (targetWeight * getOutputDenominator(state)) / divisor;
+};
+
+const calculateTargetFromTotal = (state: RecipeState, totalWeight: number) => {
+	const targetWeight = (totalWeight * (1 - (state.lossRatio || 0))) / getOutputDenominator(state);
+	return targetWeight >= 0 ? targetWeight : null;
+};
+
+const applyTotalWeight = (state: RecipeState, totalWeight: number | null, options: { updateTarget?: boolean } = {}) => {
+	if (totalWeight !== null && totalWeight >= 0) {
+		state.totalWeight = totalWeight;
+		state.totalDisplay = formatWeightInputValue(totalWeight);
 		const totalRatio = getTotalRatio(state.ingredients);
 		if (totalRatio > 0) {
 			state.ingredients.forEach((item) => {
-				const weight = (num * item.ratio) / totalRatio;
+				const weight = (totalWeight * item.ratio) / totalRatio;
 				item.weight = weight;
-				item.weightDisplay = weight > 0 ? parseFloat(weight.toFixed(2)).toString() : '';
+				item.weightDisplay = formatWeightInputValue(weight);
 			});
+		}
+
+		if (options.updateTarget) {
+			const targetWeight = calculateTargetFromTotal(state, totalWeight);
+			state.targetWeight = targetWeight;
+			state.targetDisplay = targetWeight !== null ? formatWeightInputValue(targetWeight) : '';
 		}
 	} else {
 		state.totalWeight = null;
+		state.totalDisplay = '';
+		if (options.updateTarget) {
+			state.targetWeight = null;
+			state.targetDisplay = '';
+		}
 		state.ingredients.forEach((item) => {
 			item.weight = null;
 			item.weightDisplay = '';
 		});
+	}
+};
+
+const onTargetWeightInput = (e: any) => {
+	if (!activeRecipeState.value) return;
+	const state = activeRecipeState.value;
+	const val = e.detail.value;
+
+	state.targetDisplay = val;
+	const num = parseFloat(val);
+
+	if (!isNaN(num) && num >= 0) {
+		state.targetWeight = num;
+		applyTotalWeight(state, calculateTotalFromTarget(state, num), { updateTarget: false });
+	} else {
+		state.targetWeight = null;
+		applyTotalWeight(state, null, { updateTarget: false });
 	}
 };
 
@@ -327,8 +383,7 @@ const onIngredientWeightInput = (index: number, e: any) => {
 		const totalRatio = getTotalRatio(state.ingredients);
 		const newTotal = (num / item.ratio) * totalRatio;
 
-		state.totalWeight = newTotal;
-		state.totalDisplay = parseFloat(newTotal.toFixed(2)).toString();
+		applyTotalWeight(state, newTotal, { updateTarget: true });
 
 		state.ingredients.forEach((other, idx) => {
 			if (idx === index) {
@@ -336,7 +391,7 @@ const onIngredientWeightInput = (index: number, e: any) => {
 			} else {
 				const w = (newTotal * other.ratio) / totalRatio;
 				other.weight = w;
-				other.weightDisplay = w > 0 ? parseFloat(w.toFixed(2)).toString() : '';
+				other.weightDisplay = formatWeightInputValue(w);
 			}
 		});
 	}
@@ -346,8 +401,8 @@ const summaryItems = computed(() => {
 	const items: { name: string; weight: number }[] = [];
 	Object.keys(recipeStates).forEach((key) => {
 		const state = recipeStates[key];
-		if (state.totalWeight && state.totalWeight > 0) {
-			const formattedWeight = parseFloat(state.totalWeight.toFixed(2));
+		if (state.targetWeight && state.targetWeight > 0) {
+			const formattedWeight = parseFloat(state.targetWeight.toFixed(2));
 			items.push({ name: key, weight: formattedWeight });
 		}
 	});
@@ -408,8 +463,9 @@ onLoad(async (options) => {
 
 						const calculatedTotalWeight = (item.quantity * denominator) / (1 - lossRatio);
 
-						state.totalWeight = calculatedTotalWeight;
-						state.totalDisplay = parseFloat(calculatedTotalWeight.toFixed(2)).toString();
+						state.targetWeight = Number(item.quantity);
+						state.targetDisplay = formatWeightInputValue(Number(item.quantity));
+						applyTotalWeight(state, calculatedTotalWeight, { updateTarget: false });
 
 						// 顺势计算填充该配方下各个原料的具体重量
 						const totalRatio = getTotalRatio(state.ingredients);
@@ -449,20 +505,11 @@ const handleSubmit = async () => {
 
 	// 收集所有有效任务
 	const productsToSubmit = Object.values(recipeStates)
-		.filter((state) => state.totalWeight && state.totalWeight > 0)
+		.filter((state) => state.targetWeight && state.targetWeight > 0)
 		.map((state) => {
-			// 将前端的“总投入重量”反推计算出后端的“目标产出数量”
-			const lossRatio = state.lossRatio || 0;
-			const divLoss = state.divisionLoss || 0;
-			const baseWeight = state.baseDoughWeight || 1;
-
-			// 避免除以0的安全防护
-			const denominator = baseWeight + divLoss > 0 ? baseWeight + divLoss : 1;
-			const targetQuantity = (state.totalWeight! * (1 - lossRatio)) / denominator;
-
 			return {
 				productId: state.productId,
-				quantity: Number(targetQuantity.toFixed(4)) // 提交带有精度的目标产出值
+				quantity: Number(state.targetWeight!.toFixed(4))
 			};
 		});
 
@@ -727,6 +774,19 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	color: var(--primary-color);
 }
 
+.target-weight-row,
+.total-weight-row {
+	padding: 0 5px;
+}
+
+.target-weight-row {
+	margin-top: 4px;
+}
+
+.total-weight-row {
+	margin-top: 0;
+}
+
 .tags {
 	display: flex;
 	gap: 4px;
@@ -756,5 +816,20 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	max-width: 120px;
 	flex-shrink: 0;
 	text-align: center;
+}
+
+.readonly-weight-value {
+	width: calc(50% - 6px);
+	max-width: 120px;
+	height: 36px;
+	line-height: 36px;
+	flex-shrink: 0;
+	text-align: center;
+	box-sizing: border-box;
+	border-radius: 8px;
+	border: 1px solid var(--border-color);
+	background: rgba(140, 90, 59, 0.06);
+	color: var(--text-secondary);
+	font-size: 15px;
 }
 </style>

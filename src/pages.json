@@ -67,7 +67,7 @@
 			}
 		},
 		{
-			"path": "pages/ingredients/ledger",
+			"path": "pages/ingredients/consumption-ledger",
 			"style": {
 				"navigationStyle": "custom"
 			}

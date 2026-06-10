@@ -342,6 +342,7 @@ const handleConfirmImport = async () => {
 		const result = await batchImportRecipes(selectedFile.value.path, finalTenantIds);
 		importResult.value = result;
 		dataStore.markRecipesAsStale();
+		dataStore.markProductsForTaskCreationAsStale();
 		dataStore.markIngredientsAsStale();
 	} catch (error) {
 		console.error('导入失败:', error);
@@ -433,8 +434,10 @@ const handleExport = async (tenant: Tenant) => {
 		// #endif
 
 		// #ifndef MP-WEIXIN
-		console.log(jsonString); // H5/App 等环境的降级处理
-		toastStore.show({ message: '导出成功 (内容已打印到控制台)', type: 'info' });
+		uni.setClipboardData({
+			data: jsonString,
+			success: () => toastStore.show({ message: '导出内容已复制', type: 'success' })
+		});
 		// #endif
 	} catch (error) {
 		console.error('导出失败:', error);

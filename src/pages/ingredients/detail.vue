@@ -26,8 +26,8 @@
 						</view>
 						<view class="meta-divider"></view>
 						<view class="meta-item">
-							<view class="label">当前库存</view>
-							<view class="value">{{ ingredient.type === 'STANDARD' || ingredient.type === 'SELF_MADE' ? formatWeight(ingredient.currentStockInGrams) : '-' }}</view>
+							<view class="label">本月消耗</view>
+							<view class="value">{{ formatWeight(ingredient.monthlyConsumptionInGrams || 0) }}</view>
 						</view>
 					</view>
 
@@ -46,12 +46,9 @@
 						@longpress-sku="handleSkuLongPressAction"
 						@add="openAddSkuModal"
 					/>
-					<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
+					<IngredientPriceRecordList :selected-sku="selectedSku" @longpress="handlePriceRecordLongPress" />
 				</template>
 
-				<template v-if="ingredient.type === 'SELF_MADE'">
-					<IngredientProductionList :records="productionRecords" />
-				</template>
 			</view>
 
 			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
@@ -137,7 +134,7 @@
 					</view>
 				</picker>
 			</FormItem>
-			<FormItem v-if="newSkuForm.density" label="采购体积 (mL)">
+			<FormItem v-if="newSkuForm.density" label="规格体积 (mL)">
 				<input class="input-field" type="digit" v-model="newSkuForm.volumeInML" placeholder="例如：1000" />
 			</FormItem>
 			<FormItem label="规格重量 (g)">
@@ -166,35 +163,35 @@
 			</FormItem>
 
 			<FormItem label="常用密度">
-				<picker mode="selector" :range="densityOptions.map((t) => t.label)" :disabled="hasProcurementRecords" @change="onEditSkuDensityChange">
-					<view class="picker" :class="{ 'is-disabled': hasProcurementRecords }">
+				<picker mode="selector" :range="densityOptions.map((t) => t.label)" :disabled="hasPriceRecords" @change="onEditSkuDensityChange">
+					<view class="picker" :class="{ 'is-disabled': hasPriceRecords }">
 						{{ editSkuDensityLabel }}
 						<view class="arrow-down"></view>
 					</view>
 				</picker>
 			</FormItem>
-			<FormItem v-if="editSkuForm.density" label="采购体积 (mL)">
+			<FormItem v-if="editSkuForm.density" label="规格体积 (mL)">
 				<input
 					class="input-field"
-					:class="{ 'is-disabled': hasProcurementRecords }"
+					:class="{ 'is-disabled': hasPriceRecords }"
 					type="digit"
 					v-model="editSkuForm.volumeInML"
 					placeholder="例如：1000"
-					:disabled="hasProcurementRecords"
+					:disabled="hasPriceRecords"
 				/>
 			</FormItem>
 			<FormItem label="规格重量 (g)">
 				<input
 					class="input-field"
-					:class="{ 'is-disabled': hasProcurementRecords }"
+					:class="{ 'is-disabled': hasPriceRecords }"
 					type="digit"
 					v-model="editSkuForm.specWeightInGrams"
 					:readonly="isEditSkuWeightReadOnly"
-					:disabled="hasProcurementRecords"
+					:disabled="hasPriceRecords"
 					:placeholder="isEditSkuWeightReadOnly ? '自动计算' : '例如：1000'"
 				/>
 			</FormItem>
-			<view class="modal-warning-text" v-if="hasProcurementRecords">此SKU已有采购记录，无法修改规格重量。</view>
+			<view class="modal-warning-text" v-if="hasPriceRecords">此规格已有价格记录，无法修改规格重量。</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditSkuModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleUpdateSku" :loading="isSubmitting">
@@ -203,20 +200,20 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showProcurementModal" title="新增采购">
-			<FormItem label="采购商品">
+		<AppModal v-model:visible="showPriceRecordModal" title="新增价格记录">
+			<FormItem label="商品规格">
 				<input class="input-field" :value="activeSkuName" readonly disabled />
 			</FormItem>
-			<FormItem label="采购数量">
-				<input class="input-field" type="number" v-model="procurementForm.packagesPurchased" placeholder="例如：10包" />
+			<FormItem label="数量">
+				<input class="input-field" type="number" v-model="priceRecordForm.packageCount" placeholder="例如：10包" />
 			</FormItem>
-			<FormItem label="采购总价 (元)">
-				<input class="input-field" type="digit" v-model="procurementForm.totalPrice" placeholder="例如：255" />
+			<FormItem label="总价 (元)">
+				<input class="input-field" type="digit" v-model="priceRecordForm.totalPrice" placeholder="例如：255" />
 			</FormItem>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="showProcurementModal = false">取消</AppButton>
-				<AppButton type="primary" @click="handleCreateProcurement" :loading="isSubmitting">
-					{{ isSubmitting ? '入库中...' : '确认入库' }}
+				<AppButton type="secondary" @click="showPriceRecordModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleCreatePriceRecord" :loading="isSubmitting">
+					{{ isSubmitting ? '保存中...' : '确认保存' }}
 				</AppButton>
 			</view>
 		</AppModal>
@@ -243,7 +240,7 @@
 
 		<AppModal v-model:visible="showActivateSkuConfirmModal" title="设为使用中">
 			<view class="modal-prompt-text">要将此规格设为当前使用的吗？</view>
-			<view class="modal-warning-text">后续的采购和成本计算将默认使用此规格。</view>
+			<view class="modal-warning-text">后续价格记录和成本计算将默认使用此规格。</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showActivateSkuConfirmModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleActivateFromModal" :loading="isSubmitting">
@@ -254,7 +251,7 @@
 
 		<AppModal v-model:visible="showDeleteSkuConfirmModal" title="确认删除">
 			<view class="modal-prompt-text">确定要删除这个品牌规格吗？</view>
-			<view class="modal-warning-text">存在采购记录的品牌规格无法删除，此操作不可撤销。</view>
+			<view class="modal-warning-text">存在价格记录的品牌规格无法删除，此操作不可撤销。</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showDeleteSkuConfirmModal = false">取消</AppButton>
 				<AppButton type="danger" @click="handleConfirmDeleteSku" :loading="isSubmitting">
@@ -263,59 +260,34 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showProcurementActionsModal" title="采购记录" :no-header-line="true">
+		<AppModal v-model:visible="showPriceRecordActionsModal" title="价格记录" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleEditProcurementOption" :bleed="true">
+				<ListItem class="option-item" @click="handleEditPriceRecordOption" :bleed="true">
 					<view class="main-info">
-						<view class="name">修改采购记录</view>
+						<view class="name">修改价格记录</view>
 					</view>
 				</ListItem>
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showEditProcurementModal" title="编辑采购记录">
-			<FormItem label="采购商品">
-				<input class="input-field" :value="editedProcurementSkuName" readonly disabled />
+		<AppModal v-model:visible="showEditPriceRecordModal" title="编辑价格记录">
+			<FormItem label="商品规格">
+				<input class="input-field" :value="editedPriceRecordSkuName" readonly disabled />
 			</FormItem>
-			<FormItem label="采购数量">
-				<input class="input-field" :value="`${editProcurementForm.packagesPurchased} 包`" readonly disabled />
+			<FormItem label="数量">
+				<input class="input-field" :value="`${editPriceRecordForm.packageCount} 包`" readonly disabled />
 			</FormItem>
-			<FormItem label="采购总价 (元)">
-				<input class="input-field" type="digit" v-model="editProcurementForm.totalPrice" placeholder="输入总价" />
+			<FormItem label="总价 (元)">
+				<input class="input-field" type="digit" v-model="editPriceRecordForm.totalPrice" placeholder="输入总价" />
 			</FormItem>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="showEditProcurementModal = false">取消</AppButton>
-				<AppButton type="primary" @click="handleUpdateProcurement" :loading="isSubmitting">
+				<AppButton type="secondary" @click="showEditPriceRecordModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleUpdatePriceRecord" :loading="isSubmitting">
 					{{ isSubmitting ? '保存中...' : '确认保存' }}
 				</AppButton>
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showUpdateStockConfirmModal" title="库存调整">
-			<FormItem label="库存变化量 (kg)">
-				<input class="input-field" type="digit" v-model="stockAdjustment.changeInKg" placeholder="正数代表盘盈，负数代表损耗" />
-			</FormItem>
-			<FormItem label="调整原因">
-				<picker mode="selector" :range="adjustmentReasons" @change="onReasonChange">
-					<view class="picker">
-						{{ stockAdjustment.reason || '请选择原因' }}
-						<view class="arrow-down"></view>
-					</view>
-				</picker>
-			</FormItem>
-			<FormItem v-if="stockAdjustment.reason === '其他'" label=" ">
-				<input class="input-field" v-model="stockAdjustment.customReason" placeholder="请输入具体原因" />
-			</FormItem>
-			<FormItem v-if="stockAdjustment.reason === '初次录入'" label="初期单价 (元/kg)">
-				<input class="input-field" type="digit" v-model="stockAdjustment.initialCostPerKg" placeholder="输入估算单价" />
-			</FormItem>
-			<view class="modal-actions">
-				<AppButton type="secondary" @click="showUpdateStockConfirmModal = false">取消</AppButton>
-				<AppButton type="primary" @click="handleConfirmUpdateStock" :loading="isSubmitting">
-					{{ isSubmitting ? '保存中...' : '确认调整' }}
-				</AppButton>
-			</view>
-		</AppModal>
 	</view>
 </template>
 
@@ -325,36 +297,30 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
-import type { Ingredient, IngredientSKU, ProcurementRecord, IngredientLedgerEntry } from '@/types/api';
+import type { Ingredient, IngredientSKU, PriceRecord } from '@/types/api';
 import {
 	getIngredient,
 	createSku,
-	createProcurement,
+	createPriceRecord,
 	setActiveSku,
 	updateIngredient,
 	deleteSku,
-	updateProcurement,
-	adjustStock,
-	getIngredientLedger,
+	updatePriceRecord,
 	updateSku
 } from '@/api/ingredients';
 import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
-import { getLocalDate } from '@/utils/format';
 import AppModal from '@/components/AppModal.vue';
 import FormItem from '@/components/FormItem.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import LineChart from '@/components/LineChart.vue';
 import ListItem from '@/components/ListItem.vue';
-import IconButton from '@/components/IconButton.vue';
 import AppButton from '@/components/AppButton.vue';
 import AnimatedTabs from '@/components/AnimatedTabs.vue';
 import IngredientSkuList from '@/components/IngredientSkuList.vue';
-import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
-import IngredientProductionList from '@/components/IngredientProductionList.vue';
+import IngredientPriceRecordList from '@/components/IngredientPriceRecordList.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
-import FilterTabs from '@/components/FilterTabs.vue';
-import { formatChineseDate, formatDateTime, formatNumber, formatWeight, multiply, formatMoney } from '@/utils/format';
+import { formatWeight, multiply, formatMoney } from '@/utils/format';
 // [新增] 引入骨架屏和空状态组件
 import SkeletonDetail from '@/components/SkeletonDetail.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -415,32 +381,30 @@ const editSkuForm = ref<{
 	density: null
 });
 
-const hasProcurementRecords = ref(false);
+const hasPriceRecords = ref(false);
 
-const showProcurementModal = ref(false);
-const procurementForm = ref<{
+const showPriceRecordModal = ref(false);
+const priceRecordForm = ref<{
 	skuId: string;
-	packagesPurchased: number | null;
+	packageCount: number | null;
 	totalPrice: number | null;
 }>({
 	skuId: '',
-	packagesPurchased: null,
+	packageCount: null,
 	totalPrice: null
 });
 
 const costHistory = ref<{ cost: number }[]>([]);
-const usageHistory = ref<{ cost: number }[]>([]);
-const productionRecords = ref<IngredientLedgerEntry[]>([]);
+const usageHistory = ref<{ cost: number; label?: string }[]>([]);
 const showActivateSkuConfirmModal = ref(false);
 const showSkuOptionsModal = ref(false);
 const showDeleteSkuConfirmModal = ref(false);
 const selectedSkuForAction = ref<IngredientSKU | null>(null);
 const selectedSkuId = ref<string | null>(null);
-const selectedProcurementForAction = ref<ProcurementRecord | null>(null);
+const selectedPriceRecordForAction = ref<PriceRecord | null>(null);
 
 const showEditModal = ref(false);
-const showProcurementActionsModal = ref(false);
-const showUpdateStockConfirmModal = ref(false);
+const showPriceRecordActionsModal = ref(false);
 
 const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
@@ -451,7 +415,7 @@ const newSkuDensityLabel = computed(() => {
 	return densityOptions.find((t) => t.value === newSkuForm.value.density)?.label || '手动输入重量(g)';
 });
 
-const isEditSkuWeightReadOnly = computed(() => !!editSkuForm.value.density || hasProcurementRecords.value);
+const isEditSkuWeightReadOnly = computed(() => !!editSkuForm.value.density || hasPriceRecords.value);
 const editSkuDensityLabel = computed(() => {
 	return densityOptions.find((t) => t.value === editSkuForm.value.density)?.label || '手动输入重量(g)';
 });
@@ -470,34 +434,18 @@ const ingredientForm = reactive<{
 	shelfLife: null
 });
 
-const showEditProcurementModal = ref(false);
-const editProcurementForm = reactive<{
+const showEditPriceRecordModal = ref(false);
+const editPriceRecordForm = reactive<{
 	id: string;
-	packagesPurchased: number;
+	packageCount: number;
 	pricePerPackage: number;
-	purchaseDate: string;
 	totalPrice: number | null;
 }>({
 	id: '',
-	packagesPurchased: 0,
+	packageCount: 0,
 	pricePerPackage: 0,
-	purchaseDate: '',
 	totalPrice: null
 });
-
-const stockAdjustment = reactive<{
-	changeInKg: number | null;
-	reason: string;
-	customReason: string;
-	initialCostPerKg?: number | null;
-}>({
-	changeInKg: null,
-	reason: '',
-	customReason: '',
-	initialCostPerKg: null
-});
-
-const adjustmentReasons = ['初次录入', '盘盈', '盘亏', '过期损耗', '其他'];
 
 const visibleChartTabs = computed(() => {
 	if (ingredient.value?.type === 'UNTRACKED') {
@@ -508,12 +456,13 @@ const visibleChartTabs = computed(() => {
 
 const fabActions = computed(() => {
 	if (!ingredient.value) return [];
-	const currentUserRole = userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role;
 	const actions = [];
 
 	if (ingredient.value.type === 'STANDARD' || ingredient.value.type === 'NON_INVENTORIED') {
-		actions.push({ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() });
+		actions.push({ icon: '/static/icons/add.svg', text: '记录价格', action: () => openPriceRecordModal() });
 	}
+
+	actions.push({ icon: '/static/icons/log.svg', text: '消耗流水', action: () => navigateToConsumptionLedger() });
 
 	if (ingredient.value.type === 'SELF_MADE') {
 		actions.push({ icon: '/static/icons/property.svg', text: '配方详情', action: () => navigateToRecipeDetail() });
@@ -521,14 +470,15 @@ const fabActions = computed(() => {
 		actions.push({ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() });
 	}
 
-	if ((ingredient.value.type === 'STANDARD' || ingredient.value.type === 'SELF_MADE') && (currentUserRole === 'OWNER' || currentUserRole === 'ADMIN')) {
-		actions.push({ icon: '/static/icons/adjust.svg', text: '库存调整', action: () => openUpdateStockModal() });
-	}
-
-	actions.push({ icon: '/static/icons/log.svg', text: '库存流水', action: () => navigateToLedger() });
-
 	return actions;
 });
+
+const navigateToConsumptionLedger = () => {
+	if (!ingredient.value) return;
+	uni.navigateTo({
+		url: `/pages/ingredients/consumption-ledger?ingredientId=${ingredient.value.id}&name=${encodeURIComponent(ingredient.value.name)}`
+	});
+};
 
 const navigateToRecipeDetail = () => {
 	if (!ingredient.value?.recipeFamily?.id) {
@@ -624,24 +574,11 @@ const loadIngredientData = async (id: string) => {
 		const [ingredientData, historyData, usageData] = await Promise.all([
 			getIngredient(id),
 			getIngredientCostHistory(id),
-			getIngredientUsageHistory(id).then((data) => data.map((item) => ({ cost: item.cost / 1000 })))
+			getIngredientUsageHistory(id, 'month').then((data) => data.map((item) => ({ cost: item.cost / 1000, label: item.label })))
 		]);
 		ingredient.value = ingredientData;
 		costHistory.value = historyData;
 		usageHistory.value = usageData;
-
-		if (ingredientData.type === 'SELF_MADE') {
-			try {
-				const ledgerRes = await getIngredientLedger(id, {
-					page: 1,
-					limit: 10,
-					type: '库存调整' as any
-				});
-				productionRecords.value = ledgerRes.data.filter((item) => item.type === '生产入库');
-			} catch (e) {
-				console.error('Failed to load production records:', e);
-			}
-		}
 
 		ingredientForm.name = ingredientData.name;
 		ingredientForm.type = ingredientData.type;
@@ -674,6 +611,11 @@ const loadIngredientData = async (id: string) => {
 	}
 };
 
+const loadUsageHistory = async (id: string) => {
+	const data = await getIngredientUsageHistory(id, 'month');
+	usageHistory.value = data.map((item) => ({ cost: item.cost / 1000, label: item.label }));
+};
+
 const openEditModal = () => {
 	if (ingredient.value) {
 		ingredientForm.name = ingredient.value.name;
@@ -686,9 +628,9 @@ const openEditModal = () => {
 };
 
 const availableTypes = ref([
-	{ label: '标准原料 (追踪库存和成本)', value: 'STANDARD' },
-	{ label: '即时采购 (仅追踪成本)', value: 'NON_INVENTORIED' },
-	{ label: '非追踪原料 (水/冰等)', value: 'UNTRACKED' },
+	{ label: '计入成本原料', value: 'STANDARD' },
+	{ label: '即时采购原料', value: 'NON_INVENTORIED' },
+	{ label: '不计成本原料 (水/冰等)', value: 'UNTRACKED' },
 	{ label: '自制原料 (由配方产出)', value: 'SELF_MADE' }
 ]);
 
@@ -698,16 +640,7 @@ const currentTypeLabel = computed(() => {
 
 const ingredientPricePerKg = computed(() => {
 	const ing = ingredient.value;
-	if (!ing) return '¥0.00/kg';
-
-	if (ing.type === 'STANDARD' || ing.type === 'SELF_MADE') {
-		if (ing.currentStockInGrams > 0) {
-			const pricePerGram = ing.currentStockValue / ing.currentStockInGrams;
-			const price = multiply(pricePerGram, 1000);
-			return `¥${formatMoney(price)}/kg`;
-		}
-		if (ing.type === 'SELF_MADE') return '¥0.00/kg';
-	}
+	if (!ing || ing.type === 'UNTRACKED') return '¥0.00/kg';
 
 	if (ing.activeSku && ing.currentPricePerPackage && ing.activeSku.specWeightInGrams) {
 		const pricePerGram = Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams;
@@ -786,51 +719,50 @@ const activeSkuName = computed(() => {
 	return `${sku.brand || '无品牌'} (${sku.specName})`;
 });
 
-const editedProcurementSkuName = computed(() => {
+const editedPriceRecordSkuName = computed(() => {
 	if (!selectedSku.value) return '加载中...';
 	return `${selectedSku.value.brand || '无品牌'} (${selectedSku.value.specName})`;
 });
 
-const openProcurementModal = () => {
+const openPriceRecordModal = () => {
 	if (!ingredient.value?.activeSku?.id) {
-		toastStore.show({ message: '请先激活一个SKU才能进行采购', type: 'error' });
+		toastStore.show({ message: '请先激活一个规格才能记录价格', type: 'error' });
 		return;
 	}
-	procurementForm.value = {
+	priceRecordForm.value = {
 		skuId: ingredient.value.activeSku.id,
-		packagesPurchased: null,
+		packageCount: null,
 		totalPrice: null
 	};
-	showProcurementModal.value = true;
+	showPriceRecordModal.value = true;
 };
 
-const handleCreateProcurement = async () => {
+const handleCreatePriceRecord = async () => {
 	if (
-		!procurementForm.value.skuId ||
-		!procurementForm.value.packagesPurchased ||
-		procurementForm.value.packagesPurchased <= 0 ||
-		!procurementForm.value.totalPrice ||
-		procurementForm.value.totalPrice <= 0
+		!priceRecordForm.value.skuId ||
+		!priceRecordForm.value.packageCount ||
+		priceRecordForm.value.packageCount <= 0 ||
+		!priceRecordForm.value.totalPrice ||
+		priceRecordForm.value.totalPrice <= 0
 	) {
-		toastStore.show({ message: '请填写所有有效的采购信息', type: 'error' });
+		toastStore.show({ message: '请填写有效的价格记录', type: 'error' });
 		return;
 	}
 	isSubmitting.value = true;
 	try {
-		const packagesPurchased = Number(procurementForm.value.packagesPurchased);
-		const totalPrice = Number(procurementForm.value.totalPrice);
-		const pricePerPackage = totalPrice / packagesPurchased;
+		const packageCount = Number(priceRecordForm.value.packageCount);
+		const totalPrice = Number(priceRecordForm.value.totalPrice);
+		const pricePerPackage = totalPrice / packageCount;
 
 		const payload = {
-			skuId: procurementForm.value.skuId,
-			packagesPurchased: packagesPurchased,
-			pricePerPackage: pricePerPackage,
-			purchaseDate: new Date().toISOString()
+			skuId: priceRecordForm.value.skuId,
+			packageCount,
+			pricePerPackage
 		};
 
-		await createProcurement(payload);
-		toastStore.show({ message: '入库成功', type: 'success' });
-		showProcurementModal.value = false;
+		await createPriceRecord(payload);
+		toastStore.show({ message: '价格记录成功', type: 'success' });
+		showPriceRecordModal.value = false;
 		dataStore.markIngredientsAsStale();
 		await loadIngredientData(ingredient.value!.id);
 	} finally {
@@ -860,7 +792,7 @@ const handleEditSkuOption = () => {
 	if (!selectedSkuForAction.value) return;
 
 	const skuData = ingredient.value?.skus.find((s) => s.id === selectedSkuForAction.value!.id);
-	hasProcurementRecords.value = (skuData?.procurementRecords?.length || 0) > 0;
+	hasPriceRecords.value = (skuData?.priceRecords?.length || 0) > 0;
 
 	editSkuForm.value = {
 		id: selectedSkuForAction.value.id,
@@ -948,118 +880,47 @@ const handleUpdateIngredient = async () => {
 	}
 };
 
-const handleProcurementLongPress = (record: ProcurementRecord) => {
-	selectedProcurementForAction.value = record;
-	showProcurementActionsModal.value = true;
+const handlePriceRecordLongPress = (record: PriceRecord) => {
+	selectedPriceRecordForAction.value = record;
+	showPriceRecordActionsModal.value = true;
 };
 
-const handleEditProcurementOption = () => {
-	showProcurementActionsModal.value = false;
-	if (selectedProcurementForAction.value) {
-		const record = selectedProcurementForAction.value;
-		editProcurementForm.id = record.id;
-		editProcurementForm.packagesPurchased = record.packagesPurchased;
-		editProcurementForm.totalPrice = Number(record.pricePerPackage) * record.packagesPurchased;
-		editProcurementForm.purchaseDate = getLocalDate(new Date(record.purchaseDate));
-		showEditProcurementModal.value = true;
+const handleEditPriceRecordOption = () => {
+	showPriceRecordActionsModal.value = false;
+	if (selectedPriceRecordForAction.value) {
+		const record = selectedPriceRecordForAction.value;
+		editPriceRecordForm.id = record.id;
+		editPriceRecordForm.packageCount = record.packageCount;
+		editPriceRecordForm.totalPrice = Number(record.pricePerPackage) * record.packageCount;
+		showEditPriceRecordModal.value = true;
 	}
 };
 
-const handleUpdateProcurement = async () => {
-	if (!editProcurementForm.id || !ingredient.value) return;
+const handleUpdatePriceRecord = async () => {
+	if (!editPriceRecordForm.id || !ingredient.value) return;
 	isSubmitting.value = true;
 	try {
-		const pricePerPackage = Number(editProcurementForm.totalPrice) / editProcurementForm.packagesPurchased;
+		const pricePerPackage = Number(editPriceRecordForm.totalPrice) / editPriceRecordForm.packageCount;
 		if (isNaN(pricePerPackage) || pricePerPackage <= 0) {
-			toastStore.show({ message: '请输入有效的采购总价', type: 'error' });
+			toastStore.show({ message: '请输入有效的总价', type: 'error' });
 			isSubmitting.value = false;
 			return;
 		}
 		const payload = {
 			pricePerPackage: Number(pricePerPackage.toFixed(2))
 		};
-		await updateProcurement(editProcurementForm.id, payload);
+		await updatePriceRecord(editPriceRecordForm.id, payload);
 		toastStore.show({ message: '更新成功', type: 'success' });
-		showEditProcurementModal.value = false;
+		showEditPriceRecordModal.value = false;
 		dataStore.markIngredientsAsStale();
 		await loadIngredientData(ingredient.value.id);
 	} catch (error) {
-		console.error('Failed to update procurement:', error);
+		console.error('Failed to update price record:', error);
 	} finally {
 		isSubmitting.value = false;
 	}
 };
 
-const openUpdateStockModal = () => {
-	if (ingredient.value) {
-		stockAdjustment.changeInKg = null;
-		stockAdjustment.reason = '';
-		stockAdjustment.customReason = '';
-		stockAdjustment.initialCostPerKg = null;
-		showUpdateStockConfirmModal.value = true;
-	}
-};
-
-const onReasonChange = (e: any) => {
-	const selectedIndex = e.detail.value;
-	stockAdjustment.reason = adjustmentReasons[selectedIndex];
-};
-
-const handleConfirmUpdateStock = async () => {
-	if (!ingredient.value) return;
-	if (stockAdjustment.changeInKg === 0 || stockAdjustment.changeInKg === null) {
-		toastStore.show({ message: '请输入有效的库存变化量', type: 'error' });
-		return;
-	}
-
-	let finalReason = stockAdjustment.reason;
-	if (stockAdjustment.reason === '其他') {
-		finalReason = stockAdjustment.customReason.trim();
-	}
-	if (!finalReason) {
-		toastStore.show({ message: '请选择或输入一个调整原因', type: 'error' });
-		return;
-	}
-
-	if (stockAdjustment.reason === '初次录入' && (!stockAdjustment.initialCostPerKg || stockAdjustment.initialCostPerKg <= 0)) {
-		toastStore.show({ message: '初次录入必须填写有效的单价', type: 'error' });
-		return;
-	}
-
-	isSubmitting.value = true;
-	try {
-		const changeInGrams = Number(stockAdjustment.changeInKg) * 1000;
-		const payload: {
-			changeInGrams: number;
-			reason: string;
-			initialCostPerKg?: number;
-		} = {
-			changeInGrams: changeInGrams,
-			reason: finalReason
-		};
-
-		if (stockAdjustment.reason === '初次录入') {
-			payload.initialCostPerKg = stockAdjustment.initialCostPerKg!;
-		}
-
-		await adjustStock(ingredient.value.id, payload);
-		toastStore.show({ message: '库存调整成功', type: 'success' });
-		showUpdateStockConfirmModal.value = false;
-		dataStore.markIngredientsAsStale();
-		await loadIngredientData(ingredient.value.id);
-	} catch (error) {
-		console.error('Failed to adjust stock:', error);
-	} finally {
-		isSubmitting.value = false;
-	}
-};
-
-const navigateToLedger = () => {
-	if (!ingredient.value) return;
-	uni.navigateTo({
-		url: `/pages/ingredients/ledger?ingredientId=${ingredient.value.id}`
-	});
-};
 </script>
 
 <style scoped lang="scss">

@@ -61,9 +61,8 @@ export const useDataStore = defineStore('data', () => {
 		extras: []
 	});
 	const productsForTaskCreation = ref<ProductsForTaskResponse>({});
-	const ingredients = ref<{ allIngredients: Ingredient[]; lowStockIngredients: Ingredient[] }>({
-		allIngredients: [],
-		lowStockIngredients: []
+	const ingredients = ref<{ allIngredients: Ingredient[] }>({
+		allIngredients: []
 	});
 	const members = ref<Member[]>([]);
 	const recipeStats = ref<RecipeStatDto[]>([]);
@@ -375,7 +374,7 @@ export const useDataStore = defineStore('data', () => {
 		// [核心修改] 重置 recipes 状态时，使用新的结构
 		recipes.value = { mainRecipes: [], preDoughs: [], extras: [] };
 		productsForTaskCreation.value = {};
-		ingredients.value = { allIngredients: [], lowStockIngredients: [] };
+		ingredients.value = { allIngredients: [] };
 		members.value = [];
 		recipeStats.value = [];
 		ingredientStats.value = [];

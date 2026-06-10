@@ -3,14 +3,8 @@
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader title="任务详情" />
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="task">
+			<view class="page-content page-content-with-fab animated-content light-enter-motion" :class="{ 'is-revealed': !isLoading }" v-if="task">
 				<view class="detail-page">
-					<view v-if="task.stockWarning && !isReadOnly" class="warning-card card">
-						<view class="warning-content">
-							<text class="warning-text">{{ task.stockWarning }}</text>
-						</view>
-					</view>
-
 					<view :class="{ 'disabled-list': !isStarted && !isReadOnly }">
 						<view class="card-full-bleed-list">
 							<view class="card-title-wrapper">
@@ -268,14 +262,16 @@
 						<view class="loss-product-list">
 							<view v-for="product in allProductsInTask" :key="product.id" class="loss-product-item">
 								<text class="loss-product-name">{{ product.name }} (计划 {{ formatProductQuantity(product) }})</text>
-								<input
-									v-if="completionForm[product.id]"
-									class="loss-quantity-input"
-									type="number"
-									:placeholder="isSelfMadeTask ? '实际产出(g)' : '实际数量'"
-									v-model.number="completionForm[product.id].completedQuantity"
-									@input="onCompletedQuantityInput(product.id, $event)"
-								/>
+								<view v-if="completionForm[product.id]" class="quantity-input-wrapper">
+									<input
+										class="loss-quantity-input"
+										type="digit"
+										:placeholder="isSelfMadeTask ? '实际产出' : '实际数量'"
+										:value="getCompletedQuantityInputValue(product.id)"
+										@input="onCompletedQuantityInput(product.id, $event)"
+									/>
+									<text class="quantity-unit">{{ getCompletionQuantityUnit(product.plannedQuantity) }}</text>
+								</view>
 							</view>
 						</view>
 					</view>
@@ -289,7 +285,7 @@
 								<input
 									v-if="completionForm[product.id]"
 									class="loss-quantity-input"
-									type="number"
+									type="digit"
 									:placeholder="isSelfMadeTask ? '重量(g)' : '数量'"
 									:value="completionForm[product.id].spoilageDetails[activeLossTab]"
 									@input="onSpoilageQuantityInput(product.id, activeLossTab, $event)"
@@ -455,7 +451,7 @@ const resetCompletionForm = () => {
 		task.value.items.forEach((item) => {
 			completionForm[item.id] = {
 				plannedQuantity: item.plannedQuantity,
-				completedQuantity: null,
+				completedQuantity: item.plannedQuantity,
 				spoilageDetails: {}
 			};
 			spoilageStages.value.forEach((stage) => {
@@ -463,6 +459,11 @@ const resetCompletionForm = () => {
 			});
 		});
 	}
+};
+
+const isCompletionFormReady = () => {
+	if (!task.value || !task.value.items.length) return false;
+	return task.value.items.every((item) => completionForm[item.id] && completionForm[item.id].completedQuantity !== null);
 };
 
 const openCompleteTaskModal = async () => {
@@ -475,6 +476,13 @@ const openCompleteTaskModal = async () => {
 		if (spoilageStages.value.length > 0) {
 			activeLossTab.value = spoilageStages.value[0].key;
 		}
+	}
+	if (!isCompletionFormReady()) {
+		resetCompletionForm();
+	}
+	if (!isCompletionFormReady()) {
+		toastStore.show({ message: '完成数量初始化失败，请稍后重试', type: 'error' });
+		return;
 	}
 	showCompleteTaskModal.value = true;
 };
@@ -549,10 +557,11 @@ const loadTaskData = async (id: string) => {
 		// 接口报错时确保数据置空，触发 EmptyState
 		task.value = null;
 	} finally {
-		// 留出排版时间，与 prep-detail 统一使用 200ms
-		setTimeout(() => {
+		// 真机上复杂详情内容需要多一点时间完成首轮布局，避免骨架屏刚消失就滚动卡顿。
+		setTimeout(async () => {
+			await nextTick();
 			isLoading.value = false;
-		}, 200);
+		}, 360);
 	}
 };
 
@@ -585,9 +594,7 @@ const handlePrintTask = async () => {
 						filePath: filePath,
 						fileType: 'pdf',
 						showMenu: true,
-						success: function () {
-							console.log('打开文档成功');
-						},
+						success: function () {},
 						fail: function (err) {
 							console.error('打开文档失败', err);
 							toastStore.show({
@@ -658,7 +665,9 @@ const remainingSpoilageQuantity = (productId: string) => {
 
 const onCompletedQuantityInput = (productId: string, event: any) => {
 	const value = event.target?.value ?? event.detail.value;
-	const numValue = value === '' ? null : Number(value);
+	const rawValue = value === '' ? null : Number(value);
+	const product = completionForm[productId];
+	const numValue = rawValue === null || !isSelfMadeTask.value || !product ? rawValue : convertSelfMadeInputToGrams(rawValue, product.plannedQuantity);
 	if (numValue !== null && numValue < 0) {
 		completionForm[productId].completedQuantity = 0;
 	} else {
@@ -741,7 +750,7 @@ const handleConfirmComplete = async () => {
 			item.actualYieldInGrams = data.completedQuantity!;
 		}
 
-		if (data.completedQuantity! < data.plannedQuantity) {
+		if (!isSelfMadeTask.value && data.completedQuantity! < data.plannedQuantity) {
 			item.spoilageDetails = Object.entries(data.spoilageDetails)
 				.filter(([, quantity]) => quantity !== null && quantity > 0)
 				.map(([stage, quantity]) => ({
@@ -752,7 +761,7 @@ const handleConfirmComplete = async () => {
 
 			const totalReportedSpoilage = item.spoilageDetails.reduce((sum, s) => sum + s.quantity, 0);
 			const calculatedSpoilage = data.plannedQuantity - data.completedQuantity!;
-			if (totalReportedSpoilage !== calculatedSpoilage) {
+			if (Math.abs(totalReportedSpoilage - calculatedSpoilage) > 0.01) {
 				toastStore.show({
 					message: `产品损耗总数 ${totalReportedSpoilage} 与计算损耗 ${calculatedSpoilage} 不符`,
 					type: 'error'
@@ -928,9 +937,30 @@ const isSelfMadeTask = computed(() => {
 
 const formatProductQuantity = (product: { name: string; plannedQuantity: number }) => {
 	if (isSelfMadeTask.value) {
-		return `${product.plannedQuantity}g`;
+		return formatWeight(product.plannedQuantity);
 	}
-	return `${product.plannedQuantity}`;
+	return `${product.plannedQuantity}个`;
+};
+
+const getSelfMadeQuantityUnit = (plannedQuantity: number) => {
+	return Math.abs(Number(plannedQuantity)) >= 10000 ? 'kg' : 'g';
+};
+
+const getCompletionQuantityUnit = (plannedQuantity: number) => {
+	return isSelfMadeTask.value ? getSelfMadeQuantityUnit(plannedQuantity) : '个';
+};
+
+const getCompletedQuantityInputValue = (productId: string) => {
+	const product = completionForm[productId];
+	if (!product || product.completedQuantity === null) return '';
+	if (!isSelfMadeTask.value) return product.completedQuantity;
+
+	const displayValue = getSelfMadeQuantityUnit(product.plannedQuantity) === 'kg' ? product.completedQuantity / 1000 : product.completedQuantity;
+	return displayValue.toFixed(2);
+};
+
+const convertSelfMadeInputToGrams = (value: number, plannedQuantity: number) => {
+	return getSelfMadeQuantityUnit(plannedQuantity) === 'kg' ? value * 1000 : value;
 };
 
 const componentMixInSummary = computed(() => {
@@ -960,6 +990,16 @@ const componentMixInSummary = computed(() => {
 @import '@/styles/common.scss';
 @include list-item-content-style;
 @include table-layout;
+
+.light-enter-motion {
+	transform: none;
+	transition: opacity 0.24s ease-out;
+	will-change: opacity;
+}
+
+.light-enter-motion.is-revealed {
+	transform: none;
+}
 
 .collapsible-content {
 	max-height: 1000px;
@@ -1048,6 +1088,23 @@ const componentMixInSummary = computed(() => {
 	border: 1px solid var(--border-color);
 	height: 36px;
 	flex-shrink: 0;
+}
+
+.quantity-input-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.quantity-input-wrapper .loss-quantity-input {
+	width: 94px;
+}
+
+.quantity-unit {
+	font-size: 13px;
+	color: var(--text-secondary);
+	min-width: 18px;
 }
 
 .spoilage-notes-input {

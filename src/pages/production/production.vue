@@ -119,7 +119,7 @@
 
 		<AppModal v-model:visible="showCancelConfirmModal" title="确认取消">
 			<view class="modal-prompt-text">确定要取消这个任务吗？</view>
-			<view class="modal-warning-text">任务将被标记为已取消，此操作不会扣减任何原料库存。</view>
+			<view class="modal-warning-text">任务将被标记为已取消，此操作不会影响已记录的生产数据。</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showCancelConfirmModal = false">返回</AppButton>
 				<AppButton type="danger" @click="handleConfirmCancelTask" :loading="isSubmitting">
@@ -233,6 +233,7 @@ const temperatureStore = useTemperatureStore();
 const isLoading = ref(false);
 const hasBeenActivated = ref(false);
 const isInitialFetchDone = ref(false);
+const isDataLoadInFlight = ref(false);
 
 const listAnimationKey = ref(Date.now());
 const triggerListAnimation = ref(false);
@@ -332,6 +333,10 @@ const triggerListAnimationWithKeyUpdate = (playAnimation: boolean) => {
 // [修改] 优化静默刷新逻辑：从子页面返回时不再展示骨架屏闪烁
 const loadDataIfNeeded = async () => {
 	if (uiStore.activeTab !== 'production') return;
+	if (isDataLoadInFlight.value) {
+		return false;
+	}
+	isDataLoadInFlight.value = true;
 
 	const isFirstTimeOpening = !hasBeenActivated.value;
 	const needsFetch =
@@ -362,6 +367,7 @@ const loadDataIfNeeded = async () => {
 		isInitialFetchDone.value = true;
 		return false;
 	} finally {
+		isDataLoadInFlight.value = false;
 		if (isFirstTimeOpening || needsFetch) {
 			setTimeout(() => {
 				isLoading.value = false;
@@ -371,7 +377,7 @@ const loadDataIfNeeded = async () => {
 				} else {
 					triggerListAnimationWithKeyUpdate(false);
 				}
-			}, 200);
+			}, 320);
 		} else {
 			isLoading.value = false;
 			triggerListAnimationWithKeyUpdate(false);
@@ -438,7 +444,7 @@ const handleDateSelect = async (date: string) => {
 	setTimeout(() => {
 		isLoading.value = false;
 		triggerListAnimationWithKeyUpdate(true);
-	}, 200);
+	}, 320);
 };
 
 const isSelfMadeItem = (item: any) => {
@@ -455,7 +461,7 @@ const getTaskTitle = (task: ProductionTaskDto | PrepTask) => {
 	return regularTask.items
 		.map((item) => {
 			if (isSelfMadeItem(item)) {
-				return `${item.product.name} ${item.quantity}g`;
+				return `${item.product.name} ${formatWeight(item.quantity)}`;
 			}
 			return `${item.product.name} x${item.quantity}`;
 		})

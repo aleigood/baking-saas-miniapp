@@ -1,5 +1,5 @@
 <template>
-	<view v-if="isOpen && actions.length > 1" class="fab-overlay" :class="{ 'with-tab-bar': !noTabBar }" @click="toggleMenu"></view>
+	<view v-if="visible && isOpen && actions.length > 1" class="fab-overlay" :class="{ 'with-tab-bar': !noTabBar }" @click="toggleMenu"></view>
 	<view class="fab-container" :class="{ 'fab-no-tab-bar': noTabBar, 'is-hidden': !visible }">
 		<view v-if="actions.length > 1" class="fab-options" :class="{ 'is-open': isOpen }">
 			<view
@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, getCurrentInstance, type PropType } from 'vue';
+import { ref, reactive, watch, getCurrentInstance, type PropType } from 'vue';
 
 const props = defineProps({
 	actions: {
@@ -62,10 +62,12 @@ props.actions.forEach((_, index) => {
 });
 
 const toggleMenu = () => {
+	if (!props.visible) return;
 	isOpen.value = !isOpen.value;
 };
 
 const handleMainButtonClick = () => {
+	if (!props.visible) return;
 	if (!props.actions || props.actions.length === 0) {
 		emit('click');
 		return;
@@ -80,6 +82,7 @@ const handleMainButtonClick = () => {
 };
 
 const selectAction = (action: () => void) => {
+	if (!props.visible) return;
 	setTimeout(() => {
 		action();
 		isOpen.value = false;
@@ -87,6 +90,7 @@ const selectAction = (action: () => void) => {
 };
 
 const handleTouchStart = (event: TouchEvent, key: string | number) => {
+	if (!props.visible) return;
 	const touch = event.touches[0];
 	const viewId = `fab-ripple-${key}`;
 
@@ -117,6 +121,15 @@ const handleTouchStart = (event: TouchEvent, key: string | number) => {
 		})
 		.exec();
 };
+
+watch(
+	() => props.visible,
+	(visible) => {
+		if (!visible) {
+			isOpen.value = false;
+		}
+	}
+);
 </script>
 
 <style scoped lang="scss">

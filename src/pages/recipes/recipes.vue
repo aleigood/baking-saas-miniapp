@@ -8,7 +8,7 @@
 			>
 				<view class="content-padding">
 					<view class="card">
-						<view class="card-title"><span>本周制作排行</span></view>
+						<view class="card-title"><span>本月产品制作排行</span></view>
 						<view v-if="recipeStatsForChart.length > 0" class="ranking-list">
 							<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name" class="ranking-item">
 								<text class="rank">{{ index + 1 }}</text>
