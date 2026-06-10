@@ -4,9 +4,9 @@
 		<DetailHeader :title="ingredient?.name || '加载中...'" />
 
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="ingredient">
+			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="ingredient" :key="'ingredient-detail-content'">
 				<view class="card">
-					<view class="meta-grid-container" v-if="ingredient.type !== 'UNTRACKED'">
+					<view class="meta-grid-container" v-if="ingredient.type !== 'UNTRACKED'" :key="'meta-grid'">
 						<view class="meta-item">
 							<view class="label">{{ ingredient.type === 'SELF_MADE' ? '保质期' : '品牌' }}</view>
 							<view class="value">
@@ -33,30 +33,32 @@
 
 					<view :class="{ 'chart-wrapper': ingredient.type !== 'UNTRACKED' }">
 						<AnimatedTabs v-model="detailChartTab" :tabs="visibleChartTabs" />
-						<LineChart v-if="detailChartTab === 'price'" :chart-data="costHistory" />
-						<LineChart v-if="detailChartTab === 'usage'" :chart-data="usageHistory" unit-prefix="" unit-suffix="kg" />
+						<LineChart v-if="detailChartTab === 'price'" :key="'chart-price'" :chart-data="costHistory" />
+						<LineChart v-if="detailChartTab === 'usage'" :key="'chart-usage'" :chart-data="usageHistory" unit-prefix="" unit-suffix="kg" />
 					</view>
 				</view>
 
 				<template v-if="ingredient.type === 'STANDARD' || ingredient.type === 'NON_INVENTORIED'">
 					<IngredientSkuList
+						:key="'sku-list'"
 						:ingredient="ingredient"
 						:selected-sku-id="selectedSkuId"
 						@select="handleSkuClick"
 						@longpress-sku="handleSkuLongPressAction"
 						@add="openAddSkuModal"
 					/>
-					<IngredientPriceRecordList :selected-sku="selectedSku" @longpress="handlePriceRecordLongPress" />
+					<IngredientPriceRecordList :key="'price-record-list'" :selected-sku="selectedSku" @longpress="handlePriceRecordLongPress" />
 				</template>
 
 			</view>
 
-			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
+			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay" :key="'skeleton-detail'">
 				<SkeletonDetail :meta-count="3" :show-chart="true" :list-count="2" :table-groups="0" />
 			</view>
 
 			<EmptyState
 				v-if="!isLoading && !ingredient"
+				:key="'empty-state-error'"
 				:full-page="true"
 				icon="/static/icons/network-error.svg"
 				title="加载失败"
@@ -69,7 +71,7 @@
 
 		<ExpandingFab :actions="fabActions" :no-tab-bar="true" :visible="isFabVisible" />
 
-		<AppModal v-model:visible="showEditModal" title="编辑原料属性">
+		<AppModal v-model:visible="showEditModal" :key="'edit-modal'" title="编辑原料属性">
 			<FormItem label="原料名称">
 				<input
 					class="input-field"
@@ -88,7 +90,7 @@
 				</picker>
 			</FormItem>
 
-			<template v-if="ingredientForm.type === 'SELF_MADE'">
+			<template v-if="ingredientForm.type === 'SELF_MADE'" :key="'shelf-life-field'">
 				<FormItem label="保质期 (小时)">
 					<input class="input-field" type="number" v-model="ingredientForm.shelfLife" placeholder="例如: 24" />
 				</FormItem>
@@ -118,7 +120,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showAddSkuModal" title="新增品牌规格">
+		<AppModal v-model:visible="showAddSkuModal" :key="'add-sku-modal'" title="新增品牌规格">
 			<FormItem label="品牌">
 				<input class="input-field" v-model="newSkuForm.brand" placeholder="例如：王后" />
 			</FormItem>
@@ -134,7 +136,7 @@
 					</view>
 				</picker>
 			</FormItem>
-			<FormItem v-if="newSkuForm.density" label="规格体积 (mL)">
+			<FormItem v-if="newSkuForm.density" :key="'spec-volume-field'" label="规格体积 (mL)">
 				<input class="input-field" type="digit" v-model="newSkuForm.volumeInML" placeholder="例如：1000" />
 			</FormItem>
 			<FormItem label="规格重量 (g)">
@@ -154,7 +156,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showEditSkuModal" title="修改品牌规格">
+		<AppModal v-model:visible="showEditSkuModal" :key="'edit-sku-modal'" title="修改品牌规格">
 			<FormItem label="品牌">
 				<input class="input-field" v-model="editSkuForm.brand" placeholder="例如：王后" />
 			</FormItem>
@@ -170,7 +172,7 @@
 					</view>
 				</picker>
 			</FormItem>
-			<FormItem v-if="editSkuForm.density" label="规格体积 (mL)">
+			<FormItem v-if="editSkuForm.density" :key="'edit-spec-volume-field'" label="规格体积 (mL)">
 				<input
 					class="input-field"
 					:class="{ 'is-disabled': hasPriceRecords }"
@@ -191,7 +193,7 @@
 					:placeholder="isEditSkuWeightReadOnly ? '自动计算' : '例如：1000'"
 				/>
 			</FormItem>
-			<view class="modal-warning-text" v-if="hasPriceRecords">此规格已有价格记录，无法修改规格重量。</view>
+			<view class="modal-warning-text" v-if="hasPriceRecords" :key="'warning-price-records'">此规格已有价格记录，无法修改规格重量。</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditSkuModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleUpdateSku" :loading="isSubmitting">
@@ -200,7 +202,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showPriceRecordModal" title="新增价格记录">
+		<AppModal v-model:visible="showPriceRecordModal" :key="'price-record-modal'" title="新增价格记录">
 			<FormItem label="商品规格">
 				<input class="input-field" :value="activeSkuName" readonly disabled />
 			</FormItem>
@@ -218,7 +220,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showSkuOptionsModal" title="品牌与规格" :no-header-line="true">
+		<AppModal v-model:visible="showSkuOptionsModal" :key="'sku-options-modal'" title="品牌与规格" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleEditSkuOption" :bleed="true">
 					<view class="main-info">
@@ -238,7 +240,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showActivateSkuConfirmModal" title="设为使用中">
+		<AppModal v-model:visible="showActivateSkuConfirmModal" :key="'activate-sku-modal'" title="设为使用中">
 			<view class="modal-prompt-text">要将此规格设为当前使用的吗？</view>
 			<view class="modal-warning-text">后续价格记录和成本计算将默认使用此规格。</view>
 			<view class="modal-actions">
@@ -249,7 +251,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showDeleteSkuConfirmModal" title="确认删除">
+		<AppModal v-model:visible="showDeleteSkuConfirmModal" :key="'delete-sku-modal'" title="确认删除">
 			<view class="modal-prompt-text">确定要删除这个品牌规格吗？</view>
 			<view class="modal-warning-text">存在价格记录的品牌规格无法删除，此操作不可撤销。</view>
 			<view class="modal-actions">
@@ -260,7 +262,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showPriceRecordActionsModal" title="价格记录" :no-header-line="true">
+		<AppModal v-model:visible="showPriceRecordActionsModal" :key="'price-record-actions-modal'" title="价格记录" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleEditPriceRecordOption" :bleed="true">
 					<view class="main-info">
@@ -270,7 +272,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showEditPriceRecordModal" title="编辑价格记录">
+		<AppModal v-model:visible="showEditPriceRecordModal" :key="'edit-price-record-modal'" title="编辑价格记录">
 			<FormItem label="商品规格">
 				<input class="input-field" :value="editedPriceRecordSkuName" readonly disabled />
 			</FormItem>

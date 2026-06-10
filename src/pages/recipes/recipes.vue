@@ -9,18 +9,18 @@
 				<view class="content-padding">
 					<view class="card">
 						<view class="card-title"><span>本月产品制作排行</span></view>
-						<view v-if="recipeStatsForChart.length > 0" class="ranking-list">
+						<view v-if="recipeStatsForChart.length > 0" :key="'stats-ranking'" class="ranking-list">
 							<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name" class="ranking-item">
 								<text class="rank">{{ index + 1 }}</text>
 								<text class="name">{{ item.name }}</text>
 								<text class="count">{{ item.value }} 个</text>
 							</view>
 						</view>
-						<view v-else class="empty-state">
+						<view v-else :key="'stats-empty'" class="empty-state">
 							<text>暂无排行信息</text>
 						</view>
 					</view>
-					<view v-if="filterTabs.length > 0" class="filter-wrapper">
+					<view v-if="filterTabs.length > 0" :key="'filter-tabs'" class="filter-wrapper">
 						<FilterTabs v-model="activeFilter" :tabs="filterTabs" />
 					</view>
 				</view>
@@ -71,13 +71,13 @@
 								</template>
 							</ListItem>
 						</view>
-						<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="暂无配方" subtitle="该分类下暂无配方" />
+						<EmptyState v-else-if="isInitialFetchDone" :key="'recipes-empty-filtered'" icon="/static/icons/empty-list.svg" title="暂无配方" subtitle="该分类下暂无配方" />
 					</template>
-					<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-box.svg" title="暂无配方" subtitle="暂无任何配方，快去创建吧！" />
+					<EmptyState v-else-if="isInitialFetchDone" :key="'recipes-empty-all'" icon="/static/icons/empty-box.svg" title="暂无配方" subtitle="暂无任何配方，快去创建吧！" />
 				</view>
 			</view>
 
-			<view v-if="isLoading && uiStore.activeTab === 'recipes'" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
+			<view v-if="isLoading && uiStore.activeTab === 'recipes'" :key="'recipes-skeleton'" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
 				<view class="content-padding">
 					<SkeletonCard mode="ranking" />
 					<view class="skeleton-block shimmer" style="height: 36px; margin-top: 10px; margin-bottom: 20px; border-radius: 18px; width: 60%"></view>
@@ -90,7 +90,7 @@
 
 		<ExpandingFab v-if="canEditRecipe" :actions="fabActions" :visible="isFabVisible" />
 
-		<AppModal v-model:visible="showRecipeActionsModal" title="配方操作" :no-header-line="true">
+		<AppModal v-model:visible="showRecipeActionsModal" :key="'recipe-actions-modal'" title="配方操作" :no-header-line="true">
 			<view class="options-list">
 				<template v-if="!selectedRecipe?.deletedAt">
 					<ListItem class="option-item" @click="handleDiscontinueRecipe" :bleed="true">
@@ -114,7 +114,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showDeleteRecipeConfirmModal" title="确认删除">
+		<AppModal v-model:visible="showDeleteRecipeConfirmModal" :key="'delete-recipe-modal'" title="确认删除">
 			<view class="modal-prompt-text">确定要删除 “{{ selectedRecipe?.name }}” 吗？</view>
 			<view class="modal-warning-text">已被生产任务使用的配方将无法被删除。此操作不可撤销。</view>
 			<view class="modal-actions">
@@ -125,7 +125,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showDiscontinueRecipeConfirmModal" title="确认停用">
+		<AppModal v-model:visible="showDiscontinueRecipeConfirmModal" :key="'discontinue-recipe-modal'" title="确认停用">
 			<view class="modal-prompt-text">确定要停用 “{{ selectedRecipe?.name }}” 吗？</view>
 			<view class="modal-warning-text">停用后，此配方将无法用于新的生产任务。</view>
 			<view class="modal-actions">
@@ -136,7 +136,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showRestoreRecipeConfirmModal" title="确认恢复">
+		<AppModal v-model:visible="showRestoreRecipeConfirmModal" :key="'restore-recipe-modal'" title="确认恢复">
 			<view class="modal-prompt-text">确定要恢复 “{{ selectedRecipe?.name }}” 吗？</view>
 			<view class="modal-warning-text">恢复后，此配方将可以重新用于生产任务。</view>
 			<view class="modal-actions">

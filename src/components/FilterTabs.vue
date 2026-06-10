@@ -8,13 +8,13 @@
 					:id="'filter-tab-' + tab.key"
 					class="tab-item ripple-container"
 					:class="[{ active: modelValue === tab.key }, sizeClass]"
-					@click="handleClick(tab.key)"
+					@click.stop="handleClick(tab.key)"
 					@touchstart.passive="handleTouchStart($event, tab.key)"
 				>
 					<span v-for="ripple in ripples[tab.key]" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 					<span class="tab-text">{{ tab.label }}</span>
 				</view>
-				<view v-if="editable" class="tab-item add-tab ripple-container" :class="sizeClass" @click="$emit('add')" @touchstart.passive="handleTouchStart($event, 'add')">
+				<view v-if="editable" class="tab-item add-tab ripple-container" :class="sizeClass" @click.stop="$emit('add')" @touchstart.passive="handleTouchStart($event, 'add')">
 					<span v-for="ripple in ripples['add']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 					<span class="tab-text">+ 添加产品</span>
 				</view>

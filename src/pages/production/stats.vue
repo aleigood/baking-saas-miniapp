@@ -8,7 +8,7 @@
 					<FilterTabs v-model="activeDateRange" :tabs="dateRangeTabs" />
 				</view>
 
-				<view v-if="activeDateRange === 'custom'" class="custom-date-picker card">
+				<view v-if="activeDateRange === 'custom'" :key="'custom-picker'" class="custom-date-picker card">
 					<picker mode="date" :value="customDate.start" @change="handleCustomDateChange($event, 'start')">
 						<view class="picker">
 							{{ customDate.start }}
@@ -24,11 +24,11 @@
 					</picker>
 				</view>
 
-				<view v-if="isLoading" class="loading-spinner">
+				<view v-if="isLoading" :key="'stats-loading'" class="loading-spinner">
 					<text>加载中...</text>
 				</view>
 				<template v-else-if="statsData.length > 0">
-					<view class="summary-card">
+					<view class="summary-card" :key="'stats-summary'">
 						<div>
 							<view class="value">{{ kpi.totalCount }}</view>
 							<view class="label">总产量</view>
@@ -43,12 +43,12 @@
 						</div>
 					</view>
 
-					<view class="card">
+					<view class="card" :key="'stats-ranking-card'">
 						<view class="card-title">产量排行 Top 10</view>
 						<BarChart :chart-data="statsData.slice(0, 10)" unit="个" />
 					</view>
 
-					<view class="card">
+					<view class="card" :key="'stats-table-card'">
 						<view class="card-title">详细数据</view>
 						<view class="stats-table">
 							<view class="table-header">
@@ -66,7 +66,7 @@
 						</view>
 					</view>
 				</template>
-				<view v-else class="empty-state">
+				<view v-else :key="'stats-empty'" class="empty-state">
 					<text>选定时间范围内暂无生产数据</text>
 				</view>
 			</view>

@@ -15,7 +15,7 @@
 					/>
 				</view>
 
-				<template v-if="ledgerEntries.length > 0">
+				<template v-if="ledgerEntries.length > 0" :key="'ledger-list-container'">
 					<view class="procurement-list">
 						<view class="list-header ledger-header">
 							<text class="col-date-operator">日期/操作人</text>
@@ -23,7 +23,7 @@
 							<text class="col-change">变动</text>
 							<text class="col-details">详情</text>
 						</view>
-						<ListItem v-for="(entry, index) in ledgerEntries" :key="index" class="procurement-item" :no-padding="true" :divider="index < ledgerEntries.length - 1">
+						<ListItem v-for="(entry, index) in ledgerEntries" :key="entry.id || (entry.date + '_' + index)" class="procurement-item" :no-padding="true" :divider="index < ledgerEntries.length - 1">
 							<view class="procurement-item-content ledger-item-content">
 								<view class="col-date-operator">
 									<view class="details-main">{{ formatDateTime(entry.date, 'MM-DD HH:mm') }}</view>
@@ -45,10 +45,10 @@
 					</view>
 				</template>
 
-				<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="暂无流水记录" subtitle="当前筛选条件下没有找到符合的数据" />
+				<EmptyState v-else-if="isInitialFetchDone" :key="'ledger-empty'" icon="/static/icons/empty-list.svg" title="暂无流水记录" subtitle="当前筛选条件下没有找到符合的数据" />
 			</view>
 
-			<view v-if="isLoading && page === 1" class="page-content skeleton-overlay">
+			<view v-if="isLoading && page === 1" :key="'ledger-skeleton'" class="page-content skeleton-overlay">
 				<view class="filter-container">
 					<view class="skeleton-block shimmer" style="height: 36px; border-radius: 18px; margin-bottom: 10px"></view>
 				</view>
@@ -81,7 +81,7 @@
 			</view>
 		</DetailPageLayout>
 
-		<AppModal :visible="isSelectorVisible" @update:visible="isSelectorVisible = false" :title="selectorTitle" :no-header-line="true">
+		<AppModal :visible="isSelectorVisible" :key="'filter-selector-modal'" @update:visible="isSelectorVisible = false" :title="selectorTitle" :no-header-line="true">
 			<scroll-view :scroll-y="true" class="options-scroll-view">
 				<view class="options-list">
 					<ListItem v-if="editingFilterKey !== 'ingredientId'" @click="handleFilterOptionSelect({ text: '全部', value: null })" class="option-item" :bleed="true">
@@ -104,7 +104,7 @@
 			</scroll-view>
 		</AppModal>
 
-		<AppModal v-model:visible="isDateSelectorVisible" title="选择日期范围">
+		<AppModal v-model:visible="isDateSelectorVisible" :key="'date-selector-modal'" title="选择日期范围">
 			<view class="date-picker-modal-content">
 				<view class="date-picker-row">
 					<view class="date-picker-item">
@@ -133,7 +133,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="isSearchModalVisible" title="搜索流水">
+		<AppModal v-model:visible="isSearchModalVisible" :key="'search-modal'" title="搜索流水">
 			<FormItem label="关键字">
 				<input class="input-field" v-model="filters.keyword" placeholder="输入详情、品牌、规格等关键字" @confirm="applyAndFetch(true)" />
 			</FormItem>

@@ -5,6 +5,8 @@
 		:class="animationClass.overlay"
 		@click="closeModal"
 		@touchmove.stop.prevent="() => {}"
+		@touchstart.stop
+		@touchend.stop
 		:style="{ '--modal-duration': `${DURATION}ms` }"
 	>
 		<view class="modal-content" :style="{ width: width }" :class="[animationClass.content, { 'is-options-modal': noHeaderLine }]" @click.stop>

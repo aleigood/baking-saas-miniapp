@@ -5,6 +5,7 @@
 				class="page-content animated-content"
 				:class="[{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }, { 'is-revealed': !isLoading && hasBeenActivated }]"
 				v-if="hasBeenActivated"
+				:key="'production-page-content'"
 			>
 				<view class="summary-card">
 					<div>
@@ -58,11 +59,12 @@
 					</view>
 				</template>
 
-				<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="所选日期暂无任务" subtitle="点击下方按钮创建新的生产任务" />
+				<EmptyState v-else-if="isInitialFetchDone" :key="'production-empty'" icon="/static/icons/empty-list.svg" title="所选日期暂无任务" subtitle="点击下方按钮创建新的生产任务" />
 			</view>
 
 			<view
 				v-if="isLoading && uiStore.activeTab === 'production'"
+				:key="'production-skeleton'"
 				class="page-content skeleton-overlay"
 				:class="{ 'page-content-with-tabbar-fab': hasTabBar, 'page-content-with-fab': !hasTabBar }"
 			>
@@ -86,7 +88,7 @@
 
 		<CalendarModal :visible="isCalendarVisible" :task-dates="taskDates" @close="isCalendarVisible = false" @select="handleDateSelect" />
 
-		<AppModal ref="taskActionsModalRef" v-model:visible="showTaskActionsModal" title="制作任务" :no-header-line="true">
+		<AppModal ref="taskActionsModalRef" :key="'task-actions-modal'" v-model:visible="showTaskActionsModal" title="制作任务" :no-header-line="true">
 			<view class="options-list">
 				<ListItem v-if="selectedTaskForAction?.status === 'PENDING'" class="option-item" @click="handleEditTask" :bleed="true">
 					<view class="main-info">
@@ -106,7 +108,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showDeleteConfirmModal" title="确认删除">
+		<AppModal v-model:visible="showDeleteConfirmModal" :key="'delete-confirm-modal'" title="确认删除">
 			<view class="modal-prompt-text">确定要删除这个任务吗？</view>
 			<view class="modal-warning-text">任务将被移除，此操作不可撤销。</view>
 			<view class="modal-actions">
@@ -117,7 +119,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showCancelConfirmModal" title="确认取消">
+		<AppModal v-model:visible="showCancelConfirmModal" :key="'cancel-confirm-modal'" title="确认取消">
 			<view class="modal-prompt-text">确定要取消这个任务吗？</view>
 			<view class="modal-warning-text">任务将被标记为已取消，此操作不会影响已记录的生产数据。</view>
 			<view class="modal-actions">
@@ -128,7 +130,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showTemperatureSettingsModal" title="设置温度参数">
+		<AppModal v-model:visible="showTemperatureSettingsModal" :key="'temp-settings-modal'" title="设置温度参数">
 			<view class="form-container">
 				<view class="form-item">
 					<view class="form-label">搅拌摩擦系数</view>

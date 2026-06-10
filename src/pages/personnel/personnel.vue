@@ -17,7 +17,7 @@
 
 			<view class="card stats-card">
 				<view class="stats-grid">
-					<view class="stat-item" v-if="isOwner">
+					<view class="stat-item" v-if="isOwner" :key="'stat-tenants'">
 						<text class="stat-value">{{ stats.totalTenants ?? 0 }}</text>
 						<text class="stat-label">店铺总数</text>
 					</view>
@@ -37,7 +37,7 @@
 			</view>
 
 			<view class="action-list">
-				<ListItem v-if="isOwner" class="action-item" @click="navigateToTenantList" :bleed="true">
+				<ListItem v-if="isOwner" :key="'item-tenants'" class="action-item" @click="navigateToTenantList" :bleed="true">
 					<view class="action-item-content">
 						<view class="action-left">
 							<image class="action-icon" src="/static/icons/store.svg" />
@@ -46,7 +46,7 @@
 						<view class="action-right">&#10095;</view>
 					</view>
 				</ListItem>
-				<ListItem v-if="canManagePersonnel" class="action-item" @click="navigateToPersonnelList" :bleed="true" :divider="false">
+				<ListItem v-if="canManagePersonnel" :key="'item-personnel'" class="action-item" @click="navigateToPersonnelList" :bleed="true" :divider="false">
 					<view class="action-item-content">
 						<view class="action-left">
 							<image class="action-icon" src="/static/icons/person.svg" />
@@ -62,7 +62,7 @@
 			</view>
 		</view>
 
-		<AppModal ref="logoutModalRef" :visible="uiStore.showLogoutConfirmModal" @update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
+		<AppModal ref="logoutModalRef" :visible="uiStore.showLogoutConfirmModal" :key="'logout-confirm-modal'" @update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
 			<view class="modal-prompt-text">您确定要退出登录吗？</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)">取消</AppButton>

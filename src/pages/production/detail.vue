@@ -3,7 +3,7 @@
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader title="任务详情" />
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content page-content-with-fab animated-content light-enter-motion" :class="{ 'is-revealed': !isLoading }" v-if="task">
+			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="task" :key="'task-detail-content'">
 				<view class="detail-page">
 					<view :class="{ 'disabled-list': !isStarted && !isReadOnly }">
 						<view class="card-full-bleed-list">
@@ -27,12 +27,12 @@
 						</view>
 					</view>
 
-					<view v-if="!isStarted && !isReadOnly" class="bottom-actions-container">
+					<view v-if="!isStarted && !isReadOnly" class="bottom-actions-container" :key="'start-task-container'">
 						<AppButton type="primary" full-width @click="handleStartTask">开始制作</AppButton>
 					</view>
 
 					<template v-if="isStarted && selectedComponentDetails">
-						<view class="card">
+						<view class="card" :key="'started-task-card'">
 							<view class="group-title" @click="toggleCollapse(selectedComponentDetails.familyId)">
 								<span>{{ selectedComponentDetails.familyName }}</span>
 								<span class="arrow" :class="{ collapsed: collapsedSections.has(selectedComponentDetails.familyId) }">&#10095;</span>
@@ -53,11 +53,11 @@
 										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedComponentDetails.familyId, ing.id)"
 									>
 										<view class="col-ingredient ingredient-name-cell">
-											<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${selectedComponentDetails.familyId}-${ing.id}`">
+											<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${selectedComponentDetails.familyId}-${ing.id}`" :key="'ing-icon-' + ing.id">
 												<text>{{ ing.name }}</text>
 												<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 											</view>
-											<text v-else>{{ ing.name }}</text>
+											<text v-else :key="'ing-text-' + ing.id">{{ ing.name }}</text>
 										</view>
 										<text class="col-brand">{{ ing.brand || '-' }}</text>
 										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
@@ -65,23 +65,23 @@
 								</view>
 
 								<view class="total-weight-summary">
-									<view class="summary-left-alert" :class="{ 'pulse-highlight': showPulseAnimation }" v-if="componentMixInSummary.length > 0">
+									<view class="summary-left-alert" :class="{ 'pulse-highlight': showPulseAnimation }" v-if="componentMixInSummary.length > 0" :key="'component-mixin-summary'">
 										<image class="summary-alert-icon" src="/static/icons/warning.svg" mode="aspectFit"></image>
 										<text>产品含辅料，请勿遗漏</text>
 									</view>
-									<view v-else></view>
+									<view v-else :key="'component-mixin-summary-empty'"></view>
 
 									<view class="summary-right-info">
 										<text>
 											{{ selectedComponentDetails.category === 'BREAD' ? '面团总重' : '原料总重' }}:
 											{{ formatWeight(selectedComponentDetails.totalComponentWeight) }}
 										</text>
-										<text v-if="isSelfMadeComponent && selectedProductDetails" class="highlight-output">
+										<text v-if="isSelfMadeComponent && selectedProductDetails" class="highlight-output" :key="'target-output-label'">
 											(目标产出: {{ formatWeight(selectedProductDetails.baseComponent.quantity) }})
 										</text>
 									</view>
 								</view>
-								<view v-if="selectedComponentDetails.baseComponentProcedure.length > 0" class="procedure-notes">
+								<view v-if="selectedComponentDetails.baseComponentProcedure.length > 0" class="procedure-notes" :key="'procedure-notes'">
 									<text class="notes-title">制作要点:</text>
 									<text v-for="(step, stepIndex) in selectedComponentDetails.baseComponentProcedure" :key="stepIndex" class="note-item">
 										{{ stepIndex + 1 }}. {{ step }}
@@ -95,8 +95,8 @@
 									<span class="arrow" :class="{ collapsed: collapsedSections.has('productSummary') }">&#10095;</span>
 								</view>
 								<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('productSummary') }">
-									<view class="product-tabs-container" v-if="productTabs.length > 0">
-										<FilterTabs v-model="selectedProductId" :tabs="productTabs" size="sm" align="center" />
+									<view class="product-tabs-container" v-if="productTabs.length > 0" :key="'product-tabs'">
+										<FilterTabs :model-value="selectedProductId" @update:model-value="handleTabChange" :tabs="productTabs" size="sm" align="center" />
 									</view>
 
 									<template v-if="selectedProductDetails">
@@ -232,17 +232,18 @@
 					</template>
 
 					<view class="bottom-actions-container">
-						<AppButton v-if="isStarted && !isReadOnly" type="primary" full-width @click="openCompleteTaskModal">完成任务</AppButton>
+						<AppButton v-if="isStarted && !isReadOnly" type="primary" full-width @click="() => openCompleteTaskModal()">完成任务</AppButton>
 					</view>
 				</view>
 			</view>
 
-			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
+			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay" :key="'task-detail-skeleton'">
 				<SkeletonDetail :meta-count="0" :show-chart="false" :list-count="2" :table-groups="1" :show-notes="true" />
 			</view>
 
 			<EmptyState
 				v-if="!isLoading && !task"
+				:key="'task-detail-empty'"
 				:full-page="true"
 				icon="/static/icons/network-error.svg"
 				title="加载失败"
@@ -253,60 +254,62 @@
 			/>
 		</DetailPageLayout>
 
-		<ExpandingFab v-if="isStarted" icon="/static/icons/print.svg" @click="handlePrintTask" :no-tab-bar="true" :visible="isFabVisible" />
+		<ExpandingFab v-if="isStarted" :key="'task-detail-fab'" icon="/static/icons/print.svg" @click="handlePrintTask" :no-tab-bar="true" :visible="isFabVisible" />
 
-		<AppModal v-model:visible="showCompleteTaskModal" :title="completionStep === 1 ? (isSelfMadeTask ? '提报完成重量' : '提报完成数量') : '提报产品损耗'">
-			<view class="modal-slider-container" :style="{ height: modalContentHeight ? `${modalContentHeight}px` : 'auto' }">
-				<view class="modal-slider-track" :class="{ 'go-to-step2': completionStep === 2 }">
-					<view class="modal-step-content" id="step1-content">
-						<view class="loss-product-list">
-							<view v-for="product in allProductsInTask" :key="product.id" class="loss-product-item">
-								<text class="loss-product-name">{{ product.name }} (计划 {{ formatProductQuantity(product) }})</text>
-								<view v-if="completionForm[product.id]" class="quantity-input-wrapper">
-									<input
-										class="loss-quantity-input"
-										type="digit"
-										:placeholder="isSelfMadeTask ? '实际产出' : '实际数量'"
-										:value="getCompletedQuantityInputValue(product.id)"
-										@input="onCompletedQuantityInput(product.id, $event)"
-									/>
-									<text class="quantity-unit">{{ getCompletionQuantityUnit(product.plannedQuantity) }}</text>
+		<AppModal :visible="showCompleteTaskModal === true" :key="'complete-task-modal'" @update:visible="v => { if (typeof v === 'boolean') showCompleteTaskModal = v; }" :title="completionStep === 1 ? (isSelfMadeTask ? '提报完成重量' : '提报完成数量') : '提报产品损耗'">
+			<template v-if="showCompleteTaskModal">
+				<view class="modal-slider-container" :style="{ height: modalContentHeight ? `${modalContentHeight}px` : 'auto' }">
+					<view class="modal-slider-track" :class="{ 'go-to-step2': completionStep === 2 }">
+						<view class="modal-step-content" id="step1-content">
+							<view class="loss-product-list">
+								<view v-for="product in allProductsInTask" :key="product.id" class="loss-product-item">
+									<text class="loss-product-name">{{ product.name }} (计划 {{ formatProductQuantity(product) }})</text>
+									<view v-if="completionForm[product.id]" class="quantity-input-wrapper">
+										<input
+											class="loss-quantity-input"
+											type="digit"
+											:placeholder="isSelfMadeTask ? '实际产出' : '实际数量'"
+											:value="getCompletedQuantityInputValue(product.id)"
+											@input="onCompletedQuantityInput(product.id, $event)"
+										/>
+										<text class="quantity-unit">{{ getCompletionQuantityUnit(product.plannedQuantity) }}</text>
+									</view>
 								</view>
 							</view>
 						</view>
-					</view>
-					<view class="modal-step-content" id="step2-content">
-						<view class="spoilagestages-tabs-container" v-if="spoilageStages.length > 0">
-							<AnimatedTabs v-model="activeLossTab" :tabs="spoilageStages" />
-						</view>
-						<view class="loss-product-list">
-							<view v-for="product in productsWithSpoilage" :key="product.id" class="loss-product-item spoilage-item">
-								<text class="loss-product-name">{{ product.name }} (剩余 {{ remainingSpoilageQuantity(product.id) }})</text>
-								<input
-									v-if="completionForm[product.id]"
-									class="loss-quantity-input"
-									type="digit"
-									:placeholder="isSelfMadeTask ? '重量(g)' : '数量'"
-									:value="completionForm[product.id].spoilageDetails[activeLossTab]"
-									@input="onSpoilageQuantityInput(product.id, activeLossTab, $event)"
-								/>
+						<view class="modal-step-content" id="step2-content">
+							<view class="spoilagestages-tabs-container" v-if="spoilageStages.length > 0">
+								<AnimatedTabs v-model="activeLossTab" :tabs="spoilageStages" />
 							</view>
+							<view class="loss-product-list">
+								<view v-for="product in productsWithSpoilage" :key="product.id" class="loss-product-item spoilage-item">
+									<text class="loss-product-name">{{ product.name }} (剩余 {{ remainingSpoilageQuantity(product.id) }})</text>
+									<input
+										v-if="completionForm[product.id]"
+										class="loss-quantity-input"
+										type="digit"
+										:placeholder="isSelfMadeTask ? '重量(g)' : '数量'"
+										:value="completionForm[product.id].spoilageDetails[activeLossTab]"
+										@input="onSpoilageQuantityInput(product.id, activeLossTab, $event)"
+									/>
+								</view>
+							</view>
+							<textarea class="spoilage-notes-input" v-model="completionNotes" placeholder="关于损耗情况的附加说明（可选）"></textarea>
 						</view>
-						<textarea class="spoilage-notes-input" v-model="completionNotes" placeholder="关于损耗情况的附加说明（可选）"></textarea>
 					</view>
 				</view>
-			</view>
-			<view class="modal-actions">
-				<AppButton type="secondary" @click="handleCompletionModalBack">
-					{{ completionStep === 1 ? '取消' : '上一步' }}
-				</AppButton>
-				<AppButton type="primary" @click="handleCompletionModalNext" :loading="isSubmitting" :disabled="!isStep1Valid">
-					{{ completionStep === 1 ? (hasSpoilage ? '下一步' : '确认完成') : '确认完成' }}
-				</AppButton>
-			</view>
+				<view class="modal-actions">
+					<AppButton type="secondary" @click="handleCompletionModalBack">
+						{{ completionStep === 1 ? '取消' : '上一步' }}
+					</AppButton>
+					<AppButton type="primary" @click="() => handleCompletionModalNext()" :loading="isSubmitting" :disabled="!isStep1Valid">
+						{{ completionStep === 1 ? (hasSpoilage ? '下一步' : '确认完成') : '确认完成' }}
+					</AppButton>
+				</view>
+			</template>
 		</AppModal>
 
-		<AppPopover :visible="popover.visible" :content="popover.content" :targetRect="popover.targetRect" placement="right" :offsetY="0" />
+		<AppPopover :visible="popover.visible" :key="'task-detail-popover'" :content="popover.content" :targetRect="popover.targetRect" placement="right" :offsetY="0" />
 	</view>
 </template>
 
@@ -356,9 +359,22 @@ const selectedComponentFamilyId = ref<string | null>(null);
 const addedIngredientsMap = reactive(new Set<string>());
 const collapsedSections = ref(new Set<string>());
 const selectedProductId = ref<string>('');
+const lastTabChangeTime = ref(0);
+const modalOpenTime = ref(0);
+
+const handleTabChange = (val: string) => {
+	console.log(`[TaskDetail] handleTabChange triggered: ${val} at timestamp ${Date.now()}`);
+	selectedProductId.value = val;
+	lastTabChangeTime.value = Date.now();
+};
+
+watch(selectedProductId, () => {
+	console.log(`[TaskDetail] selectedProductId watch triggered: ${selectedProductId.value} at timestamp ${Date.now()}`);
+	lastTabChangeTime.value = Date.now();
+});
 
 const completionStep = ref(1);
-const completionForm = reactive<
+const completionForm = ref<
 	Record<
 		string,
 		{
@@ -425,7 +441,9 @@ const updateModalContentHeight = () => {
 };
 
 watch(showCompleteTaskModal, (visible) => {
+	console.log(`[TaskDetail] showCompleteTaskModal watch: visible = ${visible} at timestamp ${Date.now()}`);
 	if (visible) {
+		modalOpenTime.value = Date.now();
 		completionStep.value = 1;
 		setTimeout(() => {
 			updateModalContentHeight();
@@ -446,16 +464,16 @@ watch(completionStep, () => {
 const resetCompletionForm = () => {
 	completionStep.value = 1;
 	completionNotes.value = '';
-	Object.keys(completionForm).forEach((key) => delete completionForm[key]);
+	completionForm.value = {};
 	if (task.value) {
 		task.value.items.forEach((item) => {
-			completionForm[item.id] = {
+			completionForm.value[item.id] = {
 				plannedQuantity: item.plannedQuantity,
 				completedQuantity: item.plannedQuantity,
 				spoilageDetails: {}
 			};
 			spoilageStages.value.forEach((stage) => {
-				completionForm[item.id].spoilageDetails[stage.key] = null;
+				completionForm.value[item.id].spoilageDetails[stage.key] = null;
 			});
 		});
 	}
@@ -463,10 +481,16 @@ const resetCompletionForm = () => {
 
 const isCompletionFormReady = () => {
 	if (!task.value || !task.value.items.length) return false;
-	return task.value.items.every((item) => completionForm[item.id] && completionForm[item.id].completedQuantity !== null);
+	return task.value.items.every((item) => completionForm.value[item.id] && completionForm.value[item.id].completedQuantity !== null);
 };
 
 const openCompleteTaskModal = async () => {
+	const now = Date.now();
+	console.log(`[TaskDetail] openCompleteTaskModal triggered. lastTabChangeTime: ${lastTabChangeTime.value}, diff: ${now - lastTabChangeTime.value}ms`);
+	if (now - lastTabChangeTime.value < 400) {
+		console.warn(`[TaskDetail] Prevented potential click penetration. diff: ${now - lastTabChangeTime.value}ms`);
+		return;
+	}
 	if (!task.value || !task.value.items) {
 		return;
 	}
@@ -557,11 +581,9 @@ const loadTaskData = async (id: string) => {
 		// 接口报错时确保数据置空，触发 EmptyState
 		task.value = null;
 	} finally {
-		// 真机上复杂详情内容需要多一点时间完成首轮布局，避免骨架屏刚消失就滚动卡顿。
-		setTimeout(async () => {
-			await nextTick();
+		setTimeout(() => {
 			isLoading.value = false;
-		}, 360);
+		}, 200);
 	}
 };
 
@@ -635,7 +657,7 @@ const productsWithSpoilage = computed(() => {
 	return allProductsInTask.value
 		.map((p) => ({
 			...p,
-			spoilageQuantity: p.plannedQuantity - (completionForm[p.id]?.completedQuantity ?? p.plannedQuantity)
+			spoilageQuantity: p.plannedQuantity - (completionForm.value[p.id]?.completedQuantity ?? p.plannedQuantity)
 		}))
 		.filter((p) => p.spoilageQuantity > 0);
 });
@@ -646,15 +668,15 @@ const hasSpoilage = computed(() => {
 	if (isSelfMadeTask.value) {
 		return false;
 	}
-	return Object.values(completionForm).some((item) => item.completedQuantity !== null && item.completedQuantity < item.plannedQuantity);
+	return Object.values(completionForm.value).some((item) => item.completedQuantity !== null && item.completedQuantity < item.plannedQuantity);
 });
 
 const isStep1Valid = computed(() => {
-	return Object.values(completionForm).every((item) => item.completedQuantity !== null);
+	return Object.values(completionForm.value).every((item) => item.completedQuantity !== null);
 });
 
 const remainingSpoilageQuantity = (productId: string) => {
-	const productData = completionForm[productId];
+	const productData = completionForm.value[productId];
 	if (!productData) return 0;
 
 	const totalSpoilage = productData.plannedQuantity - (productData.completedQuantity || 0);
@@ -666,12 +688,12 @@ const remainingSpoilageQuantity = (productId: string) => {
 const onCompletedQuantityInput = (productId: string, event: any) => {
 	const value = event.target?.value ?? event.detail.value;
 	const rawValue = value === '' ? null : Number(value);
-	const product = completionForm[productId];
+	const product = completionForm.value[productId];
 	const numValue = rawValue === null || !isSelfMadeTask.value || !product ? rawValue : convertSelfMadeInputToGrams(rawValue, product.plannedQuantity);
 	if (numValue !== null && numValue < 0) {
-		completionForm[productId].completedQuantity = 0;
+		completionForm.value[productId].completedQuantity = 0;
 	} else {
-		completionForm[productId].completedQuantity = numValue;
+		completionForm.value[productId].completedQuantity = numValue;
 	}
 };
 
@@ -679,7 +701,7 @@ const onSpoilageQuantityInput = (productId: string, stage: string, event: any) =
 	const value = event.target?.value ?? event.detail.value;
 	const currentSpoilage = value === '' ? null : Number(value);
 
-	const product = completionForm[productId];
+	const product = completionForm.value[productId];
 	if (!product) return;
 
 	let otherStagesSpoilage = 0;
@@ -714,6 +736,13 @@ const handleCompletionModalBack = () => {
 };
 
 const handleCompletionModalNext = () => {
+	console.trace(`[TaskDetail] handleCompletionModalNext triggered. trace:`);
+	const now = Date.now();
+	console.log(`[TaskDetail] handleCompletionModalNext clicked. modalOpenTime: ${modalOpenTime.value}, diff: ${now - modalOpenTime.value}ms`);
+	if (now - modalOpenTime.value < 400) {
+		console.warn(`[TaskDetail] Blocked premature submit click (possible ghost click). diff: ${now - modalOpenTime.value}ms`);
+		return;
+	}
 	if (completionStep.value === 1) {
 		if (hasSpoilage.value) {
 			completionStep.value = 2;
@@ -726,9 +755,14 @@ const handleCompletionModalNext = () => {
 };
 
 const handleConfirmComplete = async () => {
+	console.trace(`[TaskDetail] handleConfirmComplete triggered. trace:`);
+	if (!showCompleteTaskModal.value) {
+		console.error(`[TaskDetail] CRITICAL: handleConfirmComplete called but modal is CLOSED! Blocked execution.`);
+		return;
+	}
 	if (!task.value) return;
 
-	const completedItems = Object.entries(completionForm).map(([productId, data]) => {
+	const completedItems = Object.entries(completionForm.value).map(([productId, data]) => {
 		const item: {
 			productId: string;
 			completedQuantity: number;
@@ -774,6 +808,7 @@ const handleConfirmComplete = async () => {
 
 	isSubmitting.value = true;
 	try {
+		console.log(`[TaskDetail] handleConfirmComplete executing. taskId: ${task.value.id}, completedItems:`, JSON.stringify(completedItems));
 		await completeTask(task.value.id, {
 			notes: completionNotes.value,
 			completedItems
@@ -804,6 +839,8 @@ const handleConfirmComplete = async () => {
 };
 
 const toggleCollapse = (sectionName: string) => {
+	console.log(`[TaskDetail] toggleCollapse clicked: ${sectionName} at timestamp ${Date.now()}`);
+	lastTabChangeTime.value = Date.now();
 	const newSet = new Set(collapsedSections.value);
 	if (newSet.has(sectionName)) {
 		newSet.delete(sectionName);
@@ -847,6 +884,8 @@ const toggleIngredientAdded = (componentFamilyId: string, ingredientId: string) 
 };
 
 const handleStartTask = async () => {
+	console.log(`[TaskDetail] handleStartTask clicked at timestamp ${Date.now()}`);
+	lastTabChangeTime.value = Date.now();
 	if (!task.value || !taskId.value) return;
 	try {
 		await updateTaskStatus(task.value.id, 'IN_PROGRESS');
@@ -863,6 +902,8 @@ const handleStartTask = async () => {
 };
 
 const selectComponent = (familyId: string) => {
+	console.log(`[TaskDetail] selectComponent clicked: ${familyId} at timestamp ${Date.now()}`);
+	lastTabChangeTime.value = Date.now();
 	if (!isStarted.value && !isReadOnly.value) return;
 	selectedComponentFamilyId.value = familyId;
 	const componentDetails = selectedComponentDetails.value;
@@ -951,7 +992,7 @@ const getCompletionQuantityUnit = (plannedQuantity: number) => {
 };
 
 const getCompletedQuantityInputValue = (productId: string) => {
-	const product = completionForm[productId];
+	const product = completionForm.value[productId];
 	if (!product || product.completedQuantity === null) return '';
 	if (!isSelfMadeTask.value) return product.completedQuantity;
 
@@ -991,15 +1032,7 @@ const componentMixInSummary = computed(() => {
 @include list-item-content-style;
 @include table-layout;
 
-.light-enter-motion {
-	transform: none;
-	transition: opacity 0.24s ease-out;
-	will-change: opacity;
-}
 
-.light-enter-motion.is-revealed {
-	transform: none;
-}
 
 .collapsible-content {
 	max-height: 1000px;

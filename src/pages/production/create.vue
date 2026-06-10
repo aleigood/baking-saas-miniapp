@@ -31,8 +31,8 @@
 				<view class="card">
 					<view class="card-title">产品数量</view>
 					<view class="summary-card no-frame">
-						<view v-if="summaryGroups.length > 0" class="summary-content">
-							<view v-for="(group, groupIndex) in summaryGroups" :key="groupIndex" class="summary-group-item clickable-summary" @click="handleGroupClick(group.name)">
+						<view v-if="summaryGroups.length > 0" :key="'summary-groups'" class="summary-content">
+							<view v-for="group in summaryGroups" :key="group.name" class="summary-group-item clickable-summary" @click="handleGroupClick(group.name)">
 								<view class="summary-group-header">
 									<text class="summary-group-name">{{ group.name }}</text>
 									<view class="summary-header-right">
@@ -50,13 +50,13 @@
 								</view>
 							</view>
 						</view>
-						<view v-else class="summary-placeholder">
+						<view v-else :key="'summary-placeholder'" class="summary-placeholder">
 							<view class="summary-group-item is-placeholder">
 								<text class="placeholder-text">请选择配方并输入产品数量</text>
 							</view>
 						</view>
 					</view>
-					<view class="product-tabs-container" v-if="productTabs.length > 0">
+					<view class="product-tabs-container" v-if="productTabs.length > 0" :key="'tabs-container'">
 						<CssAnimatedTabs v-model="activeTab" :tabs="productTabs" />
 					</view>
 					<view class="product-grid">

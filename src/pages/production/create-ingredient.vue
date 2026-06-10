@@ -32,8 +32,8 @@
 					<view class="card-title">原料列表</view>
 
 					<view class="summary-card no-frame">
-						<view v-if="summaryItems.length > 0" class="summary-tags-container">
-							<view v-for="(item, index) in summaryItems" :key="index" class="summary-tag clickable-tag" @click="handleTagClick(item.name)">
+						<view v-if="summaryItems.length > 0" :key="'summary-tags'" class="summary-tags-container">
+							<view v-for="item in summaryItems" :key="item.name" class="summary-tag clickable-tag" @click="handleTagClick(item.name)">
 								<text class="tag-name">{{ item.name }}</text>
 								<view class="tag-value-box">
 									<text class="tag-value">{{ item.weight }}</text>
@@ -44,23 +44,23 @@
 								</view>
 							</view>
 						</view>
-						<view v-else class="summary-placeholder">
+						<view v-else :key="'summary-placeholder'" class="summary-placeholder">
 							<view class="summary-group-item is-placeholder">
 								<text class="placeholder-text">请选择配方并输入原料重量</text>
 							</view>
 						</view>
 					</view>
 
-					<view class="tabs-container" v-if="recipeTabs.length > 0">
+					<view class="tabs-container" v-if="recipeTabs.length > 0" :key="'tabs-container'">
 						<CssAnimatedTabs v-model="activeTabKey" :tabs="recipeTabs" />
 					</view>
 
-					<view class="calculator-container" v-if="activeRecipeState">
-						<view v-if="isLoadingDetails" class="loading-block">
+					<view class="calculator-container" v-if="activeRecipeState" :key="'calculator-container'">
+						<view v-if="isLoadingDetails" :key="'details-loader'" class="loading-block">
 							<text>加载配方详情...</text>
 						</view>
 
-						<view class="ingredient-grid" v-else>
+						<view class="ingredient-grid" v-else :key="'details-grid'">
 							<view v-for="(ing, index) in activeRecipeState.ingredients" :key="ing.id || index" class="ingredient-item">
 								<view class="ingredient-info">
 									<text class="ingredient-name">{{ ing.name }}</text>

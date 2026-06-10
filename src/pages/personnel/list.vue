@@ -4,11 +4,11 @@
 		<DetailHeader title="人员管理" />
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content no-horizontal-padding page-content-with-fab">
-				<view v-if="isOwner" class="filter-container">
+				<view v-if="isOwner" :key="'filter-tabs-container'" class="filter-container">
 					<FilterTabs v-model="activeTenantFilter" :tabs="filterTabsData" />
 				</view>
 
-				<template v-if="isOwner && activeTenantFilter === 'all' && membersToDisplay.length > 0">
+				<template v-if="isOwner && activeTenantFilter === 'all' && membersToDisplay.length > 0" :key="'members-owner-all'">
 					<view v-for="group in groupedMembers" :key="group.tenantId">
 						<view class="tenant-group-header">{{ group.tenantName }}</view>
 						<ListItem
@@ -33,7 +33,7 @@
 						</ListItem>
 					</view>
 				</template>
-				<template v-else-if="membersToDisplay.length > 0">
+				<template v-else-if="membersToDisplay.length > 0" :key="'members-filtered'">
 					<ListItem
 						v-for="(member, index) in membersToDisplay"
 						:key="member.id"
@@ -55,7 +55,7 @@
 						</view>
 					</ListItem>
 				</template>
-				<view v-else class="empty-state">
+				<view v-else :key="'members-empty'" class="empty-state">
 					<text>暂无人员信息</text>
 				</view>
 			</view>
@@ -63,7 +63,7 @@
 
 		<ExpandingFab v-if="canManagePersonnel" @click="openCreateModal" :no-tab-bar="true" :visible="isFabVisible" />
 
-		<AppModal v-model:visible="showCreateModal" title="新增员工">
+		<AppModal v-model:visible="showCreateModal" :key="'create-member-modal'" title="新增员工">
 			<FormItem label="员工姓名">
 				<input class="input-field" type="text" v-model="createForm.name" placeholder="请输入姓名" />
 			</FormItem>

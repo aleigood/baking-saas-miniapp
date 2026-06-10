@@ -4,7 +4,7 @@
 		<DetailHeader title="店铺管理" />
 		<DetailPageLayout>
 			<view class="page-content no-horizontal-padding page-content-with-fab">
-				<template v-if="tenants.length > 0">
+				<template v-if="tenants.length > 0" :key="'tenants-list-container'">
 					<ListItem
 						v-for="(tenant, index) in tenants"
 						:key="tenant.id"
@@ -29,7 +29,7 @@
 						</view>
 					</ListItem>
 				</template>
-				<view v-else class="empty-state">
+				<view v-else :key="'tenants-empty'" class="empty-state">
 					<text>暂无店铺信息</text>
 				</view>
 			</view>
@@ -37,7 +37,7 @@
 
 		<ExpandingFab :actions="fabActions" :no-tab-bar="true" />
 
-		<AppModal v-model:visible="showEditModal" :title="isEditing ? '修改店铺' : '新增店铺'">
+		<AppModal v-model:visible="showEditModal" :key="'edit-tenant-modal'" :title="isEditing ? '修改店铺' : '新增店铺'">
 			<FormItem label="店铺名称">
 				<input class="input-field" v-model="editableTenant.name" placeholder="请输入店铺名称" />
 			</FormItem>
@@ -57,7 +57,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showImportModal" title="批量导入配方">
+		<AppModal v-model:visible="showImportModal" :key="'import-modal'" title="批量导入配方">
 			<FormItem label="选择店铺">
 				<picker mode="selector" :range="tenantPickerOptions" range-key="name" @change="onTenantSelect">
 					<view class="picker">
@@ -99,7 +99,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showTenantActionsModal" title="店铺操作" :no-header-line="true">
+		<AppModal v-model:visible="showTenantActionsModal" :key="'tenant-actions-modal'" title="店铺操作" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleEditFromMenu" :bleed="true">
 					<view class="main-info">

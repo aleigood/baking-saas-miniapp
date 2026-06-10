@@ -5,6 +5,7 @@
 				class="page-content page-content-with-tabbar-fab no-horizontal-padding animated-content"
 				:class="{ 'is-revealed': !isLoading && hasBeenActivated }"
 				v-if="hasBeenActivated"
+				:key="'ingredients-content'"
 			>
 				<view class="tools-bar">
 					<view class="filter-capsule" id="filter-capsule-btn" @touchstart="handleTouchStart($event, 'filter')" @click="showFilterSelector = true">
@@ -19,7 +20,7 @@
 						<span v-for="ripple in ripples['sort']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 						<view class="capsule-content">
 							<text>{{ currentSortLabel }}</text>
-							<image class="sort-icon-mini" src="/static/icons/sort.svg" />
+							<image class="sort-icon-mini" :src="sortIconSrc" />
 						</view>
 					</view>
 
@@ -39,7 +40,7 @@
 				</view>
 
 				<view class="list-wrapper">
-					<view v-if="filteredIngredients.length > 0" :key="listAnimationKey">
+					<view v-if="filteredIngredients.length > 0" :key="'ingredients-list'">
 						<ListItem
 							v-for="(ing, index) in filteredIngredients"
 							:key="ing.id"
@@ -78,11 +79,11 @@
 							</template>
 						</ListItem>
 					</view>
-					<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="暂无原料" subtitle="暂无符合条件的原料" />
+					<EmptyState v-else-if="isInitialFetchDone" :key="'ingredients-empty'" icon="/static/icons/empty-list.svg" title="暂无原料" subtitle="暂无符合条件的原料" />
 				</view>
 			</view>
 
-			<view v-if="isLoading && uiStore.activeTab === 'ingredients'" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
+			<view v-if="isLoading && uiStore.activeTab === 'ingredients'" :key="'ingredients-skeleton'" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
 				<view class="tools-bar" style="margin-bottom: 4px">
 					<view class="skeleton-block shimmer" style="width: 70px; height: 32px; border-radius: 16px"></view>
 					<view class="skeleton-block shimmer" style="width: 70px; height: 32px; border-radius: 16px"></view>
@@ -97,7 +98,7 @@
 
 		<ExpandingFab :actions="fabActions" :visible="isFabVisible" />
 
-		<AppModal :visible="showFilterSelector" @update:visible="showFilterSelector = false" title="选择原料类型" :no-header-line="true">
+		<AppModal :visible="showFilterSelector" :key="'filter-selector-modal'" @update:visible="showFilterSelector = false" title="选择原料类型" :no-header-line="true">
 			<view class="options-list">
 				<ListItem v-for="option in filterOptions" :key="option.key" @click="handleFilterSelect(option.key)" class="option-item" :bleed="true">
 					<view class="main-info">
@@ -110,7 +111,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showIngredientActionsModal" title="原料操作" :no-header-line="true">
+		<AppModal v-model:visible="showIngredientActionsModal" :key="'ingredient-actions-modal'" title="原料操作" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleDeleteIngredient" :bleed="true">
 					<view class="main-info">
@@ -119,7 +120,7 @@
 				</ListItem>
 			</view>
 		</AppModal>
-		<AppModal v-model:visible="showDeleteIngredientConfirmModal" title="确认删除">
+		<AppModal v-model:visible="showDeleteIngredientConfirmModal" :key="'delete-ingredient-modal'" title="确认删除">
 			<view class="modal-prompt-text">确定要删除 “{{ selectedIngredient?.name }}” 吗？</view>
 			<view class="modal-warning-text">已被配方使用的原料将无法被删除。</view>
 			<view class="modal-actions">
@@ -129,7 +130,7 @@
 				</AppButton>
 			</view>
 		</AppModal>
-		<AppModal v-model:visible="showCreateIngredientModal" title="新增原料">
+		<AppModal v-model:visible="showCreateIngredientModal" :key="'create-ingredient-modal'" title="新增原料">
 			<FormItem label="原料名称">
 				<input class="input-field" v-model="newIngredientForm.name" placeholder="输入原料名称" />
 			</FormItem>
@@ -246,6 +247,15 @@ const fabActions = computed(() => [
 		icon: '/static/icons/add.svg',
 		text: '新增原料',
 		action: () => openCreateIngredientModal()
+	},
+	{
+		icon: '/static/icons/history.svg',
+		text: '消耗流水',
+		action: () => {
+			uni.navigateTo({
+				url: '/pages/ingredients/consumption-ledger'
+			});
+		}
 	}
 ]);
 
@@ -313,6 +323,12 @@ const currentSortLabel = computed(() => {
 });
 
 const currentSortDirection = computed(() => (sortMode.value.endsWith('_asc') ? 'up' : 'down'));
+
+const sortIconSrc = computed(() => {
+	return currentSortDirection.value === 'up'
+		? '/static/icons/sort-up.svg'
+		: '/static/icons/sort-down.svg';
+});
 
 const getSelfMadeRecipeFamily = (ing: Ingredient) => {
 	const allRecipes = [...dataStore.recipes.preDoughs, ...dataStore.recipes.extras];

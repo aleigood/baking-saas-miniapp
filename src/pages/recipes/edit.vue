@@ -12,7 +12,7 @@
 						<input class="input-field" v-model="form.name" :placeholder="namePlaceholder" :disabled="isEditing" :class="{ 'is-disabled': isEditing }" />
 					</FormItem>
 
-					<FormItem v-if="form.type === 'MAIN'" label="配方品类">
+					<FormItem v-if="form.type === 'MAIN'" :key="'category-item'" label="配方品类">
 						<picker mode="selector" :range="recipeCategories" range-key="label" @change="onCategoryChange" :disabled="isEditing">
 							<view class="picker" :class="{ 'is-disabled': isEditing }">
 								{{ currentCategoryLabel }}
@@ -21,7 +21,7 @@
 						</picker>
 					</FormItem>
 
-					<FormItem v-if="form.type !== 'MAIN'" label="配方类型">
+					<FormItem v-if="form.type !== 'MAIN'" :key="'type-item'" label="配方类型">
 						<picker mode="selector" :range="recipeTypes" range-key="label" @change="onTypeChange" :disabled="isEditing">
 							<view class="picker" :class="{ 'is-disabled': isEditing }">
 								{{ currentTypeLabel }}
@@ -30,12 +30,12 @@
 						</picker>
 					</FormItem>
 
-					<FormItem v-if="isEditing" label="版本说明">
+					<FormItem v-if="isEditing" :key="'notes-item'" label="版本说明">
 						<input class="input-field" v-model="form.notes" placeholder="例如：夏季版本，减少水量" />
 					</FormItem>
 				</view>
 
-				<view class="card" v-if="form.type === 'MAIN'">
+				<view class="card" v-if="form.type === 'MAIN'" :key="'params-main'">
 					<view class="card-title-wrapper" style="margin-bottom: 15px">
 						<span class="card-title">工艺参数</span>
 					</view>
@@ -50,7 +50,7 @@
 					</FormItem>
 				</view>
 
-				<view class="card" v-if="form.type !== 'MAIN'">
+				<view class="card" v-if="form.type !== 'MAIN'" :key="'params-other'">
 					<view class="card-title-wrapper" style="margin-bottom: 15px">
 						<span class="card-title">工艺参数</span>
 					</view>
@@ -72,7 +72,7 @@
 					</FormItem>
 				</view>
 
-				<view class="card" v-if="form.type === 'MAIN'">
+				<view class="card" v-if="form.type === 'MAIN'" :key="'details-main'">
 					<view class="card-title-wrapper">
 						<span class="card-title">配方详情</span>
 					</view>
@@ -84,7 +84,7 @@
 							</view>
 
 							<template v-for="(component, componentIndex) in form.components" :key="component.id">
-								<view class="inner-section" v-if="component.type === 'PRE_DOUGH'">
+								<view class="inner-section" v-if="component.type === 'PRE_DOUGH'" :key="'component-section-' + component.id">
 									<view class="group-title">
 										<span>{{ component.name }}</span>
 										<view class="delete-btn" @click="removeComponent(componentIndex)">
@@ -139,7 +139,7 @@
 							<text class="col-ratio">比例%</text>
 							<text class="col-action"></text>
 						</view>
-						<view v-for="(ing, ingIndex) in mainComponent.ingredients" :key="ingIndex" class="ingredient-row">
+						<view v-for="(ing, ingIndex) in mainComponent.ingredients" :key="ing._key || ingIndex" class="ingredient-row">
 							<view class="autocomplete-input-wrapper">
 								<AutocompleteInput
 									v-model="ing.name"
@@ -185,7 +185,7 @@
 					</view>
 				</view>
 
-				<view class="card" v-if="form.type !== 'MAIN'">
+				<view class="card" v-if="form.type !== 'MAIN'" :key="'details-other'">
 					<view class="card-title-wrapper">
 						<span class="card-title">配方详情</span>
 					</view>
@@ -195,7 +195,7 @@
 						<text class="col-ratio">比例%</text>
 						<text class="col-action"></text>
 					</view>
-					<view v-for="(ing, ingIndex) in mainComponent.ingredients" :key="ingIndex" class="ingredient-row">
+					<view v-for="(ing, ingIndex) in mainComponent.ingredients" :key="ing._key || ingIndex" class="ingredient-row">
 						<view class="autocomplete-input-wrapper">
 							<AutocompleteInput
 								v-model="ing.name"
@@ -246,7 +246,7 @@
 						<FilterTabs v-model="activeProductTab" :tabs="productTabs" class="product-tabs" editable @add="addProduct" align="center" />
 					</view>
 
-					<view v-for="(product, prodIndex) in form.products" :key="prodIndex">
+					<view v-for="(product, prodIndex) in form.products" :key="product._key || prodIndex">
 						<view class="card" v-show="activeProductTab === prodIndex">
 							<view class="card-title-wrapper">
 								<span class="card-title">{{ product.name || `产品${prodIndex + 1}` }}</span>
@@ -265,7 +265,7 @@
 
 							<view class="sub-group">
 								<view class="sub-group-title">辅料 (配方百分比)</view>
-								<view v-for="(ing, ingIndex) in product.mixIns" :key="ingIndex" class="ingredient-row">
+								<view v-for="(ing, ingIndex) in product.mixIns" :key="ing._key || ingIndex" class="ingredient-row">
 									<view class="autocomplete-input-wrapper">
 										<AutocompleteInput
 											v-model="ing.name"
@@ -296,7 +296,7 @@
 
 							<view class="sub-group">
 								<view class="sub-group-title">馅料 (克/个)</view>
-								<view v-for="(ing, ingIndex) in product.fillings" :key="ingIndex" class="ingredient-row">
+								<view v-for="(ing, ingIndex) in product.fillings" :key="ing._key || ingIndex" class="ingredient-row">
 									<view class="autocomplete-input-wrapper">
 										<AutocompleteInput
 											v-model="ing.name"
@@ -327,7 +327,7 @@
 
 							<view class="sub-group">
 								<view class="sub-group-title">表面装饰 (克/个)</view>
-								<view v-for="(ing, ingIndex) in product.toppings" :key="ingIndex" class="ingredient-row">
+								<view v-for="(ing, ingIndex) in product.toppings" :key="ing._key || ingIndex" class="ingredient-row">
 									<view class="autocomplete-input-wrapper">
 										<AutocompleteInput
 											v-model="ing.name"
@@ -378,7 +378,7 @@
 			</view>
 		</DetailPageLayout>
 
-		<AppModal :visible="showAddPreDoughModal" @update:visible="showAddPreDoughModal = false" title="添加面种">
+		<AppModal :visible="showAddPreDoughModal" :key="'add-predough-modal'" @update:visible="showAddPreDoughModal = false" title="添加面种">
 			<FormItem label="选择面种配方">
 				<picker mode="selector" :range="availablePreDoughs" range-key="name" @change="onPreDoughSelect">
 					<view class="picker" :class="{ placeholder: !selectedPreDough }">
@@ -398,7 +398,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showCalculatorModal" title="发酵计算器">
+		<AppModal v-model:visible="showCalculatorModal" :key="'calculator-modal'" title="发酵计算器">
 			<FermentationCalculator @close="showCalculatorModal = false" />
 		</AppModal>
 
@@ -919,6 +919,7 @@ onLoad(async (options) => {
 					...c,
 					ingredients: c.ingredients.map((ing: any) => ({
 						...ing,
+						_key: ing.id || ('ing_' + Math.random().toString(36).substr(2, 9)),
 						flourRatio: ing.isRecipe && (parsedForm.type === 'PRE_DOUGH' || (parsedForm.type === 'MAIN' && ing.ratio === null)) ? ing.ratio : null,
 						ratio: ing.isRecipe && (parsedForm.type === 'PRE_DOUGH' || (parsedForm.type === 'MAIN' && ing.ratio === null)) ? null : ing.ratio,
 						recipeType: ing.isRecipe ? (availablePreDoughs.value.some((p) => p.id === ing.id) ? 'PRE_DOUGH' : 'EXTRA') : null
@@ -942,7 +943,13 @@ onLoad(async (options) => {
 							: null,
 					shelfLife: shelfLifeVal,
 					components: sanitizedComponents,
-					products: parsedForm.products || []
+					products: (parsedForm.products || []).map((p: any) => ({
+						...p,
+						_key: p.id || ('prod_' + Math.random().toString(36).substr(2, 9)),
+						mixIns: (p.mixIns || []).map((i: any) => ({ ...i, _key: i.id || ('sub_' + Math.random().toString(36).substr(2, 9)) })),
+						fillings: (p.fillings || []).map((i: any) => ({ ...i, _key: i.id || ('sub_' + Math.random().toString(36).substr(2, 9)) })),
+						toppings: (p.toppings || []).map((i: any) => ({ ...i, _key: i.id || ('sub_' + Math.random().toString(36).substr(2, 9)) }))
+					}))
 				};
 
 				initPreDoughData(form.value.components);
@@ -987,7 +994,7 @@ onLoad(async (options) => {
 					type: 'BASE_COMPONENT',
 					lossRatio: 1,
 					divisionLoss: 0,
-					ingredients: [{ id: null, name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null }],
+					ingredients: [{ id: null, _key: `ing_${Date.now()}`, name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null }],
 					procedure: ['']
 				}
 			];
@@ -1030,7 +1037,7 @@ const onIngredientSelect = (item: AutocompleteItem & { isFlour?: boolean }, ingI
 };
 
 const addIngredient = () => {
-	mainComponent.value.ingredients.push({ id: null, name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null });
+	mainComponent.value.ingredients.push({ id: null, _key: 'ing_' + Math.random().toString(36).substr(2, 9), name: '', ratio: null, flourRatio: null, isFlour: false, isRecipe: false, waterContent: 0, recipeType: null });
 };
 
 const removeIngredient = (ingIndex: number) => {
@@ -1125,6 +1132,7 @@ const confirmAddPreDough = async () => {
 const addProduct = () => {
 	if (!form.value.products) form.value.products = [];
 	form.value.products.push({
+		_key: 'prod_' + Math.random().toString(36).substr(2, 9),
 		name: '',
 		baseDoughWeight: 100,
 		mixIns: [],
@@ -1148,10 +1156,10 @@ const addSubIngredient = (productIndex: number, type: 'mixIns' | 'fillings' | 't
 	const product = form.value.products![productIndex];
 	if (type === 'mixIns') {
 		if (!product.mixIns) product.mixIns = [];
-		product.mixIns.push({ id: null, name: '', ratio: null, weightInGrams: null, isRecipe: false, waterContent: 0, isFlour: false });
+		product.mixIns.push({ id: null, _key: 'sub_' + Math.random().toString(36).substr(2, 9), name: '', ratio: null, weightInGrams: null, isRecipe: false, waterContent: 0, isFlour: false });
 	} else {
 		if (!product[type]) product[type] = [];
-		product[type]!.push({ id: null, name: '', ratio: null, weightInGrams: null, isRecipe: false, waterContent: 0, isFlour: false });
+		product[type]!.push({ id: null, _key: 'sub_' + Math.random().toString(36).substr(2, 9), name: '', ratio: null, weightInGrams: null, isRecipe: false, waterContent: 0, isFlour: false });
 	}
 };
 

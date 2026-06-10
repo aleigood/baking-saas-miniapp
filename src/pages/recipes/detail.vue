@@ -3,7 +3,7 @@
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader :title="recipeFamily?.name || '加载中...'" />
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="recipeFamily">
+			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="recipeFamily" :key="'recipe-detail-content'">
 				<RecipeVersionList
 					:versions="recipeVersions"
 					:selected-version-id="displayedVersionId"
@@ -14,16 +14,17 @@
 					@longpress-version="handleVersionLongPressAction"
 				/>
 
-				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" @show-popover="handleShowPopover" />
-				<SimpleRecipeDetail v-else :version="displayedVersion" :shelf-life="recipeFamily.outputIngredient?.shelfLife || 0" @show-popover="handleShowPopover" />
+				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :key="'main-detail'" :version="displayedVersion" @show-popover="handleShowPopover" />
+				<SimpleRecipeDetail v-else :key="'simple-detail'" :version="displayedVersion" :shelf-life="recipeFamily.outputIngredient?.shelfLife || 0" @show-popover="handleShowPopover" />
 			</view>
 
-			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
+			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay" :key="'skeleton-detail'">
 				<SkeletonDetail :show-tabs="true" :meta-count="4" :show-chart="true" :list-count="0" :table-groups="2" :show-notes="true" />
 			</view>
 
 			<EmptyState
 				v-if="!isLoading && !recipeFamily"
+				:key="'empty-state-error'"
 				icon="/static/icons/network-error.svg"
 				title="加载失败"
 				subtitle="请检查网络连接后重试"
@@ -34,7 +35,7 @@
 			/>
 		</DetailPageLayout>
 
-		<AppModal ref="versionOptionsModalRef" v-model:visible="showVersionOptionsModal" title="配方版本" :no-header-line="true">
+		<AppModal ref="versionOptionsModalRef" v-model:visible="showVersionOptionsModal" :key="'version-options-modal'" title="配方版本" :no-header-line="true">
 			<view class="options-list">
 				<ListItem v-if="!selectedVersionForAction?.isActive" class="option-item" @click="handleActivateVersionOption" :bleed="true">
 					<view class="main-info">
@@ -54,7 +55,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showActivateVersionConfirmModal" title="设为使用中">
+		<AppModal v-model:visible="showActivateVersionConfirmModal" :key="'activate-confirm-modal'" title="设为使用中">
 			<view class="modal-prompt-text">要将这个版本设为当前使用的配方吗？</view>
 			<view class="modal-warning-text">后续创建生产任务时将默认使用此版本配方。</view>
 			<view class="modal-actions">
@@ -65,7 +66,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showDeleteVersionConfirmModal" title="确认删除">
+		<AppModal v-model:visible="showDeleteVersionConfirmModal" :key="'delete-confirm-modal'" title="确认删除">
 			<view class="modal-prompt-text">确定要删除这个配方版本吗？</view>
 			<view class="modal-warning-text">已被生产任务使用的配方无法删除，此操作不可撤销。</view>
 			<view class="modal-actions">

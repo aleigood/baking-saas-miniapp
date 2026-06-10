@@ -3,7 +3,7 @@
 	<view class="page-wrapper" @click="hidePopover">
 		<DetailHeader title="前置任务" />
 		<DetailPageLayout @scroll="handleScroll">
-			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="task">
+			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="task" :key="'prep-detail-content'">
 				<view class="filter-header-container">
 					<FilterTabs v-model="activeTab" :tabs="filterTabs" />
 
@@ -12,7 +12,7 @@
 					</IconButton>
 				</view>
 
-				<view v-if="activeTab === 'BILL_OF_MATERIALS'">
+				<view v-if="activeTab === 'BILL_OF_MATERIALS'" :key="'tab-bom'">
 					<template v-if="hasMaterials">
 						<view v-if="billOfMaterials.standardItems.length > 0" class="card">
 							<view class="card-title-wrapper" @click="toggleCollapse('standardItems')">
@@ -61,7 +61,7 @@
 					<EmptyState v-else icon="/static/icons/empty-box.svg" title="暂无原料需求" subtitle="选中任务下暂无需要准备的原料" />
 				</view>
 
-				<view v-if="activeTab !== 'BILL_OF_MATERIALS'">
+				<view v-if="activeTab !== 'BILL_OF_MATERIALS'" :key="'tab-prep-items'">
 					<view v-if="filteredPrepItems.length > 0">
 						<view v-for="item in filteredPrepItems" :key="item.id" class="card recipe-card" :class="{ 'is-completed': completedItems.has(item.id) }">
 							<view class="card-title-wrapper" @click="toggleCollapse(item.id)">
@@ -130,7 +130,7 @@
 				</view>
 			</view>
 
-			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay">
+			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay" :key="'prep-skeleton'">
 				<view class="filter-header-container">
 					<view class="skeleton-block shimmer" style="height: 36px; width: 200px; border-radius: 18px"></view>
 					<view class="skeleton-block shimmer" style="height: 40px; width: 40px; border-radius: 50%; margin-left: 10px"></view>
@@ -140,6 +140,7 @@
 
 			<EmptyState
 				v-if="!isLoading && !task"
+				:key="'prep-empty-error'"
 				:full-page="true"
 				icon="/static/icons/network-error.svg"
 				title="获取任务失败"
@@ -149,7 +150,7 @@
 				@action="fetchTaskData"
 			/>
 		</DetailPageLayout>
-		<AppModal v-model:visible="showTaskFilterModal" title="筛选生产任务">
+		<AppModal v-model:visible="showTaskFilterModal" :key="'task-filter-modal'" title="筛选生产任务">
 			<scroll-view scroll-y class="task-filter-list">
 				<view class="task-filter-item ripple-container" @click="toggleSelectAllTasks">
 					<view class="check-icon" :class="{ 'is-checked': isAllTasksSelected }">
@@ -171,13 +172,13 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showCalculatorModal" title="发酵计算器">
+		<AppModal v-model:visible="showCalculatorModal" :key="'calculator-modal'" title="发酵计算器">
 			<FermentationCalculator :pre-doughs="preDoughItems" @close="showCalculatorModal = false" />
 		</AppModal>
 
 		<ExpandingFab v-if="task" :actions="fabActions" :no-tab-bar="true" :visible="isFabVisible" />
 
-		<AppPopover :visible="popover.visible" :content="popover.content" :targetRect="popover.targetRect" placement="right" :offsetY="0" />
+		<AppPopover :visible="popover.visible" :key="'popover-extra'" :content="popover.content" :targetRect="popover.targetRect" placement="right" :offsetY="0" />
 	</view>
 </template>
 

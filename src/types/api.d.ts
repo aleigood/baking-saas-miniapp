@@ -361,6 +361,8 @@ export interface IngredientConsumptionLedgerEntry {
 	id: string;
 	date: string;
 	taskId: string;
+	operator: string;
+	taskName: string;
 	taskProducts: {
 		name: string;
 		quantity: number;

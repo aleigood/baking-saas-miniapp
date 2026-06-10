@@ -29,7 +29,7 @@ export function getIngredient(ingredientId: string): Promise<Ingredient> {
 
 export function getIngredientConsumptionLedger(
 	ingredientId: string,
-	params: { page?: number; limit?: number; startDate?: string; endDate?: string; keyword?: string } = {}
+	params: { page?: number; limit?: number; startDate?: string; endDate?: string; keyword?: string; userId?: string } = {}
 ): Promise<IngredientConsumptionLedgerResponse> {
 	return request<IngredientConsumptionLedgerResponse>({
 		url: `/ingredients/${ingredientId}/consumption-ledger`,
