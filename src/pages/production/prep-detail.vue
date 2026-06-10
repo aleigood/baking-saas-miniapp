@@ -12,7 +12,12 @@
 					</IconButton>
 				</view>
 
-				<view v-if="activeTab === 'BILL_OF_MATERIALS'" :key="'tab-bom'">
+				<view
+					class="prep-tab-animated-container"
+					v-if="renderedTab === 'BILL_OF_MATERIALS'"
+					:key="'tab-bom-' + renderedTab"
+					:class="{ 'is-fading-out': isFadingOut }"
+				>
 					<template v-if="hasMaterials">
 						<view v-if="billOfMaterials.standardItems.length > 0" class="card">
 							<view class="card-title-wrapper" @click="toggleCollapse('standardItems')">
@@ -61,9 +66,14 @@
 					<EmptyState v-else icon="/static/icons/empty-box.svg" title="暂无原料需求" subtitle="选中任务下暂无需要准备的原料" />
 				</view>
 
-				<view v-if="activeTab !== 'BILL_OF_MATERIALS'" :key="'tab-prep-items'">
-					<view v-if="filteredPrepItems.length > 0">
-						<view v-for="item in filteredPrepItems" :key="item.id" class="card recipe-card" :class="{ 'is-completed': completedItems.has(item.id) }">
+				<view
+					class="prep-tab-animated-container"
+					v-if="renderedTab && renderedTab !== 'BILL_OF_MATERIALS'"
+					:key="'tab-prep-items-' + renderedTab"
+					:class="{ 'is-fading-out': isFadingOut }"
+				>
+					<view v-if="renderedPrepItems.length > 0">
+						<view v-for="item in renderedPrepItems" :key="item.id" class="card recipe-card" :class="{ 'is-completed': completedItems.has(item.id) }">
 							<view class="card-title-wrapper" @click="toggleCollapse(item.id)">
 								<view class="completion-toggle" @click.stop="toggleItemCompleted(item.id)">
 									<view class="check-icon" :class="{ 'is-checked': completedItems.has(item.id) }">
@@ -183,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, getCurrentInstance, shallowRef } from 'vue';
+import { ref, reactive, computed, watch, getCurrentInstance, shallowRef } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import type { PrepTask, BillOfMaterialsResponseDto } from '@/types/api';
 import { getPrepTaskDetails, getPrepTaskPdfUrl } from '@/api/tasks';
@@ -225,6 +235,8 @@ const addedIngredientsMap = reactive(new Set<string>());
 const completedItems = ref(new Set<string>());
 
 const activeTab = ref('');
+const renderedTab = ref('');
+const isFadingOut = ref(false);
 const collapsedSections = ref(new Set<string>());
 
 const showCalculatorModal = ref(false);
@@ -339,6 +351,28 @@ const filteredPrepItems = computed(() => {
 	if (activeTab.value === 'PRE_DOUGH') return preDoughItems.value;
 	if (activeTab.value === 'EXTRA') return extraItems.value;
 	return [];
+});
+
+const renderedPrepItems = computed(() => {
+	if (renderedTab.value === 'PRE_DOUGH') return preDoughItems.value;
+	if (renderedTab.value === 'EXTRA') return extraItems.value;
+	return [];
+});
+
+watch(activeTab, (newTab) => {
+	if (!newTab) return;
+	if (newTab === renderedTab.value) {
+		return;
+	}
+	if (!renderedTab.value) {
+		renderedTab.value = newTab;
+		return;
+	}
+	isFadingOut.value = true;
+	setTimeout(() => {
+		renderedTab.value = newTab;
+		isFadingOut.value = false;
+	}, 150);
 });
 
 const toggleCollapse = (itemId: string) => {
@@ -860,5 +894,33 @@ onLoad(async (options) => {
 	font-size: 13px;
 	color: var(--text-secondary);
 	margin-top: 5px;
+}
+
+.prep-tab-animated-container {
+	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+	&.is-fading-out {
+		animation: fadeOutClean 0.15s ease forwards;
+	}
+}
+</style>
+
+<style lang="scss">
+@keyframes fadeInClean {
+	from {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fadeOutClean {
+	to {
+		opacity: 0;
+		transform: translateY(-5px);
+	}
 }
 </style>

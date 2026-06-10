@@ -463,9 +463,9 @@ const getTaskTitle = (task: ProductionTaskDto | PrepTask) => {
 	return regularTask.items
 		.map((item) => {
 			if (isSelfMadeItem(item)) {
-				return `${item.product.name} ${formatWeight(item.quantity)}`;
+				return `${item.product.name} ${formatWeight(Number(item.quantity))}`;
 			}
-			return `${item.product.name} x${item.quantity}`;
+			return `${item.product.name} x${Number(item.quantity)}`;
 		})
 		.join('、');
 };
@@ -476,7 +476,7 @@ const getTotalQuantity = (task: ProductionTaskDto) => {
 		if (isSelfMadeItem(item)) {
 			return sum + 1;
 		}
-		return sum + item.quantity;
+		return sum + Number(item.quantity);
 	}, 0);
 };
 

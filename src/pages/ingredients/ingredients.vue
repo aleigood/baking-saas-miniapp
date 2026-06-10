@@ -83,7 +83,11 @@
 				</view>
 			</view>
 
-			<view v-if="isLoading && uiStore.activeTab === 'ingredients'" :key="'ingredients-skeleton'" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
+			<view
+				v-if="isLoading && uiStore.activeTab === 'ingredients'"
+				:key="'ingredients-skeleton'"
+				class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay"
+			>
 				<view class="tools-bar" style="margin-bottom: 4px">
 					<view class="skeleton-block shimmer" style="width: 70px; height: 32px; border-radius: 16px"></view>
 					<view class="skeleton-block shimmer" style="width: 70px; height: 32px; border-radius: 16px"></view>
@@ -314,8 +318,8 @@ const currentSortLabel = computed(() => {
 	const labels: Record<SortMode, string> = {
 		name_asc: '名称',
 		name_desc: '名称',
-		price_asc: '价格',
-		price_desc: '价格',
+		price_asc: '单价',
+		price_desc: '单价',
 		production_asc: '制作',
 		production_desc: '制作'
 	};
@@ -325,9 +329,7 @@ const currentSortLabel = computed(() => {
 const currentSortDirection = computed(() => (sortMode.value.endsWith('_asc') ? 'up' : 'down'));
 
 const sortIconSrc = computed(() => {
-	return currentSortDirection.value === 'up'
-		? '/static/icons/sort-up.svg'
-		: '/static/icons/sort-down.svg';
+	return currentSortDirection.value === 'up' ? '/static/icons/sort-up.svg' : '/static/icons/sort-down.svg';
 });
 
 const getSelfMadeRecipeFamily = (ing: Ingredient) => {

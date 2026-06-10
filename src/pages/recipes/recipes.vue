@@ -27,51 +27,57 @@
 
 				<view class="list-wrapper">
 					<template v-if="hasAnyRecipe">
-						<view v-if="filteredRecipes.length > 0" :key="listAnimationKey">
-							<ListItem
-								v-for="(family, index) in filteredRecipes"
-								:key="family.id"
-								@click="navigateToDetail(family.id)"
-								@longpress="openRecipeActions(family)"
-								:vibrate-on-long-press="canEditRecipe"
-								:bleed="true"
-								:divider="index < filteredRecipes.length - 1"
-								:discontinued="!!family.deletedAt"
-								:animate-on-mount="triggerListAnimation"
-								:animation-index="index"
-							>
-								<template v-if="family.type === 'MAIN'">
-									<view class="main-info">
-										<view>
-											<view class="name">
-												<text class="name-text">{{ family.name }}</text>
-												<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+						<view
+							class="recipe-list-animated-container"
+							:key="'recipes-list-' + renderedFilter"
+							:class="{ 'is-fading-out': isFadingOutList }"
+						>
+							<view v-if="renderedRecipes.length > 0">
+								<ListItem
+									v-for="(family, index) in renderedRecipes"
+									:key="family.id"
+									@click="navigateToDetail(family.id)"
+									@longpress="openRecipeActions(family)"
+									:vibrate-on-long-press="canEditRecipe"
+									:bleed="true"
+									:divider="index < renderedRecipes.length - 1"
+									:discontinued="!!family.deletedAt"
+									:animate-on-mount="triggerListAnimation"
+									:animation-index="index"
+								>
+									<template v-if="family.type === 'MAIN'">
+										<view class="main-info">
+											<view>
+												<view class="name">
+													<text class="name-text">{{ family.name }}</text>
+													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+												</view>
+												<view class="desc">{{ family.productCount }} 种产品</view>
 											</view>
-											<view class="desc">{{ family.productCount }} 种产品</view>
 										</view>
-									</view>
-									<view class="side-info">
-										<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
-										<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
-									</view>
-								</template>
-								<template v-else>
-									<view class="main-info">
-										<view>
-											<view class="name">
-												<text class="name-text">{{ family.name }}</text>
-												<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+										<view class="side-info">
+											<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
+											<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
+										</view>
+									</template>
+									<template v-else>
+										<view class="main-info">
+											<view>
+												<view class="name">
+													<text class="name-text">{{ family.name }}</text>
+													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+												</view>
+												<view class="desc">{{ family.ingredientCount }} 种原料</view>
 											</view>
-											<view class="desc">{{ family.ingredientCount }} 种原料</view>
 										</view>
-									</view>
-									<view class="side-info">
-										<view class="desc">{{ family.usageCount || 0 }} 次引用</view>
-									</view>
-								</template>
-							</ListItem>
+										<view class="side-info">
+											<view class="desc">{{ family.usageCount || 0 }} 次引用</view>
+										</view>
+									</template>
+								</ListItem>
+							</view>
+							<EmptyState v-else-if="isInitialFetchDone" :key="'recipes-empty-filtered'" icon="/static/icons/empty-list.svg" title="暂无配方" subtitle="该分类下暂无配方" />
 						</view>
-						<EmptyState v-else-if="isInitialFetchDone" :key="'recipes-empty-filtered'" icon="/static/icons/empty-list.svg" title="暂无配方" subtitle="该分类下暂无配方" />
 					</template>
 					<EmptyState v-else-if="isInitialFetchDone" :key="'recipes-empty-all'" icon="/static/icons/empty-box.svg" title="暂无配方" subtitle="暂无任何配方，快去创建吧！" />
 				</view>
@@ -180,11 +186,29 @@ const hasBeenActivated = ref(false);
 const isInitialFetchDone = ref(false);
 
 const activeFilter = ref('BREAD');
+const renderedFilter = ref('BREAD');
+const isFadingOutList = ref(false);
 const isSubmitting = ref(false);
 const selectedRecipe = ref<RecipeFamily | null>(null);
 
 const listAnimationKey = ref(Date.now());
 const triggerListAnimation = ref(false);
+
+watch(activeFilter, (newFilter) => {
+	if (!newFilter) return;
+	if (newFilter === renderedFilter.value) {
+		return;
+	}
+	if (!renderedFilter.value || isLoading.value || !hasBeenActivated.value) {
+		renderedFilter.value = newFilter;
+		return;
+	}
+	isFadingOutList.value = true;
+	setTimeout(() => {
+		renderedFilter.value = newFilter;
+		isFadingOutList.value = false;
+	}, 150);
+});
 
 const recipeTypeMap = {
 	MAIN: '面团',
@@ -227,6 +251,19 @@ const hasAnyRecipe = computed(() => {
 
 const filteredRecipes = computed(() => {
 	const filterKey = activeFilter.value;
+
+	if (filterKey === 'PRE_DOUGH') {
+		return dataStore.recipes.preDoughs || [];
+	}
+	if (filterKey === 'EXTRA') {
+		return dataStore.recipes.extras || [];
+	}
+
+	return dataStore.recipes.mainRecipes.filter((r) => r.category === filterKey);
+});
+
+const renderedRecipes = computed(() => {
+	const filterKey = renderedFilter.value;
 
 	if (filterKey === 'PRE_DOUGH') {
 		return dataStore.recipes.preDoughs || [];
@@ -596,6 +633,34 @@ const confirmDeleteRecipe = async () => {
 @keyframes shimmer-sweep {
 	100% {
 		transform: translateX(100%);
+	}
+}
+
+.recipe-list-animated-container {
+	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+	&.is-fading-out {
+		animation: fadeOutClean 0.15s ease forwards;
+	}
+}
+</style>
+
+<style lang="scss">
+@keyframes fadeInClean {
+	from {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fadeOutClean {
+	to {
+		opacity: 0;
+		transform: translateY(-5px);
 	}
 }
 </style>

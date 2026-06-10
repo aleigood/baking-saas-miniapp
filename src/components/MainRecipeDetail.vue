@@ -4,7 +4,12 @@
 			<FilterTabs v-if="version && version.products.length > 0" :tabs="productTabsForFilter" v-model="selectedProductId" align="center" />
 		</view>
 
-		<view class="card" v-if="selectedProduct && recipeDetails">
+		<view
+			class="card recipe-detail-product-card"
+			v-if="selectedProduct && renderedRecipeDetails"
+			:key="'recipe-details-card-' + renderedProductId"
+			:class="{ 'is-fetching': isFetching, 'is-fading-out': isFadingOut }"
+		>
 			<view class="meta-grid-container">
 				<view class="meta-item" v-if="targetTempDisplay">
 					<view class="label">出缸温度</view>
@@ -29,12 +34,12 @@
 
 			<view class="data-analysis-section">
 				<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
-				<LineChart v-if="detailChartTab === 'trend'" :chart-data="costHistory" />
-				<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="costBreakdown" />
+				<LineChart v-if="detailChartTab === 'trend'" :chart-data="renderedCostHistory" />
+				<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="renderedCostBreakdown" />
 			</view>
 
-			<view v-if="recipeDetails.componentGroups && recipeDetails.componentGroups.length > 0">
-				<view v-for="(component, index) in recipeDetails.componentGroups" :key="component.name + index" class="dough-section">
+			<view v-if="renderedRecipeDetails.componentGroups && renderedRecipeDetails.componentGroups.length > 0">
+				<view v-for="(component, index) in renderedRecipeDetails.componentGroups" :key="component.name + index" class="dough-section">
 					<view class="group-title" @click="toggleCollapse(component.name)">
 						<span>{{ component.name }}</span>
 						<span class="arrow" :class="{ collapsed: collapsedSections.has(component.name) }">&#10095;</span>
@@ -86,7 +91,7 @@
 						<span class="arrow" :class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
 					</view>
 					<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
-						<template v-for="(ingredients, groupName) in recipeDetails.groupedExtraIngredients" :key="groupName">
+						<template v-for="(ingredients, groupName) in renderedRecipeDetails.groupedExtraIngredients" :key="groupName">
 							<view v-if="ingredients.length > 0" class="summary-table-wrapper">
 								<view class="smart-table detail-table">
 									<view class="table-header summary-header">
@@ -141,11 +146,11 @@
 						</template>
 						<view class="total-cost-summary">
 							<view class="summary-divider"></view>
-							<view class="summary-text">总成本: ¥{{ formatMoney(recipeDetails.totalCost) }}</view>
+							<view class="summary-text">总成本: ¥{{ formatMoney(renderedRecipeDetails.totalCost) }}</view>
 						</view>
-						<view v-if="recipeDetails.productProcedure && recipeDetails.productProcedure.length > 0" class="procedure-notes">
+						<view v-if="renderedRecipeDetails.productProcedure && renderedRecipeDetails.productProcedure.length > 0" class="procedure-notes">
 							<text class="notes-title">制作要点:</text>
-							<text v-for="(step, stepIndex) in recipeDetails.productProcedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
+							<text v-for="(step, stepIndex) in renderedRecipeDetails.productProcedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
 						</view>
 					</view>
 				</view>
@@ -157,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, getCurrentInstance } from 'vue';
+import { ref, computed, watch, reactive, getCurrentInstance } from 'vue';
 import type { PropType } from 'vue';
 import type { RecipeVersion, RecipeDetails, CalculatedExtraIngredientInfo } from '@/types/api';
 import { getProductCostHistory, getProductCostBreakdown, getRecipeDetails } from '@/api/costing';
@@ -182,20 +187,27 @@ const props = defineProps({
 const dataStore = useDataStore();
 
 const selectedProductId = ref<string | null>(null);
+const renderedProductId = ref<string | null>(null);
 const recipeDetails = ref<RecipeDetails | null>(null);
-const costHistory = ref<
-	{
-		cost: number;
-	}[]
->([]);
-const costBreakdown = ref<
-	{
-		name: string;
-		value: number;
-	}[]
->([]);
+const renderedRecipeDetails = ref<RecipeDetails | null>(null);
+const costHistory = ref<{ cost: number }[]>([]);
+const renderedCostHistory = ref<{ cost: number }[]>([]);
+const costBreakdown = ref<{ name: string; value: number }[]>([]);
+const renderedCostBreakdown = ref<{ name: string; value: number }[]>([]);
 const detailChartTab = ref<'trend' | 'breakdown'>('trend');
 const collapsedSections = ref(new Set<string>());
+const isFadingOut = ref(false);
+const isFetching = ref(false);
+
+const tempCostData = reactive<{
+	history: any[];
+	breakdown: any[];
+	details: RecipeDetails | null;
+}>({
+	history: [],
+	breakdown: [],
+	details: null
+});
 
 // 记录展开的额外原料
 const expandedExtraRows = ref(new Set<string>());
@@ -275,8 +287,8 @@ const selectedProduct = computed(() => {
 });
 
 const hasOtherIngredients = computed(() => {
-	if (!recipeDetails.value) return false;
-	return Object.values(recipeDetails.value.groupedExtraIngredients).some((group) => group.length > 0);
+	if (!renderedRecipeDetails.value) return false;
+	return Object.values(renderedRecipeDetails.value.groupedExtraIngredients).some((group) => group.length > 0);
 });
 
 const handleIconClick = (info: string | null | undefined, elementId: string) => {
@@ -298,24 +310,42 @@ const handleIconClick = (info: string | null | undefined, elementId: string) => 
 		.exec();
 };
 
-const fetchCostData = async (productId: string | null) => {
-	if (!productId) {
-		costHistory.value = [];
-		costBreakdown.value = [];
-		recipeDetails.value = null;
-		return;
-	}
+const fetchCostDataForRender = async (productId: string) => {
 	try {
-		const [historyData, breakdownData, detailsData] = await Promise.all([getProductCostHistory(productId), getProductCostBreakdown(productId), getRecipeDetails(productId)]);
-		costHistory.value = historyData;
-		costBreakdown.value = breakdownData;
-		recipeDetails.value = detailsData;
+		const [historyData, breakdownData, detailsData] = await Promise.all([
+			getProductCostHistory(productId),
+			getProductCostBreakdown(productId),
+			getRecipeDetails(productId)
+		]);
+		tempCostData.history = historyData;
+		tempCostData.breakdown = breakdownData;
+		tempCostData.details = detailsData;
 	} catch (error) {
 		console.error('Failed to fetch cost data for product:', error);
-		costHistory.value = [];
-		costBreakdown.value = [];
-		recipeDetails.value = null;
+		tempCostData.history = [];
+		tempCostData.breakdown = [];
+		tempCostData.details = null;
 	}
+};
+
+const fetchCostData = async (productId: string | null) => {
+	if (!productId) {
+		tempCostData.history = [];
+		tempCostData.breakdown = [];
+		tempCostData.details = null;
+		renderedProductId.value = null;
+		renderedRecipeDetails.value = null;
+		renderedCostHistory.value = [];
+		renderedCostBreakdown.value = [];
+		return;
+	}
+	isFetching.value = true;
+	await fetchCostDataForRender(productId);
+	isFetching.value = false;
+	renderedProductId.value = productId;
+	renderedRecipeDetails.value = tempCostData.details;
+	renderedCostHistory.value = tempCostData.history;
+	renderedCostBreakdown.value = tempCostData.breakdown;
 };
 
 const toggleCollapse = (sectionName: string) => {
@@ -350,13 +380,38 @@ const getUsageDisplay = (ingredient: CalculatedExtraIngredientInfo): string => {
 	return formatWeight(ingredient.weightInGrams);
 };
 
-watch(selectedProductId, (newProductId) => {
-	fetchCostData(newProductId);
+watch(selectedProductId, async (newProductId) => {
+	if (!newProductId) {
+		await fetchCostData(null);
+		return;
+	}
+	if (!renderedProductId.value) {
+		await fetchCostData(newProductId);
+		return;
+	}
+	isFetching.value = true;
+	await fetchCostDataForRender(newProductId);
+
+	if (selectedProductId.value !== newProductId) {
+		isFetching.value = false;
+		return;
+	}
+
+	isFadingOut.value = true;
+	setTimeout(() => {
+		renderedProductId.value = newProductId;
+		renderedRecipeDetails.value = tempCostData.details;
+		renderedCostHistory.value = tempCostData.history;
+		renderedCostBreakdown.value = tempCostData.breakdown;
+		isFetching.value = false;
+		isFadingOut.value = false;
+	}, 150);
 });
 
 watch(
 	() => props.version,
 	(newVersion) => {
+		renderedProductId.value = null;
 		if (newVersion && newVersion.products.length > 0) {
 			const newId = newVersion.products[0].id;
 			if (selectedProductId.value === newId) {
@@ -630,5 +685,40 @@ watch(
 
 .summary-text {
 	padding: 0px 4px;
+}
+
+.recipe-detail-product-card {
+	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+	&.is-fetching {
+		opacity: 0.4;
+		pointer-events: none;
+		animation: none;
+		transition: opacity 0.15s ease;
+	}
+
+	&.is-fading-out {
+		animation: fadeOutClean 0.15s ease forwards;
+	}
+}
+</style>
+
+<style lang="scss">
+@keyframes fadeInClean {
+	from {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fadeOutClean {
+	to {
+		opacity: 0;
+		transform: translateY(-5px);
+	}
 }
 </style>

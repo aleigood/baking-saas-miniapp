@@ -31,13 +31,13 @@
 						<AppButton type="primary" full-width @click="handleStartTask">开始制作</AppButton>
 					</view>
 
-					<template v-if="isStarted && selectedComponentDetails">
-						<view class="card" :key="'started-task-card'">
-							<view class="group-title" @click="toggleCollapse(selectedComponentDetails.familyId)">
-								<span>{{ selectedComponentDetails.familyName }}</span>
-								<span class="arrow" :class="{ collapsed: collapsedSections.has(selectedComponentDetails.familyId) }">&#10095;</span>
+					<template v-if="isStarted && renderedComponentDetails">
+						<view class="card" :key="'started-task-card-' + renderedComponentFamilyId" :class="{ 'is-fading-out': isFadingOutComponent }">
+							<view class="group-title" @click="toggleCollapse(renderedComponentDetails.familyId)">
+								<span>{{ renderedComponentDetails.familyName }}</span>
+								<span class="arrow" :class="{ collapsed: collapsedSections.has(renderedComponentDetails.familyId) }">&#10095;</span>
 							</view>
-							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(selectedComponentDetails.familyId) }">
+							<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(renderedComponentDetails.familyId) }">
 								<view class="smart-table">
 									<view class="table-header">
 										<text class="col-ingredient">原料</text>
@@ -45,15 +45,15 @@
 										<text class="col-usage">用量</text>
 									</view>
 									<view
-										v-for="(ing, ingIndex) in selectedComponentDetails.baseComponentIngredients"
+										v-for="(ing, ingIndex) in renderedComponentDetails.baseComponentIngredients"
 										:key="ing.id + '-' + ingIndex"
 										class="table-row"
-										:class="{ 'is-added': addedIngredientsMap.has(`${selectedComponentDetails.familyId}-${ing.id}`) }"
-										@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${selectedComponentDetails.familyId}-${ing.id}`)"
-										@longpress.prevent="!isReadOnly && toggleIngredientAdded(selectedComponentDetails.familyId, ing.id)"
+										:class="{ 'is-added': addedIngredientsMap.has(`${renderedComponentDetails.familyId}-${ing.id}`) }"
+										@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${renderedComponentDetails.familyId}-${ing.id}`)"
+										@longpress.prevent="!isReadOnly && toggleIngredientAdded(renderedComponentDetails.familyId, ing.id)"
 									>
 										<view class="col-ingredient ingredient-name-cell">
-											<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${selectedComponentDetails.familyId}-${ing.id}`" :key="'ing-icon-' + ing.id">
+											<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${renderedComponentDetails.familyId}-${ing.id}`" :key="'ing-icon-' + ing.id">
 												<text>{{ ing.name }}</text>
 												<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 											</view>
@@ -73,17 +73,17 @@
 
 									<view class="summary-right-info">
 										<text>
-											{{ selectedComponentDetails.category === 'BREAD' ? '面团总重' : '原料总重' }}:
-											{{ formatWeight(selectedComponentDetails.totalComponentWeight) }}
+											{{ renderedComponentDetails.category === 'BREAD' ? '面团总重' : '原料总重' }}:
+											{{ formatWeight(renderedComponentDetails.totalComponentWeight) }}
 										</text>
-										<text v-if="isSelfMadeComponent && selectedProductDetails" class="highlight-output" :key="'target-output-label'">
-											(目标产出: {{ formatWeight(selectedProductDetails.baseComponent.quantity) }})
+										<text v-if="isSelfMadeComponent && renderedProductDetails" class="highlight-output" :key="'target-output-label'">
+											(目标产出: {{ formatWeight(renderedProductDetails.baseComponent.quantity) }})
 										</text>
 									</view>
 								</view>
-								<view v-if="selectedComponentDetails.baseComponentProcedure.length > 0" class="procedure-notes" :key="'procedure-notes'">
+								<view v-if="renderedComponentDetails.baseComponentProcedure.length > 0" class="procedure-notes" :key="'procedure-notes'">
 									<text class="notes-title">制作要点:</text>
-									<text v-for="(step, stepIndex) in selectedComponentDetails.baseComponentProcedure" :key="stepIndex" class="note-item">
+									<text v-for="(step, stepIndex) in renderedComponentDetails.baseComponentProcedure" :key="stepIndex" class="note-item">
 										{{ stepIndex + 1 }}. {{ step }}
 									</text>
 								</view>
@@ -99,7 +99,12 @@
 										<FilterTabs :model-value="selectedProductId" @update:model-value="handleTabChange" :tabs="productTabs" size="sm" align="center" />
 									</view>
 
-									<template v-if="selectedProductDetails">
+									<view
+										class="product-details-animated-container"
+										v-if="renderedProductDetails"
+										:key="'product-details-container-' + renderedProductId"
+										:class="{ 'is-fading-out': isFadingOutProduct }"
+									>
 										<view class="smart-table">
 											<view class="table-header">
 												<text class="col-product-name">{{ isSelfMadeComponent ? '产品名称' : '基础原料' }}</text>
@@ -109,26 +114,26 @@
 												<text v-if="isSelfMadeComponent" class="col-division-weight">目标产出</text>
 											</view>
 											<view class="info-row">
-												<text class="col-product-name">{{ selectedProductDetails.baseComponent.name }}</text>
-												<text class="col-dough-weight">{{ formatWeight(selectedProductDetails.baseComponent.totalBaseComponentWeight) }}</text>
-												<text v-if="!isSelfMadeComponent" class="col-quantity">{{ selectedProductDetails.baseComponent.quantity }}</text>
+												<text class="col-product-name">{{ renderedProductDetails.baseComponent.name }}</text>
+												<text class="col-dough-weight">{{ formatWeight(renderedProductDetails.baseComponent.totalBaseComponentWeight) }}</text>
+												<text v-if="!isSelfMadeComponent" class="col-quantity">{{ renderedProductDetails.baseComponent.quantity }}</text>
 												<text v-if="!isSelfMadeComponent" class="col-division-weight">
-													{{ formatWeight(selectedProductDetails.baseComponent.divisionWeight) }}
+													{{ formatWeight(renderedProductDetails.baseComponent.divisionWeight) }}
 												</text>
 												<text v-if="isSelfMadeComponent" class="col-division-weight">
-													{{ formatWeight(selectedProductDetails.baseComponent.quantity) }}
+													{{ formatWeight(renderedProductDetails.baseComponent.quantity) }}
 												</text>
 											</view>
 										</view>
 
 										<template
 											v-if="
-												selectedProductDetails.mixIns.length > 0 ||
-												selectedProductDetails.fillings.length > 0 ||
-												(selectedProductDetails.toppings && selectedProductDetails.toppings.length > 0)
+												renderedProductDetails.mixIns.length > 0 ||
+												renderedProductDetails.fillings.length > 0 ||
+												(renderedProductDetails.toppings && renderedProductDetails.toppings.length > 0)
 											"
 										>
-											<template v-if="selectedProductDetails.mixIns.length > 0">
+											<template v-if="renderedProductDetails.mixIns.length > 0">
 												<view class="smart-table detail-table">
 													<view class="table-header summary-header">
 														<text class="col-ingredient">辅料</text>
@@ -136,13 +141,13 @@
 														<text class="col-usage">总用量</text>
 													</view>
 													<view
-														v-for="ing in selectedProductDetails.mixIns"
+														v-for="ing in renderedProductDetails.mixIns"
 														:key="ing.id"
 														class="table-row"
-														@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${selectedProductDetails.id}-mixin-${ing.id}`)"
+														@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${renderedProductDetails.id}-mixin-${ing.id}`)"
 													>
 														<view class="col-ingredient ingredient-name-cell">
-															<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${selectedProductDetails.id}-mixin-${ing.id}`">
+															<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${renderedProductDetails.id}-mixin-${ing.id}`">
 																<text>{{ ing.name }}</text>
 																<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 															</view>
@@ -154,7 +159,7 @@
 												</view>
 											</template>
 
-											<template v-if="selectedProductDetails.fillings.length > 0">
+											<template v-if="renderedProductDetails.fillings.length > 0">
 												<view class="smart-table detail-table">
 													<view class="table-header summary-header">
 														<text class="col-ingredient">馅料</text>
@@ -163,16 +168,16 @@
 														<text class="col-usage">总用量</text>
 													</view>
 													<view
-														v-for="ing in selectedProductDetails.fillings"
+														v-for="ing in renderedProductDetails.fillings"
 														:key="ing.id"
 														class="table-row"
-														@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${selectedProductDetails.id}-filling-${ing.id}`)"
+														@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${renderedProductDetails.id}-filling-${ing.id}`)"
 													>
 														<view class="col-ingredient ingredient-name-cell">
 															<view
 																v-if="ing.extraInfo"
 																class="ingredient-with-icon"
-																:id="`info-icon-${selectedProductDetails.id}-filling-${ing.id}`"
+																:id="`info-icon-${renderedProductDetails.id}-filling-${ing.id}`"
 															>
 																<text>{{ ing.name }}</text>
 																<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
@@ -186,7 +191,7 @@
 												</view>
 											</template>
 
-											<template v-if="selectedProductDetails.toppings && selectedProductDetails.toppings.length > 0">
+											<template v-if="renderedProductDetails.toppings && renderedProductDetails.toppings.length > 0">
 												<view class="smart-table detail-table">
 													<view class="table-header summary-header">
 														<text class="col-ingredient">表面装饰</text>
@@ -195,16 +200,16 @@
 														<text class="col-usage">总用量</text>
 													</view>
 													<view
-														v-for="ing in selectedProductDetails.toppings"
+														v-for="ing in renderedProductDetails.toppings"
 														:key="ing.id"
 														class="table-row"
-														@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${selectedProductDetails.id}-topping-${ing.id}`)"
+														@click.stop="showExtraInfo(ing.extraInfo, `info-icon-${renderedProductDetails.id}-topping-${ing.id}`)"
 													>
 														<view class="col-ingredient ingredient-name-cell">
 															<view
 																v-if="ing.extraInfo"
 																class="ingredient-with-icon"
-																:id="`info-icon-${selectedProductDetails.id}-topping-${ing.id}`"
+																:id="`info-icon-${renderedProductDetails.id}-topping-${ing.id}`"
 															>
 																<text>{{ ing.name }}</text>
 																<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
@@ -219,13 +224,13 @@
 											</template>
 										</template>
 
-										<view v-if="selectedProductDetails.procedure.length > 0" class="procedure-notes">
+										<view v-if="renderedProductDetails.procedure.length > 0" class="procedure-notes">
 											<text class="notes-title">制作要点:</text>
-											<text v-for="(step, stepIndex) in selectedProductDetails.procedure" :key="stepIndex" class="note-item">
+											<text v-for="(step, stepIndex) in renderedProductDetails.procedure" :key="stepIndex" class="note-item">
 												{{ stepIndex + 1 }}. {{ step }}
 											</text>
 										</view>
-									</template>
+									</view>
 								</view>
 							</template>
 						</view>
@@ -257,7 +262,7 @@
 		<ExpandingFab v-if="isStarted" :key="'task-detail-fab'" icon="/static/icons/print.svg" @click="handlePrintTask" :no-tab-bar="true" :visible="isFabVisible" />
 
 		<AppModal :visible="showCompleteTaskModal === true" :key="'complete-task-modal'" @update:visible="v => { if (typeof v === 'boolean') showCompleteTaskModal = v; }" :title="completionStep === 1 ? (isSelfMadeTask ? '提报完成重量' : '提报完成数量') : '提报产品损耗'">
-			<template v-if="showCompleteTaskModal">
+			<template v-if="Object.keys(completionForm).length > 0">
 				<view class="modal-slider-container" :style="{ height: modalContentHeight ? `${modalContentHeight}px` : 'auto' }">
 					<view class="modal-slider-track" :class="{ 'go-to-step2': completionStep === 2 }">
 						<view class="modal-step-content" id="step1-content">
@@ -356,11 +361,53 @@ const showCompleteTaskModal = ref(false);
 const isStarted = ref(false);
 const isReadOnly = ref(false);
 const selectedComponentFamilyId = ref<string | null>(null);
+const renderedComponentFamilyId = ref<string | null>(null);
+const isFadingOutComponent = ref(false);
+
+const selectedProductId = ref<string>('');
+const renderedProductId = ref<string>('');
+const isFadingOutProduct = ref(false);
+
 const addedIngredientsMap = reactive(new Set<string>());
 const collapsedSections = ref(new Set<string>());
-const selectedProductId = ref<string>('');
 const lastTabChangeTime = ref(0);
 const modalOpenTime = ref(0);
+
+watch(selectedComponentFamilyId, (newId) => {
+	if (!newId) return;
+	if (newId === renderedComponentFamilyId.value) {
+		return;
+	}
+	if (!renderedComponentFamilyId.value) {
+		renderedComponentFamilyId.value = newId;
+		return;
+	}
+	isFadingOutComponent.value = true;
+	setTimeout(() => {
+		renderedComponentFamilyId.value = newId;
+		renderedProductId.value = selectedProductId.value;
+		isFadingOutComponent.value = false;
+	}, 150);
+});
+
+watch(selectedProductId, (newId) => {
+	if (!newId) return;
+	if (newId === renderedProductId.value) {
+		return;
+	}
+	if (!renderedProductId.value) {
+		renderedProductId.value = newId;
+		return;
+	}
+	if (isFadingOutComponent.value) {
+		return;
+	}
+	isFadingOutProduct.value = true;
+	setTimeout(() => {
+		renderedProductId.value = newId;
+		isFadingOutProduct.value = false;
+	}, 150);
+});
 
 const handleTabChange = (val: string) => {
 	console.log(`[TaskDetail] handleTabChange triggered: ${val} at timestamp ${Date.now()}`);
@@ -571,8 +618,10 @@ const loadTaskData = async (id: string) => {
 			if (task.value.componentGroups.length > 0) {
 				const firstComponent = task.value.componentGroups[0];
 				selectedComponentFamilyId.value = firstComponent.familyId;
+				renderedComponentFamilyId.value = firstComponent.familyId;
 				if (firstComponent.productDetails.length > 0) {
 					selectedProductId.value = firstComponent.productDetails[0].id;
+					renderedProductId.value = firstComponent.productDetails[0].id;
 				}
 			}
 		}
@@ -954,9 +1003,19 @@ const selectedComponentDetails = computed(() => {
 	return task.value.componentGroups.find((d) => d.familyId === selectedComponentFamilyId.value) || null;
 });
 
+const renderedComponentDetails = computed(() => {
+	if (!task.value || !renderedComponentFamilyId.value) return null;
+	return task.value.componentGroups.find((d) => d.familyId === renderedComponentFamilyId.value) || null;
+});
+
 const selectedProductDetails = computed(() => {
 	if (!selectedComponentDetails.value || !selectedProductId.value) return null;
 	return selectedComponentDetails.value.productDetails.find((p) => p.id === selectedProductId.value);
+});
+
+const renderedProductDetails = computed(() => {
+	if (!renderedComponentDetails.value || !renderedProductId.value) return null;
+	return renderedComponentDetails.value.productDetails.find((p) => p.id === renderedProductId.value);
 });
 
 const productTabs = computed(() => {
@@ -1383,5 +1442,41 @@ const componentMixInSummary = computed(() => {
 	margin-top: 30px;
 	margin-bottom: 30px;
 	--tabs-container-bg-rgb: 255, 255, 255;
+}
+
+.card {
+	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+	&.is-fading-out {
+		animation: fadeOutClean 0.15s ease forwards;
+	}
+}
+
+.product-details-animated-container {
+	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+	&.is-fading-out {
+		animation: fadeOutClean 0.15s ease forwards;
+	}
+}
+</style>
+
+<style lang="scss">
+@keyframes fadeInClean {
+	from {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fadeOutClean {
+	to {
+		opacity: 0;
+		transform: translateY(-5px);
+	}
 }
 </style>

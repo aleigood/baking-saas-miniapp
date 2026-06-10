@@ -59,16 +59,26 @@
 					<view class="product-tabs-container" v-if="productTabs.length > 0" :key="'tabs-container'">
 						<CssAnimatedTabs v-model="activeTab" :tabs="productTabs" />
 					</view>
-					<view class="product-grid">
-						<view v-for="product in productsInCurrentTab" :key="product.id" class="product-item">
-							<text class="product-name">{{ product.name }}</text>
-							<input
-								class="input-field quantity-input"
-								type="number"
-								placeholder="数量"
-								:value="taskQuantities[product.id]"
-								@input="onQuantityInput(product.id, $event)"
-							/>
+					<view
+						class="product-grid-animated-container"
+						v-if="productsInRenderedTab.length > 0"
+						:key="'product-grid-' + renderedTab"
+						:class="{ 'is-fading-out': isFadingOutGrid }"
+					>
+						<view class="product-grid">
+							<view v-for="product in productsInRenderedTab" :key="product.id" class="product-item">
+								<text class="product-name">{{ product.name }}</text>
+								<view class="input-with-unit">
+									<input
+										class="input-field quantity-input"
+										type="number"
+										placeholder="数量"
+										:value="taskQuantities[product.id]"
+										@input="onQuantityInput(product.id, $event)"
+									/>
+									<text class="unit-text">个</text>
+								</view>
+							</view>
 						</view>
 					</view>
 				</view>
@@ -83,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 import { onLoad, onUnload } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
@@ -138,6 +148,8 @@ const taskForm = reactive({
 const taskQuantities = reactive<Record<string, number | null>>({});
 const summaryGroups = ref<{ name: string; items: string[]; totalQuantity: number }[]>([]);
 const activeTab = ref('');
+const renderedTab = ref('');
+const isFadingOutGrid = ref(false);
 
 const productTabs = computed(() => {
 	if (!selectedCategory.value) return [];
@@ -149,6 +161,28 @@ const productsInCurrentTab = computed(() => {
 	if (!selectedCategory.value || !activeTab.value) return [];
 	const productsInCategory = dataStore.productsForTaskCreation[selectedCategory.value];
 	return productsInCategory ? productsInCategory[activeTab.value] || [] : [];
+});
+
+const productsInRenderedTab = computed(() => {
+	if (!selectedCategory.value || !renderedTab.value) return [];
+	const productsInCategory = dataStore.productsForTaskCreation[selectedCategory.value];
+	return productsInCategory ? productsInCategory[renderedTab.value] || [] : [];
+});
+
+watch(activeTab, (newTab) => {
+	if (!newTab) return;
+	if (newTab === renderedTab.value) {
+		return;
+	}
+	if (!renderedTab.value || isLoading.value) {
+		renderedTab.value = newTab;
+		return;
+	}
+	isFadingOutGrid.value = true;
+	setTimeout(() => {
+		renderedTab.value = newTab;
+		isFadingOutGrid.value = false;
+	}, 150);
 });
 
 const handleGroupClick = (groupName: string) => {
@@ -539,9 +573,51 @@ const handleSubmit = async () => {
 }
 
 .quantity-input {
+	flex: 1;
+	width: 0;
+	text-align: center;
+}
+
+.product-grid-animated-container {
+	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+	&.is-fading-out {
+		animation: fadeOutClean 0.15s ease forwards;
+	}
+}
+
+.input-with-unit {
+	display: flex;
+	align-items: center;
+	gap: 6px;
 	width: calc(50% - 6px);
 	max-width: 120px;
 	flex-shrink: 0;
-	text-align: center;
+}
+
+.unit-text {
+	font-size: 14px;
+	color: var(--text-secondary);
+	flex-shrink: 0;
+}
+</style>
+
+<style lang="scss">
+@keyframes fadeInClean {
+	from {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fadeOutClean {
+	to {
+		opacity: 0;
+		transform: translateY(-5px);
+	}
 }
 </style>

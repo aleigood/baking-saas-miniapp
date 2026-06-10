@@ -14,8 +14,15 @@
 					@longpress-version="handleVersionLongPressAction"
 				/>
 
-				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :key="'main-detail'" :version="displayedVersion" @show-popover="handleShowPopover" />
-				<SimpleRecipeDetail v-else :key="'simple-detail'" :version="displayedVersion" :shelf-life="recipeFamily.outputIngredient?.shelfLife || 0" @show-popover="handleShowPopover" />
+				<view
+					class="recipe-detail-animated-container"
+					v-if="renderedVersion"
+					:key="'recipe-version-details-' + renderedVersionId"
+					:class="{ 'is-fading-out': isFadingOutVersion }"
+				>
+					<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :key="'main-detail'" :version="renderedVersion" @show-popover="handleShowPopover" />
+					<SimpleRecipeDetail v-else :key="'simple-detail'" :version="renderedVersion" :shelf-life="recipeFamily.outputIngredient?.shelfLife || 0" @show-popover="handleShowPopover" />
+				</view>
 			</view>
 
 			<view v-if="isLoading" class="page-content page-content-with-fab skeleton-overlay" :key="'skeleton-detail'">
@@ -84,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
@@ -122,6 +129,8 @@ const recipeVersions = ref<RecipeVersion[]>([]);
 
 const familyId = ref<string | null>(null);
 const displayedVersionId = ref<string | null>(null);
+const renderedVersionId = ref<string | null>(null);
+const isFadingOutVersion = ref(false);
 const showActivateVersionConfirmModal = ref(false);
 const showVersionOptionsModal = ref(false);
 const showDeleteVersionConfirmModal = ref(false);
@@ -208,9 +217,11 @@ const loadRecipeData = async (id: string) => {
 		if (versionToShow) {
 			if (!displayedVersionId.value || !recipeVersions.value.some((v) => v.id === displayedVersionId.value)) {
 				displayedVersionId.value = versionToShow.id;
+				renderedVersionId.value = versionToShow.id;
 			}
 		} else {
 			displayedVersionId.value = null;
+			renderedVersionId.value = null;
 		}
 	} catch (error) {
 		console.error('Failed to fetch recipe details:', error);
@@ -226,6 +237,26 @@ const loadRecipeData = async (id: string) => {
 
 const displayedVersion = computed(() => {
 	return recipeVersions.value.find((v) => v.id === displayedVersionId.value) || null;
+});
+
+const renderedVersion = computed(() => {
+	return recipeVersions.value.find((v) => v.id === renderedVersionId.value) || null;
+});
+
+watch(displayedVersionId, (newId) => {
+	if (!newId) return;
+	if (newId === renderedVersionId.value) {
+		return;
+	}
+	if (!renderedVersionId.value) {
+		renderedVersionId.value = newId;
+		return;
+	}
+	isFadingOutVersion.value = true;
+	setTimeout(() => {
+		renderedVersionId.value = newId;
+		isFadingOutVersion.value = false;
+	}, 150);
 });
 
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
@@ -397,5 +428,33 @@ const handleConfirmDeleteVersion = async () => {
 	text-align: center;
 	margin-bottom: 20px;
 	line-height: 1.5;
+}
+
+.recipe-detail-animated-container {
+	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+	&.is-fading-out {
+		animation: fadeOutClean 0.15s ease forwards;
+	}
+}
+</style>
+
+<style lang="scss">
+@keyframes fadeInClean {
+	from {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fadeOutClean {
+	to {
+		opacity: 0;
+		transform: translateY(-5px);
+	}
 }
 </style>

@@ -247,7 +247,12 @@
 					</view>
 
 					<view v-for="(product, prodIndex) in form.products" :key="product._key || prodIndex">
-						<view class="card" v-show="activeProductTab === prodIndex">
+						<view
+							class="card product-edit-card"
+							v-if="renderedProductTab === prodIndex"
+							:key="'product-card-' + product._key"
+							:class="{ 'is-fading-out': isFadingOutProduct }"
+						>
 							<view class="card-title-wrapper">
 								<span class="card-title">{{ product.name || `产品${prodIndex + 1}` }}</span>
 								<view class="card-delete-btn-wrapper">
@@ -601,6 +606,19 @@ const preDoughFlourRatio = ref<number | null>(null);
 const isAddingPreDough = ref(false);
 
 const activeProductTab = ref(0);
+const renderedProductTab = ref(0);
+const isFadingOutProduct = ref(false);
+
+watch(activeProductTab, (newTab) => {
+	if (newTab === renderedProductTab.value) {
+		return;
+	}
+	isFadingOutProduct.value = true;
+	setTimeout(() => {
+		renderedProductTab.value = newTab;
+		isFadingOutProduct.value = false;
+	}, 150);
+});
 
 const mainComponent = computed(() => form.value.components!.find((c) => c.type === 'MAIN_DOUGH' || c.type === 'BASE_COMPONENT')!);
 
@@ -1150,6 +1168,7 @@ const removeProduct = (index: number) => {
 	if (activeProductTab.value >= form.value.products!.length) {
 		activeProductTab.value = Math.max(0, form.value.products!.length - 1);
 	}
+	renderedProductTab.value = activeProductTab.value;
 };
 
 const addSubIngredient = (productIndex: number, type: 'mixIns' | 'fillings' | 'toppings') => {
@@ -1578,5 +1597,32 @@ const hasPreDough = computed(() => {
 	justify-content: center;
 	background-color: #fcf7f1;
 	border-radius: 50%;
+}
+.product-edit-card {
+	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+	&.is-fading-out {
+		animation: fadeOutClean 0.15s ease forwards;
+	}
+}
+</style>
+
+<style lang="scss">
+@keyframes fadeInClean {
+	from {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fadeOutClean {
+	to {
+		opacity: 0;
+		transform: translateY(-5px);
+	}
 }
 </style>

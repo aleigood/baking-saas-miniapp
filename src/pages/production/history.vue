@@ -55,7 +55,7 @@ import ListItem from '@/components/ListItem.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
-import { formatChineseDate, formatEventTime } from '@/utils/format';
+import { formatChineseDate, formatEventTime, formatWeight } from '@/utils/format';
 
 defineOptions({
 	inheritAttrs: false
@@ -137,21 +137,37 @@ const handleLoadMore = async () => {
 	}
 };
 
+const isSelfMadeItem = (item: any) => {
+	return item.product?.recipeVersion?.family?.category === 'OTHER';
+};
+
 const getTaskTitle = (task: ProductionTaskDto) => {
 	if (!task.items || task.items.length === 0) {
 		return '未知任务';
 	}
-	return task.items.map((item) => `${item.product.name} x${item.quantity}`).join('、');
+	return task.items
+		.map((item) => {
+			if (isSelfMadeItem(item)) {
+				return `${item.product.name} ${formatWeight(Number(item.quantity))}`;
+			}
+			return `${item.product.name} x${Number(item.quantity)}`;
+		})
+		.join('、');
 };
 
 const getTotalQuantity = (task: ProductionTaskDto) => {
 	if (!task.items) return 0;
-	return task.items.reduce((sum, item) => sum + item.quantity, 0);
+	return task.items.reduce((sum, item) => {
+		if (isSelfMadeItem(item)) {
+			return sum + 1;
+		}
+		return sum + Number(item.quantity);
+	}, 0);
 };
 
 const getTaskDetails = (task: ProductionTaskDto) => {
 	const formattedDate = formatChineseDate(task.startDate);
-	const creator = userStore.userInfo?.name || userStore.userInfo?.phone || '创建人';
+	const creator = task.createdBy?.name || task.createdBy?.phone || '未知';
 	const totalQuantity = getTotalQuantity(task);
 	return `${formattedDate} - by ${creator} | 总数: ${totalQuantity}`;
 };

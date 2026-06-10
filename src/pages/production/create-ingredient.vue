@@ -55,13 +55,14 @@
 						<CssAnimatedTabs v-model="activeTabKey" :tabs="recipeTabs" />
 					</view>
 
-					<view class="calculator-container" v-if="activeRecipeState" :key="'calculator-container'">
-						<view v-if="isLoadingDetails" :key="'details-loader'" class="loading-block">
-							<text>加载配方详情...</text>
-						</view>
-
-						<view class="ingredient-grid" v-else :key="'details-grid'">
-							<view v-for="(ing, index) in activeRecipeState.ingredients" :key="ing.id || index" class="ingredient-item">
+					<view
+						class="calculator-container"
+						v-if="renderedRecipeState"
+						:key="'calculator-container-' + renderedTabKey"
+						:class="{ 'is-fetching': isFetching, 'is-fading-out': isFadingOut }"
+					>
+						<view class="ingredient-grid" :key="'details-grid'">
+							<view v-for="(ing, index) in renderedRecipeState.ingredients" :key="ing.id || index" class="ingredient-item">
 								<view class="ingredient-info">
 									<text class="ingredient-name">{{ ing.name }}</text>
 									<view class="tags">
@@ -69,27 +70,26 @@
 										<text v-if="ing.isRecipe" class="type-tag recipe">自制</text>
 									</view>
 								</view>
-								<input class="input-field weight-input" type="number" :value="ing.weightDisplay" @input="onIngredientWeightInput(index, $event)" placeholder="0" />
+								<view class="input-with-unit">
+									<input class="input-field weight-input" type="number" :value="ing.weightDisplay" @input="onIngredientWeightInput(index, $event)" placeholder="0" />
+									<text class="unit-text">g</text>
+								</view>
 							</view>
 
 							<view class="ingredient-item target-weight-row">
 								<view class="ingredient-info">
 									<text class="ingredient-name total-label">目标产出量</text>
 								</view>
-								<input
-									class="input-field weight-input total-input-small"
-									type="digit"
-									:value="activeRecipeState.targetDisplay"
-									@input="onTargetWeightInput"
-									placeholder="0"
-								/>
-							</view>
-
-							<view class="ingredient-item total-weight-row">
-								<view class="ingredient-info">
-									<text class="ingredient-name total-label">总投入量</text>
+								<view class="input-with-unit">
+									<input
+										class="input-field weight-input total-input-small"
+										type="digit"
+										:value="renderedRecipeState.targetDisplay"
+										@input="onTargetWeightInput"
+										placeholder="0"
+									/>
+									<text class="unit-text">g</text>
 								</view>
-								<view class="readonly-weight-value">{{ activeRecipeState.totalDisplay || '0' }}</view>
 							</view>
 						</view>
 					</view>
@@ -232,14 +232,56 @@ const activeRecipeState = computed(() => {
 	return recipeStates[activeTabKey.value];
 });
 
+const renderedTabKey = ref('');
+const isFetching = ref(false);
+const isFadingOut = ref(false);
+
+const renderedRecipeState = computed(() => {
+	return recipeStates[renderedTabKey.value];
+});
+
 watch(
 	activeTabKey,
 	async (newKey) => {
 		if (!newKey) return;
+
+		// 首次加载初始化
+		if (!renderedTabKey.value) {
+			const state = recipeStates[newKey];
+			if (state) {
+				if (!state.detailsLoaded) {
+					isLoadingDetails.value = true;
+					await loadRecipeDetails(state);
+					isLoadingDetails.value = false;
+				}
+				renderedTabKey.value = newKey;
+			}
+			return;
+		}
+
 		const state = recipeStates[newKey];
-		if (state && !state.detailsLoaded) {
+		if (!state) return;
+
+		// 1. 如果配方详情尚未加载，将其设为“加载中/半透明”状态进行请求
+		if (!state.detailsLoaded) {
+			isFetching.value = true;
 			await loadRecipeDetails(state);
 		}
+
+		// 2. 检查在此期间用户是否又点击了其他Tab，若已变更则放弃本次切换逻辑
+		if (activeTabKey.value !== newKey) {
+			isFetching.value = false;
+			return;
+		}
+
+		// 3. 触发原内容淡出动画
+		isFadingOut.value = true;
+		setTimeout(() => {
+			// 4. 动画淡出完成后，切换渲染的 Tab Key 并重置淡出状态，触发新内容淡入
+			renderedTabKey.value = newKey;
+			isFetching.value = false;
+			isFadingOut.value = false;
+		}, 150);
 	},
 	{ immediate: true }
 );
@@ -428,6 +470,15 @@ onLoad(async (options) => {
 	}
 
 	initRecipeStates();
+
+	// 首次进入创建任务模式时，前置预加载第一个 Tab 的详情，防范闪白/Loading闪烁
+	if (!isEditMode.value && recipeTabs.value.length > 0) {
+		const firstTab = recipeTabs.value[0].key;
+		const state = recipeStates[firstTab];
+		if (state && !state.detailsLoaded) {
+			await loadRecipeDetails(state);
+		}
+	}
 
 	if (options && options.taskId) {
 		isEditMode.value = true;
@@ -700,17 +751,17 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 }
 
 .calculator-container {
-	animation: fadeIn 0.3s ease;
-}
+	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 
-@keyframes fadeIn {
-	from {
-		opacity: 0;
-		transform: translateY(5px);
+	&.is-fetching {
+		opacity: 0.4;
+		pointer-events: none;
+		animation: none;
+		transition: opacity 0.15s ease;
 	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
+
+	&.is-fading-out {
+		animation: fadeOutClean 0.15s ease forwards;
 	}
 }
 
@@ -741,6 +792,7 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
+	animation: fadeIn 0.3s ease;
 }
 
 .ingredient-item {
@@ -774,17 +826,9 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	color: var(--primary-color);
 }
 
-.target-weight-row,
-.total-weight-row {
-	padding: 0 5px;
-}
-
 .target-weight-row {
+	padding: 0 5px;
 	margin-top: 4px;
-}
-
-.total-weight-row {
-	margin-top: 0;
 }
 
 .tags {
@@ -811,25 +855,84 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	}
 }
 
-.weight-input {
+.input-with-unit {
+	display: flex;
+	align-items: center;
+	gap: 6px;
 	width: calc(50% - 6px);
 	max-width: 120px;
 	flex-shrink: 0;
+}
+
+.weight-input {
+	flex: 1;
+	width: 0;
 	text-align: center;
 }
 
-.readonly-weight-value {
-	width: calc(50% - 6px);
-	max-width: 120px;
-	height: 36px;
-	line-height: 36px;
-	flex-shrink: 0;
-	text-align: center;
-	box-sizing: border-box;
-	border-radius: 8px;
-	border: 1px solid var(--border-color);
-	background: rgba(140, 90, 59, 0.06);
+.unit-text {
+	font-size: 13px;
 	color: var(--text-secondary);
-	font-size: 15px;
+	flex-shrink: 0;
+	width: 12px;
+	text-align: left;
+}
+
+.summary-divider {
+	height: 1px;
+	border-top: 1px dashed #e6dbcb;
+	margin: 16px 5px 8px;
+}
+
+.summary-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 10px 4px;
+}
+
+.summary-label {
+	font-size: 14px;
+	color: var(--text-secondary);
+	font-weight: 500;
+}
+
+.summary-value-box {
+	display: flex;
+	align-items: baseline;
+	gap: 2px;
+}
+
+.summary-value {
+	font-size: 20px;
+	font-weight: bold;
+	color: var(--primary-color);
+	line-height: 1;
+}
+
+.summary-unit {
+	font-size: 12px;
+	color: var(--text-secondary);
+	font-weight: 500;
+}
+</style>
+
+<style lang="scss">
+@keyframes fadeInClean {
+	from {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fadeOutClean {
+	to {
+		opacity: 0;
+		transform: translateY(-5px);
+	}
 }
 </style>
