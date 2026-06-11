@@ -27,11 +27,7 @@
 
 				<view class="list-wrapper">
 					<template v-if="hasAnyRecipe">
-						<view
-							class="recipe-list-animated-container"
-							:key="'recipes-list-' + renderedFilter"
-							:class="{ 'is-fading-out': isFadingOutList }"
-						>
+						<view class="recipe-list-animated-container" :key="'recipes-list-' + renderedFilter" :class="{ 'is-fading-out': isFadingOutList }">
 							<view v-if="renderedRecipes.length > 0">
 								<ListItem
 									v-for="(family, index) in renderedRecipes"
@@ -67,23 +63,40 @@
 													<text class="name-text">{{ family.name }}</text>
 													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 												</view>
-												<view class="desc">{{ family.ingredientCount }} 种原料</view>
+												<view class="desc">{{ family.usageCount || 0 }} 次引用</view>
 											</view>
 										</view>
 										<view class="side-info">
-											<view class="desc">{{ family.usageCount || 0 }} 次引用</view>
+											<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
+											<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
 										</view>
 									</template>
 								</ListItem>
 							</view>
-							<EmptyState v-else-if="isInitialFetchDone" :key="'recipes-empty-filtered'" icon="/static/icons/empty-list.svg" title="暂无配方" subtitle="该分类下暂无配方" />
+							<EmptyState
+								v-else-if="isInitialFetchDone"
+								:key="'recipes-empty-filtered'"
+								icon="/static/icons/empty-list.svg"
+								title="暂无配方"
+								subtitle="该分类下暂无配方"
+							/>
 						</view>
 					</template>
-					<EmptyState v-else-if="isInitialFetchDone" :key="'recipes-empty-all'" icon="/static/icons/empty-box.svg" title="暂无配方" subtitle="暂无任何配方，快去创建吧！" />
+					<EmptyState
+						v-else-if="isInitialFetchDone"
+						:key="'recipes-empty-all'"
+						icon="/static/icons/empty-box.svg"
+						title="暂无配方"
+						subtitle="暂无任何配方，快去创建吧！"
+					/>
 				</view>
 			</view>
 
-			<view v-if="isLoading && uiStore.activeTab === 'recipes'" :key="'recipes-skeleton'" class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay">
+			<view
+				v-if="isLoading && uiStore.activeTab === 'recipes'"
+				:key="'recipes-skeleton'"
+				class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay"
+			>
 				<view class="content-padding">
 					<SkeletonCard mode="ranking" />
 					<view class="skeleton-block shimmer" style="height: 36px; margin-top: 10px; margin-bottom: 20px; border-radius: 18px; width: 60%"></view>

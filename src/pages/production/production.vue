@@ -28,9 +28,6 @@
 						<IconButton @click.stop="openTemperatureSettingsModal">
 							<image class="header-icon" src="/static/icons/temp.svg" />
 						</IconButton>
-						<IconButton @click.stop="navigateToHistory">
-							<image class="header-icon" src="/static/icons/history.svg" />
-						</IconButton>
 					</view>
 				</view>
 
@@ -206,8 +203,13 @@ const STATUS_MAP = {
 		className: 'status-inprogress',
 		color: '#27ae60'
 	},
+	COMPLETED: {
+		text: '已完成',
+		className: 'status-completed',
+		color: '#95a5a6'
+	},
 	PREP: {
-		text: '待准备',
+		text: '去准备',
 		className: 'status-prep',
 		color: '#8e44ad'
 	},
@@ -280,7 +282,7 @@ const showTemperatureSettingsModal = ref(false);
 const isCalendarVisible = ref(false);
 const todayForInit = new Date();
 const selectedDate = ref(`${todayForInit.getFullYear()}-${String(todayForInit.getMonth() + 1).padStart(2, '0')}-${String(todayForInit.getDate()).padStart(2, '0')}`);
-const taskDates = ref<string[]>([]);
+const taskDates = ref<{ activeDates: string[]; completedDates: string[] }>({ activeDates: [], completedDates: [] });
 
 const isNavigating = ref(false);
 
@@ -480,6 +482,10 @@ const getTotalQuantity = (task: ProductionTaskDto) => {
 	}, 0);
 };
 
+const isSelfMadeTask = (task: ProductionTaskDto) => {
+	return task.items && task.items.length > 0 && isSelfMadeItem(task.items[0]);
+};
+
 const getTaskDetails = (task: any) => {
 	if (task.status === 'PREP') {
 		return task.details;
@@ -508,10 +514,14 @@ const getTaskDetails = (task: any) => {
 		dateDisplay = formatChineseDate(regularTask.startDate);
 	}
 
-	const totalQuantity = getTotalQuantity(regularTask);
 	const creator = regularTask.createdBy?.name || regularTask.createdBy?.phone || '未知';
 
-	return `${dateDisplay} 总数: ${totalQuantity} | by ${creator}`;
+	if (isSelfMadeTask(regularTask)) {
+		return `${dateDisplay} ${regularTask.items.length} 种原料 | by ${creator}`;
+	} else {
+		const totalQuantity = getTotalQuantity(regularTask);
+		return `${dateDisplay} 总数: ${totalQuantity} | by ${creator}`;
+	}
 };
 
 const navigateToDetail = (task: any) => {
@@ -526,11 +536,7 @@ const navigateToDetail = (task: any) => {
 	}
 };
 
-const navigateToHistory = () => {
-	if (isNavigating.value) return;
-	isNavigating.value = true;
-	uni.navigateTo({ url: '/pages/production/history' });
-};
+
 
 const openTaskActions = (task: any) => {
 	if (task.status === 'PREP') return;
@@ -796,6 +802,10 @@ const handleSaveTemperatureSettings = () => {
 
 .status-tag.status-inprogress {
 	background-color: #27ae60;
+}
+
+.status-tag.status-completed {
+	background-color: #95a5a6;
 }
 
 .status-tag.status-prep {

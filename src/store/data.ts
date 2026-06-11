@@ -15,7 +15,9 @@ import type {
 	ProductionTaskDto,
 	RecipeStatDto,
 	IngredientStatDto,
-	PrepTask
+	PrepTask,
+	ProductionTaskSummaryDto,
+	PrepTaskSummary
 } from '@/types/api';
 import { useUserStore } from './user';
 import { useToastStore } from './toast';
@@ -46,7 +48,7 @@ const getPrepTaskProgressStorageKey = (date: string) => `prep-task-progress-${da
 export const useDataStore = defineStore('data', () => {
 	const tenants = ref<Tenant[]>([]);
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
-	const production = ref<(ProductionTaskDto | (PrepTask & { status: 'PREP' }))[]>([]);
+	const production = ref<(ProductionTaskSummaryDto | (PrepTaskSummary & { status: 'PREP' }))[]>([]);
 	const homeStats = ref({ pendingCount: 0 });
 	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
 	const historicalTasksMeta = ref({
@@ -60,7 +62,7 @@ export const useDataStore = defineStore('data', () => {
 		preDoughs: [],
 		extras: []
 	});
-	const productsForTaskCreation = ref<ProductsForTaskResponse>({});
+	const productsForTaskCreation = ref<ProductsForTaskResponse>({} as ProductsForTaskResponse);
 	const ingredients = ref<{ allIngredients: Ingredient[] }>({
 		allIngredients: []
 	});
@@ -136,8 +138,8 @@ export const useDataStore = defineStore('data', () => {
 			// 确保解析安全
 			try {
 				const parsed = JSON.parse(savedData);
-				const addedIngredients = Array.isArray(parsed.addedIngredients) ? new Set(parsed.addedIngredients) : new Set<string>();
-				const completedItems = Array.isArray(parsed.completedItems) ? new Set(parsed.completedItems) : new Set<string>();
+				const addedIngredients = Array.isArray(parsed.addedIngredients) ? new Set<string>(parsed.addedIngredients) : new Set<string>();
+				const completedItems = Array.isArray(parsed.completedItems) ? new Set<string>(parsed.completedItems) : new Set<string>();
 				return { addedIngredients, completedItems };
 			} catch (e) {
 				console.error('Failed to parse prep task progress:', e);
@@ -373,7 +375,7 @@ export const useDataStore = defineStore('data', () => {
 		homeStats.value = { pendingCount: 0 };
 		// [核心修改] 重置 recipes 状态时，使用新的结构
 		recipes.value = { mainRecipes: [], preDoughs: [], extras: [] };
-		productsForTaskCreation.value = {};
+		productsForTaskCreation.value = {} as ProductsForTaskResponse;
 		ingredients.value = { allIngredients: [] };
 		members.value = [];
 		recipeStats.value = [];

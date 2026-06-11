@@ -36,12 +36,7 @@
 				"navigationStyle": "custom"
 			}
 		},
-		{
-			"path": "pages/production/history",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
+
 		{
 			"path": "pages/production/stats",
 			"style": {

@@ -7,24 +7,24 @@
 			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="ingredient" :key="'ingredient-detail-content'">
 				<view class="card">
 					<view class="meta-grid-container" v-if="ingredient.type !== 'UNTRACKED'" :key="'meta-grid'">
+						<view class="meta-item" v-if="ingredient.type !== 'SELF_MADE'">
+							<view class="label">品牌</view>
+							<view class="value">{{ ingredient.activeSku?.brand || '未设置' }}</view>
+						</view>
+						<view class="meta-divider" v-if="ingredient.type !== 'SELF_MADE'"></view>
 						<view class="meta-item">
-							<view class="label">{{ ingredient.type === 'SELF_MADE' ? '保质期' : '品牌' }}</view>
+							<view class="label">单价</view>
 							<view class="value">
-								{{
-									ingredient.type === 'SELF_MADE'
-										? ingredient.shelfLife > 0
-											? ingredient.shelfLife + '小时'
-											: '未设置'
-										: ingredient.activeSku?.brand || '未设置'
-								}}
+								<text>¥{{ formatMoney(ingredient.unitPricePerGram || 0) }}</text>
+								<text class="price-unit">/g</text>
 							</view>
 						</view>
 						<view class="meta-divider"></view>
-						<view class="meta-item">
-							<view class="label">单价</view>
-							<view class="value">{{ ingredientPricePerKg }}</view>
+						<view class="meta-item" v-if="ingredient.type === 'SELF_MADE'">
+							<view class="label">本月制作</view>
+							<view class="value">{{ ingredient.monthlyProductionCount || 0 }} 次</view>
 						</view>
-						<view class="meta-divider"></view>
+						<view class="meta-divider" v-if="ingredient.type === 'SELF_MADE'"></view>
 						<view class="meta-item">
 							<view class="label">本月消耗</view>
 							<view class="value">{{ formatWeight(ingredient.monthlyConsumptionInGrams || 0) }}</view>
@@ -47,7 +47,17 @@
 						@longpress-sku="handleSkuLongPressAction"
 						@add="openAddSkuModal"
 					/>
-					<IngredientPriceRecordList :key="'price-record-list'" :selected-sku="selectedSku" @longpress="handlePriceRecordLongPress" />
+					<view
+						class="sku-records-animated-container"
+						:key="'price-record-list-container-' + renderedSkuId"
+						:class="{ 'is-fading-out': isFadingOutSkuRecords }"
+					>
+						<IngredientPriceRecordList :key="'price-record-list'" :selected-sku="selectedSku" @longpress="handlePriceRecordLongPress" />
+					</view>
+				</template>
+
+				<template v-if="ingredient.type === 'SELF_MADE'">
+					<IngredientProductionList :key="'production-list'" :records="ingredient.productionRecords || []" />
 				</template>
 
 			</view>
@@ -90,11 +100,7 @@
 				</picker>
 			</FormItem>
 
-			<template v-if="ingredientForm.type === 'SELF_MADE'" :key="'shelf-life-field'">
-				<FormItem label="保质期 (小时)">
-					<input class="input-field" type="number" v-model="ingredientForm.shelfLife" placeholder="例如: 24" />
-				</FormItem>
-			</template>
+
 
 			<view class="form-row">
 				<label class="form-row-label">是否为面粉</label>
@@ -319,6 +325,7 @@ import ListItem from '@/components/ListItem.vue';
 import AppButton from '@/components/AppButton.vue';
 import AnimatedTabs from '@/components/AnimatedTabs.vue';
 import IngredientSkuList from '@/components/IngredientSkuList.vue';
+import IngredientProductionList from '@/components/IngredientProductionList.vue';
 import IngredientPriceRecordList from '@/components/IngredientPriceRecordList.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
@@ -427,13 +434,11 @@ const ingredientForm = reactive<{
 	type: 'STANDARD' | 'UNTRACKED' | 'NON_INVENTORIED' | 'SELF_MADE';
 	isFlour: boolean;
 	waterContent: number | null;
-	shelfLife: number | null;
 }>({
 	name: '',
 	type: 'STANDARD',
 	isFlour: false,
-	waterContent: null,
-	shelfLife: null
+	waterContent: null
 });
 
 const showEditPriceRecordModal = ref(false);
@@ -464,7 +469,9 @@ const fabActions = computed(() => {
 		actions.push({ icon: '/static/icons/add.svg', text: '记录价格', action: () => openPriceRecordModal() });
 	}
 
-	actions.push({ icon: '/static/icons/log.svg', text: '消耗流水', action: () => navigateToConsumptionLedger() });
+	if (ingredient.value.type !== 'SELF_MADE') {
+		actions.push({ icon: '/static/icons/log.svg', text: '消耗流水', action: () => navigateToConsumptionLedger() });
+	}
 
 	if (ingredient.value.type === 'SELF_MADE') {
 		actions.push({ icon: '/static/icons/property.svg', text: '配方详情', action: () => navigateToRecipeDetail() });
@@ -586,7 +593,6 @@ const loadIngredientData = async (id: string) => {
 		ingredientForm.type = ingredientData.type;
 		ingredientForm.isFlour = ingredientData.isFlour;
 		ingredientForm.waterContent = ingredientData.waterContent * 100;
-		ingredientForm.shelfLife = ingredientData.shelfLife || null;
 
 		if (ingredientData.type === 'UNTRACKED') {
 			detailChartTab.value = 'usage';
@@ -624,34 +630,27 @@ const openEditModal = () => {
 		ingredientForm.type = ingredient.value.type;
 		ingredientForm.isFlour = ingredient.value.isFlour;
 		ingredientForm.waterContent = ingredient.value.waterContent * 100;
-		ingredientForm.shelfLife = ingredient.value.shelfLife || null;
 	}
 	showEditModal.value = true;
 };
 
-const availableTypes = ref([
-	{ label: '计入成本原料', value: 'STANDARD' },
-	{ label: '即时采购原料', value: 'NON_INVENTORIED' },
-	{ label: '不计成本原料 (水/冰等)', value: 'UNTRACKED' },
-	{ label: '自制原料 (由配方产出)', value: 'SELF_MADE' }
-]);
+const availableTypes = computed(() => {
+	const baseTypes = [
+		{ label: '计入成本原料', value: 'STANDARD' },
+		{ label: '即时采购原料', value: 'NON_INVENTORIED' },
+		{ label: '不计成本原料 (水/冰等)', value: 'UNTRACKED' }
+	];
+	if (ingredient.value?.type === 'SELF_MADE') {
+		baseTypes.push({ label: '自制原料 (由配方产出)', value: 'SELF_MADE' });
+	}
+	return baseTypes;
+});
 
 const currentTypeLabel = computed(() => {
 	return availableTypes.value.find((t) => t.value === ingredientForm.type)?.label || '未知类型';
 });
 
-const ingredientPricePerKg = computed(() => {
-	const ing = ingredient.value;
-	if (!ing || ing.type === 'UNTRACKED') return '¥0.00/kg';
 
-	if (ing.activeSku && ing.currentPricePerPackage && ing.activeSku.specWeightInGrams) {
-		const pricePerGram = Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams;
-		const price = multiply(pricePerGram, 1000);
-		return `¥${formatMoney(price)}/kg`;
-	}
-
-	return '¥0.00/kg';
-});
 
 const openAddSkuModal = () => {
 	newSkuForm.value = {
@@ -847,10 +846,33 @@ const handleActivateFromModal = async () => {
 	}
 };
 
+const renderedSkuId = ref<string | null>(null);
+const isFadingOutSkuRecords = ref(false);
+
 const selectedSku = computed(() => {
-	if (!ingredient.value || !selectedSkuId.value) return null;
-	return ingredient.value.skus.find((s) => s.id === selectedSkuId.value) || null;
+	if (!ingredient.value || !renderedSkuId.value) return null;
+	return ingredient.value.skus.find((s) => s.id === renderedSkuId.value) || null;
 });
+
+// 监听选中的规格ID变化，增加淡出淡入动画切换
+watch(selectedSkuId, (newSkuId) => {
+	if (!newSkuId) {
+		renderedSkuId.value = null;
+		return;
+	}
+	if (newSkuId === renderedSkuId.value) {
+		return;
+	}
+	if (!renderedSkuId.value || isLoading.value) {
+		renderedSkuId.value = newSkuId;
+		return;
+	}
+	isFadingOutSkuRecords.value = true;
+	setTimeout(() => {
+		renderedSkuId.value = newSkuId;
+		isFadingOutSkuRecords.value = false;
+	}, 150);
+}, { immediate: true });
 
 const onIsFlourChange = (e: any) => {
 	ingredientForm.isFlour = e.detail.value;
@@ -868,8 +890,7 @@ const handleUpdateIngredient = async () => {
 			name: ingredientForm.name,
 			type: ingredientForm.type,
 			isFlour: ingredientForm.isFlour,
-			waterContent: (Number(ingredientForm.waterContent) || 0) / 100,
-			shelfLife: ingredientForm.shelfLife ? Number(ingredientForm.shelfLife) : 0
+			waterContent: (Number(ingredientForm.waterContent) || 0) / 100
 		});
 		toastStore.show({ message: '保存成功', type: 'success' });
 		showEditModal.value = false;
@@ -983,6 +1004,13 @@ const handleUpdatePriceRecord = async () => {
 	white-space: nowrap;
 }
 
+.price-unit {
+	color: var(--text-secondary);
+	font-size: 13px;
+	margin-left: 1px;
+	font-weight: normal;
+}
+
 .chart-wrapper {
 }
 
@@ -1048,5 +1076,31 @@ const handleUpdatePriceRecord = async () => {
 .card.no-padding {
 	padding: 0;
 	overflow: hidden;
+}
+
+.sku-records-animated-container {
+	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+
+	&.is-fading-out {
+		animation: fadeOutClean 0.15s ease forwards;
+	}
+}
+
+@keyframes fadeInClean {
+	from {
+		opacity: 0;
+		transform: translateY(5px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fadeOutClean {
+	to {
+		opacity: 0;
+		transform: translateY(-5px);
+	}
 }
 </style>

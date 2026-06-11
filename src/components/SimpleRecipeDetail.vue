@@ -12,8 +12,8 @@
 			</view>
 			<view class="meta-divider"></view>
 			<view class="meta-item">
-				<view class="label">保质期</view>
-				<view class="value">{{ shelfLifeDisplay }}</view>
+				<view class="label">引用次数</view>
+				<view class="value">{{ usageCount }}次</view>
 			</view>
 		</view>
 
@@ -76,7 +76,7 @@ const props = defineProps({
 		type: Object as PropType<RecipeVersion | null>,
 		default: null
 	},
-	shelfLife: {
+	usageCount: {
 		type: Number,
 		default: 0
 	}
@@ -113,14 +113,7 @@ const lossRatioDisplay = computed(() => {
 	return toPercentage(loss) + '%';
 });
 
-const shelfLifeDisplay = computed(() => {
-	if (!props.shelfLife || props.shelfLife <= 0) return '未设置';
-	if (props.shelfLife < 24) return `${props.shelfLife}小时`;
-	const days = Math.floor(props.shelfLife / 24);
-	const hours = props.shelfLife % 24;
-	if (hours > 0) return `${days}天${hours}小时`;
-	return `${days}天`;
-});
+
 
 const calculatedWaterContent = computed(() => {
 	if (!props.version || !props.version.components[0]) return '0';

@@ -37,6 +37,7 @@ export interface CalculatedRecipeDetails {
 	targetWeight?: number;
 	procedure: string[];
 	ingredients: CalculatedRecipeIngredient[];
+	isCompleted?: boolean;
 }
 
 export interface PrepTask {
@@ -137,7 +138,6 @@ export interface RecipeFamily {
 	productCount?: number;
 	ingredientCount?: number;
 	usageCount?: number;
-	shelfLife?: number;
 }
 
 export interface RecipesListResponse {
@@ -230,7 +230,6 @@ export interface DisplayIngredient {
 	deletedAt: Date | null;
 	extraInfo?: string;
 	// [核心新增] 自制原料字段
-	shelfLife: number;
 	recipeFamilyId?: string | null;
 }
 
@@ -336,9 +335,11 @@ export interface Ingredient {
 	currentPricePerPackage: number;
 	totalConsumptionInGrams: number;
 	monthlyConsumptionInGrams?: number;
+	monthlyProductionInGrams?: number;
+	monthlyProductionCount?: number;
 
-	// 自制原料相关字段
-	shelfLife: number;
+	unitPricePerGram?: number;
+	productionRecords?: IngredientLedgerEntry[];
 	recipeFamilyId?: string | null;
 	recipeFamily?: {
 		id: string;
@@ -355,6 +356,15 @@ export interface Ingredient {
 
 export interface IngredientsListResponse {
 	allIngredients: Ingredient[];
+}
+
+export interface IngredientLedgerEntry {
+	id?: string;
+	date: string;
+	details: string;
+	change: number;
+	operator: string;
+	type?: string;
 }
 
 export interface IngredientConsumptionLedgerEntry {
@@ -555,4 +565,44 @@ export interface ProductionTaskDetailDto {
 	// prepTask: PrepTask | null;
 	componentGroups: ComponentGroup[];
 	items: TaskCompletionItem[];
+}
+
+export interface BatchProductIngredientDto {
+	name: string;
+	ratio?: number;
+	weightInGrams?: number;
+}
+
+export interface BatchProductDto {
+	name: string;
+	weight: number;
+	fillings?: BatchProductIngredientDto[];
+	mixIn?: BatchProductIngredientDto[];
+	toppings?: BatchProductIngredientDto[];
+	procedure?: string[];
+}
+
+export interface BatchComponentIngredientDto {
+	name: string;
+	ratio?: number;
+	flourRatio?: number;
+	isFlour?: boolean;
+	waterContent?: number;
+}
+
+export interface BatchImportVersionDto {
+	notes: string;
+	targetTemp?: number;
+	lossRatio?: number;
+	divisionLoss?: number;
+	ingredients: BatchComponentIngredientDto[];
+	products?: BatchProductDto[];
+	procedure?: string[];
+}
+
+export interface BatchImportRecipeDto {
+	name: string;
+	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
+	category: RecipeCategory;
+	versions: BatchImportVersionDto[];
 }

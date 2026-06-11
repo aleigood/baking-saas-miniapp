@@ -67,7 +67,7 @@
 								<view class="total-weight-summary">
 									<view class="summary-left-alert" :class="{ 'pulse-highlight': showPulseAnimation }" v-if="componentMixInSummary.length > 0" :key="'component-mixin-summary'">
 										<image class="summary-alert-icon" src="/static/icons/warning.svg" mode="aspectFit"></image>
-										<text>产品含辅料，请勿遗漏</text>
+										<text>含后加辅料，请勿遗漏！</text>
 									</view>
 									<view v-else :key="'component-mixin-summary-empty'"></view>
 

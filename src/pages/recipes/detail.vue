@@ -21,7 +21,7 @@
 					:class="{ 'is-fading-out': isFadingOutVersion }"
 				>
 					<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :key="'main-detail'" :version="renderedVersion" @show-popover="handleShowPopover" />
-					<SimpleRecipeDetail v-else :key="'simple-detail'" :version="renderedVersion" :shelf-life="recipeFamily.outputIngredient?.shelfLife || 0" @show-popover="handleShowPopover" />
+					<SimpleRecipeDetail v-else :key="'simple-detail'" :version="renderedVersion" :usage-count="recipeFamily.usageCount || 0" @show-popover="handleShowPopover" />
 				</view>
 			</view>
 

@@ -66,8 +66,8 @@ export const getPrepTaskDetails = (date: string, taskIds?: string[]): Promise<Pr
 /**
  * 获取所有存在任务的日期
  */
-export function getTaskDates(): Promise<string[]> {
-	return request<string[]>({
+export function getTaskDates(): Promise<{ activeDates: string[]; completedDates: string[] }> {
+	return request<{ activeDates: string[]; completedDates: string[] }>({
 		url: '/production-tasks/task-dates',
 		method: 'GET'
 	});
@@ -165,3 +165,19 @@ export const getTaskPdfUrl = (taskId: string) => {
 export const getPrepTaskPdfUrl = (date: string) => {
 	return `${BASE_URL}/production-tasks/prep-task-pdf?date=${date}`;
 };
+
+/**
+ * 切换前置准备任务的完成状态
+ */
+export function togglePrepItem(data: {
+	date: string;
+	recipeFamilyId: string;
+	completed: boolean;
+	taskIds?: string[];
+}): Promise<any> {
+	return request({
+		url: '/production-tasks/prep-item/toggle',
+		method: 'POST',
+		data
+	});
+}

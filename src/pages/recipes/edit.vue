@@ -54,9 +54,7 @@
 					<view class="card-title-wrapper" style="margin-bottom: 15px">
 						<span class="card-title">工艺参数</span>
 					</view>
-					<FormItem label="保质期 (小时)">
-						<input class="input-field" type="number" v-model="form.shelfLife" placeholder="例如：24 (0表示长期)" />
-					</FormItem>
+
 					<FormItem label="整体含水量 (%)">
 						<input
 							class="input-field"
@@ -486,7 +484,6 @@ const form = ref<
 		products?: RecipeFormProduct[];
 		components: EnhancedComponent[];
 		customWaterContent?: number | null;
-		shelfLife?: number | null;
 	}
 >({
 	name: '',
@@ -495,7 +492,6 @@ const form = ref<
 	notes: '',
 	targetTemp: null,
 	customWaterContent: null,
-	shelfLife: null,
 	components: [
 		{
 			id: `main_${Date.now()}`,
@@ -944,14 +940,7 @@ onLoad(async (options) => {
 					}))
 				}));
 
-				let shelfLifeVal: number | null = null;
-				if (parsedForm.type !== 'MAIN') {
-					const allRecipes = [...dataStore.recipes.preDoughs, ...dataStore.recipes.extras];
-					const family = allRecipes.find((f) => f.name === parsedForm.name);
-					if (family && family.shelfLife) {
-						shelfLifeVal = family.shelfLife;
-					}
-				}
+
 
 				form.value = {
 					...parsedForm,
@@ -959,7 +948,6 @@ onLoad(async (options) => {
 						parsedForm.components[0]?.customWaterContent !== undefined && parsedForm.components[0]?.customWaterContent !== null
 							? parsedForm.components[0].customWaterContent
 							: null,
-					shelfLife: shelfLifeVal,
 					components: sanitizedComponents,
 					products: (parsedForm.products || []).map((p: any) => ({
 						...p,
@@ -1004,7 +992,6 @@ onLoad(async (options) => {
 			form.value.type = 'PRE_DOUGH';
 			form.value.products = [];
 			form.value.category = 'OTHER';
-			form.value.shelfLife = 0;
 			form.value.components = [
 				{
 					id: `main_${Date.now()}`,
@@ -1295,7 +1282,6 @@ const handleSubmit = async () => {
 			lossRatio: toDecimal(Number(mainComponentFromForm.lossRatio || 0)),
 			divisionLoss: Number(mainComponentFromForm.divisionLoss || 0),
 			customWaterContent: finalCustomWaterContent,
-			shelfLife: form.value.shelfLife ? Number(form.value.shelfLife) : 0,
 			procedure: mainComponentFromForm.procedure.filter((p) => p && p.trim()),
 			ingredients: ingredientsPayload,
 			products: form.value.products!.map((p) => ({

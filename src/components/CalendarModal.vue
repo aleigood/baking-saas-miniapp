@@ -13,7 +13,7 @@
 				<view v-for="(day, index) in calendarDays" :key="index" class="day-cell-wrapper">
 					<view v-if="day.isCurrentMonth" class="day-cell" :class="{ 'is-today': day.isToday, 'is-selected': day.fullDate === selectedDate }" @click="selectDate(day)">
 						<view class="day-number">{{ day.day }}</view>
-						<view v-if="day.hasTask" class="task-marker"></view>
+						<view v-if="day.hasTask" class="task-marker" :class="{ 'is-completed': day.isTaskCompleted }"></view>
 					</view>
 					<view v-else class="day-cell-placeholder">
 						<view class="day-number">{{ day.day }}</view>
@@ -36,8 +36,8 @@ const props = defineProps({
 		default: false
 	},
 	taskDates: {
-		type: Array as () => string[],
-		default: () => []
+		type: [Array, Object] as any,
+		default: () => ({ activeDates: [], completedDates: [] })
 	}
 });
 
@@ -80,12 +80,26 @@ const calendarDays = computed(() => {
 		const dayStr = String(dayDate.getDate()).padStart(2, '0');
 		const fullDate = `${year}-${month}-${dayStr}`;
 
+		const taskDatesVal = props.taskDates;
+		let hasActive = false;
+		let hasCompleted = false;
+
+		if (Array.isArray(taskDatesVal)) {
+			hasActive = taskDatesVal.includes(fullDate);
+		} else if (taskDatesVal && typeof taskDatesVal === 'object') {
+			const activeDates = (taskDatesVal as any).activeDates || [];
+			const completedDates = (taskDatesVal as any).completedDates || [];
+			hasActive = activeDates.includes(fullDate);
+			hasCompleted = completedDates.includes(fullDate);
+		}
+
 		days.push({
 			day: i,
 			isCurrentMonth: true,
 			isToday: dayDate.getTime() === today.getTime(),
 			fullDate: fullDate,
-			hasTask: props.taskDates.includes(fullDate)
+			hasTask: hasActive || hasCompleted,
+			isTaskCompleted: !hasActive && hasCompleted
 		});
 	}
 
@@ -216,6 +230,10 @@ const handleClose = () => {
 	background-color: var(--primary-color);
 	margin-top: 3px;
 	/* 与数字的间距 */
+}
+
+.task-marker.is-completed {
+	background-color: #999999;
 }
 
 .day-cell.is-selected .task-marker {

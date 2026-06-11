@@ -58,7 +58,10 @@
 									<view class="desc">{{ getRecipeIngredientCount(ing) }} 种原料</view>
 								</view>
 								<view class="side-info">
-									<view class="value">{{ getSelfMadeProductionCount(ing) }} 次</view>
+									<view class="value">
+										<text>¥{{ formatMoney(ing.unitPricePerGram || 0) }}</text>
+										<text class="price-unit">/g</text>
+									</view>
 								</view>
 							</template>
 
@@ -72,8 +75,11 @@
 								</view>
 								<view class="side-info">
 									<view class="value">
-										<template v-if="ing.type === 'STANDARD' || ing.type === 'NON_INVENTORIED'">{{ getIngredientUnitPriceLabel(ing) }}</template>
-										<template v-else>不计成本</template>
+										<template v-if="ing.type === 'STANDARD' || ing.type === 'NON_INVENTORIED'">
+											<text>¥{{ formatMoney(ing.unitPricePerGram || 0) }}</text>
+											<text class="price-unit">/g</text>
+										</template>
+										<template v-else><text style="color: var(--text-secondary); font-size: 13px;">不计入</text></template>
 									</view>
 								</view>
 							</template>
@@ -201,7 +207,7 @@ const activeFilter = ref('standard');
 const showFilterSelector = ref(false);
 
 const filterOptions = [
-	{ key: 'standard', label: '标准' },
+	{ key: 'standard', label: '基础' },
 	{ key: 'self_made', label: '自制' }
 ];
 
@@ -226,7 +232,7 @@ const filterKeyword = ref('');
 type SortMode = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'production_asc' | 'production_desc';
 const sortMode = ref<SortMode>('name_asc');
 const standardSortModes: SortMode[] = ['name_asc', 'name_desc', 'price_asc', 'price_desc'];
-const selfMadeSortModes: SortMode[] = ['name_asc', 'name_desc', 'production_asc', 'production_desc'];
+const selfMadeSortModes: SortMode[] = ['name_asc', 'name_desc', 'price_asc', 'price_desc'];
 
 const newIngredientForm = reactive<{
 	name: string;
@@ -348,12 +354,7 @@ const getSelfMadeProductionCount = (ing: Ingredient) => {
 };
 
 const getIngredientUnitPrice = (ing: Ingredient) => {
-	if (!ing.activeSku || !ing.currentPricePerPackage || !ing.activeSku.specWeightInGrams) {
-		return 0;
-	}
-
-	const pricePerGram = Number(ing.currentPricePerPackage) / ing.activeSku.specWeightInGrams;
-	return multiply(pricePerGram, 1000);
+	return ing.unitPricePerGram || 0;
 };
 
 const getIngredientUnitPriceLabel = (ing: Ingredient) => {
@@ -518,7 +519,7 @@ const getIngredientTypeLabel = (type: Ingredient['type']) => {
 		case 'SELF_MADE':
 			return '自制';
 		default:
-			return '标准';
+			return '基础';
 	}
 };
 
@@ -718,6 +719,12 @@ const handleCreateIngredient = async () => {
 
 .side-info .consumption {
 	margin-top: 2px;
+}
+
+.price-unit {
+	color: var(--text-secondary);
+	font-size: 13px;
+	margin-left: 1px;
 }
 
 .form-row {

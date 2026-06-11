@@ -80,9 +80,7 @@ const loadMoreRecords = () => {
 	}
 
 	.col-details {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		word-break: break-all;
 		padding-right: 5px;
 	}
 

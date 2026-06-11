@@ -64,5 +64,5 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	return { token, userInfo, login, logout, setToken, fetchUserInfo, handleUnauthorized };
+	return { token, userInfo, isRedirecting, login, logout, setToken, fetchUserInfo, handleUnauthorized };
 });

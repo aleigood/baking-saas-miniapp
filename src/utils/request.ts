@@ -51,7 +51,7 @@ export const request = <T = any>(options: RequestOptions): Promise<T> => {
 
 		uni.request({
 			url: url,
-			method: method,
+			method: method as any,
 			data: data,
 			header: {
 				...options.header,

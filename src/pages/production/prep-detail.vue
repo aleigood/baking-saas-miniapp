@@ -21,7 +21,7 @@
 					<template v-if="hasMaterials">
 						<view v-if="billOfMaterials.standardItems.length > 0" class="card">
 							<view class="card-title-wrapper" @click="toggleCollapse('standardItems')">
-								<span class="card-title title-text">标准原料</span>
+								<span class="card-title title-text">基础原料</span>
 								<view class="spacer"></view>
 								<span class="arrow" :class="{ collapsed: collapsedSections.has('standardItems') }">&#10095;</span>
 							</view>
@@ -196,7 +196,7 @@
 import { ref, reactive, computed, watch, getCurrentInstance, shallowRef } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import type { PrepTask, BillOfMaterialsResponseDto } from '@/types/api';
-import { getPrepTaskDetails, getPrepTaskPdfUrl } from '@/api/tasks';
+import { getPrepTaskDetails, getPrepTaskPdfUrl, togglePrepItem } from '@/api/tasks';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
@@ -494,18 +494,41 @@ const toggleIngredientAdded = (itemId: string, ingredientIndex: number) => {
 	}
 };
 
-const toggleItemCompleted = (itemId: string) => {
+const toggleItemCompleted = async (itemId: string) => {
+	if (!taskDate.value) return;
 	uni.vibrateShort({});
+
+	const willComplete = !completedItems.value.has(itemId);
+
+	// 乐观更新 UI
 	const newSet = new Set(completedItems.value);
-	if (newSet.has(itemId)) {
-		newSet.delete(itemId);
-	} else {
+	if (willComplete) {
 		newSet.add(itemId);
+	} else {
+		newSet.delete(itemId);
 	}
 	completedItems.value = newSet;
+	dataStore.savePrepTaskProgress(taskDate.value, addedIngredientsMap, completedItems.value);
 
-	if (taskDate.value) {
+	try {
+		await togglePrepItem({
+			date: taskDate.value,
+			recipeFamilyId: itemId,
+			completed: willComplete,
+			taskIds: selectedTaskIds.value.length > 0 ? selectedTaskIds.value : undefined
+		});
+	} catch (error) {
+		console.error('切换前置准备任务状态失败:', error);
+		// 失败时回滚
+		const revertSet = new Set(completedItems.value);
+		if (willComplete) {
+			revertSet.delete(itemId);
+		} else {
+			revertSet.add(itemId);
+		}
+		completedItems.value = revertSet;
 		dataStore.savePrepTaskProgress(taskDate.value, addedIngredientsMap, completedItems.value);
+		toastStore.show({ message: '同步状态失败', type: 'error' });
 	}
 };
 
@@ -532,6 +555,17 @@ const fetchTaskData = async () => {
 		}
 
 		const taskData = await getPrepTaskDetails(taskDate.value!, taskIdsParam);
+
+		if (taskData && taskData.items) {
+			const newCompleted = new Set<string>();
+			taskData.items.forEach((item) => {
+				if (item.isCompleted) {
+					newCompleted.add(item.id);
+				}
+			});
+			completedItems.value = newCompleted;
+			dataStore.savePrepTaskProgress(taskDate.value!, addedIngredientsMap, completedItems.value);
+		}
 
 		// 赋值瞬间，骨架屏挡在上方，内部开始构建庞大的 DOM 结构
 		task.value = taskData;
