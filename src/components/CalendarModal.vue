@@ -2,9 +2,13 @@
 	<AppModal :visible="visible" @update:visible="handleClose" title="选择日期" width="90%">
 		<view class="calendar-container">
 			<view class="calendar-header">
-				<view class="header-arrow" @click="changeMonth(-1)">‹</view>
+				<IconButton @click="changeMonth(-1)" class="header-arrow-btn">
+					<image class="arrow-icon" src="/static/icons/arrow-left.svg" />
+				</IconButton>
 				<view class="header-date">{{ currentYear }}年 {{ currentMonth + 1 }}月</view>
-				<view class="header-arrow" @click="changeMonth(1)">›</view>
+				<IconButton @click="changeMonth(1)" class="header-arrow-btn">
+					<image class="arrow-icon" src="/static/icons/arrow-right.svg" />
+				</IconButton>
 			</view>
 
 			<view class="calendar-grid">
@@ -29,6 +33,7 @@
 import { ref, computed, watch } from 'vue';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
+import IconButton from '@/components/IconButton.vue';
 
 const props = defineProps({
 	visible: {
@@ -143,9 +148,15 @@ const handleClose = () => {
 	color: var(--text-primary);
 }
 
-.header-arrow {
-	padding: 5px 15px;
-	cursor: pointer;
+.header-arrow-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.arrow-icon {
+	width: 20px;
+	height: 20px;
 }
 
 /* [核心修改] 统一的网格布局 */

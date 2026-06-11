@@ -206,7 +206,7 @@ const STATUS_MAP = {
 	COMPLETED: {
 		text: '已完成',
 		className: 'status-completed',
-		color: '#95a5a6'
+		color: '#bcaaa4'
 	},
 	PREP: {
 		text: '去准备',
@@ -805,7 +805,7 @@ const handleSaveTemperatureSettings = () => {
 }
 
 .status-tag.status-completed {
-	background-color: #95a5a6;
+	background-color: #bcaaa4;
 }
 
 .status-tag.status-prep {

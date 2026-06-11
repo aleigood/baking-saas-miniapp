@@ -607,6 +607,8 @@ const loadTaskData = async (id: string) => {
 		// 立刻赋值触发DOM预渲染
 		task.value = response;
 
+		isReadOnly.value = task.value.status === 'COMPLETED' || task.value.status === 'CANCELLED';
+
 		addedIngredientsMap.clear();
 		if (task.value.status === 'IN_PROGRESS') {
 			const savedProgress = dataStore.loadTaskProgress(id);

@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch } from 'vue';
 import { useToastStore } from '@/store/toast';
 const toastStore = useToastStore();
 
@@ -16,6 +16,10 @@ const animationClass = ref('');
 
 let animationTimer: ReturnType<typeof setTimeout> | null = null;
 
+// 获取组件初始化时所在的页面实例，锁定该 Toast 组件所属的页面对象（增加启动防空保护）
+const pages = getCurrentPages();
+const myPageInstance = pages.length > 0 ? pages[pages.length - 1] : null;
+
 watch(
 	() => toastStore.isVisible,
 	(newValue) => {
@@ -23,10 +27,26 @@ watch(
 			clearTimeout(animationTimer);
 		}
 
+		// 检查当前处于栈顶活跃状态的页面是否是本组件所属的页面
+		const currentPages = getCurrentPages();
+		const activePageInstance = currentPages.length > 0 ? currentPages[currentPages.length - 1] : null;
+
+		// 若当前活跃页面与本组件所在的页面不一致（说明组件在后台），则静默重置状态，不触发动画
+		if (activePageInstance !== myPageInstance) {
+			animationClass.value = '';
+			return;
+		}
+
 		if (newValue) {
 			animationClass.value = 'toast-fade-in';
 		} else {
-			animationClass.value = 'toast-fade-out';
+			// 关键修复：只有在当前页面真正触发过“淡入”显示的情况下，才触发“淡出”隐藏动画
+			// 否则直接清空动画类，防止从后台返回前一页时，因 @keyframes fadeOut 的 from { opacity: 1 } 造成 Toast 闪现再消失的 Bug
+			if (animationClass.value === 'toast-fade-in') {
+				animationClass.value = 'toast-fade-out';
+			} else {
+				animationClass.value = '';
+			}
 		}
 	}
 );
