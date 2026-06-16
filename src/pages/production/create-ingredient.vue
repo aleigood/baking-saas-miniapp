@@ -925,7 +925,7 @@ const onDateChange = (e: any, type: 'start' | 'end') => {
 	}
 	to {
 		opacity: 1;
-		transform: translateY(0);
+		transform: none;
 	}
 }
 

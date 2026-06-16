@@ -150,7 +150,9 @@ const onFocus = () => {
 		query
 			.select('.input-wrapper-box')
 			.boundingClientRect((rect) => {
-				if (rect) inputRect.value = rect;
+				if (rect) {
+					inputRect.value = rect;
+				}
 			})
 			.exec();
 	});

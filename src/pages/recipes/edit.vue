@@ -249,7 +249,7 @@
 							class="card product-edit-card"
 							v-if="renderedProductTab === prodIndex"
 							:key="'product-card-' + product._key"
-							:class="{ 'is-fading-out': isFadingOutProduct }"
+							:class="{ 'is-fading-out': isFadingOutProduct, 'product-edit-card-animate': isAnimatingProduct }"
 						>
 							<view class="card-title-wrapper">
 								<span class="card-title">{{ product.name || `产品${prodIndex + 1}` }}</span>
@@ -273,7 +273,7 @@
 										<AutocompleteInput
 											v-model="ing.name"
 											:items="availableSubIngredients"
-											placeholder="输入或选择原料/馅料"
+											placeholder="输入或选择原料"
 											@select="onSubIngredientSelect($event, prodIndex, 'mixIns', ingIndex)"
 											@blur="handleIngredientBlur(ing, availableSubIngredients)"
 											:tags="getIngredientTags(ing)"
@@ -304,7 +304,7 @@
 										<AutocompleteInput
 											v-model="ing.name"
 											:items="availableSubIngredients"
-											placeholder="输入或选择原料/馅料"
+											placeholder="输入或选择原料"
 											@select="onSubIngredientSelect($event, prodIndex, 'fillings', ingIndex)"
 											@blur="handleIngredientBlur(ing, availableSubIngredients)"
 											:tags="getIngredientTags(ing)"
@@ -335,7 +335,7 @@
 										<AutocompleteInput
 											v-model="ing.name"
 											:items="availableSubIngredients"
-											placeholder="输入或选择原料/馅料"
+											placeholder="输入或选择原料"
 											@select="onSubIngredientSelect($event, prodIndex, 'toppings', ingIndex)"
 											@blur="handleIngredientBlur(ing, availableSubIngredients)"
 											:tags="getIngredientTags(ing)"
@@ -553,7 +553,7 @@ const recipeCategories = ref([
 
 const recipeTypes = ref([
 	{ label: '面种', value: 'PRE_DOUGH' },
-	{ label: '馅料', value: 'EXTRA' }
+	{ label: '自制原料', value: 'EXTRA' }
 ]);
 
 const currentCategoryLabel = computed(() => {
@@ -604,15 +604,27 @@ const isAddingPreDough = ref(false);
 const activeProductTab = ref(0);
 const renderedProductTab = ref(0);
 const isFadingOutProduct = ref(false);
+const isAnimatingProduct = ref(true);
+
+onMounted(() => {
+	setTimeout(() => {
+		isAnimatingProduct.value = false;
+	}, 300);
+});
 
 watch(activeProductTab, (newTab) => {
 	if (newTab === renderedProductTab.value) {
 		return;
 	}
 	isFadingOutProduct.value = true;
+	isAnimatingProduct.value = false;
 	setTimeout(() => {
 		renderedProductTab.value = newTab;
 		isFadingOutProduct.value = false;
+		isAnimatingProduct.value = true;
+		setTimeout(() => {
+			isAnimatingProduct.value = false;
+		}, 300);
 	}, 150);
 });
 
@@ -1585,7 +1597,9 @@ const hasPreDough = computed(() => {
 	border-radius: 50%;
 }
 .product-edit-card {
-	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+	&.product-edit-card-animate {
+		animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+	}
 
 	&.is-fading-out {
 		animation: fadeOutClean 0.15s ease forwards;
@@ -1601,7 +1615,7 @@ const hasPreDough = computed(() => {
 	}
 	to {
 		opacity: 1;
-		transform: translateY(0);
+		transform: none;
 	}
 }
 
