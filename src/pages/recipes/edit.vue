@@ -1205,6 +1205,13 @@ const removeProcedureStep = (itemWithProcedure: { procedure: string[] }, index: 
 	itemWithProcedure.procedure.splice(index, 1);
 };
 
+const toOptionalNumber = (value: unknown): number | null => {
+	if (value === null || value === undefined || value === '') return null;
+
+	const numberValue = Number(value);
+	return Number.isFinite(numberValue) ? numberValue : null;
+};
+
 const handleSubmit = async () => {
 	if (!form.value.name.trim()) {
 		toastStore.show({ message: '请输入配方名称', type: 'error' });
@@ -1290,7 +1297,7 @@ const handleSubmit = async () => {
 			type: form.value.type,
 			category: form.value.category,
 			notes: form.value.notes,
-			targetTemp: form.value.targetTemp,
+			targetTemp: form.value.type === 'MAIN' && form.value.category === 'BREAD' ? toOptionalNumber(form.value.targetTemp) : null,
 			lossRatio: toDecimal(Number(mainComponentFromForm.lossRatio || 0)),
 			divisionLoss: Number(mainComponentFromForm.divisionLoss || 0),
 			customWaterContent: finalCustomWaterContent,
