@@ -866,6 +866,7 @@ const handleConfirmComplete = async () => {
 		});
 
 		dataStore.clearTaskProgress(task.value.id);
+		dataStore.completeProductionTaskLocally(task.value.id);
 
 		const target = fromPage.value === 'history' ? '/pages/production/history' : '/pages/main/main';
 		uiStore.setNextPageToast(

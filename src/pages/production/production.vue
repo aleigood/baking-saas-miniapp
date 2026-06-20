@@ -184,9 +184,9 @@ import AppButton from '@/components/AppButton.vue';
 import CalendarModal from '@/components/CalendarModal.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import type { ProductionTaskDto, PrepTask, RecipeCategory, ProductionTaskSummaryDto } from '@/types/api';
+import type { PrepTask, RecipeCategory, ProductionTaskSummaryDto } from '@/types/api';
 import { updateTaskStatus, getTaskDates, deleteTask } from '@/api/tasks';
-import { formatChineseDate, formatWeight } from '@/utils/format';
+import { formatWeight } from '@/utils/format';
 
 // 修改：引入新的骨架屏组件，移除旧的 SkeletonList
 import SkeletonCard from '@/components/SkeletonCard.vue';
@@ -455,35 +455,32 @@ const isSelfMadeItem = (item: any) => {
 	return item.product?.recipeVersion?.family?.category === 'OTHER';
 };
 
-const getTaskTitle = (task: ProductionTaskDto | PrepTask) => {
+const getTaskTitle = (task: ProductionTaskSummaryDto | PrepTask) => {
 	if (task.status === 'PREP') {
 		return (task as PrepTask).title;
 	}
-	const regularTask = task as ProductionTaskDto;
+	const regularTask = task as ProductionTaskSummaryDto;
 	if (!regularTask.items || regularTask.items.length === 0) return '未知任务';
 
-	return regularTask.items
-		.map((item) => {
-			if (isSelfMadeItem(item)) {
-				return `${item.product.name} ${formatWeight(Number(item.quantity))}`;
-			}
-			return `${item.product.name} x${Number(item.quantity)}`;
-		})
-		.join('、');
-};
-
-const getTotalQuantity = (task: ProductionTaskDto) => {
-	if (!task.items) return 0;
-	return task.items.reduce((sum, item) => {
-		if (isSelfMadeItem(item)) {
-			return sum + 1;
+	const recipeGroups = new Map<string, { name: string; category?: RecipeCategory; quantity: number }>();
+	regularTask.items.forEach((item) => {
+		const family = item.product.recipeVersion?.family;
+		const key = family?.id || item.product.id;
+		const existing = recipeGroups.get(key);
+		if (existing) {
+			existing.quantity += Number(item.quantity);
+		} else {
+			recipeGroups.set(key, {
+				name: family?.name || item.product.name,
+				category: family?.category,
+				quantity: Number(item.quantity)
+			});
 		}
-		return sum + Number(item.quantity);
-	}, 0);
-};
+	});
 
-const isSelfMadeTask = (task: ProductionTaskDto) => {
-	return task.items && task.items.length > 0 && isSelfMadeItem(task.items[0]);
+	return Array.from(recipeGroups.values())
+		.map((group) => (group.category === 'OTHER' ? `${group.name} ${formatWeight(group.quantity)}` : `${group.name} ${group.quantity}个`))
+		.join('、');
 };
 
 const getTaskDetails = (task: any) => {
@@ -491,37 +488,12 @@ const getTaskDetails = (task: any) => {
 		return task.details;
 	}
 
-	const regularTask = task as ProductionTaskDto;
-	let dateDisplay: string;
-
-	const startDateStr = regularTask.startDate.split('T')[0];
-	const endDateStr = regularTask.endDate ? regularTask.endDate.split('T')[0] : startDateStr;
-
-	if (regularTask.endDate && startDateStr !== endDateStr) {
-		const startDate = new Date(regularTask.startDate);
-		const endDate = new Date(regularTask.endDate);
-		const startMonth = startDate.getMonth() + 1;
-		const startDay = startDate.getDate();
-		const endMonth = endDate.getMonth() + 1;
-		const endDay = endDate.getDate();
-
-		if (startMonth === endMonth) {
-			dateDisplay = `${startMonth}月${startDay}日-${endDay}日`;
-		} else {
-			dateDisplay = `${startMonth}月${startDay}日-${endMonth}月${endDay}日`;
-		}
-	} else {
-		dateDisplay = formatChineseDate(regularTask.startDate);
-	}
-
-	const creator = regularTask.createdBy?.name || regularTask.createdBy?.phone || '未知';
-
-	if (isSelfMadeTask(regularTask)) {
-		return `${dateDisplay} ${regularTask.items.length} 种原料 | by ${creator}`;
-	} else {
-		const totalQuantity = getTotalQuantity(regularTask);
-		return `${dateDisplay} 总数: ${totalQuantity} | by ${creator}`;
-	}
+	const regularTask = task as ProductionTaskSummaryDto;
+	return regularTask.items
+		.map((item) =>
+			isSelfMadeItem(item) ? `${item.product.name} ${formatWeight(Number(item.quantity))}` : `${item.product.name} x${Number(item.quantity)}`
+		)
+		.join('、');
 };
 
 const navigateToDetail = (task: any) => {
@@ -755,6 +727,7 @@ const handleSaveTemperatureSettings = () => {
 
 .task-info {
 	flex: 1;
+	min-width: 0;
 	margin-right: 15px;
 }
 
@@ -763,18 +736,22 @@ const handleSaveTemperatureSettings = () => {
 	font-size: 16px;
 	font-weight: 500;
 	margin-bottom: 8px;
-	word-break: break-all;
+	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	display: -webkit-box;
-	-webkit-line-clamp: 2;
-	-webkit-box-orient: vertical;
 	line-height: 1.4;
 }
 
 .details {
 	color: var(--text-secondary);
 	font-size: 14px;
+	line-height: 1.45;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	word-break: break-all;
 }
 
 .header-actions {

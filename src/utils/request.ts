@@ -6,6 +6,8 @@ import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
 
+let subscriptionRedirecting = false;
+
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface RequestOptions {
@@ -57,7 +59,7 @@ export const request = <T = any>(options: RequestOptions): Promise<T> => {
 				...options.header,
 				Authorization: userStore.token ? `Bearer ${userStore.token}` : ''
 			},
-			success: (res: UniApp.RequestSuccessCallbackResult) => {
+				success: (res: UniApp.RequestSuccessCallbackResult) => {
 				// 核心：处理401 Unauthorized错误
 				if (res.statusCode === 401 && options.url !== '/auth/login') {
 					if (userStore.isRedirecting) {
@@ -73,6 +75,14 @@ export const request = <T = any>(options: RequestOptions): Promise<T> => {
 					);
 
 					userStore.handleUnauthorized();
+					return reject(res);
+				}
+
+				if (res.statusCode === 402 && (res.data as any)?.code === 'SUBSCRIPTION_REQUIRED') {
+					if (!subscriptionRedirecting) {
+						subscriptionRedirecting = true;
+						uni.reLaunch({ url: '/pages/subscription/subscription', complete: () => setTimeout(() => (subscriptionRedirecting = false), 500) });
+					}
 					return reject(res);
 				}
 

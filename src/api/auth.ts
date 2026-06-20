@@ -36,3 +36,7 @@ export function switchTenant(tenantId: string): Promise<LoginRes> {
 		method: 'POST'
 	});
 }
+
+export function bindWechat(code: string): Promise<{ bound: boolean }> {
+	return request({ url: '/auth/wechat-bind', method: 'POST', data: { code } });
+}

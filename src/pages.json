@@ -25,6 +25,12 @@
 			}
 		},
 		{
+			"path": "pages/subscription/subscription",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/production/create",
 			"style": {
 				"navigationStyle": "custom"

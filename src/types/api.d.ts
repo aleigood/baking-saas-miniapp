@@ -71,6 +71,8 @@ export interface ProductionTaskSummaryDto {
 			// [新增] 增加配方品类字段
 			recipeVersion?: {
 				family: {
+					id: string;
+					name: string;
 					category: RecipeCategory;
 				};
 			};

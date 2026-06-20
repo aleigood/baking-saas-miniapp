@@ -180,6 +180,25 @@ export const useDataStore = defineStore('data', () => {
 	const markProductionAsStale = () => {
 		dataStale.production = true;
 	};
+	const completeProductionTaskLocally = (taskId: string) => {
+		const taskIndex = production.value.findIndex((task) => task.status !== 'PREP' && task.id === taskId);
+		if (taskIndex === -1) return;
+
+		const task = production.value[taskIndex] as ProductionTaskSummaryDto;
+		if (task.status !== 'PENDING' && task.status !== 'IN_PROGRESS') return;
+
+		const completedQuantity = task.items.reduce((sum, item) => {
+			const category = item.product.recipeVersion?.family.category;
+			return category === 'OTHER' ? sum : sum + Number(item.quantity);
+		}, 0);
+
+		production.value[taskIndex] = {
+			...task,
+			status: 'COMPLETED',
+			updatedAt: new Date().toISOString()
+		};
+		homeStats.value.pendingCount = Math.max(0, homeStats.value.pendingCount - completedQuantity);
+	};
 	const markHistoricalTasksAsStale = () => {
 		dataStale.historicalTasks = true;
 	};
@@ -434,6 +453,7 @@ export const useDataStore = defineStore('data', () => {
 		fetchProductsForTaskCreation,
 		fetchIngredientsData,
 		fetchMembersData,
+		completeProductionTaskLocally,
 		markProductionAsStale,
 		markHistoricalTasksAsStale,
 		markRecipesAsStale,
