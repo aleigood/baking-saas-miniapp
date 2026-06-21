@@ -43,15 +43,17 @@ import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import Toast from '@/components/Toast.vue';
 import { bindWechat } from '@/api/auth';
-import { createPaymentOrder, getSubscriptionPlans, getSubscriptionSummary, syncPaymentOrder, type SubscriptionPlan, type SubscriptionSummary } from '@/api/billing';
+import { createPaymentOrder, getPaymentCapabilities, getSubscriptionPlans, getSubscriptionSummary, syncPaymentOrder, type SubscriptionPlan, type SubscriptionSummary } from '@/api/billing';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUserStore } from '@/store/user';
+import { formatChineseDate } from '@/utils/format';
 
 const plans = ref<SubscriptionPlan[]>([]);
 const summary = ref<SubscriptionSummary | null>(null);
 const selectedPlanId = ref('');
 const paying = ref(false);
+const paymentMode = ref<'mock' | 'wechat'>('wechat');
 const dataStore = useDataStore();
 const userStore = useUserStore();
 const toastStore = useToastStore();
@@ -59,15 +61,16 @@ const toastStore = useToastStore();
 const isOwner = computed(() => userStore.userInfo?.tenants.find((item) => item.tenant.id === dataStore.currentTenantId)?.role === 'OWNER');
 const expiryText = computed(() => {
 	if (!summary.value?.entitledUntil) return '选择套餐后即可恢复店铺功能';
-	return `当前权益至 ${new Date(summary.value.entitledUntil).toLocaleDateString()}`;
+	return `当前权益至 ${formatChineseDate(summary.value.entitledUntil)}`;
 });
 
 const formatPrice = (cents: number) => (cents / 100).toFixed(2);
 
 const loadData = async () => {
-	const [planData, subscriptionData] = await Promise.all([getSubscriptionPlans(), getSubscriptionSummary()]);
+	const [planData, subscriptionData, capabilities] = await Promise.all([getSubscriptionPlans(), getSubscriptionSummary(), getPaymentCapabilities()]);
 	plans.value = planData;
 	summary.value = subscriptionData;
+	paymentMode.value = capabilities.paymentMode;
 	if (!selectedPlanId.value && planData.length) selectedPlanId.value = planData[0].id;
 };
 
@@ -83,10 +86,13 @@ const handlePurchase = async () => {
 	if (!selectedPlanId.value || paying.value) return;
 	paying.value = true;
 	try {
-		await bindWechat(await getWechatCode());
+		if (paymentMode.value === 'wechat') await bindWechat(await getWechatCode());
 		const order = await createPaymentOrder(selectedPlanId.value);
-		await requestPayment(order.paymentParams);
-		await syncPaymentOrder(order.orderNo);
+		if (!order.mockPaid) {
+			if (!order.paymentParams) throw new Error('支付参数缺失');
+			await requestPayment(order.paymentParams);
+			await syncPaymentOrder(order.orderNo);
+		}
 		await loadData();
 		toastStore.show({ message: '订阅已开通', type: 'success' });
 	} catch (error: any) {

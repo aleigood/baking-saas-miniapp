@@ -25,11 +25,6 @@
 				</view>
 
 				<view class="card">
-					<view class="card-title">店铺订阅</view>
-					<AppButton type="secondary" full-width @click="uni.navigateTo({ url: '/pages/subscription/subscription' })">查看订阅与续费</AppButton>
-				</view>
-
-				<view class="card">
 					<view class="card-title">修改密码</view>
 					<FormItem label="当前密码">
 						<input class="input-field" type="password" v-model="passwordForm.currentPassword" placeholder="请输入当前密码" />

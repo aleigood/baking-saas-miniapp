@@ -11,6 +11,10 @@
 				<view class="user-info">
 					<view class="name">{{ userStore.userInfo?.name || '未设置昵称' }}</view>
 					<view class="role-badge">{{ currentTenantRoleDisplay }}</view>
+					<view class="subscription-meta" :class="{ active: subscriptionSummary?.active }">
+						<view class="subscription-indicator"></view>
+						<text>{{ subscriptionDisplayText }}</text>
+					</view>
 				</view>
 				<view class="arrow-icon">&#10095;</view>
 			</view>
@@ -46,11 +50,20 @@
 						<view class="action-right">&#10095;</view>
 					</view>
 				</ListItem>
-				<ListItem v-if="canManagePersonnel" :key="'item-personnel'" class="action-item" @click="navigateToPersonnelList" :bleed="true" :divider="false">
+				<ListItem v-if="canManagePersonnel" :key="'item-personnel'" class="action-item" @click="navigateToPersonnelList" :bleed="true">
 					<view class="action-item-content">
 						<view class="action-left">
 							<image class="action-icon" src="/static/icons/person.svg" />
 							<text>人员管理</text>
+						</view>
+						<view class="action-right">&#10095;</view>
+					</view>
+				</ListItem>
+				<ListItem :key="'item-subscription'" class="action-item" @click="navigateToSubscription" :bleed="true" :divider="false">
+					<view class="action-item-content">
+						<view class="action-left">
+							<image class="action-icon" src="/static/icons/vip.svg" />
+							<text>订阅与续费</text>
 						</view>
 						<view class="action-right">&#10095;</view>
 					</view>
@@ -81,6 +94,8 @@ import { useUiStore } from '@/store/ui';
 import { useSystemStore } from '@/store/system';
 import { MODAL_KEYS } from '@/constants/modalKeys';
 import { getAppDashboardStats } from '@/api/dashboard';
+import { getSubscriptionSummary, type SubscriptionSummary } from '@/api/billing';
+import { formatChineseDate } from '@/utils/format';
 import ListItem from '@/components/ListItem.vue';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
@@ -94,6 +109,8 @@ const isNavigating = ref(false);
 
 const stats = ref<Partial<DashboardStats>>({});
 const isLoadingStats = ref(false);
+const subscriptionSummary = ref<SubscriptionSummary | null>(null);
+const subscriptionLoaded = ref(false);
 
 const logoutModalRef = ref<InstanceType<typeof AppModal> | null>(null);
 
@@ -110,12 +127,23 @@ const fetchDashboardStats = async () => {
 	}
 };
 
+const fetchSubscription = async () => {
+	try {
+		subscriptionSummary.value = await getSubscriptionSummary();
+	} catch (error) {
+		console.error('获取订阅信息失败:', error);
+		subscriptionSummary.value = null;
+	} finally {
+		subscriptionLoaded.value = true;
+	}
+};
+
 onShow(async () => {
 	isNavigating.value = false;
 	if (dataStore.dataStale.members || !dataStore.dataLoaded.members) {
 		dataStore.fetchMembersData();
 	}
-	await fetchDashboardStats();
+	await Promise.all([fetchDashboardStats(), fetchSubscription()]);
 });
 
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
@@ -140,6 +168,14 @@ const currentTenantRoleDisplay = computed(() => {
 	return currentUserRoleInTenant.value ? getRoleName(currentUserRoleInTenant.value) : '未知角色';
 });
 
+const subscriptionDisplayText = computed(() => {
+	if (!subscriptionLoaded.value) return '订阅信息加载中';
+	if (!subscriptionSummary.value) return '暂无法获取订阅信息';
+	if (!subscriptionSummary.value.entitledUntil) return '尚未开通订阅';
+	if (!subscriptionSummary.value.active) return '订阅已到期';
+	return `订阅至 ${formatChineseDate(subscriptionSummary.value.entitledUntil)}`;
+});
+
 const navigateToCurrentUserDetail = () => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
@@ -162,6 +198,12 @@ const navigateToTenantList = () => {
 	uni.navigateTo({
 		url: '/pages/tenants/list'
 	});
+};
+
+const navigateToSubscription = () => {
+	if (isNavigating.value) return;
+	isNavigating.value = true;
+	uni.navigateTo({ url: '/pages/subscription/subscription' });
 };
 
 const handleOpenLogoutConfirm = () => {
@@ -314,6 +356,32 @@ const handleLogout = () => {
 	padding: 3px 10px;
 	border-radius: 12px;
 	font-weight: 500;
+}
+
+.subscription-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 7px;
+	font-size: 12px;
+	line-height: 1.4;
+	color: var(--text-secondary);
+}
+
+.subscription-indicator {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background-color: #b8b8b8;
+	flex-shrink: 0;
+}
+
+.subscription-meta.active {
+	color: #7a5a2f;
+}
+
+.subscription-meta.active .subscription-indicator {
+	background-color: #c99a52;
 }
 
 .arrow-icon {

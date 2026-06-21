@@ -47,7 +47,7 @@ export const getLocalDate = (date = new Date()): string => {
 };
 
 /**
- * 格式化日期为 "YYYY/M/D" 的格式
+ * 格式化日期为 "YYYY年M月D日" 的格式
  * @param dateInput - 可以是日期字符串或Date对象
  * @returns 格式化后的中文字符串，如果输入无效则返回空字符串
  */
@@ -64,7 +64,7 @@ export function formatChineseDate(dateInput: string | Date | null | undefined): 
 		const year = date.getFullYear();
 		const month = date.getMonth() + 1;
 		const day = date.getDate();
-		return `${year}/${month}/${day}`;
+		return `${year}年${month}月${day}日`;
 	} catch (error) {
 		console.error('Invalid date input for formatChineseDate:', dateInput);
 		return '';
