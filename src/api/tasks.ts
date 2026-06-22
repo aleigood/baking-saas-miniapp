@@ -116,6 +116,27 @@ export function updateTaskStatus(taskId: string, status: 'CANCELLED' | 'IN_PROGR
 	});
 }
 
+export function applyCurrentRecipeVersions(taskId: string): Promise<ProductionTaskDetailDto> {
+	return request<ProductionTaskDetailDto>({
+		url: `/production-tasks/${taskId}/apply-current-recipes`,
+		method: 'POST'
+	});
+}
+
+export function createTaskAdjustment(
+	taskId: string,
+	data: {
+		reason: string;
+		changes: Array<{ familyId: string; ingredientId: string; afterWeightInGrams: number }>;
+	}
+): Promise<ProductionTaskDetailDto> {
+	return request<ProductionTaskDetailDto>({
+		url: `/production-tasks/${taskId}/adjustments`,
+		method: 'POST',
+		data
+	});
+}
+
 /**
  * 删除一个“待开始”的生产任务 (软删除)
  */

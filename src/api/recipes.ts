@@ -8,7 +8,17 @@
  */
 import { request, uploadFile } from '@/utils/request';
 // [G-Code-Note] 导入 BatchImportRecipeDto 用于导出函数的类型提示
-import type { RecipeFamily, RecipeVersion, RecipesListResponse, ProductsForTaskResponse, RecipeFormTemplate, BatchImportResult, BatchImportRecipeDto } from '@/types/api';
+import type {
+	ApplyDependencyUpgradeResult,
+	BatchImportRecipeDto,
+	BatchImportResult,
+	DependencyUpgradePlan,
+	ProductsForTaskResponse,
+	RecipeFamily,
+	RecipeFormTemplate,
+	RecipesListResponse,
+	RecipeVersion
+} from '@/types/api';
 
 /**
  * [修改] 批量导入配方，增加 tenantIds 参数
@@ -78,6 +88,21 @@ export function getRecipeFamily(familyId: string): Promise<RecipeFamily> {
 export function getRecipeVersionFormTemplate(familyId: string, versionId: string): Promise<RecipeFormTemplate> {
 	return request<RecipeFormTemplate>({
 		url: `/recipes/${familyId}/versions/${versionId}/form-template`
+	});
+}
+
+export function getDependencyUpgradePlan(familyId: string, versionId: string): Promise<DependencyUpgradePlan> {
+	return request<DependencyUpgradePlan>({
+		url: `/recipes/${familyId}/versions/${versionId}/dependency-upgrades`,
+		method: 'GET',
+		hideErrorToast: true
+	});
+}
+
+export function applyDependencyUpgrades(familyId: string, versionId: string): Promise<ApplyDependencyUpgradeResult> {
+	return request<ApplyDependencyUpgradeResult>({
+		url: `/recipes/${familyId}/versions/${versionId}/dependency-upgrades/apply`,
+		method: 'POST'
 	});
 }
 

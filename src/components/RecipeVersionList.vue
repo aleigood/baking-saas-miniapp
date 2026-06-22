@@ -19,10 +19,7 @@
 			>
 				<view class="main-info">
 					<view class="name">{{ version.notes || `版本 ${version.version}` }} (v{{ version.version }})</view>
-					<view class="desc">
-						创建于:
-						{{ formatChineseDate(version.createdAt) }}
-					</view>
+					<view class="desc version-summary">{{ version.changeSummary || `创建于：${formatChineseDate(version.createdAt)}` }}</view>
 				</view>
 				<view class="side-info">
 					<view v-if="version.isActive" class="status-tag active">使用中</view>
@@ -107,5 +104,11 @@ defineEmits(['select-version', 'create-version', 'longpress-version']);
 		background-color: #fee2e2;
 		color: #991b1b;
 	}
+}
+
+.version-summary {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 </style>

@@ -20,7 +20,7 @@
 						<view class="list-header ledger-header">
 							<text class="col-date-operator">日期/操作人</text>
 							<text class="col-task">任务</text>
-							<text class="col-change">消耗量</text>
+							<text class="col-change">理论消耗</text>
 						</view>
 						<ListItem v-for="(record, index) in records" :key="record.id" class="procurement-item" :no-padding="true" :divider="index < records.length - 1">
 							<view class="procurement-item-content ledger-item-content">
@@ -43,7 +43,7 @@
 					</view>
 				</template>
 
-				<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="暂无消耗记录" subtitle="当前筛选条件下没有找到符合的数据" />
+				<EmptyState v-else-if="isInitialFetchDone" icon="/static/icons/empty-list.svg" title="暂无理论消耗记录" subtitle="当前筛选条件下没有找到符合的数据" />
 			</view>
 
 			<view v-if="isLoading && page === 1" class="page-content skeleton-overlay">
@@ -55,7 +55,7 @@
 					<view class="list-header ledger-header">
 						<text class="col-date-operator">日期/操作人</text>
 						<text class="col-task">任务</text>
-						<text class="col-change">消耗量</text>
+						<text class="col-change">理论消耗</text>
 					</view>
 					<ListItem v-for="i in 10" :key="i" class="procurement-item" :no-padding="true" :divider="i < 10">
 						<view class="procurement-item-content ledger-item-content">
@@ -127,7 +127,7 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="isSearchModalVisible" title="搜索消耗记录">
+		<AppModal v-model:visible="isSearchModalVisible" title="搜索理论消耗记录">
 			<FormItem label="关键字">
 				<input class="input-field" v-model="filters.keyword" placeholder="输入详情、产品、规格等关键字" @confirm="applyAndFetch(true)" />
 			</FormItem>
@@ -217,7 +217,7 @@ const currentIngredient = computed(() => {
 });
 
 const pageTitle = computed(() => {
-	return currentIngredient.value ? `${currentIngredient.value.name}消耗流水` : '消耗流水';
+	return currentIngredient.value ? `${currentIngredient.value.name}理论消耗` : '理论消耗';
 });
 
 const page = ref(1);

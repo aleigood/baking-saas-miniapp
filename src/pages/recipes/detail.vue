@@ -14,6 +14,14 @@
 					@longpress-version="handleVersionLongPressAction"
 				/>
 
+				<view v-if="canEditRecipe && dependencyUpgradePlan?.affectedRecipes.length" class="dependency-update-band" @click="showDependencyUpgradeModal = true">
+					<view class="dependency-update-copy">
+						<text class="dependency-update-title">关联配方可升级</text>
+						<text class="dependency-update-desc">{{ dependencyUpgradePlan.affectedRecipes.length }} 个上游配方仍在使用旧依赖版本</text>
+					</view>
+					<text class="dependency-update-action">查看</text>
+				</view>
+
 				<view
 					class="recipe-detail-animated-container"
 					v-if="renderedVersion"
@@ -51,12 +59,7 @@
 				</ListItem>
 				<ListItem class="option-item" @click="handleEditVersionOption" :bleed="true">
 					<view class="main-info">
-						<view class="name">修改配方</view>
-					</view>
-				</ListItem>
-				<ListItem v-if="!selectedVersionForAction?.isActive" class="option-item" @click="handleDeleteVersionOption" :bleed="true">
-					<view class="main-info">
-						<view class="name">删除配方版本</view>
+						<view class="name">基于此版本修改</view>
 					</view>
 				</ListItem>
 			</view>
@@ -73,14 +76,26 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showDeleteVersionConfirmModal" :key="'delete-confirm-modal'" title="确认删除">
-			<view class="modal-prompt-text">确定要删除这个配方版本吗？</view>
-			<view class="modal-warning-text">已被生产任务使用的配方无法删除，此操作不可撤销。</view>
+		<AppModal v-model:visible="showDependencyUpgradeModal" :key="'dependency-upgrade-modal'" title="升级关联配方">
+			<view class="dependency-modal-intro">系统将按依赖顺序创建并启用下列新版本，原版本和已有任务不会改变。</view>
+			<scroll-view :scroll-y="true" class="dependency-upgrade-scroll">
+				<view class="dependency-upgrade-list">
+					<view v-for="item in dependencyUpgradePlan?.affectedRecipes || []" :key="item.familyId" class="dependency-upgrade-row">
+						<view class="dependency-recipe-copy">
+							<text class="dependency-recipe-name">{{ item.familyName }}</text>
+							<text class="dependency-recipe-type">{{ getRecipeTypeLabel(item.type) }}</text>
+						</view>
+						<view class="dependency-version-route">
+							<text>V{{ item.currentVersion }}</text>
+							<text class="dependency-route-arrow">→</text>
+							<text class="dependency-next-version">V{{ item.nextVersion }}</text>
+						</view>
+					</view>
+				</view>
+			</scroll-view>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="showDeleteVersionConfirmModal = false">取消</AppButton>
-				<AppButton type="danger" @click="handleConfirmDeleteVersion" :loading="isSubmitting">
-					{{ isSubmitting ? '删除中...' : '确认删除' }}
-				</AppButton>
+				<AppButton type="secondary" @click="showDependencyUpgradeModal = false" :disabled="isSubmitting">暂不升级</AppButton>
+				<AppButton type="primary" @click="handleApplyDependencyUpgrades" :loading="isSubmitting">确认升级</AppButton>
 			</view>
 		</AppModal>
 
@@ -97,8 +112,8 @@ import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
-import type { RecipeFamily, RecipeVersion } from '@/types/api';
-import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion, getRecipeVersionFormTemplate } from '@/api/recipes';
+import type { DependencyUpgradePlan, RecipeFamily, RecipeType, RecipeVersion } from '@/types/api';
+import { applyDependencyUpgrades, getDependencyUpgradePlan, getRecipeFamily, activateRecipeVersion, getRecipeVersionFormTemplate } from '@/api/recipes';
 
 import RecipeVersionList from '@/components/RecipeVersionList.vue';
 import MainRecipeDetail from '@/components/MainRecipeDetail.vue';
@@ -133,8 +148,9 @@ const renderedVersionId = ref<string | null>(null);
 const isFadingOutVersion = ref(false);
 const showActivateVersionConfirmModal = ref(false);
 const showVersionOptionsModal = ref(false);
-const showDeleteVersionConfirmModal = ref(false);
+const showDependencyUpgradeModal = ref(false);
 const selectedVersionForAction = ref<RecipeVersion | null>(null);
+const dependencyUpgradePlan = ref<DependencyUpgradePlan | null>(null);
 
 const versionOptionsModalRef = ref<InstanceType<typeof AppModal> | null>(null);
 
@@ -223,6 +239,8 @@ const loadRecipeData = async (id: string) => {
 			displayedVersionId.value = null;
 			renderedVersionId.value = null;
 		}
+
+		await loadDependencyUpgradePlan(id, currentActiveVersion?.id, fullFamilyData.deletedAt);
 	} catch (error) {
 		console.error('Failed to fetch recipe details:', error);
 		// 出现错误时，不再使用 toastStore 弹窗，而是置空数据，展示 EmptyState 兜底页面
@@ -233,6 +251,23 @@ const loadRecipeData = async (id: string) => {
 			isLoading.value = false;
 		}, 200);
 	}
+};
+
+const loadDependencyUpgradePlan = async (id: string, versionId?: string, deletedAt?: string | null) => {
+	dependencyUpgradePlan.value = null;
+	if (!versionId || deletedAt) return;
+	try {
+		const plan = await getDependencyUpgradePlan(id, versionId);
+		dependencyUpgradePlan.value = plan.affectedRecipes.length > 0 ? plan : null;
+	} catch (error) {
+		console.error('Failed to load dependency upgrade plan:', error);
+	}
+};
+
+const getRecipeTypeLabel = (type: RecipeType) => {
+	if (type === 'MAIN') return '产品配方';
+	if (type === 'PRE_DOUGH') return '面种配方';
+	return '附加配方';
 };
 
 const displayedVersion = computed(() => {
@@ -275,6 +310,7 @@ const navigateToEditPage = async (familyId: string | null, mode: 'edit' | 'newVe
 
 		const baseUrl = '/pages/recipes/edit';
 		let url = `${baseUrl}?familyId=${familyId}&mode=${mode}`;
+		url += `&sourceVersionId=${sourceVersionId}`;
 		if (mode === 'edit' && versionId) {
 			url += `&versionId=${versionId}`;
 		}
@@ -354,11 +390,6 @@ const handleActivateVersionOption = () => {
 	showActivateVersionConfirmModal.value = true;
 };
 
-const handleDeleteVersionOption = () => {
-	showVersionOptionsModal.value = false;
-	showDeleteVersionConfirmModal.value = true;
-};
-
 const handleConfirmActivateVersion = () => {
 	if (selectedVersionForAction.value) {
 		activateVersionAction(selectedVersionForAction.value);
@@ -384,25 +415,30 @@ const activateVersionAction = async (versionToActivate: RecipeVersion) => {
 	}
 };
 
-const handleConfirmDeleteVersion = async () => {
-	if (!selectedVersionForAction.value || !familyId.value) return;
+const handleApplyDependencyUpgrades = async () => {
+	if (!dependencyUpgradePlan.value || !recipeFamily.value) return;
 	isSubmitting.value = true;
 	try {
-		await deleteRecipeVersion(familyId.value, selectedVersionForAction.value.id);
+		const result = await applyDependencyUpgrades(
+			dependencyUpgradePlan.value.sourceFamilyId,
+			dependencyUpgradePlan.value.sourceVersionId
+		);
+		showDependencyUpgradeModal.value = false;
+		dataStore.markRecipesAsStale();
+		dataStore.markProductionAsStale();
+		dataStore.markProductsForTaskCreationAsStale();
 		toastStore.show({
-			message: '删除成功',
+			message: `已升级 ${result.upgradedRecipes.length} 个关联配方`,
 			type: 'success'
 		});
-		showDeleteVersionConfirmModal.value = false;
-		selectedVersionForAction.value = null;
-		dataStore.markRecipesAsStale();
-		await loadRecipeData(familyId.value);
+		await loadRecipeData(recipeFamily.value.id);
 	} catch (error) {
-		showDeleteVersionConfirmModal.value = false;
+		console.error('Failed to apply dependency upgrades:', error);
 	} finally {
 		isSubmitting.value = false;
 	}
 };
+
 </script>
 
 <style scoped lang="scss">
@@ -428,6 +464,108 @@ const handleConfirmDeleteVersion = async () => {
 	text-align: center;
 	margin-bottom: 20px;
 	line-height: 1.5;
+}
+
+.dependency-update-band {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	margin: -4px 2px 18px;
+	padding: 12px 14px;
+	border-left: 3px solid #c97a2b;
+	background: #fff8ed;
+}
+
+.dependency-update-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+
+.dependency-update-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: #744216;
+}
+
+.dependency-update-desc,
+.dependency-modal-intro {
+	font-size: 13px;
+	line-height: 1.55;
+	color: var(--text-secondary);
+}
+
+.dependency-update-action {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--primary-color);
+	flex-shrink: 0;
+}
+
+.dependency-upgrade-scroll {
+	max-height: 320px;
+	margin-top: 14px;
+}
+
+.dependency-upgrade-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.dependency-upgrade-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px;
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	background: #faf8f5;
+}
+
+.dependency-recipe-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+
+.dependency-recipe-name {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-primary);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dependency-recipe-type {
+	font-size: 12px;
+	color: var(--text-secondary);
+}
+
+.dependency-version-route {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font-size: 12px;
+	font-weight: 600;
+	color: #6f6860;
+	flex-shrink: 0;
+}
+
+.dependency-route-arrow {
+	color: var(--text-secondary);
+}
+
+.dependency-next-version {
+	padding: 3px 7px;
+	border-radius: 6px;
+	background: #e5f2e8;
+	color: #2f6b43;
 }
 
 .recipe-detail-animated-container {

@@ -452,6 +452,7 @@ type MainIngredient = {
 	isRecipe: boolean;
 	waterContent: number;
 	recipeType: RecipeType | null;
+	recipeVersionId?: string;
 };
 
 type EnhancedComponent = Omit<ComponentTemplate, 'ingredients'> & {
@@ -460,8 +461,8 @@ type EnhancedComponent = Omit<ComponentTemplate, 'ingredients'> & {
 	customWaterContent?: number | null;
 };
 
-type SubIngredientRatio = { id: string | null; name: string; ratio: number | null; weightInGrams?: number | null; isRecipe?: boolean; waterContent?: number; isFlour?: boolean };
-type SubIngredientWeight = { id: string | null; name: string; ratio?: number | null; weightInGrams: number | null; isRecipe?: boolean; waterContent?: number; isFlour?: boolean };
+type SubIngredientRatio = { id: string | null; name: string; ratio: number | null; weightInGrams?: number | null; isRecipe?: boolean; waterContent?: number; isFlour?: boolean; recipeVersionId?: string };
+type SubIngredientWeight = { id: string | null; name: string; ratio?: number | null; weightInGrams: number | null; isRecipe?: boolean; waterContent?: number; isFlour?: boolean; recipeVersionId?: string };
 
 const dataStore = useDataStore();
 const toastStore = useToastStore();
@@ -470,6 +471,7 @@ const isSubmitting = ref(false);
 const isEditing = ref(false);
 const familyId = ref<string | null>(null);
 const versionId = ref<string | null>(null);
+const sourceVersionId = ref<string | null>(null);
 const pageMode = ref<'create' | 'edit' | 'newVersion'>('create');
 
 const showCalculatorModal = ref(false);
@@ -935,6 +937,7 @@ onLoad(async (options) => {
 		isEditing.value = true;
 		familyId.value = options.familyId;
 		versionId.value = options.versionId || null;
+		sourceVersionId.value = options.sourceVersionId || options.versionId || null;
 		pageMode.value = options.mode as 'edit' | 'newVersion' | 'create';
 
 		const sourceFormJson = uni.getStorageSync('source_recipe_version_form');
@@ -1239,7 +1242,8 @@ const handleSubmit = async () => {
 					if (ing.flourRatio === null || Number(ing.flourRatio) <= 0) return null;
 					return {
 						name: ing.name,
-						flourRatio: toDecimal(Number(ing.flourRatio))
+						flourRatio: toDecimal(Number(ing.flourRatio)),
+						recipeVersionId: ing.recipeVersionId
 					};
 				} else {
 					if (ing.ratio === null || Number(ing.ratio) <= 0) return null;
@@ -1248,7 +1252,8 @@ const handleSubmit = async () => {
 						name: ing.name,
 						ratio: toDecimal(Number(ing.ratio)),
 						isFlour: ing.isFlour,
-						waterContent: ing.waterContent
+						waterContent: ing.waterContent,
+						recipeVersionId: ing.recipeVersionId
 					};
 				}
 			})
@@ -1259,7 +1264,8 @@ const handleSubmit = async () => {
 				.components!.filter((c) => c.type === 'PRE_DOUGH')
 				.map((c) => ({
 					name: c.name,
-					flourRatio: toDecimal(Number(c.flourRatioInMainDough))
+					flourRatio: toDecimal(Number(c.flourRatioInMainDough)),
+					recipeVersionId: c.recipeVersionId
 				}));
 
 			ingredientsPayload.push(...preDoughComponentsPayload);
@@ -1272,7 +1278,7 @@ const handleSubmit = async () => {
 						i.name && (('ratio' in i && i.ratio !== null && Number(i.ratio) > 0) || ('weightInGrams' in i && i.weightInGrams !== null && Number(i.weightInGrams) > 0))
 				)
 				.map((i) => {
-					const base: { name: string; type: string; ingredientId?: string; ratio?: number; weightInGrams?: number } = { name: i.name, type };
+					const base: { name: string; type: string; ingredientId?: string; recipeVersionId?: string; ratio?: number; weightInGrams?: number } = { name: i.name, type, recipeVersionId: i.recipeVersionId };
 					if (i.id) {
 						base.ingredientId = i.id;
 					}
@@ -1293,6 +1299,7 @@ const handleSubmit = async () => {
 		const finalCustomWaterContent = currentCustom !== null && currentCustom !== undefined && Math.abs(currentCustom - autoVal) > 0.1 ? Number(currentCustom) : null;
 
 		const payload = {
+			sourceVersionId: sourceVersionId.value || undefined,
 			name: form.value.name,
 			type: form.value.type,
 			category: form.value.category,
@@ -1321,7 +1328,7 @@ const handleSubmit = async () => {
 			const target = `/pages/recipes/detail?familyId=${familyId.value}`;
 			if (pageMode.value === 'edit' && familyId.value && versionId.value) {
 				await updateRecipeVersion(familyId.value, versionId.value, payload);
-				uiStore.setNextPageToast({ message: '配方修改成功', type: 'success' }, target);
+				uiStore.setNextPageToast({ message: '新版本已创建并设为使用中', type: 'success' }, target);
 			} else if (pageMode.value === 'newVersion' && familyId.value) {
 				await createRecipeVersion(familyId.value, payload);
 				uiStore.setNextPageToast({ message: '新版本创建成功', type: 'success' }, target);

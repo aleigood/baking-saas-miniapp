@@ -24,6 +24,8 @@ export type RecipeCategory = 'BREAD' | 'PASTRY' | 'DESSERT' | 'DRINK' | 'OTHER';
 export interface CalculatedRecipeIngredient {
 	name: string;
 	weightInGrams: number;
+	baselineWeightInGrams?: number;
+	isAdjusted?: boolean;
 	brand?: string | null;
 	isRecipe: boolean;
 	extraInfo?: string;
@@ -140,6 +142,14 @@ export interface RecipeFamily {
 	productCount?: number;
 	ingredientCount?: number;
 	usageCount?: number;
+	productNames?: string[];
+	referencedByNames?: string[];
+	versionCount?: number;
+	activeVersion?: {
+		version: number;
+		notes: string | null;
+		changeSummary: string | null;
+	} | null;
 }
 
 export interface RecipesListResponse {
@@ -161,6 +171,7 @@ export interface RecipeFormTemplate {
 		lossRatio?: number;
 		divisionLoss?: number;
 		flourRatioInMainDough?: number;
+		recipeVersionId?: string;
 		ingredients: {
 			id: string | null;
 			name: string;
@@ -168,6 +179,7 @@ export interface RecipeFormTemplate {
 			isRecipe?: boolean;
 			isFlour?: boolean;
 			waterContent?: number;
+			recipeVersionId?: string;
 		}[];
 		procedure: string[];
 	}[];
@@ -182,6 +194,7 @@ export interface RecipeFormTemplate {
 			weightInGrams?: number | null;
 			isRecipe?: boolean;
 			waterContent?: number;
+			recipeVersionId?: string;
 		}[];
 		fillings: {
 			id: string | null;
@@ -240,6 +253,7 @@ export interface RecipeVersion {
 	familyId: string;
 	version: number;
 	notes: string | null;
+	changeSummary: string | null;
 	isActive: boolean;
 	createdAt: string;
 	products: Product[];
@@ -257,6 +271,32 @@ export interface RecipeVersion {
 			ingredients: number;
 		};
 	}[];
+}
+
+export interface DependencyUpgradeItem {
+	familyId: string;
+	familyName: string;
+	type: RecipeType;
+	currentVersionId: string;
+	currentVersion: number;
+	nextVersion: number;
+	depth: number;
+}
+
+export interface DependencyUpgradePlan {
+	sourceFamilyId: string;
+	sourceVersionId: string;
+	sourceVersion: number;
+	affectedRecipes: DependencyUpgradeItem[];
+}
+
+export interface ApplyDependencyUpgradeResult {
+	upgradedRecipes: Array<{
+		familyId: string;
+		familyName: string;
+		versionId: string;
+		version: number;
+	}>;
 }
 
 // [G-Code-Note] [核心重构] ComponentIngredient 现在反映 _sanitizeFamily 的输出
@@ -510,6 +550,8 @@ export interface TaskIngredientDetail {
 	name: string;
 	brand: string | null;
 	weightInGrams: number;
+	baselineWeightInGrams?: number;
+	isAdjusted?: boolean;
 	weightPerUnit?: number;
 	isRecipe: boolean;
 	extraInfo?: string | null;
@@ -547,6 +589,7 @@ export interface ComponentGroup {
 	productsDescription: string;
 	totalComponentWeight: number;
 	baseComponentIngredients: TaskIngredientDetail[];
+	adjustableIngredients: TaskIngredientDetail[];
 	baseComponentProcedure: string[];
 	// [G-Code-Note] [需求修改] 移除 products 字段
 	// products: ProductComponentSummary[];
@@ -559,6 +602,16 @@ export interface TaskCompletionItem {
 	plannedQuantity: number;
 }
 
+export interface TaskRecipeVersionStatus {
+	familyId: string;
+	familyName: string;
+	selectedVersionId: string;
+	selectedVersion: number;
+	currentVersionId: string;
+	currentVersion: number;
+	hasUpdate: boolean;
+}
+
 export interface ProductionTaskDetailDto {
 	id: string;
 	status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
@@ -567,6 +620,27 @@ export interface ProductionTaskDetailDto {
 	// prepTask: PrepTask | null;
 	componentGroups: ComponentGroup[];
 	items: TaskCompletionItem[];
+	recipeVersions: TaskRecipeVersionStatus[];
+	executionStartedAt: string | null;
+	executionRevision: number;
+	latestAdjustment: {
+		revision: number;
+		reason: string;
+		createdAt: string;
+		createdByName: string | null;
+	} | null;
+	adjustmentHistory: Array<{
+		revision: number;
+		reason: string;
+		createdAt: string;
+		createdByName: string | null;
+		changes: Array<{
+			familyId: string;
+			ingredientName: string;
+			beforeWeightInGrams: number;
+			afterWeightInGrams: number;
+		}>;
+	}>;
 }
 
 export interface BatchProductIngredientDto {

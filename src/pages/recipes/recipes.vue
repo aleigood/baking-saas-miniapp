@@ -48,12 +48,12 @@
 													<text class="name-text">{{ family.name }}</text>
 													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 												</view>
-												<view class="desc">{{ family.productCount }} 种产品</view>
+												<view class="desc recipe-relations">{{ formatRecipeNames(family.productNames, '暂无产品') }}</view>
 											</view>
 										</view>
 										<view class="side-info">
-											<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
-											<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
+											<view class="version-label">{{ formatActiveVersion(family) }}</view>
+											<view class="desc">{{ family.versionCount || 0 }}个版本</view>
 										</view>
 									</template>
 									<template v-else>
@@ -63,12 +63,12 @@
 													<text class="name-text">{{ family.name }}</text>
 													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 												</view>
-												<view class="desc">{{ family.usageCount || 0 }} 次引用</view>
+												<view class="desc recipe-relations">{{ formatRecipeNames(family.referencedByNames, '暂无引用') }}</view>
 											</view>
 										</view>
 										<view class="side-info">
-											<view class="rating">★ {{ getRating(family.productionTaskCount || 0) }}</view>
-											<view class="desc">{{ family.productionTaskCount || 0 }} 次制作</view>
+											<view class="version-label">{{ formatActiveVersion(family) }}</view>
+											<view class="desc">{{ family.versionCount || 0 }}个版本</view>
 										</view>
 									</template>
 								</ListItem>
@@ -227,6 +227,14 @@ const recipeTypeMap = {
 	MAIN: '面团',
 	PRE_DOUGH: '面种',
 	EXTRA: '自制原料'
+};
+
+const formatRecipeNames = (names: string[] | undefined, fallback: string) => (names && names.length > 0 ? names.join('，') : fallback);
+
+const formatActiveVersion = (family: RecipeFamily) => {
+	const activeVersion = family.activeVersion;
+	if (!activeVersion) return '暂无版本';
+	return `${activeVersion.notes || '当前版本'} · V${activeVersion.version}`;
 };
 
 const categoryMap: Record<string, string> = {
@@ -412,13 +420,6 @@ const getRecipeTypeDisplay = (type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA') => {
 	return recipeTypeMap[type] || type;
 };
 
-const getRating = (count: number) => {
-	if (count > 20) return '4.9';
-	if (count > 10) return '4.8';
-	if (count > 3) return '4.7';
-	return '4.5';
-};
-
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
 
 const canEditRecipe = computed(() => {
@@ -544,9 +545,22 @@ const confirmDeleteRecipe = async () => {
 	padding: 0 15px;
 }
 
-.rating {
-	color: var(--accent-color);
-	font-weight: bold;
+.version-label {
+	max-width: 132px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-primary);
+	font-size: 13px;
+	font-weight: 600;
+	text-align: right;
+}
+
+.recipe-relations {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .ranking-list {
