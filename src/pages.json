@@ -25,6 +25,18 @@
 			}
 		},
 		{
+			"path": "pages/register/register",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/onboarding/store-access",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/subscription/subscription",
 			"style": {
 				"navigationStyle": "custom"

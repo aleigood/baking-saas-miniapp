@@ -63,15 +63,10 @@
 
 		<ExpandingFab v-if="canManagePersonnel" @click="openCreateModal" :no-tab-bar="true" :visible="isFabVisible" />
 
-		<AppModal v-model:visible="showCreateModal" :key="'create-member-modal'" title="新增员工">
-			<FormItem label="员工姓名">
-				<input class="input-field" type="text" v-model="createForm.name" placeholder="请输入姓名" />
-			</FormItem>
+		<AppModal v-model:visible="showCreateModal" :key="'create-member-modal'" title="邀请员工">
+			<view class="invitation-help">创建后，员工使用该手机号注册或登录，即可在店铺接入页看到邀请。</view>
 			<FormItem label="手机号码">
 				<input class="input-field" type="tel" v-model="createForm.phone" placeholder="请输入手机号" />
-			</FormItem>
-			<FormItem label="初始密码">
-				<input class="input-field" type="password" v-model="createForm.password" placeholder="请输入初始密码" />
 			</FormItem>
 			<FormItem label="员工角色">
 				<picker mode="selector" :range="availableRolesForCreation" range-key="text" @change="onRoleChange">
@@ -84,7 +79,7 @@
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showCreateModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleCreateMember" :disabled="isSubmitting" :loading="isSubmitting">
-					{{ isSubmitting ? '' : '确认新增' }}
+					{{ isSubmitting ? '' : '创建邀请' }}
 				</AppButton>
 			</view>
 		</AppModal>
@@ -128,10 +123,8 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const createForm = reactive<{ name: string; phone: string; password: string; role: Role }>({
-	name: '',
+const createForm = reactive<{ phone: string; role: Role }>({
 	phone: '',
-	password: '',
 	role: 'MEMBER'
 });
 
@@ -284,22 +277,20 @@ const navigateToDetail = (memberId: string) => {
 };
 
 const openCreateModal = () => {
-	createForm.name = '';
 	createForm.phone = '';
-	createForm.password = '';
 	createForm.role = 'MEMBER';
 	showCreateModal.value = true;
 };
 
 const handleCreateMember = async () => {
-	if (!createForm.name || !createForm.phone || !createForm.password) {
-		toastStore.show({ message: '请填写所有字段', type: 'error' });
+	if (!createForm.phone) {
+		toastStore.show({ message: '请输入员工手机号', type: 'error' });
 		return;
 	}
 	isSubmitting.value = true;
 	try {
 		await createMember(createForm);
-		toastStore.show({ message: '员工创建成功', type: 'success' });
+		toastStore.show({ message: '邀请已创建，7天内有效', type: 'success' });
 		showCreateModal.value = false;
 
 		await loadPersonnelData();
@@ -374,5 +365,12 @@ const handleCreateMember = async () => {
 	font-size: 14px;
 	background-color: #f8f9fa;
 	box-sizing: border-box;
+}
+
+.invitation-help {
+	margin-bottom: 16px;
+	font-size: 13px;
+	line-height: 1.55;
+	color: var(--text-secondary);
 }
 </style>

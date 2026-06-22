@@ -19,8 +19,8 @@ export function getAllMembersByOwner(): Promise<TenantWithMembers[]> {
  * [核心新增] 直接创建一个新成员并将其添加到当前店铺
  * @param data 包含姓名、手机、初始密码和角色
  */
-export function createMember(data: { name: string; phone: string; password: string; role: Role }): Promise<Member> {
-	return request<Member>({
+export function createMember(data: { phone: string; role: Role }): Promise<any> {
+	return request({
 		url: '/members',
 		method: 'POST',
 		data

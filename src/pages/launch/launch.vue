@@ -51,8 +51,7 @@ onMounted(async () => {
 					});
 				}
 			} else {
-				// 如果用户信息中没有店铺信息，也跳转到登录页
-				userStore.handleUnauthorized();
+				uni.reLaunch({ url: '/pages/onboarding/store-access' });
 			}
 		} catch (error) {
 			console.error('Launch Page: Token validation failed, redirecting to login.', error);

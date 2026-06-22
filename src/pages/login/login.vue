@@ -16,6 +16,7 @@
 				<AppButton type="primary" full-width :loading="loading" @click="handleLogin" class="login-button">
 					{{ loading ? '' : '登 录' }}
 				</AppButton>
+				<AppButton type="text-link" full-width @click="uni.navigateTo({ url: '/pages/register/register' })">注册新账号</AppButton>
 			</view>
 		</view>
 

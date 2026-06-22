@@ -95,6 +95,7 @@ const handlePurchase = async () => {
 		}
 		await loadData();
 		toastStore.show({ message: '订阅已开通', type: 'success' });
+		setTimeout(() => uni.reLaunch({ url: '/pages/main/main' }), 500);
 	} catch (error: any) {
 		if (String(error?.errMsg || '').includes('cancel')) toastStore.show({ message: '支付已取消', type: 'info' });
 	} finally {

@@ -17,6 +17,10 @@ export function login(credentials: { phone: string; password: string }): Promise
 	});
 }
 
+export function register(data: { name: string; phone: string; password: string }): Promise<LoginRes> {
+	return request<LoginRes>({ url: '/auth/register', method: 'POST', data });
+}
+
 /**
  * 获取当前登录用户的个人资料
  */
