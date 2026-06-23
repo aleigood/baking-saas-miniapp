@@ -10,7 +10,6 @@
 					:can-edit="canEditRecipe"
 					:is-discontinued="recipeFamily.deletedAt !== null"
 					@select-version="handleVersionClick"
-					@create-version="handleCreateVersion"
 					@longpress-version="handleVersionLongPressAction"
 				/>
 
@@ -300,7 +299,7 @@ const canEditRecipe = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
 
-const navigateToEditPage = async (familyId: string | null, mode: 'edit' | 'newVersion', versionId?: string) => {
+const navigateToEditPage = async (familyId: string | null, versionId?: string) => {
 	if (!familyId || !displayedVersion.value || !recipeFamily.value) return;
 
 	try {
@@ -309,9 +308,9 @@ const navigateToEditPage = async (familyId: string | null, mode: 'edit' | 'newVe
 		uni.setStorageSync('source_recipe_version_form', JSON.stringify(formTemplate));
 
 		const baseUrl = '/pages/recipes/edit';
-		let url = `${baseUrl}?familyId=${familyId}&mode=${mode}`;
+		let url = `${baseUrl}?familyId=${familyId}&mode=edit`;
 		url += `&sourceVersionId=${sourceVersionId}`;
-		if (mode === 'edit' && versionId) {
+		if (versionId) {
 			url += `&versionId=${versionId}`;
 		}
 
@@ -319,7 +318,7 @@ const navigateToEditPage = async (familyId: string | null, mode: 'edit' | 'newVe
 	} catch (error) {
 		console.error('准备编辑/新版本数据失败:', error);
 		toastStore.show({
-			message: mode === 'edit' ? '加载配方数据失败' : '准备新版本数据失败',
+			message: '加载配方数据失败',
 			type: 'error'
 		});
 	}
@@ -352,13 +351,9 @@ const hidePopover = () => {
 	popover.visible = false;
 };
 
-const handleCreateVersion = () => {
-	if (recipeFamily.value) navigateToEditPage(recipeFamily.value.id, 'newVersion', displayedVersion.value?.id);
-};
-
 const handleEditSelectedVersion = () => {
 	if (recipeFamily.value && displayedVersion.value) {
-		navigateToEditPage(recipeFamily.value.id, 'edit', displayedVersion.value.id);
+		navigateToEditPage(recipeFamily.value.id, displayedVersion.value.id);
 	}
 };
 
@@ -376,11 +371,11 @@ const handleEditVersionOption = () => {
 	if (recipeFamily.value && selectedVersionForAction.value) {
 		if (versionOptionsModalRef.value) {
 			versionOptionsModalRef.value.closeAndRun(() => {
-				navigateToEditPage(recipeFamily.value!.id, 'edit', selectedVersionForAction.value!.id);
+				navigateToEditPage(recipeFamily.value!.id, selectedVersionForAction.value!.id);
 			});
 		} else {
 			showVersionOptionsModal.value = false;
-			navigateToEditPage(recipeFamily.value.id, 'edit', selectedVersionForAction.value.id);
+			navigateToEditPage(recipeFamily.value.id, selectedVersionForAction.value.id);
 		}
 	}
 };

@@ -412,7 +412,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { onLoad, onUnload } from '@dcloudio/uni-app';
-import { createRecipe, createRecipeVersion, getRecipeFamily, updateRecipeVersion } from '@/api/recipes';
+import { createRecipe, getRecipeFamily, updateRecipeVersion } from '@/api/recipes';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
@@ -472,7 +472,7 @@ const isEditing = ref(false);
 const familyId = ref<string | null>(null);
 const versionId = ref<string | null>(null);
 const sourceVersionId = ref<string | null>(null);
-const pageMode = ref<'create' | 'edit' | 'newVersion'>('create');
+const pageMode = ref<'create' | 'edit'>('create');
 
 const showCalculatorModal = ref(false);
 
@@ -584,9 +584,6 @@ const pageTitle = computed(() => {
 	}
 	if (pageMode.value === 'edit') {
 		return '修改配方';
-	}
-	if (pageMode.value === 'newVersion') {
-		return '创建新版本';
 	}
 	return '编辑配方';
 });
@@ -938,7 +935,8 @@ onLoad(async (options) => {
 		familyId.value = options.familyId;
 		versionId.value = options.versionId || null;
 		sourceVersionId.value = options.sourceVersionId || options.versionId || null;
-		pageMode.value = options.mode as 'edit' | 'newVersion' | 'create';
+		pageMode.value = 'edit';
+		form.value.notes = '改版';
 
 		const sourceFormJson = uni.getStorageSync('source_recipe_version_form');
 		if (sourceFormJson) {
@@ -972,6 +970,7 @@ onLoad(async (options) => {
 						toppings: (p.toppings || []).map((i: any) => ({ ...i, _key: i.id || ('sub_' + Math.random().toString(36).substr(2, 9)) }))
 					}))
 				};
+				form.value.notes = '改版';
 
 				initPreDoughData(form.value.components);
 
@@ -1329,9 +1328,6 @@ const handleSubmit = async () => {
 			if (pageMode.value === 'edit' && familyId.value && versionId.value) {
 				await updateRecipeVersion(familyId.value, versionId.value, payload);
 				uiStore.setNextPageToast({ message: '新版本已创建并设为使用中', type: 'success' }, target);
-			} else if (pageMode.value === 'newVersion' && familyId.value) {
-				await createRecipeVersion(familyId.value, payload);
-				uiStore.setNextPageToast({ message: '新版本创建成功', type: 'success' }, target);
 			}
 		}
 

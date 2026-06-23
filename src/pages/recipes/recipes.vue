@@ -52,8 +52,14 @@
 											</view>
 										</view>
 										<view class="side-info">
-											<view class="version-label">{{ formatActiveVersion(family) }}</view>
-											<view class="desc">{{ family.versionCount || 0 }}个版本</view>
+											<view v-if="family.activeVersion" class="version-pill">
+												<text class="pill-version">V{{ family.activeVersion.version }}</text>
+												<text class="pill-notes">{{ family.activeVersion.notes || '当前' }}</text>
+											</view>
+											<view v-else class="version-pill-empty">暂无版本</view>
+											<view class="version-count-indicator">
+												{{ family.versionCount || 0 }}个版本
+											</view>
 										</view>
 									</template>
 									<template v-else>
@@ -67,8 +73,14 @@
 											</view>
 										</view>
 										<view class="side-info">
-											<view class="version-label">{{ formatActiveVersion(family) }}</view>
-											<view class="desc">{{ family.versionCount || 0 }}个版本</view>
+											<view v-if="family.activeVersion" class="version-pill">
+												<text class="pill-version">V{{ family.activeVersion.version }}</text>
+												<text class="pill-notes">{{ family.activeVersion.notes || '当前' }}</text>
+											</view>
+											<view v-else class="version-pill-empty">暂无版本</view>
+											<view class="version-count-indicator">
+												{{ family.versionCount || 0 }}个版本
+											</view>
 										</view>
 									</template>
 								</ListItem>
@@ -545,15 +557,72 @@ const confirmDeleteRecipe = async () => {
 	padding: 0 15px;
 }
 
-.version-label {
-	max-width: 132px;
+.side-info {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	justify-content: center;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+/* 拼色版本胶囊 */
+.version-pill {
+	display: inline-flex;
+	align-items: center;
+	border: 1px solid #e5dec9; /* 极其柔和的麦芽奶油边框 */
+	border-radius: 6px;
+	overflow: hidden;
+	height: 20px;
+	box-shadow: 0 1px 2px rgba(171, 157, 136, 0.03);
+}
+
+.pill-version {
+	background-color: #f2ebe1; /* 暖灰奶油燕麦底色，不再使用过深的深棕 */
+	color: #8d6e63; /* 浅褐色文本，柔和不刺眼 */
+	font-size: 10px;
+	font-weight: 700;
+	padding: 0 6px;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.pill-notes {
+	background-color: #fdfdfc; /* 近乎白色的极淡底色 */
+	color: #ab9d88; /* 浅灰褐文字，完美平衡易读性与低噪音 */
+	font-size: 10px;
+	font-weight: 500;
+	padding: 0 8px;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	max-width: 70px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	color: var(--text-primary);
-	font-size: 13px;
-	font-weight: 600;
-	text-align: right;
+}
+
+/* 暂无版本样式 */
+.version-pill-empty {
+	font-size: 10px;
+	color: #ab9d88;
+	background-color: #f6f0e5; /* 奶油黄底色 */
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-weight: 500;
+}
+
+/* 版本数量指示器 */
+.version-count-indicator {
+	font-size: 11px;
+	color: #ab9d88; /* 柔和辅助文字色，消弭过度的色彩对比 */
+	margin-top: 2px;
+	font-weight: 400;
+	
+	/* 移除了 multi-version 的有无背景差异，保持列表信息量层级和视觉效果的高度统一与规整 */
 }
 
 .recipe-relations {

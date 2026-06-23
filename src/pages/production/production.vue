@@ -479,7 +479,7 @@ const getTaskTitle = (task: ProductionTaskSummaryDto | PrepTask) => {
 	});
 
 	return Array.from(recipeGroups.values())
-		.map((group) => (group.category === 'OTHER' ? `${group.name} ${formatWeight(group.quantity)}` : `${group.name} ${group.quantity}个`))
+		.map((group) => (group.category === 'OTHER' ? `${group.name} ${formatWeight(group.quantity)}` : `${group.name} (${group.quantity})`))
 		.join('、');
 };
 
@@ -771,6 +771,7 @@ const handleSaveTemperatureSettings = () => {
 	color: white;
 	font-weight: 500;
 	white-space: nowrap;
+	flex-shrink: 0; /* 关键修复：确保状态标签在任何情况下大小固定，决不被挤压 */
 }
 
 .status-tag.status-pending {

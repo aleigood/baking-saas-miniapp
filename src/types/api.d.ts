@@ -24,8 +24,6 @@ export type RecipeCategory = 'BREAD' | 'PASTRY' | 'DESSERT' | 'DRINK' | 'OTHER';
 export interface CalculatedRecipeIngredient {
 	name: string;
 	weightInGrams: number;
-	baselineWeightInGrams?: number;
-	isAdjusted?: boolean;
 	brand?: string | null;
 	isRecipe: boolean;
 	extraInfo?: string;
@@ -148,8 +146,44 @@ export interface RecipeFamily {
 	activeVersion?: {
 		version: number;
 		notes: string | null;
-		changeSummary: string | null;
+		changeSummary: RecipeVersionChangeSummary | null;
 	} | null;
+}
+
+export interface RecipeVersionChangeItem {
+	kind:
+		| 'INITIAL_VERSION'
+		| 'NO_CHANGES'
+		| 'LEGACY_TEXT'
+		| 'INGREDIENT_ADDED'
+		| 'INGREDIENT_REMOVED'
+		| 'INGREDIENT_RATIO_CHANGED'
+		| 'DEPENDENCY_VERSION_CHANGED'
+		| 'PRODUCT_ADDED'
+		| 'PRODUCT_REMOVED'
+		| 'PRODUCT_WEIGHT_CHANGED'
+		| 'PRODUCT_INGREDIENT_ADDED'
+		| 'PRODUCT_INGREDIENT_REMOVED'
+		| 'PRODUCT_INGREDIENT_AMOUNT_CHANGED'
+		| 'PROCEDURE_CHANGED'
+		| 'FIELD_CHANGED';
+	name?: string;
+	productName?: string;
+	ingredientType?: 'MIX_IN' | 'FILLING' | 'TOPPING';
+	basis?: 'FLOUR_SHARE' | 'RECIPE_RATIO';
+	field?: string;
+	scope?: 'RECIPE' | 'PRODUCT';
+	before?: number;
+	after?: number;
+	beforeVersion?: number;
+	afterVersion?: number;
+	unit?: 'RATIO' | 'GRAM' | 'CELSIUS' | 'PERCENT';
+	text?: string;
+}
+
+export interface RecipeVersionChangeSummary {
+	schemaVersion: number;
+	items: RecipeVersionChangeItem[];
 }
 
 export interface RecipesListResponse {
@@ -253,7 +287,7 @@ export interface RecipeVersion {
 	familyId: string;
 	version: number;
 	notes: string | null;
-	changeSummary: string | null;
+	changeSummary: RecipeVersionChangeSummary | null;
 	isActive: boolean;
 	createdAt: string;
 	products: Product[];
@@ -550,8 +584,6 @@ export interface TaskIngredientDetail {
 	name: string;
 	brand: string | null;
 	weightInGrams: number;
-	baselineWeightInGrams?: number;
-	isAdjusted?: boolean;
 	weightPerUnit?: number;
 	isRecipe: boolean;
 	extraInfo?: string | null;
@@ -584,12 +616,11 @@ export interface ProductDetails {
 export interface ComponentGroup {
 	familyId: string;
 	familyName: string;
-	note: string | null;
+	version: number;
 	category: RecipeCategory;
 	productsDescription: string;
 	totalComponentWeight: number;
 	baseComponentIngredients: TaskIngredientDetail[];
-	adjustableIngredients: TaskIngredientDetail[];
 	baseComponentProcedure: string[];
 	// [G-Code-Note] [需求修改] 移除 products 字段
 	// products: ProductComponentSummary[];
@@ -622,25 +653,6 @@ export interface ProductionTaskDetailDto {
 	items: TaskCompletionItem[];
 	recipeVersions: TaskRecipeVersionStatus[];
 	executionStartedAt: string | null;
-	executionRevision: number;
-	latestAdjustment: {
-		revision: number;
-		reason: string;
-		createdAt: string;
-		createdByName: string | null;
-	} | null;
-	adjustmentHistory: Array<{
-		revision: number;
-		reason: string;
-		createdAt: string;
-		createdByName: string | null;
-		changes: Array<{
-			familyId: string;
-			ingredientName: string;
-			beforeWeightInGrams: number;
-			afterWeightInGrams: number;
-		}>;
-	}>;
 }
 
 export interface BatchProductIngredientDto {

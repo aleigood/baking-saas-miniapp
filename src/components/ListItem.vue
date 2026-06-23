@@ -176,6 +176,7 @@ const handleLongPress = (event: Event) => {
 	align-items: center;
 	padding: 15px 5px;
 	flex: 1;
+	min-width: 0; /* 关键修复：防止 Flex 子项内容过宽撑开容器导致状态标签溢出 */
 	position: relative;
 	z-index: 1;
 }

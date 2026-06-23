@@ -107,19 +107,6 @@ export function applyDependencyUpgrades(familyId: string, versionId: string): Pr
 }
 
 /**
- * [核心修改] 为指定的配方家族创建一个新版本
- * @param familyId 配方家族的ID
- * @param createDto 新版本的配方数据
- */
-export function createRecipeVersion(familyId: string, createDto: any): Promise<RecipeVersion> {
-	return request<RecipeVersion>({
-		url: `/recipes/${familyId}/versions`, // [修改] 调用新的版本创建接口
-		method: 'POST',
-		data: createDto
-	});
-}
-
-/**
  * [核心新增] 修改一个尚未被使用的配方版本
  * @param familyId 配方家族的ID
  * @param versionId 要修改的版本ID

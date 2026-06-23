@@ -19,21 +19,10 @@
 									:divider="index < task.componentGroups.length - 1"
 								>
 									<view class="main-info">
-										<view class="name">{{ component.familyName }}{{ component.note ? ` (${component.note})` : '' }}</view>
+										<view class="name">{{ component.familyName }} (V{{ component.version }})</view>
 										<view class="desc">{{ component.productsDescription }}</view>
 									</view>
 								</ListItem>
-								<view
-									v-if="selectedComponentFamilyId === component.familyId && getAdjustedIngredients(component).length > 0"
-									class="component-adjustment-note"
-									@click="showAdjustmentHistoryModal = true"
-								>
-									<view class="component-adjustment-head">
-										<text>本配方用量已调整</text>
-										<text class="component-adjustment-revision">R{{ task.executionRevision }}</text>
-									</view>
-									<text class="component-adjustment-detail">{{ formatComponentAdjustmentSummary(component) }}</text>
-								</view>
 							</template>
 						</view>
 					</view>
@@ -79,7 +68,7 @@
 											<text v-else :key="'ing-text-' + ing.id">{{ ing.name }}</text>
 										</view>
 										<text class="col-brand">{{ ing.brand || '-' }}</text>
-										<text class="col-usage">{{ formatAdjustedWeight(ing) }}</text>
+										<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
 									</view>
 								</view>
 
@@ -278,7 +267,7 @@
 			/>
 		</DetailPageLayout>
 
-		<ExpandingFab v-if="isStarted" :key="'task-detail-fab'" :actions="taskFabActions" :no-tab-bar="true" :visible="isFabVisible" />
+		<ExpandingFab v-if="isStarted" :key="'task-detail-fab'" icon="/static/icons/print.svg" @click="handlePrintTask" :no-tab-bar="true" :visible="isFabVisible" />
 
 		<AppModal :visible="showCompleteTaskModal === true" :key="'complete-task-modal'" @update:visible="v => { if (typeof v === 'boolean') showCompleteTaskModal = v; }" :title="completionStep === 1 ? (isSelfMadeTask ? '提报完成重量' : '提报完成数量') : '提报产品损耗'">
 			<template v-if="Object.keys(completionForm).length > 0">
@@ -351,47 +340,6 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showTaskAdjustmentModal" :key="'task-adjustment-modal'" :title="`用量调整${adjustmentFamilyName ? ` · ${adjustmentFamilyName}` : ''}`">
-			<view class="adjustment-intro">仅调整当前配方在本批次中的理论用量，配方标准版本不会改变。</view>
-			<scroll-view :scroll-y="true" class="adjustment-scroll">
-				<view class="adjustment-list">
-					<view v-for="item in adjustmentItems" :key="item.key" class="adjustment-row">
-						<view class="adjustment-item-copy">
-							<text class="adjustment-ingredient-name">{{ item.ingredientName }}</text>
-							<text class="adjustment-family-name">标准 {{ formatWeight(item.baselineWeightInGrams) }} · 当前 {{ formatWeight(item.beforeWeightInGrams) }}</text>
-						</view>
-						<view class="adjustment-input-wrap">
-							<input class="adjustment-input" type="digit" :value="item.afterWeightInGrams" @input="onAdjustmentWeightInput(item.key, $event)" />
-							<text class="adjustment-unit">g</text>
-						</view>
-					</view>
-				</view>
-			</scroll-view>
-			<textarea class="adjustment-reason-input" v-model="adjustmentReason" maxlength="200" placeholder="填写调整原因，例如：面粉吸水性变化"></textarea>
-			<view class="modal-actions">
-				<AppButton type="secondary" @click="showTaskAdjustmentModal = false" :disabled="isSubmitting">取消</AppButton>
-				<AppButton type="primary" @click="handleSubmitTaskAdjustment" :loading="isSubmitting" :disabled="!isAdjustmentValid">保存调整</AppButton>
-			</view>
-		</AppModal>
-
-		<AppModal v-model:visible="showAdjustmentHistoryModal" :key="'adjustment-history-modal'" title="批次调整记录">
-			<scroll-view :scroll-y="true" class="adjustment-history-scroll">
-				<view class="adjustment-history-list">
-					<view v-for="revision in selectedAdjustmentHistory" :key="revision.revision" class="adjustment-history-item">
-						<view class="adjustment-history-head">
-							<text class="revision-badge">R{{ revision.revision }}</text>
-							<text class="adjustment-history-actor">{{ revision.createdByName || '未知操作人' }}</text>
-						</view>
-						<text class="adjustment-history-reason">{{ revision.reason }}</text>
-						<view v-for="change in revision.changes" :key="change.ingredientName" class="adjustment-history-change">
-							<text>{{ change.ingredientName }}</text>
-							<text>{{ formatWeight(change.beforeWeightInGrams) }} → {{ formatWeight(change.afterWeightInGrams) }}</text>
-						</view>
-					</view>
-				</view>
-			</scroll-view>
-		</AppModal>
-
 		<AppPopover :visible="popover.visible" :key="'task-detail-popover'" :content="popover.content" :targetRect="popover.targetRect" placement="right" :offsetY="0" />
 	</view>
 </template>
@@ -405,7 +353,7 @@ import { useUiStore } from '@/store/ui';
 import { useTemperatureStore } from '@/store/temperature';
 import { useUserStore } from '@/store/user';
 import type { ProductionTaskDetailDto } from '@/types/api';
-import { applyCurrentRecipeVersions, createTaskAdjustment, getTaskDetail, updateTaskStatus, completeTask, getSpoilageStages, getTaskPdfUrl } from '@/api/tasks';
+import { applyCurrentRecipeVersions, getTaskDetail, updateTaskStatus, completeTask, getSpoilageStages, getTaskPdfUrl } from '@/api/tasks';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
@@ -437,8 +385,6 @@ const task = shallowRef<ProductionTaskDetailDto | null>(null);
 const taskId = ref<string | null>(null);
 const showCompleteTaskModal = ref(false);
 const showRecipeVersionModal = ref(false);
-const showTaskAdjustmentModal = ref(false);
-const showAdjustmentHistoryModal = ref(false);
 const isStarted = ref(false);
 const isReadOnly = ref(false);
 const selectedComponentFamilyId = ref<string | null>(null);
@@ -454,37 +400,6 @@ const collapsedSections = ref(new Set<string>());
 const lastTabChangeTime = ref(0);
 const modalOpenTime = ref(0);
 
-interface TaskAdjustmentFormItem {
-	key: string;
-	familyId: string;
-	familyName: string;
-	ingredientId: string;
-	ingredientName: string;
-	baselineWeightInGrams: number;
-	beforeWeightInGrams: number;
-	afterWeightInGrams: string;
-}
-
-const adjustmentItems = ref<TaskAdjustmentFormItem[]>([]);
-const adjustmentReason = ref('');
-const adjustmentFamilyName = ref('');
-
-const taskFabActions = computed(() => {
-	const actions = [];
-	if (!isReadOnly.value) {
-		actions.push({
-			icon: '/static/icons/adjust.svg',
-			text: '用量调整',
-			action: openTaskAdjustmentModal
-		});
-	}
-	actions.push({
-		icon: '/static/icons/print.svg',
-		text: '打印',
-		action: handlePrintTask
-	});
-	return actions;
-});
 
 watch(selectedComponentFamilyId, (newId) => {
 	if (!newId) return;
@@ -676,110 +591,6 @@ const allProductsInTask = computed(() => {
 });
 
 const outdatedRecipeVersions = computed(() => task.value?.recipeVersions?.filter((version) => version.hasUpdate) ?? []);
-
-const getIngredientBaseline = (ingredient: TaskIngredientDetail) => ingredient.baselineWeightInGrams ?? ingredient.weightInGrams;
-
-const getAdjustedIngredients = (component: ComponentGroup) =>
-	component.adjustableIngredients.filter((ingredient) => {
-		const difference = ingredient.weightInGrams - getIngredientBaseline(ingredient);
-		return ingredient.isAdjusted && Math.abs(difference) >= 0.01;
-	});
-
-const formatSignedWeight = (value: number) => `${value >= 0 ? '+' : '-'}${formatWeight(Math.abs(value))}`;
-
-const formatAdjustedWeight = (ingredient: TaskIngredientDetail) => {
-	const baseline = getIngredientBaseline(ingredient);
-	const difference = ingredient.weightInGrams - baseline;
-	if (!ingredient.isAdjusted || Math.abs(difference) < 0.01) return formatWeight(ingredient.weightInGrams);
-	return `${formatWeight(ingredient.weightInGrams)}(${formatSignedWeight(difference)})`;
-};
-
-const formatComponentAdjustmentSummary = (component: ComponentGroup) =>
-	getAdjustedIngredients(component)
-		.map((ingredient) => `${ingredient.name} ${formatSignedWeight(ingredient.weightInGrams - getIngredientBaseline(ingredient))}`)
-		.join('，');
-
-const selectedAdjustmentHistory = computed(() => {
-	const familyId = selectedComponentFamilyId.value;
-	if (!familyId) return [];
-	return (task.value?.adjustmentHistory ?? [])
-		.map((revision) => ({
-			...revision,
-			changes: revision.changes.filter((change) => change.familyId === familyId)
-		}))
-		.filter((revision) => revision.changes.length > 0);
-});
-
-const isAdjustmentValid = computed(() => {
-	if (adjustmentReason.value.trim().length < 2) return false;
-	return adjustmentItems.value.some((item) => {
-		const value = Number(item.afterWeightInGrams);
-		return Number.isFinite(value) && value > 0 && Math.abs(value - item.beforeWeightInGrams) >= 0.01;
-	});
-});
-
-const openTaskAdjustmentModal = () => {
-	if (!task.value || task.value.status !== 'IN_PROGRESS') return;
-	const group = task.value.componentGroups.find((component) => component.familyId === selectedComponentFamilyId.value);
-	if (!group || group.adjustableIngredients.length === 0) {
-		toastStore.show({ message: '当前配方没有可调整的基础原料', type: 'info' });
-		return;
-	}
-	adjustmentFamilyName.value = group.familyName;
-	adjustmentItems.value = group.adjustableIngredients
-		.filter((ingredient) => ingredient.weightInGrams > 0)
-		.map((ingredient) => ({
-			key: `${group.familyId}:${ingredient.id}`,
-			familyId: group.familyId,
-			familyName: group.familyName,
-			ingredientId: ingredient.id,
-			ingredientName: ingredient.name,
-			baselineWeightInGrams: getIngredientBaseline(ingredient),
-			beforeWeightInGrams: ingredient.weightInGrams,
-			afterWeightInGrams: String(ingredient.weightInGrams)
-		}));
-	adjustmentReason.value = '';
-	showTaskAdjustmentModal.value = true;
-};
-
-const onAdjustmentWeightInput = (key: string, event: any) => {
-	const item = adjustmentItems.value.find((entry) => entry.key === key);
-	if (!item) return;
-	item.afterWeightInGrams = String(event.detail?.value ?? event.target?.value ?? '');
-};
-
-const handleSubmitTaskAdjustment = async () => {
-	if (!task.value || !isAdjustmentValid.value) return;
-	const changes = adjustmentItems.value
-		.map((item) => ({
-			familyId: item.familyId,
-			ingredientId: item.ingredientId,
-			afterWeightInGrams: Number(item.afterWeightInGrams),
-			beforeWeightInGrams: item.beforeWeightInGrams
-		}))
-		.filter((item) => Number.isFinite(item.afterWeightInGrams) && item.afterWeightInGrams > 0 && Math.abs(item.afterWeightInGrams - item.beforeWeightInGrams) >= 0.01)
-		.map((item) => ({
-			familyId: item.familyId,
-			ingredientId: item.ingredientId,
-			afterWeightInGrams: item.afterWeightInGrams
-		}));
-
-	isSubmitting.value = true;
-	try {
-		task.value = await createTaskAdjustment(task.value.id, {
-			reason: adjustmentReason.value.trim(),
-			changes
-		});
-		showTaskAdjustmentModal.value = false;
-		toastStore.show({ message: `本批次已更新至 R${task.value.executionRevision}`, type: 'success' });
-		dataStore.markProductionAsStale();
-		dataStore.markIngredientsAsStale();
-	} catch (error) {
-		console.error('Failed to adjust task batch:', error);
-	} finally {
-		isSubmitting.value = false;
-	}
-};
 
 onLoad(async (options) => {
 	taskId.value = options?.taskId || null;
@@ -1790,177 +1601,6 @@ const componentMixInSummary = computed(() => {
 
 .detail-table {
 	margin-top: 25px;
-}
-
-.revision-badge {
-	padding: 3px 7px;
-	border-radius: 6px;
-	background: #dcecdf;
-	color: #2f6542;
-	font-size: 12px;
-	font-weight: 700;
-	flex-shrink: 0;
-}
-
-.adjustment-intro {
-	font-size: 13px;
-	line-height: 1.5;
-	color: var(--text-secondary);
-}
-
-.component-adjustment-note {
-	margin: 0 16px 12px;
-	padding: 10px 12px;
-	border-left: 3px solid #477a5a;
-	background: #f3f7f3;
-}
-
-.component-adjustment-head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	font-size: 13px;
-	font-weight: 600;
-	color: #315f41;
-}
-
-.component-adjustment-revision {
-	font-size: 11px;
-	color: #477a5a;
-}
-
-.component-adjustment-detail {
-	display: -webkit-box;
-	margin-top: 4px;
-	overflow: hidden;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
-	font-size: 12px;
-	line-height: 1.5;
-	color: var(--text-secondary);
-}
-
-.adjustment-scroll {
-	max-height: 340px;
-	margin-top: 14px;
-}
-
-.adjustment-list {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.adjustment-row {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 11px 12px;
-	border: 1px solid var(--border-color);
-	border-radius: 8px;
-	background: #faf8f5;
-}
-
-.adjustment-item-copy {
-	display: flex;
-	flex-direction: column;
-	gap: 3px;
-	min-width: 0;
-}
-
-.adjustment-ingredient-name {
-	font-size: 14px;
-	font-weight: 600;
-	color: var(--text-primary);
-}
-
-.adjustment-family-name {
-	font-size: 12px;
-	color: var(--text-secondary);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.adjustment-input-wrap {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	flex-shrink: 0;
-}
-
-.adjustment-input {
-	width: 92px;
-	height: 36px;
-	padding: 0 9px;
-	border: 1px solid var(--border-color);
-	border-radius: 8px;
-	background: #ffffff;
-	font-size: 14px;
-	text-align: right;
-	box-sizing: border-box;
-}
-
-.adjustment-unit {
-	width: 12px;
-	font-size: 12px;
-	color: var(--text-secondary);
-}
-
-.adjustment-reason-input {
-	width: 100%;
-	height: 76px;
-	margin-top: 14px;
-	padding: 10px 12px;
-	border: 1px solid var(--border-color);
-	border-radius: 8px;
-	background: var(--bg-color);
-	font-size: 14px;
-	box-sizing: border-box;
-}
-
-.adjustment-history-scroll {
-	max-height: 380px;
-}
-
-.adjustment-history-list {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-}
-
-.adjustment-history-item {
-	padding: 12px;
-	border-left: 3px solid #477a5a;
-	background: #f6f8f6;
-}
-
-.adjustment-history-head,
-.adjustment-history-change {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 10px;
-}
-
-.adjustment-history-actor,
-.adjustment-history-change {
-	font-size: 12px;
-	color: var(--text-secondary);
-}
-
-.adjustment-history-reason {
-	display: block;
-	margin: 8px 0;
-	font-size: 14px;
-	font-weight: 600;
-	color: var(--text-primary);
-}
-
-.adjustment-history-change + .adjustment-history-change {
-	margin-top: 5px;
 }
 
 .product-tabs-container {

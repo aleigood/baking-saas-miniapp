@@ -123,20 +123,6 @@ export function applyCurrentRecipeVersions(taskId: string): Promise<ProductionTa
 	});
 }
 
-export function createTaskAdjustment(
-	taskId: string,
-	data: {
-		reason: string;
-		changes: Array<{ familyId: string; ingredientId: string; afterWeightInGrams: number }>;
-	}
-): Promise<ProductionTaskDetailDto> {
-	return request<ProductionTaskDetailDto>({
-		url: `/production-tasks/${taskId}/adjustments`,
-		method: 'POST',
-		data
-	});
-}
-
 /**
  * 删除一个“待开始”的生产任务 (软删除)
  */
