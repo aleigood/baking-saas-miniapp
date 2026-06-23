@@ -474,6 +474,11 @@ const versionId = ref<string | null>(null);
 const sourceVersionId = ref<string | null>(null);
 const pageMode = ref<'create' | 'edit'>('create');
 
+const getDefaultRevisionNote = () => {
+	const today = new Date();
+	return `${today.getMonth() + 1}月${today.getDate()}日改版`;
+};
+
 const showCalculatorModal = ref(false);
 
 const isFabVisible = ref(true);
@@ -936,7 +941,7 @@ onLoad(async (options) => {
 		versionId.value = options.versionId || null;
 		sourceVersionId.value = options.sourceVersionId || options.versionId || null;
 		pageMode.value = 'edit';
-		form.value.notes = '改版';
+		form.value.notes = getDefaultRevisionNote();
 
 		const sourceFormJson = uni.getStorageSync('source_recipe_version_form');
 		if (sourceFormJson) {
@@ -970,7 +975,7 @@ onLoad(async (options) => {
 						toppings: (p.toppings || []).map((i: any) => ({ ...i, _key: i.id || ('sub_' + Math.random().toString(36).substr(2, 9)) }))
 					}))
 				};
-				form.value.notes = '改版';
+				form.value.notes = getDefaultRevisionNote();
 
 				initPreDoughData(form.value.components);
 

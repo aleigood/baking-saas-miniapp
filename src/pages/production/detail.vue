@@ -19,7 +19,10 @@
 									:divider="index < task.componentGroups.length - 1"
 								>
 									<view class="main-info">
-										<view class="name">{{ component.familyName }} (V{{ component.version }})</view>
+										<view class="name">
+											<text class="name-text">{{ component.familyName }}</text>
+											<text class="version-tag">v{{ component.version }}</text>
+										</view>
 										<view class="desc">{{ component.productsDescription }}</view>
 									</view>
 								</ListItem>
@@ -61,7 +64,12 @@
 										@longpress.prevent="!isReadOnly && toggleIngredientAdded(renderedComponentDetails.familyId, ing.id)"
 									>
 										<view class="col-ingredient ingredient-name-cell">
-											<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="`info-icon-${renderedComponentDetails.familyId}-${ing.id}`" :key="'ing-icon-' + ing.id">
+											<view
+												v-if="ing.extraInfo"
+												class="ingredient-with-icon"
+												:id="`info-icon-${renderedComponentDetails.familyId}-${ing.id}`"
+												:key="'ing-icon-' + ing.id"
+											>
 												<text>{{ ing.name }}</text>
 												<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
 											</view>
@@ -73,7 +81,12 @@
 								</view>
 
 								<view class="total-weight-summary">
-									<view class="summary-left-alert" :class="{ 'pulse-highlight': showPulseAnimation }" v-if="componentMixInSummary.length > 0" :key="'component-mixin-summary'">
+									<view
+										class="summary-left-alert"
+										:class="{ 'pulse-highlight': showPulseAnimation }"
+										v-if="componentMixInSummary.length > 0"
+										:key="'component-mixin-summary'"
+									>
 										<image class="summary-alert-icon" src="/static/icons/warning.svg" mode="aspectFit"></image>
 										<text>含后加辅料，请勿遗漏！</text>
 									</view>
@@ -269,7 +282,16 @@
 
 		<ExpandingFab v-if="isStarted" :key="'task-detail-fab'" icon="/static/icons/print.svg" @click="handlePrintTask" :no-tab-bar="true" :visible="isFabVisible" />
 
-		<AppModal :visible="showCompleteTaskModal === true" :key="'complete-task-modal'" @update:visible="v => { if (typeof v === 'boolean') showCompleteTaskModal = v; }" :title="completionStep === 1 ? (isSelfMadeTask ? '提报完成重量' : '提报完成数量') : '提报产品损耗'">
+		<AppModal
+			:visible="showCompleteTaskModal === true"
+			:key="'complete-task-modal'"
+			@update:visible="
+				(v) => {
+					if (typeof v === 'boolean') showCompleteTaskModal = v;
+				}
+			"
+			:title="completionStep === 1 ? (isSelfMadeTask ? '提报完成重量' : '提报完成数量') : '提报产品损耗'"
+		>
 			<template v-if="Object.keys(completionForm).length > 0">
 				<view class="modal-slider-container" :style="{ height: modalContentHeight ? `${modalContentHeight}px` : 'auto' }">
 					<view class="modal-slider-track" :class="{ 'go-to-step2': completionStep === 2 }">
@@ -399,7 +421,6 @@ const addedIngredientsMap = reactive(new Set<string>());
 const collapsedSections = ref(new Set<string>());
 const lastTabChangeTime = ref(0);
 const modalOpenTime = ref(0);
-
 
 watch(selectedComponentFamilyId, (newId) => {
 	if (!newId) return;
@@ -1155,7 +1176,21 @@ const componentMixInSummary = computed(() => {
 @include list-item-content-style;
 @include table-layout;
 
-
+.version-tag {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background-color: #f2ebe1; /* 暖灰燕麦底色 */
+	color: #8d6e63; /* 暖焦糖字色 */
+	font-size: 10px;
+	font-weight: 600;
+	padding: 1px 5px;
+	border-radius: 4px;
+	margin-left: 8px;
+	line-height: 1.2;
+	vertical-align: middle;
+	/* 没有 border */
+}
 
 .collapsible-content {
 	max-height: 1000px;
@@ -1431,6 +1466,8 @@ const componentMixInSummary = computed(() => {
 }
 
 .product-list-item .main-info .name {
+	display: flex;
+	align-items: center;
 	font-weight: 500;
 }
 

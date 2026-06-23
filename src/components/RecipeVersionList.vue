@@ -17,13 +17,30 @@
 				:bleed="true"
 				:divider="index < versions.length - 1"
 			>
-				<view class="main-info">
-					<view class="name">{{ version.notes || `版本 ${version.version}` }} (v{{ version.version }})</view>
-					<view class="desc version-summary">{{ formatChangeSummary(version) }}</view>
-				</view>
-				<view class="side-info">
-					<view v-if="version.isActive" class="status-tag active">使用中</view>
-					<view class="version-date">{{ formatVersionDate(version.createdAt) }}</view>
+				<view class="version-item-wrapper">
+					<!-- 第一行：配方名称 + 双色版本胶囊 + 状态标签 (左) 与 创建日期 (右) -->
+					<view class="version-item-header">
+						<view class="header-left">
+							<text class="recipe-name">{{ recipeName }}</text>
+							<text class="version-tag">V{{ version.version }}{{ version.notes ? ' ' + version.notes : '' }}</text>
+							<text v-if="version.isActive" class="status-tag active">使用中</text>
+						</view>
+						<text class="version-date">{{ formatChineseDate(version.createdAt) }}</text>
+					</view>
+
+					<!-- 第二行：修改项摘要（支持折行，没有变更摘要则不显示此区域） -->
+					<view v-if="version.changeSummary && parseChangeSummary(version.changeSummary).length > 0" class="version-item-body">
+						<view class="change-tags-list">
+							<view 
+								v-for="(item, idx) in parseChangeSummary(version.changeSummary)" 
+								:key="idx" 
+								class="change-tag-item"
+								:class="item.direction"
+							>
+								<text class="change-name">{{ item.name }}</text>
+							</view>
+						</view>
+					</view>
 				</view>
 			</ListItem>
 		</template>
@@ -38,6 +55,10 @@ import { formatChineseDate } from '@/utils/format';
 import ListItem from '@/components/ListItem.vue';
 
 defineProps({
+	recipeName: {
+		type: String,
+		default: ''
+	},
 	versions: {
 		type: Array as PropType<RecipeVersion[]>,
 		default: () => []
@@ -60,11 +81,7 @@ defineEmits(['select-version', 'longpress-version']);
 
 const formatNumber = (value: number) => Number(value.toFixed(4)).toString();
 
-const formatVersionDate = (dateInput: string) => {
-	const date = new Date(dateInput);
-	if (Number.isNaN(date.getTime())) return '';
-	return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
-};
+// formatVersionDate 已被移除
 
 const formatValue = (value: number | undefined, unit?: RecipeVersionChangeItem['unit']) => {
 	const numericValue = value ?? 0;
@@ -134,15 +151,28 @@ const formatChangeItem = (item: RecipeVersionChangeItem) => {
 	}
 };
 
-const formatChangeSummary = (version: RecipeVersion) => {
-	const summary = version.changeSummary;
-	if (!summary?.items?.length) return `创建于：${formatChineseDate(version.createdAt)}`;
-	return summary.items.map(formatChangeItem).filter(Boolean).join('，');
+const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
+	if (!summary?.items?.length) return [];
+	return summary.items.map(item => {
+		const text = formatChangeItem(item);
+		if (!text) return null;
+		
+		let direction: 'up' | 'down' | 'neutral' = 'neutral';
+		if (text.includes('↑') || text.includes('新增')) {
+			direction = 'up';
+		} else if (text.includes('↓') || text.includes('移除')) {
+			direction = 'down';
+		}
+		
+		return {
+			name: text,
+			direction
+		};
+	}).filter(Boolean) as Array<{ name: string; direction: 'up' | 'down' | 'neutral' }>;
 };
 </script>
 
 <style scoped lang="scss">
-/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前组件作用域 */
 @include list-item-content-style;
 
 .card-full-bleed-list {
@@ -170,12 +200,71 @@ const formatChangeSummary = (version: RecipeVersion) => {
 	margin-bottom: 0;
 }
 
+.version-item-wrapper {
+	flex: 1;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.version-item-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+}
+
+.header-left {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+}
+
+.recipe-name {
+	font-size: 14px;
+	font-weight: 700;
+	color: var(--text-primary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 150px;
+}
+
+/* 双色版本胶囊，与配方列表页样式一致，不设说明背景色以显示卡片底色 */
+.version-tag {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 20px;
+	padding: 0 8px;
+	border-radius: 6px;
+	font-size: 10px;
+	font-weight: 600;
+	background-color: #f5f0eb; /* 特有淡灰褐底色，保持配方详情版本列表轻量化 */
+	color: #ab9d88; /* 柔和辅助文字色 */
+	line-height: 1;
+	box-sizing: border-box;
+	max-width: 120px; /* 限制最大宽度，防止挤占使用中标签 */
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .status-tag {
-	padding: 4px 12px;
-	border-radius: 15px;
-	font-size: 13px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 20px;
+	padding: 0 8px;
+	border-radius: 6px;
+	font-size: 10px;
 	color: white;
-	font-weight: 500;
+	font-weight: 600;
+	line-height: 1;
+	box-sizing: border-box;
 
 	&.active {
 		background-color: #8c5a3b;
@@ -187,42 +276,64 @@ const formatChangeSummary = (version: RecipeVersion) => {
 	}
 }
 
-.version-summary {
-	max-width: 100%;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.main-info {
-	flex: 1;
-	min-width: 0;
-	overflow: hidden;
-}
-
-.main-info .name {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.side-info {
-	flex: 0 0 auto;
-	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	gap: 5px;
-	margin-left: 12px;
-}
-
-.side-info .status-tag {
-	white-space: nowrap;
-}
-
 .version-date {
 	font-size: 11px;
-	line-height: 1;
-	color: var(--text-secondary);
-	white-space: nowrap;
+	color: #ab9d88;
+	flex-shrink: 0;
+}
+
+.version-item-body {
+	width: 100%;
+}
+
+.change-tags-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	width: 100%;
+}
+
+.change-tag-item {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1.2;
+	
+	&.up {
+		background-color: #e6f4ea;
+		color: #137333;
+		/* 没有 border */
+	}
+	
+	&.down {
+		background-color: #fce8e6;
+		color: #c5221f;
+		/* 没有 border */
+	}
+
+	&.neutral {
+		background-color: #fcf6ec;
+		color: #b06000;
+		/* 没有 border */
+	}
+}
+
+/* no-change-tag 已移除 */
+
+.change-name {
+	margin-right: 2px;
+}
+
+.change-icon {
+	font-size: 10px;
+	margin-right: 1px;
+	font-weight: 700;
+}
+
+.change-val {
+	font-weight: 600;
 }
 </style>

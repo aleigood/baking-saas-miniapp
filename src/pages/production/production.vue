@@ -45,7 +45,14 @@
 							:style="{ '--card-border-color': (STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).color }"
 						>
 							<view class="task-info">
-								<view class="title">{{ getTaskTitle(task) }}</view>
+								<view class="title">
+									<template v-for="(item, itemIdx) in getTaskTitleItems(task)" :key="itemIdx">
+										<text v-if="itemIdx > 0" class="title-sep">、</text>
+										<text class="recipe-name-text">{{ item.name }}</text>
+										<text v-if="item.quantity !== undefined && item.category !== 'OTHER'" class="quantity-badge">{{ item.quantity }}</text>
+										<text v-else-if="item.quantity !== undefined && item.category === 'OTHER'" class="quantity-text">{{ formatWeight(item.quantity) }}</text>
+									</template>
+								</view>
 								<view class="details">{{ getTaskDetails(task) }}</view>
 							</view>
 
@@ -56,7 +63,13 @@
 					</view>
 				</template>
 
-				<EmptyState v-else-if="isInitialFetchDone" :key="'production-empty'" icon="/static/icons/empty-list.svg" title="所选日期暂无任务" subtitle="点击下方按钮创建新的生产任务" />
+				<EmptyState
+					v-else-if="isInitialFetchDone"
+					:key="'production-empty'"
+					icon="/static/icons/empty-list.svg"
+					title="所选日期暂无任务"
+					subtitle="点击下方按钮创建新的生产任务"
+				/>
 			</view>
 
 			<view
@@ -455,14 +468,16 @@ const isSelfMadeItem = (item: any) => {
 	return item.product?.recipeVersion?.family?.category === 'OTHER';
 };
 
-const getTaskTitle = (task: ProductionTaskSummaryDto | PrepTask) => {
+const getTaskTitleItems = (task: ProductionTaskSummaryDto | PrepTask) => {
 	if (task.status === 'PREP') {
-		return (task as PrepTask).title;
+		return [{ name: (task as PrepTask).title }];
 	}
 	const regularTask = task as ProductionTaskSummaryDto;
-	if (!regularTask.items || regularTask.items.length === 0) return '未知任务';
+	if (!regularTask.items || regularTask.items.length === 0) {
+		return [{ name: '未知任务' }];
+	}
 
-	const recipeGroups = new Map<string, { name: string; category?: RecipeCategory; quantity: number }>();
+	const recipeGroups = new Map<string, { name: string; category?: string; quantity: number }>();
 	regularTask.items.forEach((item) => {
 		const family = item.product.recipeVersion?.family;
 		const key = family?.id || item.product.id;
@@ -478,9 +493,7 @@ const getTaskTitle = (task: ProductionTaskSummaryDto | PrepTask) => {
 		}
 	});
 
-	return Array.from(recipeGroups.values())
-		.map((group) => (group.category === 'OTHER' ? `${group.name} ${formatWeight(group.quantity)}` : `${group.name} (${group.quantity})`))
-		.join('、');
+	return Array.from(recipeGroups.values());
 };
 
 const getTaskDetails = (task: any) => {
@@ -490,9 +503,7 @@ const getTaskDetails = (task: any) => {
 
 	const regularTask = task as ProductionTaskSummaryDto;
 	return regularTask.items
-		.map((item) =>
-			isSelfMadeItem(item) ? `${item.product.name} ${formatWeight(Number(item.quantity))}` : `${item.product.name} x${Number(item.quantity)}`
-		)
+		.map((item) => (isSelfMadeItem(item) ? `${item.product.name} ${formatWeight(Number(item.quantity))}` : `${item.product.name} x${Number(item.quantity)}`))
 		.join('、');
 };
 
@@ -507,8 +518,6 @@ const navigateToDetail = (task: any) => {
 		uni.navigateTo({ url: `/pages/production/detail?taskId=${task.id}` });
 	}
 };
-
-
 
 const openTaskActions = (task: any) => {
 	if (task.status === 'PREP') return;
@@ -664,6 +673,36 @@ const handleSaveTemperatureSettings = () => {
 @import '@/styles/common.scss';
 @include list-item-option-style;
 @include form-control-styles;
+
+.recipe-name-text {
+	vertical-align: middle;
+}
+
+.quantity-badge {
+	display: inline-block;
+	text-align: center;
+	background-color: #f5f0eb; /* 非常淡雅的温暖中性灰褐 */
+	color: #a39382; /* 柔和的辅助文字色 */
+	font-size: 10px;
+	font-weight: 600;
+	padding: 1px 5px;
+	border-radius: 4px;
+	line-height: 1.2;
+	transform: scale(0.9); /* 稍作缩小，不喧宾夺主 */
+	vertical-align: middle;
+	margin-left: 3px;
+	/* 移除了 border，因为是不抢占主视觉注意力的标签 */
+}
+
+.quantity-text {
+	color: #ab9d88;
+	font-size: 11px;
+	margin-left: 2px;
+}
+
+.title-sep {
+	color: var(--text-primary);
+}
 
 .full-height-container {
 	height: 100%;

@@ -5,6 +5,7 @@
 		<DetailPageLayout @scroll="handleScroll">
 			<view class="page-content page-content-with-fab animated-content" :class="{ 'is-revealed': !isLoading }" v-if="recipeFamily" :key="'recipe-detail-content'">
 				<RecipeVersionList
+					:recipe-name="recipeFamily?.name || ''"
 					:versions="recipeVersions"
 					:selected-version-id="displayedVersionId"
 					:can-edit="canEditRecipe"

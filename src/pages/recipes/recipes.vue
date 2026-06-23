@@ -48,18 +48,23 @@
 													<text class="name-text">{{ family.name }}</text>
 													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 												</view>
-												<view class="desc recipe-relations">{{ formatRecipeNames(family.productNames, '暂无产品') }}</view>
+												<view class="desc recipe-meta-tags">
+													<view class="meta-tag">
+														<text class="meta-label">版本数</text>
+														<text class="meta-value">{{ family.versionCount || 0 }}</text>
+													</view>
+													<view class="meta-tag">
+														<text class="meta-label">产品数</text>
+														<text class="meta-value">{{ family.productCount ?? (family.productNames?.length || 0) }}</text>
+													</view>
+												</view>
 											</view>
 										</view>
 										<view class="side-info">
-											<view v-if="family.activeVersion" class="version-pill">
-												<text class="pill-version">V{{ family.activeVersion.version }}</text>
-												<text class="pill-notes">{{ family.activeVersion.notes || '当前' }}</text>
-											</view>
+											<text v-if="family.activeVersion" class="version-tag">
+												V{{ family.activeVersion.version }} {{ family.activeVersion.notes || '当前' }}
+											</text>
 											<view v-else class="version-pill-empty">暂无版本</view>
-											<view class="version-count-indicator">
-												{{ family.versionCount || 0 }}个版本
-											</view>
 										</view>
 									</template>
 									<template v-else>
@@ -69,18 +74,23 @@
 													<text class="name-text">{{ family.name }}</text>
 													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 												</view>
-												<view class="desc recipe-relations">{{ formatRecipeNames(family.referencedByNames, '暂无引用') }}</view>
+												<view class="desc recipe-meta-tags">
+													<view class="meta-tag">
+														<text class="meta-label">版本数</text>
+														<text class="meta-value">{{ family.versionCount || 0 }}</text>
+													</view>
+													<view class="meta-tag">
+														<text class="meta-label">引用数</text>
+														<text class="meta-value">{{ family.usageCount || 0 }}</text>
+													</view>
+												</view>
 											</view>
 										</view>
 										<view class="side-info">
-											<view v-if="family.activeVersion" class="version-pill">
-												<text class="pill-version">V{{ family.activeVersion.version }}</text>
-												<text class="pill-notes">{{ family.activeVersion.notes || '当前' }}</text>
-											</view>
+											<text v-if="family.activeVersion" class="version-tag">
+												V{{ family.activeVersion.version }} {{ family.activeVersion.notes || '当前' }}
+											</text>
 											<view v-else class="version-pill-empty">暂无版本</view>
-											<view class="version-count-indicator">
-												{{ family.versionCount || 0 }}个版本
-											</view>
 										</view>
 									</template>
 								</ListItem>
@@ -566,43 +576,55 @@ const confirmDeleteRecipe = async () => {
 	flex-shrink: 0;
 }
 
-/* 拼色版本胶囊 */
-.version-pill {
+/* 极简无边框版本标签 */
+.version-tag {
 	display: inline-flex;
 	align-items: center;
-	border: 1px solid #e5dec9; /* 极其柔和的麦芽奶油边框 */
-	border-radius: 6px;
-	overflow: hidden;
+	justify-content: center;
 	height: 20px;
-	box-shadow: 0 1px 2px rgba(171, 157, 136, 0.03);
-}
-
-.pill-version {
-	background-color: #f2ebe1; /* 暖灰奶油燕麦底色，不再使用过深的深棕 */
-	color: #8d6e63; /* 浅褐色文本，柔和不刺眼 */
-	font-size: 10px;
-	font-weight: 700;
-	padding: 0 6px;
-	height: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.pill-notes {
-	background-color: #fdfdfc; /* 近乎白色的极淡底色 */
-	color: #ab9d88; /* 浅灰褐文字，完美平衡易读性与低噪音 */
-	font-size: 10px;
-	font-weight: 500;
 	padding: 0 8px;
-	height: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	max-width: 70px;
+	border-radius: 6px;
+	font-size: 10px;
+	font-weight: 600;
+	background-color: #f4ede2; /* 精致淡燕麦色背景 */
+	color: #8d6e63; /* 优雅暖焦糖字色 */
+	line-height: 1;
+	box-sizing: border-box;
+	max-width: 80px; /* 限制最大宽度，防止挤占侧边布局 */
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* 配方描述数据标签组 */
+.recipe-meta-tags {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+}
+
+.meta-tag {
+	display: inline-flex;
+	align-items: center;
+	background-color: rgba(244, 237, 226, 0.4); /* 极清透温暖的燕麦底色 */
+	border-radius: 4px;
+	padding: 0 6px 0 5px; /* 调整内边距适应左侧吊牌孔 */
+	height: 18px;
+	font-size: 10px;
+	box-sizing: border-box;
+	line-height: 1;
+}
+
+.meta-label {
+	color: #ab9d88; /* 灰褐色标签名 */
+	margin-right: 3px;
+	font-weight: 500;
+}
+
+.meta-value {
+	color: #ab9d88; /* 焦糖褐色数值 */
+	font-weight: 500;
 }
 
 /* 暂无版本样式 */
@@ -613,16 +635,6 @@ const confirmDeleteRecipe = async () => {
 	padding: 2px 6px;
 	border-radius: 4px;
 	font-weight: 500;
-}
-
-/* 版本数量指示器 */
-.version-count-indicator {
-	font-size: 11px;
-	color: #ab9d88; /* 柔和辅助文字色，消弭过度的色彩对比 */
-	margin-top: 2px;
-	font-weight: 400;
-	
-	/* 移除了 multi-version 的有无背景差异，保持列表信息量层级和视觉效果的高度统一与规整 */
 }
 
 .recipe-relations {
