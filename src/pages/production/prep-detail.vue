@@ -63,7 +63,7 @@
 							</view>
 						</view>
 					</template>
-					<EmptyState v-else icon="/static/icons/empty-box.svg" title="暂无原料需求" subtitle="选中任务下暂无需要准备的原料" />
+					<EmptyState v-else icon="/static/icons/empty-list.svg" title="暂无原料需求" subtitle="选中任务下暂无需要准备的原料" />
 				</view>
 
 				<view

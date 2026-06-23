@@ -312,11 +312,7 @@ const handleIconClick = (info: string | null | undefined, elementId: string) => 
 
 const fetchCostDataForRender = async (productId: string) => {
 	try {
-		const [historyData, breakdownData, detailsData] = await Promise.all([
-			getProductCostHistory(productId),
-			getProductCostBreakdown(productId),
-			getRecipeDetails(productId)
-		]);
+		const [historyData, breakdownData, detailsData] = await Promise.all([getProductCostHistory(productId), getProductCostBreakdown(productId), getRecipeDetails(productId)]);
 		tempCostData.history = historyData;
 		tempCostData.breakdown = breakdownData;
 		tempCostData.details = detailsData;
@@ -486,7 +482,7 @@ watch(
 }
 
 .recipe-tag {
-	font-size: 12px;
+	font-size: 11px;
 	font-weight: 500;
 	padding: 2px 8px;
 	border-radius: 10px;

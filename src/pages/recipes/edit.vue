@@ -471,7 +471,6 @@ const isSubmitting = ref(false);
 const isEditing = ref(false);
 const familyId = ref<string | null>(null);
 const versionId = ref<string | null>(null);
-const sourceVersionId = ref<string | null>(null);
 const pageMode = ref<'create' | 'edit'>('create');
 
 const getDefaultRevisionNote = () => {
@@ -588,7 +587,7 @@ const pageTitle = computed(() => {
 		return form.value.type === 'MAIN' ? '新建产品配方' : '新建其他配方';
 	}
 	if (pageMode.value === 'edit') {
-		return '修改配方';
+		return '新建配方版本';
 	}
 	return '编辑配方';
 });
@@ -939,7 +938,6 @@ onLoad(async (options) => {
 		isEditing.value = true;
 		familyId.value = options.familyId;
 		versionId.value = options.versionId || null;
-		sourceVersionId.value = options.sourceVersionId || options.versionId || null;
 		pageMode.value = 'edit';
 		form.value.notes = getDefaultRevisionNote();
 
@@ -1303,7 +1301,6 @@ const handleSubmit = async () => {
 		const finalCustomWaterContent = currentCustom !== null && currentCustom !== undefined && Math.abs(currentCustom - autoVal) > 0.1 ? Number(currentCustom) : null;
 
 		const payload = {
-			sourceVersionId: sourceVersionId.value || undefined,
 			name: form.value.name,
 			type: form.value.type,
 			category: form.value.category,
@@ -1332,7 +1329,7 @@ const handleSubmit = async () => {
 			const target = `/pages/recipes/detail?familyId=${familyId.value}`;
 			if (pageMode.value === 'edit' && familyId.value && versionId.value) {
 				await updateRecipeVersion(familyId.value, versionId.value, payload);
-				uiStore.setNextPageToast({ message: '新版本已创建并设为使用中', type: 'success' }, target);
+				uiStore.setNextPageToast({ message: '新版本已创建，可在版本列表中设为使用中', type: 'success' }, target);
 			}
 		}
 

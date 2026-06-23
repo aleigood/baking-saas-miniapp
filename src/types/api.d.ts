@@ -288,6 +288,8 @@ export interface RecipeVersion {
 	version: number;
 	notes: string | null;
 	changeSummary: RecipeVersionChangeSummary | null;
+	createdById: string | null;
+	createdBy: { id: string; name: string | null; phone: string } | null;
 	isActive: boolean;
 	createdAt: string;
 	products: Product[];
@@ -307,20 +309,45 @@ export interface RecipeVersion {
 	}[];
 }
 
+export interface RecipeOperationLog {
+	id: string;
+	action:
+		| 'RECIPE_CREATED'
+		| 'RECIPE_DISCONTINUED'
+		| 'RECIPE_RESTORED'
+		| 'VERSION_CREATED'
+		| 'VERSION_UPDATED'
+		| 'VERSION_NOTES_UPDATED'
+		| 'VERSION_ACTIVATED'
+		| 'DEPENDENCY_UPDATED';
+	description: string;
+	createdAt: string;
+	versionId: string | null;
+	actor: { id: string; name: string | null; phone: string } | null;
+	metadata: {
+		targetVersion?: number | null;
+		isActive?: boolean;
+		previousVersion?: number | null;
+		activatedVersion?: number | null;
+		version?: number;
+		before?: string | null;
+		after?: string | null;
+		changeSummary?: RecipeVersionChangeSummary;
+	} | null;
+}
+
 export interface DependencyUpgradeItem {
 	familyId: string;
 	familyName: string;
 	type: RecipeType;
 	currentVersionId: string;
-	currentVersion: number;
-	nextVersion: number;
+	updatedDependencyFamilyIds: string[];
 	depth: number;
 }
 
 export interface DependencyUpgradePlan {
 	sourceFamilyId: string;
 	sourceVersionId: string;
-	sourceVersion: number;
 	affectedRecipes: DependencyUpgradeItem[];
 }
 
@@ -331,6 +358,18 @@ export interface ApplyDependencyUpgradeResult {
 		versionId: string;
 		version: number;
 	}>;
+}
+
+export interface PendingDependencyItem {
+	familyId: string;
+	familyName: string;
+}
+
+export interface PendingDependencyUpgradePlan {
+	familyId: string;
+	familyName: string;
+	currentVersionId: string;
+	dependencies: PendingDependencyItem[];
 }
 
 // [G-Code-Note] [核心重构] ComponentIngredient 现在反映 _sanitizeFamily 的输出

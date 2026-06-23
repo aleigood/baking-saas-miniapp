@@ -48,15 +48,8 @@
 													<text class="name-text">{{ family.name }}</text>
 													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 												</view>
-												<view class="desc recipe-meta-tags">
-													<view class="meta-tag">
-														<text class="meta-label">版本数</text>
-														<text class="meta-value">{{ family.versionCount || 0 }}</text>
-													</view>
-													<view class="meta-tag">
-														<text class="meta-label">产品数</text>
-														<text class="meta-value">{{ family.productCount ?? (family.productNames?.length || 0) }}</text>
-													</view>
+												<view class="desc">
+													版本数: {{ family.versionCount || 0 }} · 产品数: {{ family.productCount ?? (family.productNames?.length || 0) }}
 												</view>
 											</view>
 										</view>
@@ -74,16 +67,7 @@
 													<text class="name-text">{{ family.name }}</text>
 													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 												</view>
-												<view class="desc recipe-meta-tags">
-													<view class="meta-tag">
-														<text class="meta-label">版本数</text>
-														<text class="meta-value">{{ family.versionCount || 0 }}</text>
-													</view>
-													<view class="meta-tag">
-														<text class="meta-label">引用数</text>
-														<text class="meta-value">{{ family.usageCount || 0 }}</text>
-													</view>
-												</view>
+												<view class="desc">版本数: {{ family.versionCount || 0 }} · 引用次数: {{ family.usageCount || 0 }}</view>
 											</view>
 										</view>
 										<view class="side-info">
@@ -107,7 +91,7 @@
 					<EmptyState
 						v-else-if="isInitialFetchDone"
 						:key="'recipes-empty-all'"
-						icon="/static/icons/empty-box.svg"
+						icon="/static/icons/empty-list.svg"
 						title="暂无配方"
 						subtitle="暂无任何配方，快去创建吧！"
 					/>
@@ -594,37 +578,6 @@ const confirmDeleteRecipe = async () => {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-}
-
-/* 配方描述数据标签组 */
-.recipe-meta-tags {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	margin-top: 6px;
-}
-
-.meta-tag {
-	display: inline-flex;
-	align-items: center;
-	background-color: rgba(244, 237, 226, 0.4); /* 极清透温暖的燕麦底色 */
-	border-radius: 4px;
-	padding: 0 6px 0 5px; /* 调整内边距适应左侧吊牌孔 */
-	height: 18px;
-	font-size: 10px;
-	box-sizing: border-box;
-	line-height: 1;
-}
-
-.meta-label {
-	color: #ab9d88; /* 灰褐色标签名 */
-	margin-right: 3px;
-	font-weight: 500;
-}
-
-.meta-value {
-	color: #ab9d88; /* 焦糖褐色数值 */
-	font-weight: 500;
 }
 
 /* 暂无版本样式 */

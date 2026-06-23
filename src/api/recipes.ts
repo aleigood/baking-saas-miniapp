@@ -13,9 +13,11 @@ import type {
 	BatchImportRecipeDto,
 	BatchImportResult,
 	DependencyUpgradePlan,
+	PendingDependencyUpgradePlan,
 	ProductsForTaskResponse,
 	RecipeFamily,
 	RecipeFormTemplate,
+	RecipeOperationLog,
 	RecipesListResponse,
 	RecipeVersion
 } from '@/types/api';
@@ -106,6 +108,21 @@ export function applyDependencyUpgrades(familyId: string, versionId: string): Pr
 	});
 }
 
+export function getPendingDependencyUpgrades(familyId: string): Promise<PendingDependencyUpgradePlan> {
+	return request<PendingDependencyUpgradePlan>({
+		url: `/recipes/${familyId}/pending-dependency-upgrades`,
+		method: 'GET',
+		hideErrorToast: true
+	});
+}
+
+export function applyPendingDependencyUpgrades(familyId: string): Promise<ApplyDependencyUpgradeResult> {
+	return request<ApplyDependencyUpgradeResult>({
+		url: `/recipes/${familyId}/pending-dependency-upgrades/apply`,
+		method: 'POST'
+	});
+}
+
 /**
  * [核心新增] 修改一个尚未被使用的配方版本
  * @param familyId 配方家族的ID
@@ -117,6 +134,21 @@ export function updateRecipeVersion(familyId: string, versionId: string, updateD
 		url: `/recipes/${familyId}/versions/${versionId}`,
 		method: 'PATCH',
 		data: updateDto
+	});
+}
+
+export function updateRecipeVersionNotes(familyId: string, versionId: string, notes: string): Promise<RecipeVersion> {
+	return request<RecipeVersion>({
+		url: `/recipes/${familyId}/versions/${versionId}/notes`,
+		method: 'PATCH',
+		data: { notes }
+	});
+}
+
+export function getRecipeOperationLogs(familyId: string): Promise<RecipeOperationLog[]> {
+	return request<RecipeOperationLog[]>({
+		url: `/recipes/${familyId}/operation-logs`,
+		method: 'GET'
 	});
 }
 

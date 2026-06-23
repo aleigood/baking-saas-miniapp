@@ -15,21 +15,22 @@
 				@longpress="$emit('longpress-version', version)"
 				:vibrate-on-long-press="canEdit"
 				:bleed="true"
-				:divider="index < versions.length - 1"
+				:divider="true"
 			>
 				<view class="version-item-wrapper">
-					<!-- 第一行：配方名称 + 双色版本胶囊 + 状态标签 (左) 与 创建日期 (右) -->
+					<!-- 第一行：配方名称、版本说明与当前状态 -->
 					<view class="version-item-header">
 						<view class="header-left">
 							<text class="recipe-name">{{ recipeName }}</text>
-							<text class="version-tag">V{{ version.version }}{{ version.notes ? ' ' + version.notes : '' }}</text>
+							<text class="version-tag">
+								V{{ version.version }}{{ version.notes ? ` ${version.notes}` : '' }}
+							</text>
 							<text v-if="version.isActive" class="status-tag active">使用中</text>
 						</view>
-						<text class="version-date">{{ formatChineseDate(version.createdAt) }}</text>
 					</view>
 
-					<!-- 第二行：修改项摘要（支持折行，没有变更摘要则不显示此区域） -->
-					<view v-if="version.changeSummary && parseChangeSummary(version.changeSummary).length > 0" class="version-item-body">
+					<!-- 第二行：修改项摘要 -->
+					<view v-if="parseChangeSummary(version.changeSummary).length > 0" class="version-item-body">
 						<view class="change-tags-list">
 							<view 
 								v-for="(item, idx) in parseChangeSummary(version.changeSummary)" 
@@ -45,14 +46,15 @@
 			</ListItem>
 		</template>
 		<view v-else class="empty-state" style="padding: 20px 0">暂无版本信息</view>
+		<AppButton v-if="canEdit" type="text-link" @click="$emit('create-version')">+ 创建新版本</AppButton>
 	</view>
 </template>
 
 <script setup lang="ts">
 import type { PropType } from 'vue';
 import type { RecipeVersion, RecipeVersionChangeItem } from '@/types/api';
-import { formatChineseDate } from '@/utils/format';
 import ListItem from '@/components/ListItem.vue';
+import AppButton from '@/components/AppButton.vue';
 
 defineProps({
 	recipeName: {
@@ -77,7 +79,7 @@ defineProps({
 	}
 });
 
-defineEmits(['select-version', 'longpress-version']);
+defineEmits(['select-version', 'longpress-version', 'create-version']);
 
 const formatNumber = (value: number) => Number(value.toFixed(4)).toString();
 
@@ -86,7 +88,7 @@ const formatNumber = (value: number) => Number(value.toFixed(4)).toString();
 const formatValue = (value: number | undefined, unit?: RecipeVersionChangeItem['unit']) => {
 	const numericValue = value ?? 0;
 	if (unit === 'RATIO') return `${formatNumber(numericValue * 100)}%`;
-	if (unit === 'PERCENT') return `${formatNumber(numericValue)}%`;
+	if (unit === 'PERCENT') return `${Number(numericValue.toFixed(1))}%`;
 	if (unit === 'GRAM') return `${formatNumber(numericValue)}g`;
 	if (unit === 'CELSIUS') return `${formatNumber(numericValue)}℃`;
 	return formatNumber(numericValue);
@@ -110,10 +112,8 @@ const productIngredientPrefix = (item: RecipeVersionChangeItem) =>
 
 const formatDependencyChange = (item: RecipeVersionChangeItem) => {
 	const prefix = productIngredientPrefix(item);
-	if (item.beforeVersion !== undefined && item.afterVersion !== undefined) {
-		return `${prefix}${item.name || '子配方'} V${item.beforeVersion}→V${item.afterVersion}`;
-	}
-	return `${prefix}${item.name || '子配方'}版本更新`;
+	const name = item.name || '子配方';
+	return `${prefix}更新${name}${name.endsWith('配方') ? '' : '配方'}`;
 };
 
 const formatChangeItem = (item: RecipeVersionChangeItem) => {
@@ -188,6 +188,15 @@ const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 .card-full-bleed-list .card-title-wrapper {
 	padding-left: 20px;
 	padding-right: 20px;
+}
+
+.create-version-action {
+	padding: 0 20px;
+}
+
+.create-version-divider {
+	height: 1px;
+	background: var(--border-color);
 }
 
 .title-with-tag {
@@ -276,12 +285,6 @@ const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 	}
 }
 
-.version-date {
-	font-size: 11px;
-	color: #ab9d88;
-	flex-shrink: 0;
-}
-
 .version-item-body {
 	width: 100%;
 }
@@ -319,6 +322,7 @@ const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 		color: #b06000;
 		/* 没有 border */
 	}
+
 }
 
 /* no-change-tag 已移除 */

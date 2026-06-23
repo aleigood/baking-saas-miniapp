@@ -55,7 +55,7 @@
 							<template v-if="ing.type === 'SELF_MADE'">
 								<view class="main-info">
 									<view class="name">{{ ing.name }}</view>
-									<view class="desc">{{ getRecipeIngredientCount(ing) }} 种原料</view>
+									<view class="desc">原料种类: {{ getRecipeIngredientCount(ing) }}</view>
 								</view>
 								<view class="side-info">
 									<view class="value">
@@ -79,7 +79,7 @@
 											<text>¥{{ formatMoney(ing.unitPricePerGram || 0) }}</text>
 											<text class="price-unit">/g</text>
 										</template>
-										<template v-else><text style="color: var(--text-secondary); font-size: 13px;">不计入</text></template>
+										<template v-else><text style="color: var(--text-secondary); font-size: 13px">不计入</text></template>
 									</view>
 								</view>
 							</template>
