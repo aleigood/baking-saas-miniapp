@@ -388,7 +388,7 @@ watch(displayedVersionId, (newId) => {
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
 
 const canEditRecipe = computed(() => {
-	return (currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN') && recipeFamily.value?.freeTierEnabled !== false;
+	return (currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN') && recipeFamily.value?.readOnly !== true;
 });
 
 const recipeFabActions = computed(() => {

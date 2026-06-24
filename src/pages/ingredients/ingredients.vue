@@ -7,20 +7,36 @@
 				v-if="hasBeenActivated"
 				:key="'ingredients-content'"
 			>
+				<view class="content-padding">
+					<view class="card">
+						<view class="card-title"><span>本月原料消耗排行</span></view>
+						<view v-if="ingredientConsumptionRanking.length > 0" class="ranking-list">
+							<view v-for="(item, index) in ingredientConsumptionRanking.slice(0, 10)" :key="item.id" class="ranking-item">
+								<text class="rank">{{ index + 1 }}</text>
+								<text class="name">{{ item.name }}</text>
+								<text class="count">{{ formatConsumption(item.monthlyConsumptionInGrams || 0) }}</text>
+							</view>
+						</view>
+						<view v-else :key="'stats-empty'" class="empty-state">
+							<text>暂无排行信息</text>
+						</view>
+					</view>
+				</view>
+
 				<view class="tools-bar">
-					<view class="filter-capsule" id="filter-capsule-btn" @touchstart="handleTouchStart($event, 'filter')" @click="showFilterSelector = true">
-						<span v-for="ripple in ripples['filter']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
+					<view class="filter-capsule" :class="{ active: sortMode.startsWith('name_') }" id="name-sort-capsule-btn" @touchstart="handleTouchStart($event, 'name')" @click="toggleSort('name')">
+						<span v-for="ripple in ripples['name']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 						<view class="capsule-content">
-							<text>{{ currentFilterLabel }}</text>
-							<view class="arrow-down"></view>
+							<text>名称</text>
+							<image class="sort-icon-mini" :src="getSortIcon('name')" />
 						</view>
 					</view>
 
-					<view class="filter-capsule" id="sort-capsule-btn" @touchstart="handleTouchStart($event, 'sort')" @click="toggleSort">
-						<span v-for="ripple in ripples['sort']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
+					<view class="filter-capsule" :class="{ active: sortMode.startsWith('price_') }" id="price-sort-capsule-btn" @touchstart="handleTouchStart($event, 'price')" @click="toggleSort('price')">
+						<span v-for="ripple in ripples['price']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 						<view class="capsule-content">
-							<text>{{ currentSortLabel }}</text>
-							<image class="sort-icon-mini" :src="sortIconSrc" />
+							<text>单价</text>
+							<image class="sort-icon-mini" :src="getSortIcon('price')" />
 						</view>
 					</view>
 
@@ -52,37 +68,22 @@
 							:animate-on-mount="triggerListAnimation"
 							:animation-index="index"
 						>
-							<template v-if="ing.type === 'SELF_MADE'">
-								<view class="main-info">
-									<view class="name">{{ ing.name }}</view>
-									<view class="desc">原料种类: {{ getRecipeIngredientCount(ing) }}</view>
+							<view class="main-info">
+								<view class="name">{{ ing.name }}</view>
+								<view class="desc" v-if="ing.type !== 'STANDARD' || ing.activeSku?.brand">
+									<template v-if="ing.type === 'STANDARD'">{{ ing.activeSku?.brand }}</template>
+									<template v-else>{{ getIngredientTypeLabel(ing.type) }}</template>
 								</view>
-								<view class="side-info">
-									<view class="value">
+							</view>
+							<view class="side-info">
+								<view class="value">
+									<template v-if="ing.type === 'STANDARD' || ing.type === 'NON_INVENTORIED'">
 										<text class="price-amount"><text class="currency">¥</text>{{ formatMoney(ing.unitPricePerGram || 0) }}</text>
 										<text class="price-unit">/g</text>
-									</view>
+									</template>
+									<template v-else><text style="color: var(--text-secondary); font-size: 13px">不计入</text></template>
 								</view>
-							</template>
-
-							<template v-else>
-								<view class="main-info">
-									<view class="name">{{ ing.name }}</view>
-									<view class="desc">
-										<template v-if="ing.type === 'STANDARD'">品牌: {{ ing.activeSku?.brand || '未设置' }}</template>
-										<template v-else>{{ getIngredientTypeLabel(ing.type) }}</template>
-									</view>
-								</view>
-								<view class="side-info">
-									<view class="value">
-										<template v-if="ing.type === 'STANDARD' || ing.type === 'NON_INVENTORIED'">
-											<text class="price-amount"><text class="currency">¥</text>{{ formatMoney(ing.unitPricePerGram || 0) }}</text>
-											<text class="price-unit">/g</text>
-										</template>
-										<template v-else><text style="color: var(--text-secondary); font-size: 13px">不计入</text></template>
-									</view>
-								</view>
-							</template>
+							</view>
 						</ListItem>
 					</view>
 					<EmptyState v-else-if="isInitialFetchDone" :key="'ingredients-empty'" icon="/static/icons/empty-list.svg" title="暂无原料" subtitle="暂无符合条件的原料" />
@@ -94,6 +95,9 @@
 				:key="'ingredients-skeleton'"
 				class="page-content page-content-with-tabbar-fab no-horizontal-padding skeleton-overlay"
 			>
+				<view class="content-padding">
+					<SkeletonCard mode="ranking" />
+				</view>
 				<view class="tools-bar" style="margin-bottom: 4px">
 					<view class="skeleton-block shimmer" style="width: 70px; height: 32px; border-radius: 16px"></view>
 					<view class="skeleton-block shimmer" style="width: 70px; height: 32px; border-radius: 16px"></view>
@@ -107,19 +111,6 @@
 		</RefreshableLayout>
 
 		<ExpandingFab :actions="fabActions" :visible="isFabVisible" />
-
-		<AppModal :visible="showFilterSelector" :key="'filter-selector-modal'" @update:visible="showFilterSelector = false" title="选择原料类型" :no-header-line="true">
-			<view class="options-list">
-				<ListItem v-for="option in filterOptions" :key="option.key" @click="handleFilterSelect(option.key)" class="option-item" :bleed="true">
-					<view class="main-info">
-						<view class="name">{{ option.label }}</view>
-					</view>
-					<view class="side-info" v-if="activeFilter === option.key">
-						<view class="value checkmark-icon">✓</view>
-					</view>
-				</ListItem>
-			</view>
-		</AppModal>
 
 		<AppModal v-model:visible="showIngredientActionsModal" :key="'ingredient-actions-modal'" title="原料操作" :no-header-line="true">
 			<view class="options-list">
@@ -187,6 +178,7 @@ import FormItem from '@/components/FormItem.vue';
 import RefreshableLayout from '@/components/RefreshableLayout.vue';
 import { formatMoney, multiply } from '@/utils/format';
 import EmptyState from '@/components/EmptyState.vue';
+import SkeletonCard from '@/components/SkeletonCard.vue';
 
 // 修改：引入新的组件
 import SkeletonListItem from '@/components/SkeletonListItem.vue';
@@ -202,14 +194,6 @@ const isInitialFetchDone = ref(false);
 
 const instance = getCurrentInstance();
 const ripples = reactive<Record<string, any[]>>({});
-
-const activeFilter = ref('standard');
-const showFilterSelector = ref(false);
-
-const filterOptions = [
-	{ key: 'standard', label: '基础' },
-	{ key: 'self_made', label: '自制' }
-];
 
 const isSubmitting = ref(false);
 const selectedIngredient = ref<Ingredient | null>(null);
@@ -229,10 +213,15 @@ const triggerListAnimation = ref(false);
 const isFirstLoad = ref(true);
 
 const filterKeyword = ref('');
-type SortMode = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'production_asc' | 'production_desc';
+type SortField = 'name' | 'price';
+type SortMode = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc';
 const sortMode = ref<SortMode>('name_asc');
-const standardSortModes: SortMode[] = ['name_asc', 'name_desc', 'price_asc', 'price_desc'];
-const selfMadeSortModes: SortMode[] = ['name_asc', 'name_desc', 'price_asc', 'price_desc'];
+
+const pinyinCollator = new Intl.Collator('zh-CN-u-co-pinyin', {
+	usage: 'sort',
+	sensitivity: 'base',
+	numeric: true
+});
 
 const newIngredientForm = reactive<{
 	name: string;
@@ -301,75 +290,46 @@ const handleTouchStart = (event: any, key: string) => {
 		.exec();
 };
 
-const handleFilterSelect = (key: string) => {
-	activeFilter.value = key;
-	showFilterSelector.value = false;
-	sortMode.value = 'name_asc';
+const toggleSort = (field: SortField) => {
+	if (sortMode.value.startsWith(`${field}_`)) {
+		sortMode.value = `${field}_${sortMode.value.endsWith('_asc') ? 'desc' : 'asc'}` as SortMode;
+	} else {
+		sortMode.value = `${field}_asc` as SortMode;
+	}
 	triggerListAnimationWithKeyUpdate(true);
 };
 
-const currentFilterLabel = computed(() => {
-	const option = filterOptions.find((o) => o.key === activeFilter.value);
-	return option ? option.label : '筛选';
-});
-
-const toggleSort = () => {
-	const modes = activeFilter.value === 'self_made' ? selfMadeSortModes : standardSortModes;
-	const currentIndex = modes.indexOf(sortMode.value);
-	sortMode.value = modes[(currentIndex + 1) % modes.length];
-	triggerListAnimationWithKeyUpdate(true);
-};
-
-const currentSortLabel = computed(() => {
-	const labels: Record<SortMode, string> = {
-		name_asc: '名称',
-		name_desc: '名称',
-		price_asc: '单价',
-		price_desc: '单价',
-		production_asc: '制作',
-		production_desc: '制作'
-	};
-	return labels[sortMode.value];
-});
-
-const currentSortDirection = computed(() => (sortMode.value.endsWith('_asc') ? 'up' : 'down'));
-
-const sortIconSrc = computed(() => {
-	return currentSortDirection.value === 'up' ? '/static/icons/sort-up.svg' : '/static/icons/sort-down.svg';
-});
-
-const getSelfMadeRecipeFamily = (ing: Ingredient) => {
-	const allRecipes = [...dataStore.recipes.preDoughs, ...dataStore.recipes.extras];
-	return allRecipes.find((r) => r.id === ing.recipeFamilyId) || allRecipes.find((r) => r.name === ing.name);
-};
-
-const getRecipeIngredientCount = (ing: Ingredient) => {
-	const family = getSelfMadeRecipeFamily(ing);
-	return family?.ingredientCount || 0;
-};
-
-const getSelfMadeProductionCount = (ing: Ingredient) => {
-	const family = getSelfMadeRecipeFamily(ing);
-	return family?.productionTaskCount || 0;
-};
+const getSortIcon = (field: SortField) =>
+	sortMode.value === `${field}_desc` ? '/static/icons/sort-down.svg' : '/static/icons/sort-up.svg';
 
 const getIngredientUnitPrice = (ing: Ingredient) => {
 	return ing.unitPricePerGram || 0;
 };
 
-const getIngredientUnitPriceLabel = (ing: Ingredient) => {
-	const price = getIngredientUnitPrice(ing);
-	return price > 0 ? `¥${formatMoney(price)}/kg` : '¥0.00';
+const basicIngredients = computed(() =>
+	dataStore.ingredients.allIngredients.filter((ingredient) => ingredient.type !== 'SELF_MADE')
+);
+
+const ingredientConsumptionRanking = computed(() =>
+	[...basicIngredients.value]
+		.filter((ingredient) => (ingredient.monthlyConsumptionInGrams || 0) > 0)
+		.sort((a, b) => (b.monthlyConsumptionInGrams || 0) - (a.monthlyConsumptionInGrams || 0))
+);
+
+const formatConsumption = (grams: number) => {
+	if (grams >= 1000) return `${Number((grams / 1000).toFixed(2))} kg`;
+	return `${Number(grams.toFixed(1))} g`;
+};
+
+const compareIngredientNames = (a: string, b: string) => {
+	const normalizedA = a.trim();
+	const normalizedB = b.trim();
+	const firstCharacterComparison = pinyinCollator.compare(normalizedA.charAt(0), normalizedB.charAt(0));
+	return firstCharacterComparison || pinyinCollator.compare(normalizedA, normalizedB);
 };
 
 const filteredIngredients = computed(() => {
-	let list = [...dataStore.ingredients.allIngredients];
-
-	if (activeFilter.value === 'standard') {
-		list = list.filter((i) => i.type === 'STANDARD' || i.type === 'NON_INVENTORIED' || i.type === 'UNTRACKED');
-	} else if (activeFilter.value === 'self_made') {
-		list = list.filter((i) => i.type === 'SELF_MADE');
-	}
+	let list = [...basicIngredients.value];
 
 	if (filterKeyword.value) {
 		const kw = filterKeyword.value.toLowerCase();
@@ -383,27 +343,16 @@ const filteredIngredients = computed(() => {
 	return list.sort((a, b) => {
 		switch (sortMode.value) {
 			case 'name_desc':
-				return b.name.localeCompare(a.name, 'zh-Hans-CN');
+				return compareIngredientNames(b.name, a.name);
 			case 'price_asc':
 				return getIngredientUnitPrice(a) - getIngredientUnitPrice(b);
 			case 'price_desc':
 				return getIngredientUnitPrice(b) - getIngredientUnitPrice(a);
-			case 'production_asc':
-				return getSelfMadeProductionCount(a) - getSelfMadeProductionCount(b);
-			case 'production_desc':
-				return getSelfMadeProductionCount(b) - getSelfMadeProductionCount(a);
 			case 'name_asc':
 			default:
-				return a.name.localeCompare(b.name, 'zh-Hans-CN');
+				return compareIngredientNames(a.name, b.name);
 		}
 	});
-});
-
-watch(activeFilter, () => {
-	const modes = activeFilter.value === 'self_made' ? selfMadeSortModes : standardSortModes;
-	if (!modes.includes(sortMode.value)) {
-		sortMode.value = 'name_asc';
-	}
 });
 
 const currentTypeLabel = computed(() => {
@@ -419,7 +368,7 @@ const loadDataIfNeeded = async () => {
 	if (uiStore.activeTab !== 'ingredients') return;
 
 	const isFirstTimeOpening = !hasBeenActivated.value;
-	const needsFetch = dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients || dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes;
+	const needsFetch = dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients;
 
 	if (isFirstTimeOpening) {
 		hasBeenActivated.value = true;
@@ -427,14 +376,8 @@ const loadDataIfNeeded = async () => {
 	}
 
 	try {
-		let didFetch = false;
 		if (dataStore.dataStale.ingredients || !dataStore.dataLoaded.ingredients) {
 			await dataStore.fetchIngredientsData();
-			didFetch = true;
-		}
-		if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
-			await dataStore.fetchRecipesData();
-			didFetch = true;
 		}
 		isInitialFetchDone.value = true;
 	} catch (error) {
@@ -478,8 +421,7 @@ onShow(() => {
 const handleRefresh = async () => {
 	try {
 		dataStore.markIngredientsAsStale();
-		dataStore.markRecipesAsStale();
-		await Promise.all([dataStore.fetchIngredientsData(), dataStore.fetchRecipesData()]);
+		await dataStore.fetchIngredientsData();
 	} finally {
 		refreshableLayout.value?.finishRefresh();
 		setTimeout(() => {
@@ -621,12 +563,56 @@ const handleCreateIngredient = async () => {
 	flex-direction: column;
 }
 
+.content-padding {
+	padding: 0 15px;
+}
+
 .tools-bar {
 	display: flex;
 	align-items: center;
 	padding: 10px 15px;
 	gap: 10px;
 }
+
+.ranking-list {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 15px 25px;
+	padding-top: 10px;
+}
+
+.ranking-item {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	font-size: 14px;
+
+	.name {
+		flex: 1;
+		min-width: 0;
+		margin: 0 8px 0 4px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		color: var(--text-primary);
+	}
+}
+
+.rank {
+	width: 12px;
+	flex-shrink: 0;
+	font-style: italic;
+	font-weight: 700;
+	color: var(--accent-color);
+}
+
+.count {
+	flex-shrink: 0;
+	font-size: 13px;
+	color: var(--text-secondary);
+}
+
+
 
 .filter-capsule {
 	position: relative;
@@ -646,6 +632,12 @@ const handleCreateIngredient = async () => {
 	font-weight: 500;
 	cursor: pointer;
 	-webkit-tap-highlight-color: transparent;
+	transition: background-color 0.2s ease, color 0.2s ease;
+
+	&.active {
+		background-color: #eadbd1;
+		color: var(--primary-color);
+	}
 
 	.capsule-content {
 		position: relative;

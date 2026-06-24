@@ -36,8 +36,8 @@ export const useSystemStore = defineStore('system', () => {
 			navBarHeight.value = menuButtonInfo.height;
 			// 2. 内容区距离屏幕顶部的距离 = 胶囊按钮顶部位置
 			navBarContentTop.value = menuButtonInfo.top;
-			// 3. 整个自定义导航栏的总高度 = 胶囊按钮底部位置 + 28px 的额外边距 (可以按需调整)
-			headerHeight.value = menuButtonInfo.bottom + 28;
+			// 3. 整个自定义导航栏的总高度 = 胶囊按钮底部位置 + 28px 的额外边距 (可以按需调整，保底88px)
+			headerHeight.value = Math.max(88, menuButtonInfo.bottom ? (menuButtonInfo.bottom + 28) : 88);
 			// #endif
 
 			// #ifdef H5

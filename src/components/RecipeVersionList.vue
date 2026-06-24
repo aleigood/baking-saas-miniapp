@@ -119,23 +119,23 @@ const formatChangeItem = (item: RecipeVersionChangeItem) => {
 		case 'LEGACY_TEXT':
 			return item.text || '历史修改记录';
 		case 'INGREDIENT_ADDED':
-			return `新增 ${item.name}${item.basis === 'FLOUR_SHARE' ? '面粉占比' : ''}${item.after !== undefined ? ` ${formatValue(item.after, item.unit)}` : ''}`;
+			return `+ ${item.name}${item.basis === 'FLOUR_SHARE' ? '面粉占比' : ''}${item.after !== undefined ? ` ${formatValue(item.after, item.unit)}` : ''}`;
 		case 'INGREDIENT_REMOVED':
-			return `移除 ${item.name}${item.basis === 'FLOUR_SHARE' ? '面粉占比' : ''}${item.before !== undefined ? ` ${formatValue(item.before, item.unit)}` : ''}`;
+			return `- ${item.name}`;
 		case 'INGREDIENT_RATIO_CHANGED':
 			return `${item.name}${item.basis === 'FLOUR_SHARE' ? '面粉占比' : ''} ${formatDelta(item)}`;
 		case 'DEPENDENCY_VERSION_CHANGED':
 			return formatDependencyChange(item);
 		case 'PRODUCT_ADDED':
-			return `新增产品 ${item.name}`;
+			return `+ 产品 ${item.name}`;
 		case 'PRODUCT_REMOVED':
-			return `移除产品 ${item.name}`;
+			return `- 产品 ${item.name}`;
 		case 'PRODUCT_WEIGHT_CHANGED':
 			return `${item.name} ${formatDelta(item)}`;
 		case 'PRODUCT_INGREDIENT_ADDED':
-			return `${productIngredientPrefix(item)}新增${item.name} ${formatValue(item.after, item.unit)}${item.unit === 'GRAM' ? '/个' : ''}`;
+			return `${productIngredientPrefix(item)}+ ${item.name} ${formatValue(item.after, item.unit)}${item.unit === 'GRAM' ? '/个' : ''}`;
 		case 'PRODUCT_INGREDIENT_REMOVED':
-			return `${productIngredientPrefix(item)}移除${item.name}`;
+			return `${productIngredientPrefix(item)}- ${item.name}`;
 		case 'PRODUCT_INGREDIENT_AMOUNT_CHANGED':
 			return `${productIngredientPrefix(item)}${item.name} ${formatDelta(item)}${item.unit === 'GRAM' ? '/个' : ''}`;
 		case 'PROCEDURE_CHANGED':
@@ -153,9 +153,9 @@ const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 			if (!text) return null;
 
 			let direction: 'up' | 'down' | 'neutral' = 'neutral';
-			if (text.includes('↑') || text.includes('新增')) {
+			if (text.includes('↑') || text.includes('+')) {
 				direction = 'up';
-			} else if (text.includes('↓') || text.includes('移除')) {
+			} else if (text.includes('↓') || text.includes('-')) {
 				direction = 'down';
 			}
 

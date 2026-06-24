@@ -1,7 +1,7 @@
 <template>
 	<view class="page-wrapper">
 		<view class="page-content page-content-with-tabbar">
-			<view class="profile-section ripple-container" @click="navigateToCurrentUserDetail" :style="{ marginTop: systemStore.headerHeight + 10 + 'px' }">
+			<view class="profile-section ripple-container" @click="navigateToCurrentUserDetail" :style="{ marginTop: (systemStore.headerHeight || 88) + 10 + 'px' }">
 				<view class="avatar-wrapper">
 					<view class="avatar">
 						<image v-if="userStore.userInfo && userStore.userInfo.avatarUrl" :src="userStore.userInfo.avatarUrl" class="avatar-image"></image>
@@ -9,11 +9,17 @@
 					</view>
 				</view>
 				<view class="user-info">
-					<view class="name">{{ userStore.userInfo?.name || '未设置昵称' }}</view>
-					<view class="role-badge">{{ currentTenantRoleDisplay }}</view>
-					<view class="subscription-meta" :class="{ active: subscriptionSummary?.fullAccess }">
-						<view class="subscription-indicator"></view>
-						<text>{{ subscriptionDisplayText }}</text>
+					<view class="user-name-row">
+						<text class="name">{{ userStore.userInfo?.name || '未设置昵称' }}</text>
+						<text class="role-badge">{{ currentTenantRoleDisplay }}</text>
+					</view>
+
+					<!-- 极简无边界排版：VIP文本流 -->
+					<view v-if="subscriptionSummary" class="vip-text-flow" :class="subscriptionSummary.state.toLowerCase()" @click.stop="navigateToBenefits">
+						<text class="vip-title">{{ vipTitle }}</text>
+						<text class="vip-divider" v-if="vipDate">·</text>
+						<text class="vip-date" v-if="vipDate">{{ vipDate }}</text>
+						<text class="vip-arrow">›</text>
 					</view>
 				</view>
 				<view class="arrow-icon">&#10095;</view>
@@ -59,11 +65,11 @@
 						<view class="action-right">&#10095;</view>
 					</view>
 				</ListItem>
-				<ListItem :key="'item-subscription'" class="action-item" @click="navigateToSubscription" :bleed="true" :divider="false">
+				<ListItem :key="'item-subscription'" class="action-item" @click="navigateToManageSubscription" :bleed="true" :divider="false">
 					<view class="action-item-content">
 						<view class="action-left">
 							<image class="action-icon" src="/static/icons/vip.svg" />
-							<text>版本权益与价格</text>
+							<text>管理订阅</text>
 						</view>
 						<view class="action-right">&#10095;</view>
 					</view>
@@ -75,7 +81,13 @@
 			</view>
 		</view>
 
-		<AppModal ref="logoutModalRef" :visible="uiStore.showLogoutConfirmModal" :key="'logout-confirm-modal'" @update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)" title="退出登录">
+		<AppModal
+			ref="logoutModalRef"
+			:visible="uiStore.showLogoutConfirmModal"
+			:key="'logout-confirm-modal'"
+			@update:visible="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)"
+			title="退出登录"
+		>
 			<view class="modal-prompt-text">您确定要退出登录吗？</view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.LOGOUT_CONFIRM)">取消</AppButton>
@@ -167,13 +179,26 @@ const currentTenantRoleDisplay = computed(() => {
 	return currentUserRoleInTenant.value ? getRoleName(currentUserRoleInTenant.value) : '未知角色';
 });
 
-const subscriptionDisplayText = computed(() => {
-	if (!subscriptionLoaded.value) return '订阅信息加载中';
-	if (!subscriptionSummary.value) return '暂无法获取订阅信息';
-	if (subscriptionSummary.value.state === 'FREE') return '当前为免费版';
-	if (subscriptionSummary.value.state === 'TRIAL') return `专业版试用至 ${formatChineseDate(subscriptionSummary.value.entitledUntil!)}`;
-	if (subscriptionSummary.value.state === 'GRACE') return `宽限期至 ${formatChineseDate(subscriptionSummary.value.graceEndsAt!)}`;
-	return `专业版至 ${formatChineseDate(subscriptionSummary.value.entitledUntil!)}`;
+const vipTitle = computed(() => {
+	if (!subscriptionLoaded.value) return '加载中...';
+	if (!subscriptionSummary.value) return '';
+	const state = subscriptionSummary.value.state;
+	if (state === 'FREE') return '免费版';
+	if (state === 'TRIAL') return '专业版试用';
+	if (state === 'GRACE') return '订阅已到期';
+	if (state === 'PAID') return '专业尊享版';
+	return '';
+});
+
+const vipDate = computed(() => {
+	if (!subscriptionSummary.value) return '';
+	const state = subscriptionSummary.value.state;
+	if (state === 'FREE' || state === 'GRACE') return '';
+	if (subscriptionSummary.value.entitledUntil) {
+		const date = new Date(subscriptionSummary.value.entitledUntil);
+		return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} 到期`;
+	}
+	return '';
 });
 
 const navigateToCurrentUserDetail = () => {
@@ -200,10 +225,16 @@ const navigateToTenantList = () => {
 	});
 };
 
-const navigateToSubscription = () => {
+const navigateToBenefits = () => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
 	uni.navigateTo({ url: '/pages/subscription/benefits' });
+};
+
+const navigateToManageSubscription = () => {
+	if (isNavigating.value) return;
+	isNavigating.value = true;
+	uni.navigateTo({ url: '/pages/subscription/subscription' });
 };
 
 const handleOpenLogoutConfirm = () => {
@@ -302,7 +333,7 @@ const handleLogout = () => {
 .profile-section {
 	display: flex;
 	align-items: center;
-	padding: 15px 10px;
+	padding: 15px 15px;
 	border-radius: 20px;
 	margin-bottom: 25px;
 	position: relative;
@@ -345,49 +376,101 @@ const handleLogout = () => {
 	font-size: 20px;
 	font-weight: 700;
 	color: var(--text-primary);
-	margin-bottom: 4px;
+	margin-bottom: 0;
+}
+
+.user-name-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
 }
 
 .role-badge {
 	display: inline-block;
-	font-size: 12px;
+	font-size: 11px;
 	color: var(--primary-color);
 	background-color: rgba(212, 163, 115, 0.12);
-	padding: 3px 10px;
-	border-radius: 12px;
+	padding: 2px 8px;
+	border-radius: 10px;
 	font-weight: 500;
 }
 
-.subscription-meta {
-	display: flex;
+/* 顶级 UI/UX：无边界排版流设计 */
+.vip-text-flow {
+	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	margin-top: 7px;
-	font-size: 12px;
-	line-height: 1.4;
-	color: var(--text-secondary);
-}
+	margin-top: 8px;
+	padding: 2px 8px 2px 0; /* 右侧留白增加点击区域，左侧无需内边距以对齐名字 */
+	transition: opacity 0.2s ease;
+	color: var(--primary-color);
 
-.subscription-indicator {
-	width: 7px;
-	height: 7px;
-	border-radius: 50%;
-	background-color: #b8b8b8;
-	flex-shrink: 0;
-}
+	&:active {
+		opacity: 0.5;
+	}
 
-.subscription-meta.active {
-	color: #7a5a2f;
-}
+	.vip-title {
+		font-size: 13px;
+		font-weight: 600;
+		letter-spacing: 0.2px;
+	}
 
-.subscription-meta.active .subscription-indicator {
-	background-color: #c99a52;
+	.vip-divider {
+		margin: 0 6px;
+		font-size: 14px;
+		opacity: 0.35;
+		font-weight: 700;
+	}
+
+	.vip-date {
+		font-size: 12px;
+		font-weight: 400;
+		opacity: 0.6;
+		letter-spacing: 0.2px;
+	}
+
+	.vip-arrow {
+		margin-left: 4px;
+		font-size: 16px;
+		font-weight: 300;
+		opacity: 0.4;
+		transform: translateY(-0.5px);
+	}
+
+	/* 免费版 - 极致弱化 */
+	&.free {
+		color: var(--text-secondary);
+
+		.vip-title {
+			font-weight: 500;
+			opacity: 0.8;
+		}
+
+		.vip-arrow {
+			opacity: 0.3;
+		}
+	}
+
+	/* 到期 - 警告色克制处理 */
+	&.grace {
+		color: #c94b4b;
+
+		.vip-title {
+			opacity: 0.9;
+		}
+
+		.vip-arrow {
+			opacity: 0.5;
+		}
+	}
 }
 
 .arrow-icon {
 	font-size: 16px;
-	color: #cccccc;
+	color: #c4b5a6;
+	margin-left: auto;
 	margin-right: 5px;
+	font-weight: 500;
 }
 
 .stats-card {
@@ -444,6 +527,13 @@ const handleLogout = () => {
 	overflow: hidden;
 	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 	margin-bottom: 20px;
+
+	:deep(.action-item) {
+		.list-item-content.bleed-padding {
+			padding-top: 15px;
+			padding-bottom: 15px;
+		}
+	}
 }
 
 .action-item-content {
@@ -451,7 +541,7 @@ const handleLogout = () => {
 	align-items: center;
 	justify-content: space-between;
 	width: 100%;
-	padding: 12px 5px;
+	padding: 2px 5px;
 }
 
 .action-left {

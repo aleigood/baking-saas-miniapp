@@ -135,6 +135,7 @@ export interface RecipeFamily {
 	category: RecipeCategory;
 	deletedAt: string | null;
 	freeTierEnabled: boolean;
+	readOnly: boolean;
 	versions: RecipeVersion[];
 	productionCount?: number;
 	productionTaskCount?: number;

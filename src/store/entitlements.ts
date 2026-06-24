@@ -8,6 +8,17 @@ export const useEntitlementsStore = defineStore('entitlements', () => {
 	const loading = ref(false);
 	const loadedTenantId = ref('');
 
+	function applySummary(value: SubscriptionSummary) {
+		const accessChanged = summary.value !== null && summary.value.fullAccess !== value.fullAccess;
+		summary.value = value;
+		loadedTenantId.value = useDataStore().currentTenantId;
+		if (accessChanged) {
+			const dataStore = useDataStore();
+			dataStore.markRecipesAsStale();
+			dataStore.markProductsForTaskCreationAsStale();
+		}
+	}
+
 	async function refresh(force = false) {
 		const tenantId = useDataStore().currentTenantId;
 		if (!tenantId) {
@@ -18,16 +29,14 @@ export const useEntitlementsStore = defineStore('entitlements', () => {
 		if (!force && loadedTenantId.value === tenantId && summary.value) return;
 		loading.value = true;
 		try {
-			summary.value = await getSubscriptionSummary();
-			loadedTenantId.value = tenantId;
+			applySummary(await getSubscriptionSummary());
 		} finally {
 			loading.value = false;
 		}
 	}
 
 	function setSummary(value: SubscriptionSummary) {
-		summary.value = value;
-		loadedTenantId.value = useDataStore().currentTenantId;
+		applySummary(value);
 	}
 
 	function reset() {

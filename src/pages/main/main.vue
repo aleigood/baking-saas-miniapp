@@ -2,7 +2,6 @@
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="main-page-container" :class="{ 'personnel-active-bg': uiStore.activeTab === 'personnel' }">
 		<MainHeader v-if="uiStore.activeTab !== 'personnel'" :transparent="uiStore.activeTab === 'personnel'" />
-		<SubscriptionStatusBanner v-if="uiStore.activeTab !== 'personnel'" />
 
 		<view class="content-area" :style="{ '--header-height': (uiStore.activeTab !== 'personnel' ? systemStore.headerHeight : 0) + 'px' }">
 			<ProductionPage v-show="uiStore.activeTab === 'production'" />
@@ -31,7 +30,6 @@ import CustomTabBar from '@/components/CustomTabBar.vue';
 import MainHeader from '@/components/MainHeader.vue';
 import Toast from '@/components/Toast.vue';
 import StoreSelectorModal from '@/components/StoreSelectorModal.vue';
-import SubscriptionStatusBanner from '@/components/SubscriptionStatusBanner.vue';
 import { useEntitlementsStore } from '@/store/entitlements';
 
 // 引入四个页面级组件

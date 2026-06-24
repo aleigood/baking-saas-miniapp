@@ -34,7 +34,7 @@
 									:key="family.id"
 									@click="navigateToDetail(family.id)"
 									@longpress="openRecipeActions(family)"
-									:vibrate-on-long-press="canEditRecipe && family.freeTierEnabled"
+									:vibrate-on-long-press="canEditRecipe"
 									:bleed="true"
 									:divider="index < renderedRecipes.length - 1"
 									:discontinued="!!family.deletedAt"
@@ -47,11 +47,9 @@
 												<view class="name">
 													<text class="name-text">{{ family.name }}</text>
 													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
-													<text v-else-if="!family.freeTierEnabled" class="status-tag read-only">只读</text>
+													<text v-else-if="family.readOnly" class="status-tag read-only">使用受限</text>
 												</view>
-												<view class="desc">
-													版本数: {{ family.versionCount || 0 }} · 产品数: {{ family.productCount ?? (family.productNames?.length || 0) }}
-												</view>
+												<view class="desc">共 {{ family.versionCount || 0 }} 个版本</view>
 											</view>
 										</view>
 										<view class="side-info">
@@ -68,7 +66,7 @@
 													<text class="name-text">{{ family.name }}</text>
 													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 												</view>
-												<view class="desc">版本数: {{ family.versionCount || 0 }} · 引用次数: {{ family.usageCount || 0 }}</view>
+												<view class="desc">共 {{ family.versionCount || 0 }} 个版本</view>
 											</view>
 										</view>
 										<view class="side-info">
@@ -118,6 +116,11 @@
 
 		<AppModal v-model:visible="showRecipeActionsModal" :key="'recipe-actions-modal'" title="配方操作" :no-header-line="true">
 			<view class="options-list">
+				<ListItem v-if="selectedRecipe?.readOnly" class="option-item" @click="handleUnrestrictRecipe" :bleed="true">
+					<view class="main-info">
+						<view class="name">解除受限</view>
+					</view>
+				</ListItem>
 				<template v-if="!selectedRecipe?.deletedAt">
 					<ListItem class="option-item" @click="handleDiscontinueRecipe" :bleed="true">
 						<view class="main-info">
@@ -183,6 +186,7 @@ import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
 import { discontinueRecipe, restoreRecipe, deleteRecipe } from '@/api/recipes';
+import { unrestrictFreeTierRecipe } from '@/api/billing';
 import type { RecipeFamily } from '@/types/api';
 import ExpandingFab from '@/components/ExpandingFab.vue';
 import ListItem from '@/components/ListItem.vue';
@@ -449,9 +453,33 @@ const navigateToDetail = (familyId: string) => {
 };
 
 const openRecipeActions = (recipe: RecipeFamily) => {
-	if (!canEditRecipe.value || !recipe.freeTierEnabled) return;
+	if (!canEditRecipe.value) return;
 	selectedRecipe.value = recipe;
 	showRecipeActionsModal.value = true;
+};
+
+const handleUnrestrictRecipe = async () => {
+	if (!selectedRecipe.value || isSubmitting.value) return;
+	isSubmitting.value = true;
+	try {
+		const result = await unrestrictFreeTierRecipe(selectedRecipe.value.id);
+		const message = result.remaining === null
+			? '配方已解除受限'
+			: result.remaining > 0
+				? `配方已解除受限，还可启用 ${result.remaining} 个配方`
+				: '配方已解除受限，免费版名额已用完';
+		toastStore.show({ message, type: 'success' });
+		dataStore.markRecipesAsStale();
+		dataStore.markProductsForTaskCreationAsStale();
+		await dataStore.fetchRecipesData();
+		triggerListAnimationWithKeyUpdate(true);
+	} catch (error) {
+		console.error('Failed to unrestrict recipe:', error);
+	} finally {
+		isSubmitting.value = false;
+		showRecipeActionsModal.value = false;
+		selectedRecipe.value = null;
+	}
 };
 
 const handleDiscontinueRecipe = () => {
