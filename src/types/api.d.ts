@@ -105,12 +105,12 @@ export interface UserInfo {
 	phone: string;
 	name: string | null;
 	avatarUrl: string | null;
-	role: Role;
+	globalRole: GlobalRole;
 	status: string;
 	createdAt: string;
 	tenants: {
 		tenant: Tenant;
-		role: Role;
+		role: TenantRole;
 	}[];
 }
 
@@ -134,6 +134,7 @@ export interface RecipeFamily {
 	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	category: RecipeCategory;
 	deletedAt: string | null;
+	freeTierEnabled: boolean;
 	versions: RecipeVersion[];
 	productionCount?: number;
 	productionTaskCount?: number;
@@ -579,7 +580,7 @@ export interface Member {
 	id: string;
 	name: string;
 	phone: string;
-	role: Role;
+	role: TenantRole;
 	status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
 	joinDate: string;
 }
@@ -590,8 +591,9 @@ export interface TenantWithMembers {
 	members: Member[];
 }
 
-// --- 角色枚举 (与后端保持一致) ---
-export type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'SUPER_ADMIN';
+// --- 平台角色与店铺角色（作用域不同，不可混用） ---
+export type GlobalRole = 'USER' | 'SUPER_ADMIN';
+export type TenantRole = 'OWNER' | 'ADMIN' | 'MEMBER';
 
 // --- 统计数据 ---
 export interface RecipeStatDto {

@@ -17,31 +17,26 @@
 				:bleed="true"
 				:divider="true"
 			>
-				<view class="version-item-wrapper">
-					<!-- 第一行：配方名称、版本说明与当前状态 -->
-					<view class="version-item-header">
-						<view class="header-left">
-							<text class="recipe-name">{{ recipeName }}</text>
-							<text class="version-tag">
-								V{{ version.version }}{{ version.notes ? ` ${version.notes}` : '' }}
-							</text>
-							<text v-if="version.isActive" class="status-tag active">使用中</text>
+				<view class="version-item-content">
+					<view class="version-item-wrapper">
+						<!-- 第一行：配方名称、版本说明 -->
+						<view class="version-item-header">
+							<view class="header-left">
+								<text class="recipe-name">{{ recipeName }}</text>
+								<text class="version-tag">V{{ version.version }}{{ version.notes ? ` ${version.notes}` : '' }}</text>
+							</view>
 						</view>
-					</view>
 
-					<!-- 第二行：修改项摘要 -->
-					<view v-if="parseChangeSummary(version.changeSummary).length > 0" class="version-item-body">
-						<view class="change-tags-list">
-							<view 
-								v-for="(item, idx) in parseChangeSummary(version.changeSummary)" 
-								:key="idx" 
-								class="change-tag-item"
-								:class="item.direction"
-							>
-								<text class="change-name">{{ item.name }}</text>
+						<!-- 第二行：修改项摘要 -->
+						<view v-if="parseChangeSummary(version.changeSummary).length > 0" class="version-item-body">
+							<view class="change-tags-list">
+								<view v-for="(item, idx) in parseChangeSummary(version.changeSummary)" :key="idx" class="change-tag-item" :class="item.direction">
+									<text class="change-name">{{ item.name }}</text>
+								</view>
 							</view>
 						</view>
 					</view>
+					<text v-if="version.isActive" class="status-tag active">使用中</text>
 				</view>
 			</ListItem>
 		</template>
@@ -107,8 +102,7 @@ const fieldLabels: Record<string, string> = {
 	customWaterContent: '含水量'
 };
 
-const productIngredientPrefix = (item: RecipeVersionChangeItem) =>
-	item.productName ? `${item.productName} · ` : '';
+const productIngredientPrefix = (item: RecipeVersionChangeItem) => (item.productName ? `${item.productName} · ` : '');
 
 const formatDependencyChange = (item: RecipeVersionChangeItem) => {
 	const prefix = productIngredientPrefix(item);
@@ -153,22 +147,24 @@ const formatChangeItem = (item: RecipeVersionChangeItem) => {
 
 const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 	if (!summary?.items?.length) return [];
-	return summary.items.map(item => {
-		const text = formatChangeItem(item);
-		if (!text) return null;
-		
-		let direction: 'up' | 'down' | 'neutral' = 'neutral';
-		if (text.includes('↑') || text.includes('新增')) {
-			direction = 'up';
-		} else if (text.includes('↓') || text.includes('移除')) {
-			direction = 'down';
-		}
-		
-		return {
-			name: text,
-			direction
-		};
-	}).filter(Boolean) as Array<{ name: string; direction: 'up' | 'down' | 'neutral' }>;
+	return summary.items
+		.map((item) => {
+			const text = formatChangeItem(item);
+			if (!text) return null;
+
+			let direction: 'up' | 'down' | 'neutral' = 'neutral';
+			if (text.includes('↑') || text.includes('新增')) {
+				direction = 'up';
+			} else if (text.includes('↓') || text.includes('移除')) {
+				direction = 'down';
+			}
+
+			return {
+				name: text,
+				direction
+			};
+		})
+		.filter(Boolean) as Array<{ name: string; direction: 'up' | 'down' | 'neutral' }>;
 };
 </script>
 
@@ -209,9 +205,17 @@ const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 	margin-bottom: 0;
 }
 
+.version-item-content {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	flex: 1;
+}
+
 .version-item-wrapper {
 	flex: 1;
-	width: 100%;
+	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
@@ -219,7 +223,6 @@ const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 
 .version-item-header {
 	display: flex;
-	justify-content: space-between;
 	align-items: center;
 	width: 100%;
 }
@@ -252,8 +255,8 @@ const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 	border-radius: 6px;
 	font-size: 10px;
 	font-weight: 600;
-	background-color: #f5f0eb; /* 特有淡灰褐底色，保持配方详情版本列表轻量化 */
-	color: #ab9d88; /* 柔和辅助文字色 */
+	background-color: #f4ede2; /* 精致淡燕麦色背景 */
+	color: #8d6e63; /* 优雅暖焦糖字色 */
 	line-height: 1;
 	box-sizing: border-box;
 	max-width: 120px; /* 限制最大宽度，防止挤占使用中标签 */
@@ -266,14 +269,15 @@ const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	height: 20px;
-	padding: 0 8px;
-	border-radius: 6px;
-	font-size: 10px;
+	padding: 4px 8px;
+	border-radius: 15px;
+	font-size: 11px;
 	color: white;
-	font-weight: 600;
+	font-weight: 500;
 	line-height: 1;
 	box-sizing: border-box;
+	flex-shrink: 0; /* 强制防止被左侧过长文字挤压变形 */
+	margin-left: 12px;
 
 	&.active {
 		background-color: #8c5a3b;
@@ -291,9 +295,11 @@ const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 
 .change-tags-list {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: wrap; /* 允许换行，使放不下的标签折行 */
 	gap: 6px;
 	width: 100%;
+	height: 20px; /* 限制高度为单行高度 */
+	overflow: hidden; /* 超出单行的部分直接隐藏，防止显示半个标签 */
 }
 
 .change-tag-item {
@@ -304,25 +310,21 @@ const parseChangeSummary = (summary: RecipeVersion['changeSummary']) => {
 	font-size: 11px;
 	font-weight: 500;
 	line-height: 1.2;
-	
+
 	&.up {
 		background-color: #e6f4ea;
 		color: #137333;
-		/* 没有 border */
 	}
-	
+
 	&.down {
 		background-color: #fce8e6;
 		color: #c5221f;
-		/* 没有 border */
 	}
 
 	&.neutral {
 		background-color: #fcf6ec;
 		color: #b06000;
-		/* 没有 border */
 	}
-
 }
 
 /* no-change-tag 已移除 */

@@ -9,7 +9,7 @@
 						v-for="(tenant, index) in tenants"
 						:key="tenant.id"
 						@longpress.stop="handleLongPress(tenant)"
-						:vibrate-on-long-press="canEdit"
+						:vibrate-on-long-press="canManageTenant(tenant.id)"
 						:bleed="true"
 						:divider="index < tenants.length - 1"
 					>
@@ -178,7 +178,7 @@ const fabActions = computed(() => {
 			action: openAddModal
 		}
 	];
-	if (userStore.userInfo?.role === 'OWNER') {
+	if (ownedTenants.value.length > 0) {
 		actions.push({
 			icon: '/static/icons/upload.svg',
 			text: '批量导入配方',
@@ -188,9 +188,11 @@ const fabActions = computed(() => {
 	return actions;
 });
 
-const canEdit = computed(() => {
-	return userStore.userInfo?.role === 'OWNER' || userStore.userInfo?.role === 'ADMIN';
-});
+const ownedTenantIds = computed(() => new Set(userStore.userInfo?.tenants.filter((item) => item.role === 'OWNER').map((item) => item.tenant.id) ?? []));
+
+const ownedTenants = computed(() => tenants.value.filter((tenant) => ownedTenantIds.value.has(tenant.id)));
+
+const canManageTenant = (tenantId: string) => ownedTenantIds.value.has(tenantId);
 
 const statusOptions = ref([
 	{ text: '营业中', value: 'ACTIVE' },
@@ -202,7 +204,7 @@ const selectedStatusText = computed(() => {
 });
 
 const tenantPickerOptions = computed(() => {
-	return [{ id: 'all', name: '全部店铺' }, ...tenants.value];
+	return [{ id: 'all', name: '全部名下店铺' }, ...ownedTenants.value];
 });
 
 const selectedTenantOption = computed(() => {
@@ -256,6 +258,7 @@ const handleSaveTenant = async () => {
 			toastStore.show({ message: '店铺信息更新成功', type: 'success' });
 		} else {
 			await createTenant({ name: editableTenant.value.name });
+			await userStore.fetchUserInfo();
 			toastStore.show({ message: '店铺创建成功', type: 'success' });
 		}
 		showEditModal.value = false;
@@ -285,7 +288,7 @@ const onTenantSelect = (e: any) => {
 	tenantPickerIndex.value = e.detail.value;
 	const selection = tenantPickerOptions.value[e.detail.value];
 	if (selection.id === 'all') {
-		selectedTenantIds.value = tenants.value.map((t) => t.id);
+		selectedTenantIds.value = ownedTenants.value.map((tenant) => tenant.id);
 	} else {
 		selectedTenantIds.value = [selection.id];
 	}
@@ -336,7 +339,7 @@ const handleConfirmImport = async () => {
 	isImporting.value = true;
 	importResult.value = null;
 
-	const finalTenantIds = selectedTenantIds.value.length > 0 ? selectedTenantIds.value : tenants.value.map((t) => t.id);
+	const finalTenantIds = selectedTenantIds.value.length > 0 ? selectedTenantIds.value : ownedTenants.value.map((tenant) => tenant.id);
 
 	try {
 		const result = await batchImportRecipes(selectedFile.value.path, finalTenantIds);
@@ -352,7 +355,7 @@ const handleConfirmImport = async () => {
 };
 
 const handleLongPress = (tenant: Tenant) => {
-	if (!canEdit.value) return;
+	if (!canManageTenant(tenant.id)) return;
 	selectedTenant.value = tenant;
 	showTenantActionsModal.value = true;
 };

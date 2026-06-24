@@ -103,7 +103,7 @@ import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
 // [核心修改] 导入 TenantWithMembers 类型
-import type { Role, Member, Tenant, TenantWithMembers } from '@/types/api';
+import type { Member, Tenant, TenantRole, TenantWithMembers } from '@/types/api';
 import { formatChineseDate } from '@/utils/format';
 
 defineOptions({
@@ -123,7 +123,7 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const createForm = reactive<{ phone: string; role: Role }>({
+const createForm = reactive<{ phone: string; role: TenantRole }>({
 	phone: '',
 	role: 'MEMBER'
 });
@@ -237,14 +237,13 @@ const membersToDisplay = computed(() => {
 	}
 });
 
-const roleMap: Record<Role, string> = {
+const roleMap: Record<TenantRole, string> = {
 	OWNER: '店主',
 	ADMIN: '管理员',
-	MEMBER: '员工',
-	SUPER_ADMIN: '超级管理员'
+	MEMBER: '员工'
 };
 
-const getRoleName = (role: Role) => {
+const getRoleName = (role: TenantRole) => {
 	return roleMap[role] || role;
 };
 
@@ -264,7 +263,7 @@ const selectedRoleForCreationText = computed(() => {
 
 const onRoleChange = (e: any) => {
 	const selectedIndex = e.detail.value;
-	createForm.role = availableRolesForCreation.value[selectedIndex].value as Role;
+	createForm.role = availableRolesForCreation.value[selectedIndex].value as TenantRole;
 };
 
 const navigateToDetail = (memberId: string) => {

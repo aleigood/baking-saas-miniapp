@@ -34,7 +34,7 @@
 									:key="family.id"
 									@click="navigateToDetail(family.id)"
 									@longpress="openRecipeActions(family)"
-									:vibrate-on-long-press="canEditRecipe"
+									:vibrate-on-long-press="canEditRecipe && family.freeTierEnabled"
 									:bleed="true"
 									:divider="index < renderedRecipes.length - 1"
 									:discontinued="!!family.deletedAt"
@@ -47,6 +47,7 @@
 												<view class="name">
 													<text class="name-text">{{ family.name }}</text>
 													<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
+													<text v-else-if="!family.freeTierEnabled" class="status-tag read-only">只读</text>
 												</view>
 												<view class="desc">
 													版本数: {{ family.versionCount || 0 }} · 产品数: {{ family.productCount ?? (family.productNames?.length || 0) }}
@@ -448,7 +449,7 @@ const navigateToDetail = (familyId: string) => {
 };
 
 const openRecipeActions = (recipe: RecipeFamily) => {
-	if (!canEditRecipe.value) return;
+	if (!canEditRecipe.value || !recipe.freeTierEnabled) return;
 	selectedRecipe.value = recipe;
 	showRecipeActionsModal.value = true;
 };
@@ -565,16 +566,15 @@ const confirmDeleteRecipe = async () => {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	height: 20px;
-	padding: 0 8px;
+	padding: 4px 8px;
 	border-radius: 6px;
-	font-size: 10px;
+	font-size: 11px;
 	font-weight: 600;
 	background-color: #f4ede2; /* 精致淡燕麦色背景 */
 	color: #8d6e63; /* 优雅暖焦糖字色 */
 	line-height: 1;
 	box-sizing: border-box;
-	max-width: 80px; /* 限制最大宽度，防止挤占侧边布局 */
+	max-width: 130px; /* 限制最大宽度，防止挤占侧边布局，且留有足够长度展示说明 */
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -659,6 +659,11 @@ const confirmDeleteRecipe = async () => {
 .status-tag.discontinued {
 	background-color: #fee2e2;
 	color: #991b1b;
+}
+
+.status-tag.read-only {
+	background-color: #f4eadf;
+	color: #805c43;
 }
 
 .filter-wrapper {

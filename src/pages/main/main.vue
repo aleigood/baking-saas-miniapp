@@ -2,6 +2,7 @@
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="main-page-container" :class="{ 'personnel-active-bg': uiStore.activeTab === 'personnel' }">
 		<MainHeader v-if="uiStore.activeTab !== 'personnel'" :transparent="uiStore.activeTab === 'personnel'" />
+		<SubscriptionStatusBanner v-if="uiStore.activeTab !== 'personnel'" />
 
 		<view class="content-area" :style="{ '--header-height': (uiStore.activeTab !== 'personnel' ? systemStore.headerHeight : 0) + 'px' }">
 			<ProductionPage v-show="uiStore.activeTab === 'production'" />
@@ -20,6 +21,7 @@
 
 <script setup lang="ts">
 import { onShow } from '@dcloudio/uni-app';
+import { watch } from 'vue';
 import { useUiStore } from '@/store/ui';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
@@ -29,6 +31,8 @@ import CustomTabBar from '@/components/CustomTabBar.vue';
 import MainHeader from '@/components/MainHeader.vue';
 import Toast from '@/components/Toast.vue';
 import StoreSelectorModal from '@/components/StoreSelectorModal.vue';
+import SubscriptionStatusBanner from '@/components/SubscriptionStatusBanner.vue';
+import { useEntitlementsStore } from '@/store/entitlements';
 
 // 引入四个页面级组件
 import ProductionPage from '@/pages/production/production.vue';
@@ -40,6 +44,7 @@ const uiStore = useUiStore();
 const dataStore = useDataStore();
 const toastStore = useToastStore();
 const systemStore = useSystemStore();
+const entitlementsStore = useEntitlementsStore();
 
 // [核心重构] onShow 只负责加载全局性的基础数据和消费 Toast
 onShow(async () => {
@@ -53,7 +58,13 @@ onShow(async () => {
 	if (!dataStore.tenants || dataStore.tenants.length === 0) {
 		await dataStore.fetchTenants();
 	}
+	await entitlementsStore.refresh(true);
 });
+
+watch(
+	() => dataStore.currentTenantId,
+	() => entitlementsStore.refresh(true)
+);
 </script>
 
 <style scoped lang="scss">

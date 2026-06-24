@@ -43,7 +43,7 @@ import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
-import type { Member, Role } from '@/types/api';
+import type { Member, TenantRole } from '@/types/api';
 import { getMember, updateMember, removeMember } from '@/api/members'; // [核心修正] 导入 getMember
 import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
@@ -63,7 +63,7 @@ const uiStore = useUiStore();
 const isLoading = ref(true);
 const isSubmitting = ref(false);
 const selectedMember = ref<Member | null>(null);
-const editableMemberRole = ref<Role>('MEMBER');
+const editableMemberRole = ref<TenantRole>('MEMBER');
 const memberId = ref<string | null>(null);
 
 // [核心重构] 封装数据加载逻辑
@@ -116,14 +116,13 @@ onShow(async () => {
 	}
 });
 
-const roleMap: Record<Role, string> = {
+const roleMap: Record<TenantRole, string> = {
 	OWNER: '店主',
 	ADMIN: '管理员',
-	MEMBER: '员工',
-	SUPER_ADMIN: '超级管理员'
+	MEMBER: '员工'
 };
 
-const getRoleName = (role: Role) => {
+const getRoleName = (role: TenantRole) => {
 	return roleMap[role] || role;
 };
 
@@ -159,11 +158,11 @@ const availableRoles = computed(() => {
 });
 
 const availableRolesDisplay = computed(() => {
-	return availableRoles.value.map((role) => getRoleName(role as Role));
+	return availableRoles.value.map((role) => getRoleName(role as TenantRole));
 });
 
 const onRoleChange = (e: any) => {
-	editableMemberRole.value = availableRoles.value[e.detail.value] as Role;
+	editableMemberRole.value = availableRoles.value[e.detail.value] as TenantRole;
 };
 
 const handleUpdateMemberRole = async () => {

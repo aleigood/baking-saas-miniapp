@@ -59,7 +59,7 @@
 								</view>
 								<view class="side-info">
 									<view class="value">
-										<text>¥{{ formatMoney(ing.unitPricePerGram || 0) }}</text>
+										<text class="price-amount"><text class="currency">¥</text>{{ formatMoney(ing.unitPricePerGram || 0) }}</text>
 										<text class="price-unit">/g</text>
 									</view>
 								</view>
@@ -76,7 +76,7 @@
 								<view class="side-info">
 									<view class="value">
 										<template v-if="ing.type === 'STANDARD' || ing.type === 'NON_INVENTORIED'">
-											<text>¥{{ formatMoney(ing.unitPricePerGram || 0) }}</text>
+											<text class="price-amount"><text class="currency">¥</text>{{ formatMoney(ing.unitPricePerGram || 0) }}</text>
 											<text class="price-unit">/g</text>
 										</template>
 										<template v-else><text style="color: var(--text-secondary); font-size: 13px">不计入</text></template>
@@ -721,9 +721,30 @@ const handleCreateIngredient = async () => {
 	margin-top: 2px;
 }
 
+.side-info .value {
+	display: flex;
+	align-items: baseline;
+	justify-content: flex-end;
+	color: var(--primary-color);
+	font-weight: 600;
+	font-size: 15px;
+}
+
+.price-amount {
+	display: inline-flex;
+	align-items: baseline;
+}
+
+.currency {
+	font-size: 11px;
+	font-weight: 500;
+	margin-right: 1px;
+}
+
 .price-unit {
 	color: var(--text-secondary);
-	font-size: 13px;
+	font-size: 11px;
+	font-weight: 400;
 	margin-left: 1px;
 }
 

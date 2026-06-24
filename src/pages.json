@@ -43,6 +43,12 @@
 			}
 		},
 		{
+			"path": "pages/subscription/benefits",
+			"style": {
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/production/create",
 			"style": {
 				"navigationStyle": "custom"

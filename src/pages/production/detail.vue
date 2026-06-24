@@ -21,7 +21,7 @@
 									<view class="main-info">
 										<view class="name">
 											<text class="name-text">{{ component.familyName }}</text>
-											<text class="version-tag">v{{ component.version }}</text>
+											<text class="version-tag">版本 V{{ component.version }}</text>
 										</view>
 										<view class="desc">{{ component.productsDescription }}</view>
 									</view>

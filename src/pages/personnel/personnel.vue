@@ -11,7 +11,7 @@
 				<view class="user-info">
 					<view class="name">{{ userStore.userInfo?.name || '未设置昵称' }}</view>
 					<view class="role-badge">{{ currentTenantRoleDisplay }}</view>
-					<view class="subscription-meta" :class="{ active: subscriptionSummary?.active }">
+					<view class="subscription-meta" :class="{ active: subscriptionSummary?.fullAccess }">
 						<view class="subscription-indicator"></view>
 						<text>{{ subscriptionDisplayText }}</text>
 					</view>
@@ -63,7 +63,7 @@
 					<view class="action-item-content">
 						<view class="action-left">
 							<image class="action-icon" src="/static/icons/vip.svg" />
-							<text>订阅与续费</text>
+							<text>版本权益与价格</text>
 						</view>
 						<view class="action-right">&#10095;</view>
 					</view>
@@ -99,7 +99,7 @@ import { formatChineseDate } from '@/utils/format';
 import ListItem from '@/components/ListItem.vue';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
-import type { Role, DashboardStats } from '@/types/api';
+import type { DashboardStats, TenantRole } from '@/types/api';
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
@@ -154,12 +154,11 @@ const canManagePersonnel = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
 
-const getRoleName = (role: Role) => {
-	const roleMap: Record<Role, string> = {
+const getRoleName = (role: TenantRole) => {
+	const roleMap: Record<TenantRole, string> = {
 		OWNER: '店主',
 		ADMIN: '管理员',
-		MEMBER: '员工',
-		SUPER_ADMIN: '超级管理员'
+		MEMBER: '员工'
 	};
 	return roleMap[role] || role;
 };
@@ -171,9 +170,10 @@ const currentTenantRoleDisplay = computed(() => {
 const subscriptionDisplayText = computed(() => {
 	if (!subscriptionLoaded.value) return '订阅信息加载中';
 	if (!subscriptionSummary.value) return '暂无法获取订阅信息';
-	if (!subscriptionSummary.value.entitledUntil) return '尚未开通订阅';
-	if (!subscriptionSummary.value.active) return '订阅已到期';
-	return `订阅至 ${formatChineseDate(subscriptionSummary.value.entitledUntil)}`;
+	if (subscriptionSummary.value.state === 'FREE') return '当前为免费版';
+	if (subscriptionSummary.value.state === 'TRIAL') return `专业版试用至 ${formatChineseDate(subscriptionSummary.value.entitledUntil!)}`;
+	if (subscriptionSummary.value.state === 'GRACE') return `宽限期至 ${formatChineseDate(subscriptionSummary.value.graceEndsAt!)}`;
+	return `专业版至 ${formatChineseDate(subscriptionSummary.value.entitledUntil!)}`;
 });
 
 const navigateToCurrentUserDetail = () => {
@@ -203,7 +203,7 @@ const navigateToTenantList = () => {
 const navigateToSubscription = () => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
-	uni.navigateTo({ url: '/pages/subscription/subscription' });
+	uni.navigateTo({ url: '/pages/subscription/benefits' });
 };
 
 const handleOpenLogoutConfirm = () => {

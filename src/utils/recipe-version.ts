@@ -26,7 +26,7 @@ const fieldLabels: Record<string, string> = {
 const productIngredientPrefix = (item: RecipeVersionChangeItem) =>
 	item.productName ? `${item.productName} · ` : '';
 
-const formatChangeItem = (item: RecipeVersionChangeItem) => {
+export const formatChangeItem = (item: RecipeVersionChangeItem) => {
 	switch (item.kind) {
 		case 'INITIAL_VERSION':
 			return '初始版本';

@@ -75,7 +75,9 @@
 		</AppModal>
 
 		<AppModal v-model:visible="showEditVersionNotesModal" :key="'edit-version-notes-modal'" title="修改版本说明">
-			<input class="version-notes-input" v-model="versionNotesDraft" maxlength="100" placeholder="请输入版本说明" />
+			<FormItem label="版本说明">
+				<input class="input-field" v-model="versionNotesDraft" maxlength="100" placeholder="请输入版本说明" />
+			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditVersionNotesModal = false" :disabled="isSubmitting">取消</AppButton>
 				<AppButton type="primary" @click="handleSaveVersionNotes" :loading="isSubmitting" :disabled="!versionNotesDraft.trim()">保存</AppButton>
@@ -134,10 +136,17 @@
 							<view class="operation-log-head">
 								<text class="operation-description">{{ log.description }}</text>
 							</view>
-							<text v-if="getOperationChangeSummary(log)" class="operation-change-summary">{{ getOperationChangeSummary(log) }}</text>
-							<text v-if="log.action === 'VERSION_NOTES_UPDATED'" class="operation-change-summary">
-								“{{ log.metadata?.before || '无' }}” → “{{ log.metadata?.after || '无' }}”
-							</text>
+							<!-- 修改摘要展示为有颜色的标签 -->
+							<view v-if="parseOperationLogTags(log).length > 0" class="log-change-tags">
+								<view 
+									v-for="(tag, idx) in parseOperationLogTags(log)" 
+									:key="idx" 
+									class="log-change-tag"
+									:class="tag.type"
+								>
+									<text>{{ tag.name }}</text>
+								</view>
+							</view>
 							<view class="operation-meta">
 								<text class="operation-actor">{{ log.actor?.name || log.actor?.phone || '系统' }}</text>
 								<text class="operation-meta-separator">·</text>
@@ -174,7 +183,7 @@ import {
 	getRecipeOperationLogs,
 	updateRecipeVersionNotes
 } from '@/api/recipes';
-import { formatRecipeChangeSummary } from '@/utils/recipe-version';
+import { formatRecipeChangeSummary, formatChangeItem } from '@/utils/recipe-version';
 
 import RecipeVersionList from '@/components/RecipeVersionList.vue';
 import MainRecipeDetail from '@/components/MainRecipeDetail.vue';
@@ -189,6 +198,7 @@ import ExpandingFab from '@/components/ExpandingFab.vue';
 // [新增] 引入骨架屏和空状态组件
 import SkeletonDetail from '@/components/SkeletonDetail.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import FormItem from '@/components/FormItem.vue';
 
 defineOptions({
 	inheritAttrs: false
@@ -378,12 +388,12 @@ watch(displayedVersionId, (newId) => {
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
 
 const canEditRecipe = computed(() => {
-	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
+	return (currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN') && recipeFamily.value?.freeTierEnabled !== false;
 });
 
 const recipeFabActions = computed(() => {
 	return [{
-		icon: '/static/icons/history.svg',
+		icon: '/static/icons/op_log.svg',
 		text: '操作日志',
 		action: openOperationLogs
 	}];
@@ -504,6 +514,34 @@ const openOperationLogs = async () => {
 const getOperationChangeSummary = (log: RecipeOperationLog) =>
 	formatRecipeChangeSummary(log.metadata?.changeSummary);
 
+const parseOperationLogTags = (log: RecipeOperationLog) => {
+	const tags: Array<{ name: string; type: 'up' | 'down' | 'neutral' }> = [];
+	
+	if (log.action === 'VERSION_NOTES_UPDATED') {
+		const before = log.metadata?.before || '无';
+		const after = log.metadata?.after || '无';
+		tags.push({
+			name: `说明: “${before}” → “${after}”`,
+			type: 'neutral'
+		});
+	} else if (log.metadata?.changeSummary?.items?.length) {
+		log.metadata.changeSummary.items.forEach(item => {
+			const text = formatChangeItem(item);
+			if (text) {
+				let direction: 'up' | 'down' | 'neutral' = 'neutral';
+				if (text.includes('↑') || text.includes('新增')) {
+					direction = 'up';
+				} else if (text.includes('↓') || text.includes('移除')) {
+					direction = 'down';
+				}
+				tags.push({ name: text, type: direction });
+			}
+		});
+	}
+	
+	return tags;
+};
+
 const formatOperationTime = (dateInput: string) => {
 	const date = new Date(dateInput);
 	if (Number.isNaN(date.getTime())) return '';
@@ -603,8 +641,13 @@ const handleApplyDependencyUpgrades = async () => {
 	gap: 16px;
 	margin: 0 2px 18px;
 	padding: 12px 14px;
-	border-left: 3px solid #c97a2b;
-	background: #fff8ed;
+	border-left: 4px solid #c97a2b;
+	border-top: 1px solid #f5dfc6;
+	border-right: 1px solid #f5dfc6;
+	border-bottom: 1px solid #f5dfc6;
+	border-radius: 8px;
+	background: #fff6eb; /* 调深了一点，比页面背景 #fdf8f2 更具暖杏色区分度 */
+	overflow: hidden;
 }
 
 .dependency-update-copy {
@@ -695,17 +738,7 @@ const handleApplyDependencyUpgrades = async () => {
 	}
 }
 
-.version-notes-input {
-	width: 100%;
-	height: 42px;
-	padding: 0 12px;
-	border: 1px solid var(--border-color);
-	border-radius: 8px;
-	background: var(--card-bg);
-	font-size: 14px;
-	color: var(--text-primary);
-	box-sizing: border-box;
-}
+@include form-control-styles;
 
 .operation-log-scroll {
 	max-height: 430px;
@@ -720,23 +753,23 @@ const handleApplyDependencyUpgrades = async () => {
 
 .operation-timeline {
 	position: relative;
-	padding-left: 18px;
+	padding-left: 20px;
 }
 
 .operation-timeline::before {
 	content: '';
 	position: absolute;
-	top: 8px;
-	bottom: 8px;
-	left: 5px;
+	top: 10px;
+	bottom: 10px;
+	left: 6px;
 	width: 1px;
-	background: var(--border-color);
+	background: #efebe9; /* 更加温暖淡雅的轴线颜色 */
 }
 
 .operation-log-item {
 	position: relative;
 	display: flex;
-	padding-bottom: 18px;
+	padding-bottom: 22px;
 }
 
 .operation-log-item:last-child {
@@ -745,24 +778,33 @@ const handleApplyDependencyUpgrades = async () => {
 
 .operation-marker {
 	position: absolute;
-	top: 5px;
+	top: 6px;
 	left: -17px;
-	width: 9px;
-	height: 9px;
-	border: 2px solid var(--card-bg);
+	width: 7px;
+	height: 7px;
 	border-radius: 50%;
-	background: var(--primary-color);
-	box-shadow: 0 0 0 1px var(--primary-color);
+	background: #ab9d88; /* 默认灰褐色 */
+	border: 2px solid var(--card-bg);
+	box-shadow: 0 0 0 2px rgba(171, 157, 136, 0.15); /* 外围微弱漫反射光圈 */
+	transition: all 0.3s ease;
+}
+
+.operation-log-item:first-child .operation-marker {
+	background: var(--primary-color); /* 最新的一条为主题暖褐色高亮 */
+	box-shadow: 0 0 0 3px rgba(140, 90, 59, 0.25); /* 更显著的外发光波纹 */
 }
 
 .operation-log-content {
 	min-width: 0;
 	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
 }
 
 .operation-log-head {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 }
 
 .operation-description {
@@ -772,27 +814,47 @@ const handleApplyDependencyUpgrades = async () => {
 	color: var(--text-primary);
 }
 
-.operation-time {
-	font-size: 11px;
-	color: var(--text-secondary);
+.log-change-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 2px;
 }
 
-.operation-change-summary {
-	display: block;
-	margin-top: 5px;
-	font-size: 12px;
-	line-height: 1.5;
-	color: #6f5a47;
+.log-change-tag {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1.2;
+
+	&.up {
+		background-color: #e6f4ea;
+		color: #137333;
+	}
+
+	&.down {
+		background-color: #fce8e6;
+		color: #c5221f;
+	}
+
+	&.neutral {
+		background-color: #f5f0eb; /* 淡灰褐色底 */
+		color: #ab9d88; /* 柔和辅助文字色 */
+	}
 }
 
 .operation-meta {
 	display: flex;
 	align-items: center;
-	gap: 5px;
-	margin-top: 5px;
+	gap: 6px;
+	margin-top: 2px;
 }
 
 .operation-actor,
+.operation-time,
 .operation-meta-separator {
 	font-size: 11px;
 	color: var(--text-secondary);
