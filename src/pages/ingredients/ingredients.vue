@@ -24,7 +24,7 @@
 				</view>
 
 				<view class="tools-bar">
-					<view class="filter-capsule" :class="{ active: sortMode.startsWith('name_') }" id="name-sort-capsule-btn" @touchstart="handleTouchStart($event, 'name')" @click="toggleSort('name')">
+					<view class="filter-capsule" id="name-sort-capsule-btn" @touchstart="handleTouchStart($event, 'name')" @click="toggleSort('name')">
 						<span v-for="ripple in ripples['name']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 						<view class="capsule-content">
 							<text>名称</text>
@@ -32,7 +32,7 @@
 						</view>
 					</view>
 
-					<view class="filter-capsule" :class="{ active: sortMode.startsWith('price_') }" id="price-sort-capsule-btn" @touchstart="handleTouchStart($event, 'price')" @click="toggleSort('price')">
+					<view class="filter-capsule" id="price-sort-capsule-btn" @touchstart="handleTouchStart($event, 'price')" @click="toggleSort('price')">
 						<span v-for="ripple in ripples['price']" :key="ripple.id" class="ripple" :style="ripple.style"></span>
 						<view class="capsule-content">
 							<text>单价</text>
@@ -69,7 +69,11 @@
 							:animation-index="index"
 						>
 							<view class="main-info">
-								<view class="name">{{ ing.name }}</view>
+								<view class="name-row">
+									<text class="name-text">{{ ing.name }}</text>
+									<text class="ing-tag flour-tag" v-if="ing.isFlour">面粉</text>
+									<text class="ing-tag water-tag" v-if="ing.waterContent && ing.waterContent > 0">含水 {{ Math.round(ing.waterContent * 100) }}%</text>
+								</view>
 								<view class="desc" v-if="ing.type !== 'STANDARD' || ing.activeSku?.brand">
 									<template v-if="ing.type === 'STANDARD'">{{ ing.activeSku?.brand }}</template>
 									<template v-else>{{ getIngredientTypeLabel(ing.type) }}</template>
@@ -78,7 +82,10 @@
 							<view class="side-info">
 								<view class="value">
 									<template v-if="ing.type === 'STANDARD' || ing.type === 'NON_INVENTORIED'">
-										<text class="price-amount"><text class="currency">¥</text>{{ formatMoney(ing.unitPricePerGram || 0) }}</text>
+										<text class="price-amount">
+											<text class="currency">¥</text>
+											{{ formatMoney(ing.unitPricePerGram || 0) }}
+										</text>
 										<text class="price-unit">/g</text>
 									</template>
 									<template v-else><text style="color: var(--text-secondary); font-size: 13px">不计入</text></template>
@@ -214,14 +221,11 @@ const isFirstLoad = ref(true);
 
 const filterKeyword = ref('');
 type SortField = 'name' | 'price';
-type SortMode = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc';
-const sortMode = ref<SortMode>('name_asc');
-
-const pinyinCollator = new Intl.Collator('zh-CN-u-co-pinyin', {
-	usage: 'sort',
-	sensitivity: 'base',
-	numeric: true
+const sorts = reactive<{ name: 'none' | 'asc' | 'desc'; price: 'none' | 'asc' | 'desc' }>({
+	name: 'asc',
+	price: 'none'
 });
+const sortPriority = ref<SortField[]>(['name']);
 
 const newIngredientForm = reactive<{
 	name: string;
@@ -291,24 +295,29 @@ const handleTouchStart = (event: any, key: string) => {
 };
 
 const toggleSort = (field: SortField) => {
-	if (sortMode.value.startsWith(`${field}_`)) {
-		sortMode.value = `${field}_${sortMode.value.endsWith('_asc') ? 'desc' : 'asc'}` as SortMode;
+	if (sorts[field] === 'none') {
+		sorts[field] = 'asc';
+	} else if (sorts[field] === 'asc') {
+		sorts[field] = 'desc';
 	} else {
-		sortMode.value = `${field}_asc` as SortMode;
+		sorts[field] = 'none';
+	}
+
+	if (sorts[field] !== 'none') {
+		sortPriority.value = [field, ...sortPriority.value.filter((f) => f !== field)];
+	} else {
+		sortPriority.value = sortPriority.value.filter((f) => f !== field);
 	}
 	triggerListAnimationWithKeyUpdate(true);
 };
 
-const getSortIcon = (field: SortField) =>
-	sortMode.value === `${field}_desc` ? '/static/icons/sort-down.svg' : '/static/icons/sort-up.svg';
+const getSortIcon = (field: SortField) => (sorts[field] === 'desc' ? '/static/icons/sort-down.svg' : '/static/icons/sort-up.svg');
 
 const getIngredientUnitPrice = (ing: Ingredient) => {
 	return ing.unitPricePerGram || 0;
 };
 
-const basicIngredients = computed(() =>
-	dataStore.ingredients.allIngredients.filter((ingredient) => ingredient.type !== 'SELF_MADE')
-);
+const basicIngredients = computed(() => dataStore.ingredients.allIngredients.filter((ingredient) => ingredient.type !== 'SELF_MADE'));
 
 const ingredientConsumptionRanking = computed(() =>
 	[...basicIngredients.value]
@@ -324,8 +333,7 @@ const formatConsumption = (grams: number) => {
 const compareIngredientNames = (a: string, b: string) => {
 	const normalizedA = a.trim();
 	const normalizedB = b.trim();
-	const firstCharacterComparison = pinyinCollator.compare(normalizedA.charAt(0), normalizedB.charAt(0));
-	return firstCharacterComparison || pinyinCollator.compare(normalizedA, normalizedB);
+	return normalizedA.localeCompare(normalizedB, 'zh-Hans-CN');
 };
 
 const filteredIngredients = computed(() => {
@@ -341,17 +349,20 @@ const filteredIngredients = computed(() => {
 	}
 
 	return list.sort((a, b) => {
-		switch (sortMode.value) {
-			case 'name_desc':
-				return compareIngredientNames(b.name, a.name);
-			case 'price_asc':
-				return getIngredientUnitPrice(a) - getIngredientUnitPrice(b);
-			case 'price_desc':
-				return getIngredientUnitPrice(b) - getIngredientUnitPrice(a);
-			case 'name_asc':
-			default:
-				return compareIngredientNames(a.name, b.name);
+		for (const field of sortPriority.value) {
+			if (field === 'price') {
+				const diff = getIngredientUnitPrice(a) - getIngredientUnitPrice(b);
+				if (diff !== 0) {
+					return sorts.price === 'asc' ? diff : -diff;
+				}
+			} else if (field === 'name') {
+				const diff = compareIngredientNames(a.name, b.name);
+				if (diff !== 0) {
+					return sorts.name === 'asc' ? diff : -diff;
+				}
+			}
 		}
+		return compareIngredientNames(a.name, b.name);
 	});
 });
 
@@ -612,7 +623,41 @@ const handleCreateIngredient = async () => {
 	color: var(--text-secondary);
 }
 
+.name-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 2px;
+}
 
+.name-text {
+	font-weight: 500;
+	color: var(--text-primary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	flex-shrink: 1;
+	min-width: 0;
+}
+
+.ing-tag {
+	font-size: 10px;
+	font-weight: 600;
+	padding: 2px 5px;
+	border-radius: 4px;
+	flex-shrink: 0;
+	line-height: 1.2;
+}
+
+.flour-tag {
+	background-color: #f4ede2;
+	color: #8d6e63;
+}
+
+.water-tag {
+	background-color: #eaf2f8;
+	color: #2980b9;
+}
 
 .filter-capsule {
 	position: relative;
