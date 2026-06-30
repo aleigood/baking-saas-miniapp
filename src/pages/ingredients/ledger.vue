@@ -161,6 +161,7 @@ import AdvancedFilterBar from '@/components/AdvancedFilterBar.vue';
 import AppButton from '@/components/AppButton.vue';
 import FormItem from '@/components/FormItem.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import { getUserDisplayName } from '@/utils/user-display';
 
 defineOptions({
 	inheritAttrs: false
@@ -211,7 +212,7 @@ const filterConfig = computed(() => [
 			{ text: '生产损耗', value: '生产损耗' }
 		]
 	},
-	{ key: 'userId', label: '操作人', options: dataStore.members.map((m: Member) => ({ text: m.name || m.phone, value: m.id })) },
+	{ key: 'userId', label: '操作人', options: dataStore.members.map((m: Member) => ({ text: getUserDisplayName(m), value: m.id })) },
 	{ key: 'dateRange', label: '操作时间', options: [] }
 ]);
 

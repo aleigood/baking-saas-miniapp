@@ -3,17 +3,16 @@
 	<view class="onboarding-wrapper" :style="{ paddingTop: statusBarHeight + 'px' }">
 		<!-- 装饰背景，防溢出 -->
 		<view class="bg-wrapper-overflow-fix">
-			<view class="header-bg"></view>
 			<image class="footer-croissant" src="/static/icons/croissant.svg" mode="aspectFit"></image>
 		</view>
 
 		<!-- 顶部个人信息卡片 & 退出区 (安全避开小程序右侧胶囊) -->
 		<view class="profile-card-bar">
 			<view class="user-meta">
-				<view class="avatar-circle">{{ userStore.userInfo?.name?.[0] || '烘' }}</view>
+				<UserAvatar class="onboarding-avatar" :user-id="userStore.userInfo?.id" :avatar-url="userStore.userInfo?.avatarUrl" :size="38" />
 				<view class="user-info-text">
 					<view class="user-name-row">
-						<text class="user-name">你好，{{ userStore.userInfo?.name || '新成员' }}</text>
+						<text class="user-name">你好，{{ getUserDisplayName(userStore.userInfo) }}</text>
 						<text class="logout-text-btn" @click="handleLogout">退出登录</text>
 					</view>
 					<text class="user-phone">{{ userStore.userInfo?.phone }}</text>
@@ -115,12 +114,14 @@ import { acceptStoreInvitation, createFirstTenant, getPendingInvitations, type S
 import AppButton from '@/components/AppButton.vue';
 import AppModal from '@/components/AppModal.vue';
 import Toast from '@/components/Toast.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { useDataStore } from '@/store/data';
 import { useSystemStore } from '@/store/system';
 import { useToastStore } from '@/store/toast';
 import { useUserStore } from '@/store/user';
 import type { TenantRole } from '@/types/api';
 import { formatChineseDate } from '@/utils/format';
+import { getUserDisplayName } from '@/utils/user-display';
 
 const tenantName = ref('我的店铺');
 const invitations = ref<StoreInvitation[]>([]);
@@ -235,18 +236,6 @@ onMounted(async () => {
 	z-index: 0;
 }
 
-.header-bg {
-	position: absolute;
-	top: -15vh;
-	left: -20vw;
-	width: 140vw;
-	height: 40vh;
-	background-image: url('@/static/backgrounds/personnel-bg.svg');
-	background-size: cover;
-	opacity: 0.3;
-	transform: rotate(-10deg);
-}
-
 .footer-croissant {
 	position: absolute;
 	bottom: -20vh;
@@ -270,6 +259,10 @@ onMounted(async () => {
 	display: flex;
 	align-items: center;
 	gap: 10px;
+}
+
+.onboarding-avatar {
+	box-shadow: 0 4px 10px rgba(140, 90, 59, 0.15);
 }
 
 .avatar-circle {

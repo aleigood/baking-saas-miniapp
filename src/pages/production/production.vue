@@ -38,7 +38,7 @@
 							:key="`${task.id}_${task.status}`"
 							@click="navigateToDetail(task)"
 							@longpress="openTaskActions(task)"
-							:vibrate-on-long-press="true"
+							:vibrate-on-long-press="task.status !== 'PREP' && task.status !== 'COMPLETED'"
 							card-mode
 							:animation-index="index"
 							:animate-on-mount="triggerListAnimation"
@@ -520,7 +520,7 @@ const navigateToDetail = (task: any) => {
 };
 
 const openTaskActions = (task: any) => {
-	if (task.status === 'PREP') return;
+	if (task.status === 'PREP' || task.status === 'COMPLETED') return;
 	selectedTaskForAction.value = task as ProductionTaskSummaryDto;
 	showTaskActionsModal.value = true;
 };

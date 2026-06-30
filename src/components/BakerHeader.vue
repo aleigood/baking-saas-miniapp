@@ -2,12 +2,9 @@
 	<view class="page-header" :style="headerStyle">
 		<view class="header-content" :style="contentStyle">
 			<view class="user-profile" @click="openMenu">
-				<view class="avatar">
-					<image v-if="userStore.userInfo?.avatarUrl" :src="userStore.userInfo.avatarUrl" class="avatar-image"></image>
-					<text v-else>{{ userStore.userInfo?.name?.[0] || '员' }}</text>
-				</view>
+				<UserAvatar class="avatar" :user-id="userStore.userInfo?.id" :avatar-url="userStore.userInfo?.avatarUrl" :size="42" />
 				<view class="user-info">
-					<view class="user-name">{{ userStore.userInfo?.name || '面包师' }}</view>
+					<view class="user-name">{{ getUserDisplayName(userStore.userInfo) }}</view>
 					<view class="tenant-name">{{ dataStore.currentTenant?.name || '加载中...' }}</view>
 				</view>
 			</view>
@@ -62,6 +59,8 @@ import { MODAL_KEYS } from '@/constants/modalKeys';
 import AppModal from '@/components/AppModal.vue';
 import ListItem from '@/components/ListItem.vue';
 import AppButton from '@/components/AppButton.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
+import { getUserDisplayName } from '@/utils/user-display';
 
 const systemStore = useSystemStore();
 const userStore = useUserStore();
@@ -146,24 +145,7 @@ const handleConfirmLogout = () => {
 }
 
 .avatar {
-	width: 42px;
-	height: 42px;
-	border-radius: 50%;
-	background-color: var(--primary-color);
-	color: white;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	font-size: 20px;
-	font-weight: bold;
 	margin-right: 12px;
-	overflow: hidden;
-	flex-shrink: 0;
-}
-
-.avatar-image {
-	width: 100%;
-	height: 100%;
 }
 
 .user-info {

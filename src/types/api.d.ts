@@ -1,11 +1,3 @@
-// [核心新增] 定义批量导入结果的类型
-export interface BatchImportResult {
-	totalCount: number;
-	importedCount: number;
-	skippedCount: number;
-	skippedRecipes: string[];
-}
-
 // [核心新增] 定义备料清单接口的响应类型
 export interface BillOfMaterialsItem {
 	ingredientId: string;
@@ -103,7 +95,10 @@ export interface LoginRes {
 export interface UserInfo {
 	id: string;
 	phone: string;
+	phoneVerifiedAt: string | null;
 	name: string | null;
+	displayName: string;
+	avatarId: string | null;
 	avatarUrl: string | null;
 	globalRole: GlobalRole;
 	status: string;
@@ -146,6 +141,7 @@ export interface RecipeFamily {
 	referencedByNames?: string[];
 	versionCount?: number;
 	activeVersion?: {
+		id: string;
 		version: number;
 		notes: string | null;
 		changeSummary: RecipeVersionChangeSummary | null;
@@ -381,12 +377,14 @@ export interface ComponentIngredient {
 	flourRatio: number | null;
 	ingredientId: string | null;
 	preDoughId: string | null; // [G-Code-Note] 增加 preDoughId
+	preDoughVersionId?: string | null;
 	extraId: string | null; // [G-Code-Note] 增加 extraId
+	extraVersionId?: string | null;
 	ingredient: DisplayIngredient | null; // [G-Code-Note] 使用新的 DisplayIngredient
 
 	// [G-Code-Note] 这两个字段在 _sanitizeFamily 中被设为 null，但为安全起见保留
-	linkedPreDough: null;
-	linkedExtra: null;
+	linkedPreDough?: null;
+	linkedExtra?: null;
 }
 
 export interface Product {
@@ -473,6 +471,18 @@ export interface Ingredient {
 
 export interface IngredientsListResponse {
 	allIngredients: Ingredient[];
+}
+
+export interface IngredientPreset {
+	id: string;
+	name: string;
+	isFlour: boolean;
+	waterContent: number;
+}
+
+export interface IngredientEditorCatalog {
+	presets: IngredientPreset[];
+	ingredients: Array<Pick<Ingredient, 'id' | 'name' | 'type' | 'isFlour' | 'waterContent'>>;
 }
 
 export interface IngredientLedgerEntry {
@@ -579,8 +589,10 @@ export interface CreateTaskResponse {
 // --- 团队成员 ---
 export interface Member {
 	id: string;
-	name: string;
+	name: string | null;
+	displayName: string;
 	phone: string;
+	avatarUrl: string | null;
 	role: TenantRole;
 	status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
 	joinDate: string;
@@ -697,42 +709,3 @@ export interface ProductionTaskDetailDto {
 	executionStartedAt: string | null;
 }
 
-export interface BatchProductIngredientDto {
-	name: string;
-	ratio?: number;
-	weightInGrams?: number;
-}
-
-export interface BatchProductDto {
-	name: string;
-	weight: number;
-	fillings?: BatchProductIngredientDto[];
-	mixIn?: BatchProductIngredientDto[];
-	toppings?: BatchProductIngredientDto[];
-	procedure?: string[];
-}
-
-export interface BatchComponentIngredientDto {
-	name: string;
-	ratio?: number;
-	flourRatio?: number;
-	isFlour?: boolean;
-	waterContent?: number;
-}
-
-export interface BatchImportVersionDto {
-	notes: string;
-	targetTemp?: number;
-	lossRatio?: number;
-	divisionLoss?: number;
-	ingredients: BatchComponentIngredientDto[];
-	products?: BatchProductDto[];
-	procedure?: string[];
-}
-
-export interface BatchImportRecipeDto {
-	name: string;
-	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
-	category: RecipeCategory;
-	versions: BatchImportVersionDto[];
-}

@@ -1,7 +1,7 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<DetailHeader :title="selectedMember?.name || selectedMember?.phone || '加载中...'" />
+		<DetailHeader :title="selectedMember?.displayName || '加载中...'" />
 		<DetailPageLayout>
 			<view class="page-content" v-if="!isLoading && selectedMember">
 				<view class="card">
@@ -187,7 +187,7 @@ const handleRemoveMember = () => {
 
 	uni.showModal({
 		title: '确认移除',
-		content: `确定要从本店铺移除 "${selectedMember.value!.name || selectedMember.value!.phone}" 吗？`,
+		content: `确定要从本店铺移除 "${selectedMember.value!.displayName}" 吗？`,
 		success: async (res) => {
 			if (res.confirm) {
 				isSubmitting.value = true;

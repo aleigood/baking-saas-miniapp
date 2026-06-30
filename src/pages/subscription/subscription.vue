@@ -18,8 +18,8 @@
 						<view class="vip-card-body">
 							<view class="vip-expiry">{{ expiryText }}</view>
 							<view class="vip-user" v-if="userStore.userInfo">
-								<image class="vip-avatar" :src="userStore.userInfo.avatarUrl || '/static/default-avatar.png'" />
-								<text class="vip-name">{{ userStore.userInfo.name || '未命名用户' }}</text>
+								<UserAvatar class="vip-avatar" :user-id="userStore.userInfo.id" :avatar-url="userStore.userInfo.avatarUrl" :size="20" />
+								<text class="vip-name">{{ getUserDisplayName(userStore.userInfo) }}</text>
 							</view>
 						</view>
 					</view>
@@ -82,6 +82,7 @@ import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import Toast from '@/components/Toast.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { bindWechat } from '@/api/auth';
 import { createPaymentOrder, getPaymentCapabilities, getSubscriptionPlans, getSubscriptionSummary, startProfessionalTrial, syncPaymentOrder, type SubscriptionPlan, type SubscriptionSummary } from '@/api/billing';
 import { useDataStore } from '@/store/data';
@@ -89,6 +90,7 @@ import { useToastStore } from '@/store/toast';
 import { useUserStore } from '@/store/user';
 import { formatChineseDate } from '@/utils/format';
 import { useEntitlementsStore } from '@/store/entitlements';
+import { getUserDisplayName } from '@/utils/user-display';
 
 const plans = ref<SubscriptionPlan[]>([]);
 const summary = ref<SubscriptionSummary | null>(null);

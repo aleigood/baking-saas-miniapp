@@ -92,6 +92,8 @@ const handleClick = (event: Event) => {
 </script>
 
 <style scoped lang="scss">
+@import '@/styles/common.scss';
+
 /* [样式修复] 将所有按钮样式内聚到组件内部，解决H5平台样式冲突问题 */
 .btn {
 	display: flex;

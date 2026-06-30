@@ -5,7 +5,7 @@
 import { request } from '@/utils/request';
 // [核心修改] 导入新的分页响应类型
 // [修改] 导入 UpdateSkuDto
-import type { Ingredient, IngredientConsumptionLedgerResponse, IngredientsListResponse, UpdateSkuDto } from '@/types/api';
+import type { Ingredient, IngredientConsumptionLedgerResponse, IngredientEditorCatalog, IngredientsListResponse, UpdateSkuDto } from '@/types/api';
 
 /**
  * 获取当前店铺的原料列表
@@ -14,6 +14,12 @@ import type { Ingredient, IngredientConsumptionLedgerResponse, IngredientsListRe
 export function getIngredients(): Promise<IngredientsListResponse> {
 	return request<IngredientsListResponse>({
 		url: '/ingredients'
+	});
+}
+
+export function getIngredientEditorCatalog(): Promise<IngredientEditorCatalog> {
+	return request<IngredientEditorCatalog>({
+		url: '/ingredients/editor-catalog'
 	});
 }
 

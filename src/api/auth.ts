@@ -17,7 +17,18 @@ export function login(credentials: { phone: string; password: string }): Promise
 	});
 }
 
-export function register(data: { name: string; phone: string; password: string }): Promise<LoginRes> {
+export interface SmsCodeResponse {
+	message: string;
+	expiresInSeconds: number;
+	retryAfterSeconds: number;
+	debugCode?: string;
+}
+
+export function sendRegistrationCode(phone: string): Promise<SmsCodeResponse> {
+	return request<SmsCodeResponse>({ url: '/auth/sms-codes', method: 'POST', data: { phone } });
+}
+
+export function register(data: { phone: string; password: string; verificationCode: string }): Promise<LoginRes> {
 	return request<LoginRes>({ url: '/auth/register', method: 'POST', data });
 }
 

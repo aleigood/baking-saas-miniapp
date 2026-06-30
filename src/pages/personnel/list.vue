@@ -19,11 +19,9 @@
 							:divider="index < group.members.length - 1"
 						>
 							<view class="member-details">
-								<view class="member-avatar">
-									{{ member.name?.[0] || '员' }}
-								</view>
+								<UserAvatar class="member-avatar" :user-id="member.id" :avatar-url="member.avatarUrl" :size="42" />
 								<view class="main-info">
-									<view class="name">{{ member.name || member.phone }}</view>
+									<view class="name">{{ member.displayName }}</view>
 									<view class="desc">加入于: {{ formatChineseDate(member.joinDate) }}</view>
 								</view>
 							</view>
@@ -42,11 +40,9 @@
 						:divider="index < membersToDisplay.length - 1"
 					>
 						<view class="member-details">
-							<view class="member-avatar">
-								{{ member.name?.[0] || '员' }}
-							</view>
+							<UserAvatar class="member-avatar" :user-id="member.id" :avatar-url="member.avatarUrl" :size="42" />
 							<view class="main-info">
-								<view class="name">{{ member.name || member.phone }}</view>
+								<view class="name">{{ member.displayName }}</view>
 								<view class="desc">加入于: {{ formatChineseDate(member.joinDate) }}</view>
 							</view>
 						</view>
@@ -102,6 +98,7 @@ import AppModal from '@/components/AppModal.vue';
 import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
 import FilterTabs from '@/components/FilterTabs.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 // [核心修改] 导入 TenantWithMembers 类型
 import type { Member, Tenant, TenantRole, TenantWithMembers } from '@/types/api';
 import { formatChineseDate } from '@/utils/format';
@@ -340,18 +337,7 @@ const handleCreateMember = async () => {
 }
 
 .member-avatar {
-	width: 42px;
-	height: 42px;
-	border-radius: 50%;
-	background-color: var(--primary-color);
-	color: white;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	font-size: 18px;
-	font-weight: bold;
 	margin-right: 15px;
-	flex-shrink: 0;
 }
 
 .input-field {

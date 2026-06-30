@@ -426,9 +426,9 @@ import FilterTabs from '@/components/FilterTabs.vue';
 import AutocompleteInput from '@/components/AutocompleteInput.vue';
 import FermentationCalculator from '@/components/FermentationCalculator.vue';
 import ExpandingFab from '@/components/ExpandingFab.vue';
-import type { RecipeFamily, RecipeFormTemplate, RecipeCategory, ComponentTemplate, Product as RecipeFormProduct, RecipeType } from '@/types/api';
+import type { RecipeFamily, RecipeFormTemplate, RecipeCategory, ComponentTemplate, Product as RecipeFormProduct, RecipeType, IngredientPreset } from '@/types/api';
 import { formatNumber, toDecimal } from '@/utils/format';
-import { predefinedIngredients } from '@/utils/predefinedIngredients';
+import { getIngredientEditorCatalog } from '@/api/ingredients';
 
 defineOptions({
 	inheritAttrs: false
@@ -441,6 +441,7 @@ type AutocompleteItem = {
 	isRecipe: boolean;
 	waterContent: number;
 	recipeType: RecipeType | null;
+	recipeVersionId?: string;
 };
 
 type MainIngredient = {
@@ -468,6 +469,7 @@ const dataStore = useDataStore();
 const toastStore = useToastStore();
 const uiStore = useUiStore();
 const isSubmitting = ref(false);
+const ingredientPresets = ref<IngredientPreset[]>([]);
 const isEditing = ref(false);
 const familyId = ref<string | null>(null);
 const versionId = ref<string | null>(null);
@@ -643,14 +645,16 @@ const productTabs = computed(() => {
 const availablePreDoughs = computed(() => {
 	const existingPreDoughIds = new Set(form.value.components?.filter((c) => c.type === 'PRE_DOUGH').map((c) => c.id));
 	const currentRecipeName = form.value.name;
-	return (dataStore.recipes.preDoughs || []).filter((r) => !r.deletedAt && !existingPreDoughIds.has(r.id) && r.name !== currentRecipeName);
+	return (dataStore.recipes.preDoughs || []).filter(
+		(r) => r.activeVersion && !r.deletedAt && !existingPreDoughIds.has(r.id) && r.name !== currentRecipeName
+	);
 });
 
 const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
 	const currentRecipeName = form.value.name;
 
-	predefinedIngredients.forEach((p) => {
+	ingredientPresets.value.forEach((p) => {
 		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0, recipeType: null });
 	});
 	dataStore.allIngredients.forEach((i) => {
@@ -662,25 +666,25 @@ const availableMainDoughIngredients = computed((): AutocompleteItem[] => {
 	if (currentFormType === 'MAIN') {
 		const extras = dataStore.recipes.extras || [];
 		extras.forEach((e) => {
-			if (!e.deletedAt && e.name !== currentRecipeName) {
+			if (e.activeVersion && !e.deletedAt && e.name !== currentRecipeName) {
 				const effectiveWaterContent = (e as any).waterContent || 0;
-				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'EXTRA' });
+				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'EXTRA', recipeVersionId: e.activeVersion?.id });
 			}
 		});
 	} else if (currentFormType === 'PRE_DOUGH') {
 		const preDoughs = dataStore.recipes.preDoughs || [];
 		preDoughs.forEach((p) => {
-			if (!p.deletedAt && p.name !== currentRecipeName) {
+			if (p.activeVersion && !p.deletedAt && p.name !== currentRecipeName) {
 				const effectiveWaterContent = (p as any).waterContent || 0;
-				ingredientMap.set(p.name, { id: p.id, name: p.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'PRE_DOUGH' });
+				ingredientMap.set(p.name, { id: p.id, name: p.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'PRE_DOUGH', recipeVersionId: p.activeVersion?.id });
 			}
 		});
 	} else if (currentFormType === 'EXTRA') {
 		const extras = dataStore.recipes.extras || [];
 		extras.forEach((e) => {
-			if (!e.deletedAt && e.name !== currentRecipeName) {
+			if (e.activeVersion && !e.deletedAt && e.name !== currentRecipeName) {
 				const effectiveWaterContent = (e as any).waterContent || 0;
-				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'EXTRA' });
+				ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'EXTRA', recipeVersionId: e.activeVersion?.id });
 			}
 		});
 	}
@@ -699,7 +703,7 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 	const ingredientMap = new Map<string, AutocompleteItem>();
 	const currentRecipeName = form.value.name;
 
-	predefinedIngredients.forEach((p) => {
+	ingredientPresets.value.forEach((p) => {
 		ingredientMap.set(p.name, { id: null, name: p.name, isFlour: p.isFlour, isRecipe: false, waterContent: p.waterContent || 0, recipeType: null });
 	});
 
@@ -710,9 +714,9 @@ const availableSubIngredients = computed((): AutocompleteItem[] => {
 
 	const extras = dataStore.recipes.extras || [];
 	extras.forEach((e) => {
-		if (!e.deletedAt && e.name !== currentRecipeName) {
+		if (e.activeVersion && !e.deletedAt && e.name !== currentRecipeName) {
 			const effectiveWaterContent = (e as any).waterContent || 0;
-			ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'EXTRA' });
+			ingredientMap.set(e.name, { id: e.id, name: e.name, isFlour: false, isRecipe: true, waterContent: effectiveWaterContent, recipeType: 'EXTRA', recipeVersionId: e.activeVersion?.id });
 		}
 	});
 
@@ -800,13 +804,10 @@ const onCustomWaterContentInput = (e: any) => {
 };
 
 const onCustomWaterContentBlur = (e: any) => {
-	const val = Number(e.detail.value);
-	const autoVal = Number(calculatedWaterContentPreview.value);
-
-	if (Math.abs(val - autoVal) < 0.1) {
-		isManuallyCleared.value = false;
-		form.value.customWaterContent = null;
-	}
+	const value = e.detail.value;
+	if (value === '') return;
+	const parsed = Number(value);
+	if (!Number.isNaN(parsed)) form.value.customWaterContent = parsed;
 };
 
 const totalCalculatedWaterRatio = computed(() => {
@@ -892,7 +893,7 @@ const getIngredientTags = (ing: MainIngredient | SubIngredientWeight | SubIngred
 };
 
 const handleIngredientBlur = (
-	ingredient: { id: string | null; name: string; isRecipe?: boolean; waterContent?: number; isFlour?: boolean; recipeType?: RecipeType | null },
+	ingredient: { id: string | null; name: string; isRecipe?: boolean; waterContent?: number; isFlour?: boolean; recipeType?: RecipeType | null; recipeVersionId?: string },
 	availableList: AutocompleteItem[]
 ) => {
 	if (!availableList) return;
@@ -905,6 +906,17 @@ const handleIngredientBlur = (
 			ingredient.isFlour = existing.isFlour;
 			ingredient.waterContent = existing.waterContent;
 			ingredient.recipeType = existing.recipeType;
+			ingredient.recipeVersionId = existing.recipeVersionId;
+		} else {
+			const isKnownRecipe = [...(dataStore.recipes.preDoughs || []), ...(dataStore.recipes.extras || [])].some(
+				(recipe) => recipe.name === ingredient.name
+			);
+			if (isKnownRecipe) {
+				ingredient.name = '';
+				ingredient.recipeType = null;
+				ingredient.recipeVersionId = undefined;
+				toastStore.show({ message: '当前位置不能引用这个自制配方', type: 'error' });
+			}
 		}
 	} else if (ingredient.id) {
 		const existing = availableList.find((item) => item.id === ingredient.id);
@@ -913,6 +925,7 @@ const handleIngredientBlur = (
 			ingredient.recipeType = existing.recipeType;
 			ingredient.isFlour = existing.isFlour;
 			ingredient.waterContent = existing.waterContent;
+			ingredient.recipeVersionId = existing.recipeVersionId;
 		}
 	}
 };
@@ -926,7 +939,9 @@ const initPreDoughData = (components: EnhancedComponent[]) => {
 };
 
 onLoad(async (options) => {
+	const catalogPromise = getIngredientEditorCatalog();
 	if (!dataStore.dataLoaded.ingredients) await dataStore.fetchIngredientsData();
+	ingredientPresets.value = (await catalogPromise).presets;
 
 	if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
 		await dataStore.fetchRecipesData();
@@ -1056,6 +1071,7 @@ const onIngredientSelect = (item: AutocompleteItem & { isFlour?: boolean }, ingI
 	ingredient.isRecipe = item.isRecipe;
 	ingredient.waterContent = item.waterContent;
 	ingredient.recipeType = item.recipeType;
+	ingredient.recipeVersionId = item.recipeVersionId;
 };
 
 const addIngredient = () => {
@@ -1100,16 +1116,20 @@ const confirmAddPreDough = async () => {
 	isAddingPreDough.value = true;
 	try {
 		const fullPreDoughData = await getRecipeFamily(selectedPreDough.value.id);
-		const activeVersion = fullPreDoughData.versions?.find((v) => v.isActive) || fullPreDoughData.versions?.sort((a, b) => b.version - a.version)[0];
+		const activeVersion = fullPreDoughData.versions?.find((v) => v.isActive);
 
 		if (!activeVersion || !activeVersion.components || activeVersion.components.length === 0) {
-			toastStore.show({ message: '所选面种没有有效的配方版本', type: 'error' });
+			toastStore.show({ message: '所选面种没有使用中的版本，无法添加', type: 'error' });
 			return;
 		}
 		const preDoughRecipe = activeVersion.components[0];
 		const ingredients = preDoughRecipe.ingredients;
 
-		const preDoughInternalFlourRatio = ingredients.filter((i) => i.ingredient?.isFlour).reduce((sum, i) => sum + (i.ratio ?? 0), 0);
+		const preDoughInternalFlourRatio = ingredients.reduce((sum, ingredient) => {
+			if (ingredient.ingredient?.isFlour) return sum + (ingredient.ratio ?? 0);
+			if (ingredient.ingredient?.type === 'PRE_DOUGH') return sum + (ingredient.flourRatio ?? 0);
+			return sum;
+		}, 0);
 
 		if (preDoughInternalFlourRatio <= 0) {
 			toastStore.show({ message: '所选面种配方中不含面粉，无法添加', type: 'error' });
@@ -1119,16 +1139,22 @@ const confirmAddPreDough = async () => {
 		const targetFlourRatioInMainDoughDecimal = toDecimal(preDoughFlourRatio.value);
 		const scalingFactor = targetFlourRatioInMainDoughDecimal / preDoughInternalFlourRatio;
 
-		const displayIngredients: MainIngredient[] = ingredients.map((i) => ({
-			id: i.ingredient!.id,
-			name: i.ingredient!.name,
-			ratio: (i.ratio ?? 0) * scalingFactor * 100,
-			isRecipe: false,
-			waterContent: i.ingredient!.waterContent,
-			isFlour: i.ingredient!.isFlour,
-			flourRatio: null,
-			recipeType: null
-		}));
+		const displayIngredients: MainIngredient[] = ingredients.map((ingredient) => {
+			const displayIngredient = ingredient.ingredient!;
+			const recipeType = displayIngredient.type === 'PRE_DOUGH' || displayIngredient.type === 'EXTRA' ? displayIngredient.type : null;
+			const sourceRatio = recipeType === 'PRE_DOUGH' ? ingredient.flourRatio : ingredient.ratio;
+			return {
+				id: displayIngredient.id,
+				name: displayIngredient.name,
+				ratio: (sourceRatio ?? 0) * scalingFactor * 100,
+				isRecipe: recipeType !== null,
+				waterContent: displayIngredient.waterContent,
+				isFlour: displayIngredient.isFlour,
+				flourRatio: null,
+				recipeType,
+				recipeVersionId: ingredient.preDoughVersionId ?? ingredient.extraVersionId ?? undefined
+			};
+		});
 
 		const originalSnapshot = JSON.parse(JSON.stringify(displayIngredients));
 
@@ -1136,6 +1162,7 @@ const confirmAddPreDough = async () => {
 			id: activeVersion.familyId,
 			name: fullPreDoughData.name,
 			type: 'PRE_DOUGH',
+			recipeVersionId: activeVersion.id,
 			flourRatioInMainDough: preDoughFlourRatio.value,
 			ingredients: displayIngredients,
 			procedure: preDoughRecipe.procedure,
@@ -1197,6 +1224,7 @@ const onSubIngredientSelect = (item: AutocompleteItem & { isFlour?: boolean }, p
 	ingredient.isRecipe = item.isRecipe;
 	ingredient.isFlour = item.isFlour ?? false;
 	ingredient.waterContent = item.waterContent;
+	ingredient.recipeVersionId = item.recipeVersionId;
 };
 
 const addProcedureStep = (itemWithProcedure: { procedure?: string[] }) => {
@@ -1296,9 +1324,8 @@ const handleSubmit = async () => {
 				.filter(Boolean);
 		};
 
-		const autoVal = Number(calculatedWaterContentPreview.value);
 		const currentCustom = form.value.customWaterContent;
-		const finalCustomWaterContent = currentCustom !== null && currentCustom !== undefined && Math.abs(currentCustom - autoVal) > 0.1 ? Number(currentCustom) : null;
+		const finalCustomWaterContent = currentCustom !== null && currentCustom !== undefined ? Number(currentCustom) : null;
 
 		const payload = {
 			name: form.value.name,

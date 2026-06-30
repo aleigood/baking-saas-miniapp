@@ -1,6 +1,6 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
-	<view class="main-page-container" :class="{ 'personnel-active-bg': uiStore.activeTab === 'personnel' }">
+	<view class="main-page-container">
 		<MainHeader v-if="uiStore.activeTab !== 'personnel'" :transparent="uiStore.activeTab === 'personnel'" />
 
 		<view class="content-area" :style="{ '--header-height': (uiStore.activeTab !== 'personnel' ? systemStore.headerHeight : 0) + 'px' }">
@@ -76,14 +76,6 @@ watch(
 	overflow: hidden;
 	background-color: #fdf8f2;
 	transition: background-color 0.3s ease;
-}
-
-.main-page-container.personnel-active-bg {
-	background-color: #fdf8f2;
-	background-image: url('@/static/backgrounds/personnel-bg.svg');
-	background-repeat: no-repeat;
-	background-size: 100% auto;
-	background-position: top center;
 }
 
 .content-area {

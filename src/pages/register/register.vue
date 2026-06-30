@@ -1,9 +1,8 @@
 <template>
-	<page-meta page-style="background-color: #fdf8f2; overflow: hidden;"></page-meta>
+	<page-meta page-style="background-color: #fdf8f2;"></page-meta>
 	<view class="register-container">
 		<!-- 装饰背景容器，防溢出 -->
 		<view class="bg-wrapper-overflow-fix">
-			<view class="header-bg"></view>
 			<image class="footer-croissant" src="/static/icons/croissant.svg" mode="aspectFit"></image>
 		</view>
 
@@ -21,8 +20,26 @@
 			</view>
 
 			<view class="form-container">
-				<input class="input-field" v-model.trim="form.name" placeholder="请输入姓名" placeholder-style="color: #c4b5a6;" />
 				<input class="input-field" v-model.trim="form.phone" type="tel" maxlength="11" placeholder="请输入手机号" placeholder-style="color: #c4b5a6;" />
+				<view class="verification-row">
+					<input
+						class="input-field verification-input"
+						v-model.trim="form.verificationCode"
+						type="number"
+						maxlength="6"
+						:focus="codeInputFocused"
+						placeholder="6位短信验证码"
+						placeholder-style="color: #c4b5a6;"
+					/>
+					<view
+						class="send-code-button"
+						:class="{ disabled: sendingCode || countdown > 0 || !isPhoneValid }"
+						@click="handleSendCode"
+					>
+						<view v-if="sendingCode" class="mini-spinner"></view>
+						<text v-else>{{ countdown > 0 ? `${countdown}s` : '获取验证码' }}</text>
+					</view>
+				</view>
 				<input class="input-field" v-model="form.password" password placeholder="请输入登录密码（至少8位）" placeholder-style="color: #c4b5a6;" />
 				<input class="input-field" v-model="confirmPassword" password placeholder="请再次输入确认密码" placeholder-style="color: #c4b5a6;" />
 
@@ -52,18 +69,22 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, computed } from 'vue';
-import { register } from '@/api/auth';
+import { reactive, ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
+import { register, sendRegistrationCode } from '@/api/auth';
 import { useUserStore } from '@/store/user';
 import { useSystemStore } from '@/store/system';
 import { useToastStore } from '@/store/toast';
 import AppButton from '@/components/AppButton.vue';
 import Toast from '@/components/Toast.vue';
 
-const form = reactive({ name: '', phone: '', password: '' });
+const form = reactive({ phone: '', verificationCode: '', password: '' });
 const confirmPassword = ref('');
 const agreementChecked = ref(false);
 const submitting = ref(false);
+const sendingCode = ref(false);
+const countdown = ref(0);
+const codeInputFocused = ref(false);
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
 const userStore = useUserStore();
 const systemStore = useSystemStore();
@@ -73,12 +94,50 @@ const pageLoaded = ref(false);
 
 const statusBarHeight = computed(() => systemStore.statusBarHeight);
 const safeAreaTop = computed(() => systemStore.statusBarHeight + 70);
+const isPhoneValid = computed(() => /^1\d{10}$/.test(form.phone));
 
 onMounted(() => {
 	setTimeout(() => {
 		pageLoaded.value = true;
 	}, 100);
 });
+
+onUnmounted(() => {
+	if (countdownTimer) clearInterval(countdownTimer);
+});
+
+const startCountdown = (seconds: number) => {
+	if (countdownTimer) clearInterval(countdownTimer);
+	countdown.value = seconds;
+	countdownTimer = setInterval(() => {
+		countdown.value -= 1;
+		if (countdown.value <= 0 && countdownTimer) {
+			clearInterval(countdownTimer);
+			countdownTimer = null;
+		}
+	}, 1000);
+};
+
+const handleSendCode = async () => {
+	if (sendingCode.value || countdown.value > 0) return;
+	if (!isPhoneValid.value) {
+		toastStore.show({ message: '请输入正确的11位手机号', type: 'error' });
+		return;
+	}
+
+	sendingCode.value = true;
+	try {
+		const result = await sendRegistrationCode(form.phone);
+		if (result.debugCode) form.verificationCode = result.debugCode;
+		startCountdown(result.retryAfterSeconds || 60);
+		toastStore.show({ message: '验证码已发送', type: 'success' });
+		codeInputFocused.value = false;
+		await nextTick();
+		codeInputFocused.value = true;
+	} finally {
+		sendingCode.value = false;
+	}
+};
 
 const goBack = () => {
 	const pages = getCurrentPages();
@@ -102,8 +161,12 @@ const openPrivacy = () => {
 };
 
 const handleRegister = async () => {
-	if (!form.name || !/^1\d{10}$/.test(form.phone)) {
-		toastStore.show({ message: '请填写姓名和正确的手机号', type: 'error' });
+	if (!isPhoneValid.value) {
+		toastStore.show({ message: '请输入正确的11位手机号', type: 'error' });
+		return;
+	}
+	if (!/^\d{6}$/.test(form.verificationCode)) {
+		toastStore.show({ message: '请输入6位短信验证码', type: 'error' });
 		return;
 	}
 	if (form.password.length < 8) {
@@ -144,7 +207,7 @@ const handleRegister = async () => {
 	padding: 0 40px;
 	box-sizing: border-box;
 	position: relative;
-	overflow: hidden; /* 彻底清除本页面多余滚动条 */
+	overflow-x: hidden;
 }
 
 /* 防溢出的背景容器 */
@@ -157,18 +220,6 @@ const handleRegister = async () => {
 	overflow: hidden;
 	pointer-events: none;
 	z-index: 0;
-}
-
-.header-bg {
-	position: absolute;
-	top: -15vh;
-	left: -20vw;
-	width: 140vw;
-	height: 40vh;
-	background-image: url('@/static/backgrounds/personnel-bg.svg');
-	background-size: cover;
-	opacity: 0.3;
-	transform: rotate(-10deg);
 }
 
 .footer-croissant {
@@ -213,6 +264,8 @@ const handleRegister = async () => {
 	opacity: 0;
 	transform: translateY(30px);
 	transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+	padding-bottom: calc(30px + env(safe-area-inset-bottom));
+	box-sizing: border-box;
 }
 
 .content-wrapper.enter-active {
@@ -264,6 +317,56 @@ const handleRegister = async () => {
 .input-field:focus {
 	border-color: var(--primary-color);
 	box-shadow: 0 0 0 3px rgba(140, 90, 59, 0.1);
+}
+
+.verification-row {
+	display: flex;
+	align-items: stretch;
+	gap: 10px;
+	margin-bottom: 16px;
+}
+
+.verification-input {
+	flex: 1;
+	min-width: 0;
+	margin-bottom: 0;
+}
+
+.send-code-button {
+	width: 112px;
+	height: 52px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 15px;
+	background: #f3e9e3;
+	color: var(--primary-color);
+	font-size: 14px;
+	font-weight: 600;
+	box-shadow: inset 0 0 0 1px rgba(140, 90, 59, 0.08);
+	transition: transform 0.2s ease, opacity 0.2s ease;
+
+	&:active:not(.disabled) {
+		transform: scale(0.97);
+	}
+
+	&.disabled {
+		color: #b0a8a2;
+		opacity: 0.72;
+	}
+}
+
+.mini-spinner {
+	width: 16px;
+	height: 16px;
+	border: 2px solid rgba(140, 90, 59, 0.18);
+	border-top-color: var(--primary-color);
+	border-radius: 50%;
+	animation: mini-spin 0.8s linear infinite;
+}
+
+@keyframes mini-spin {
+	to { transform: rotate(360deg); }
 }
 
 .agreement-row {

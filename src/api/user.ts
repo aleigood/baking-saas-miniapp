@@ -5,11 +5,20 @@
 import { request } from '@/utils/request';
 import type { UserInfo } from '@/types/api';
 
+export interface AvatarOption {
+	id: string;
+	url: string;
+}
+
+export function getAvatarOptions(): Promise<AvatarOption[]> {
+	return request<AvatarOption[]>({ url: '/users/avatars' });
+}
+
 /**
  * 更新当前用户的个人资料（姓名、头像等）
  * @param data 包含要更新字段的对象
  */
-export function updateProfile(data: { name?: string; avatarUrl?: string }): Promise<UserInfo> {
+export function updateProfile(data: { name?: string; avatarId?: string }): Promise<UserInfo> {
 	return request<UserInfo>({
 		url: '/users/me/profile',
 		method: 'PATCH',

@@ -1,7 +1,5 @@
 <template>
 	<view class="login-container">
-		<view class="header-bg"></view>
-
 		<view class="content-wrapper" :class="{ 'enter-active': pageLoaded }" :style="{ paddingTop: safeAreaTop + 'px' }">
 			<image class="logo" src="/static/icons/croissant.svg" mode="aspectFit"></image>
 
@@ -119,19 +117,6 @@ const handleLogin = async () => {
 	box-sizing: border-box;
 	overflow: hidden;
 	position: relative;
-}
-
-.header-bg {
-	position: absolute;
-	top: -15vh;
-	left: -20vw;
-	width: 140vw;
-	height: 40vh;
-	background-image: url('@/static/backgrounds/personnel-bg.svg');
-	background-size: cover;
-	opacity: 0.3;
-	transform: rotate(-10deg);
-	z-index: 0;
 }
 
 .content-wrapper {

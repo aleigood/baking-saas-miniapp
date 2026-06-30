@@ -1,16 +1,16 @@
 <template>
 	<view class="page-wrapper">
+		<IconButton v-if="isOwner" class="recipe-editor-scan-btn" :style="scanButtonStyle" @click="scanRecipeEditorLogin">
+			<image class="scan-icon" src="/static/icons/scan-simple.svg" />
+		</IconButton>
 		<view class="page-content page-content-with-tabbar">
 			<view class="profile-section ripple-container" @click="navigateToCurrentUserDetail" :style="{ marginTop: (systemStore.headerHeight || 88) + 10 + 'px' }">
 				<view class="avatar-wrapper">
-					<view class="avatar">
-						<image v-if="userStore.userInfo && userStore.userInfo.avatarUrl" :src="userStore.userInfo.avatarUrl" class="avatar-image"></image>
-						<text v-else>{{ userStore.userInfo?.name?.[0] || '管' }}</text>
-					</view>
+					<UserAvatar :user-id="userStore.userInfo?.id" :avatar-url="userStore.userInfo?.avatarUrl" :size="64" />
 				</view>
 				<view class="user-info">
 					<view class="user-name-row">
-						<text class="name">{{ userStore.userInfo?.name || '未设置昵称' }}</text>
+						<text class="name">{{ getUserDisplayName(userStore.userInfo) }}</text>
 						<text class="role-badge">{{ currentTenantRoleDisplay }}</text>
 					</view>
 
@@ -94,6 +94,59 @@
 				<AppButton type="danger" @click="handleLogout">确认退出</AppButton>
 			</view>
 		</AppModal>
+
+		<!-- 新增：自定义扫码操作菜单 -->
+		<AppModal
+			v-model:visible="showScanActionModal"
+			:key="'scan-action-modal'"
+			title="授权登录"
+			:no-header-line="true"
+		>
+			<view class="options-list">
+				<ListItem class="option-item" @click="startScanRecipeEditorQr" :bleed="true">
+					<view class="main-info">
+						<view class="name">扫描网页二维码</view>
+					</view>
+				</ListItem>
+				<ListItem class="option-item" @click="openInputCodeModal" :bleed="true" :divider="false">
+					<view class="main-info">
+						<view class="name">输入网页验证码</view>
+					</view>
+				</ListItem>
+			</view>
+		</AppModal>
+
+		<!-- 新增：输入验证码弹窗 -->
+		<AppModal
+			v-model:visible="showInputCodeModal"
+			:key="'input-code-modal'"
+			title="输入电脑端验证码"
+		>
+			<view class="form-container" style="padding-top: 10px;">
+				<view class="form-item">
+					<input class="input-field" type="text" v-model="recipeEditorCode" placeholder="请输入网页上的 6 位验证码" />
+				</view>
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showInputCodeModal = false">取消</AppButton>
+				<AppButton type="primary" @click="confirmInputRecipeEditorCode" :loading="isSubmittingAction">授权</AppButton>
+			</view>
+		</AppModal>
+
+		<!-- 新增：确认授权弹窗 -->
+		<AppModal
+			v-model:visible="showAuthConfirmModal"
+			:key="'auth-confirm-modal'"
+			title="授权电脑端编辑"
+		>
+			<view class="modal-prompt-text" style="text-align: center; padding: 20px 0;">
+				是否允许电脑端为当前店铺“<text style="color: var(--primary-color); font-weight: bold;">{{ dataStore.currentTenant?.name || '当前店铺' }}</text>”创建配方草稿？
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="showAuthConfirmModal = false">取消</AppButton>
+				<AppButton type="primary" @click="confirmAuthRecipeEditor" :loading="isSubmittingAction">允许</AppButton>
+			</view>
+		</AppModal>
 	</view>
 </template>
 
@@ -104,20 +157,33 @@ import { useUserStore } from '@/store/user';
 import { useDataStore } from '@/store/data';
 import { useUiStore } from '@/store/ui';
 import { useSystemStore } from '@/store/system';
+import { useToastStore } from '@/store/toast';
 import { MODAL_KEYS } from '@/constants/modalKeys';
 import { getAppDashboardStats } from '@/api/dashboard';
 import { getSubscriptionSummary, type SubscriptionSummary } from '@/api/billing';
+import { approveRecipeEditorSession, approveRecipeEditorSessionByCode, type RecipeEditorScanPayload } from '@/api/recipe-editor';
 import { formatChineseDate } from '@/utils/format';
 import ListItem from '@/components/ListItem.vue';
 import AppModal from '@/components/AppModal.vue';
 import AppButton from '@/components/AppButton.vue';
+import IconButton from '@/components/IconButton.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
+import { getUserDisplayName } from '@/utils/user-display';
 import type { DashboardStats, TenantRole } from '@/types/api';
 
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const uiStore = useUiStore();
 const systemStore = useSystemStore();
+const toastStore = useToastStore();
 const isNavigating = ref(false);
+
+const showScanActionModal = ref(false);
+const showInputCodeModal = ref(false);
+const showAuthConfirmModal = ref(false);
+const isSubmittingAction = ref(false);
+const recipeEditorCode = ref('');
+const pendingScanPayload = ref<RecipeEditorScanPayload | null>(null);
 
 const stats = ref<Partial<DashboardStats>>({});
 const isLoadingStats = ref(false);
@@ -161,6 +227,30 @@ onShow(async () => {
 const currentUserRoleInTenant = computed(() => userStore.userInfo?.tenants.find((t) => t.tenant.id === dataStore.currentTenantId)?.role);
 
 const isOwner = computed(() => currentUserRoleInTenant.value === 'OWNER');
+
+const scanButtonStyle = computed(() => {
+	const menu = systemStore.menuButtonPosition;
+	const buttonSize = 40; // IconButton default size
+	
+	if (!menu) {
+		const top = systemStore.navBarContentTop || 54;
+		const navHeight = systemStore.navBarHeight || 32;
+		return {
+			top: `${top - (buttonSize - navHeight) / 2}px`,
+			right: '108px',
+			width: `${buttonSize}px`,
+			height: `${buttonSize}px`
+		};
+	}
+	const windowWidth = uni.getWindowInfo().windowWidth;
+	const gap = 12; // Increase gap to 12px for better visual spacing
+	return {
+		top: `${menu.top - (buttonSize - menu.height) / 2}px`,
+		right: `${Math.max(12, windowWidth - menu.left + gap)}px`,
+		width: `${buttonSize}px`,
+		height: `${buttonSize}px`
+	};
+});
 
 const canManagePersonnel = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
@@ -237,6 +327,91 @@ const navigateToManageSubscription = () => {
 	uni.navigateTo({ url: '/pages/subscription/subscription' });
 };
 
+const parseRecipeEditorScanPayload = (raw: string): RecipeEditorScanPayload | null => {
+	if (raw.startsWith('RE:')) {
+		const [, sessionId, token] = raw.split(':');
+		if (sessionId && token) return { type: 'RECIPE_EDITOR_LOGIN', sessionId, token };
+	}
+	try {
+		const parsed = JSON.parse(raw) as RecipeEditorScanPayload;
+		if (parsed?.type === 'RECIPE_EDITOR_LOGIN' && parsed.sessionId && parsed.token) {
+			return parsed;
+		}
+	} catch (error) {
+		const query = raw.includes('?') ? raw.split('?')[1] : raw;
+		const params = query.split('&').reduce<Record<string, string>>((acc, pair) => {
+			const [key, value] = pair.split('=');
+			if (key && value) acc[decodeURIComponent(key)] = decodeURIComponent(value);
+			return acc;
+		}, {});
+		if (params.sessionId && params.token) {
+			return { type: 'RECIPE_EDITOR_LOGIN', sessionId: params.sessionId, token: params.token };
+		}
+	}
+	return null;
+};
+
+const scanRecipeEditorLogin = () => {
+	showScanActionModal.value = true;
+};
+
+const openInputCodeModal = () => {
+	showScanActionModal.value = false;
+	recipeEditorCode.value = '';
+	showInputCodeModal.value = true;
+};
+
+const startScanRecipeEditorQr = () => {
+	showScanActionModal.value = false;
+	uni.scanCode({
+		onlyFromCamera: true,
+		success: (res) => {
+			const payload = parseRecipeEditorScanPayload(res.result);
+			if (!payload) {
+				toastStore.show({ message: '不是有效的编辑器二维码', type: 'error' });
+				return;
+			}
+			pendingScanPayload.value = payload;
+			showAuthConfirmModal.value = true;
+		},
+		fail: () => {
+			toastStore.show({ message: '未完成扫码', type: 'error' });
+		}
+	});
+};
+
+const confirmAuthRecipeEditor = async () => {
+	if (!pendingScanPayload.value) return;
+	isSubmittingAction.value = true;
+	try {
+		await approveRecipeEditorSession(pendingScanPayload.value.sessionId, pendingScanPayload.value.token);
+		toastStore.show({ message: '电脑端已登录', type: 'success' });
+		showAuthConfirmModal.value = false;
+	} catch (error) {
+		console.error('授权电脑端编辑器失败:', error);
+	} finally {
+		isSubmittingAction.value = false;
+	}
+};
+
+const confirmInputRecipeEditorCode = async () => {
+	const code = recipeEditorCode.value.trim().toUpperCase();
+	if (!code) {
+		toastStore.show({ message: '请输入验证码', type: 'error' });
+		return;
+	}
+	isSubmittingAction.value = true;
+	try {
+		await approveRecipeEditorSessionByCode(code);
+		toastStore.show({ message: '电脑端已登录', type: 'success' });
+		showInputCodeModal.value = false;
+	} catch (error) {
+		console.error('验证码授权电脑端编辑器失败:', error);
+	} finally {
+		isSubmittingAction.value = false;
+	}
+};
+
 const handleOpenLogoutConfirm = () => {
 	uiStore.openModal(MODAL_KEYS.LOGOUT_CONFIRM);
 };
@@ -302,6 +477,17 @@ const handleLogout = () => {
 	padding: 20px 15px 0 15px;
 	position: relative;
 	z-index: 1;
+}
+
+.recipe-editor-scan-btn {
+	position: fixed;
+	z-index: 20;
+	background: transparent;
+}
+
+.scan-icon {
+	width: 24px;
+	height: 24px;
 }
 
 /* --- 舒缓的动态呼吸轨迹 --- */

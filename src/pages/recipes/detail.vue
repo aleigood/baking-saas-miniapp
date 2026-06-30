@@ -148,7 +148,7 @@
 								</view>
 							</view>
 							<view class="operation-meta">
-								<text class="operation-actor">{{ log.actor?.name || log.actor?.phone || '系统' }}</text>
+								<text class="operation-actor">{{ log.actor ? getUserDisplayName(log.actor) : '系统' }}</text>
 								<text class="operation-meta-separator">·</text>
 								<text class="operation-time">{{ formatOperationTime(log.createdAt) }}</text>
 							</view>
@@ -184,6 +184,7 @@ import {
 	updateRecipeVersionNotes
 } from '@/api/recipes';
 import { formatRecipeChangeSummary, formatChangeItem } from '@/utils/recipe-version';
+import { getUserDisplayName } from '@/utils/user-display';
 
 import RecipeVersionList from '@/components/RecipeVersionList.vue';
 import MainRecipeDetail from '@/components/MainRecipeDetail.vue';
