@@ -61,7 +61,7 @@ export const request = <T = any>(options: RequestOptions): Promise<T> => {
 			},
 				success: (res: UniApp.RequestSuccessCallbackResult) => {
 				// 核心：处理401 Unauthorized错误
-				if (res.statusCode === 401 && options.url !== '/auth/login') {
+				if (res.statusCode === 401 && !['/auth/login', '/auth/wechat-login'].includes(options.url)) {
 					if (userStore.isRedirecting) {
 						return reject(res);
 					}
@@ -154,7 +154,7 @@ export function uploadFile<T>(options: UploadFileOptions): Promise<T> {
 				Authorization: `Bearer ${userStore.token || ''}`
 			},
 			success: (res) => {
-				if (res.statusCode === 401 && options.url !== '/auth/login') {
+				if (res.statusCode === 401 && !['/auth/login', '/auth/wechat-login'].includes(options.url)) {
 					if (userStore.isRedirecting) {
 						return reject(new Error('Unauthorized'));
 					}

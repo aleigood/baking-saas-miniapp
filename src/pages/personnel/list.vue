@@ -7,6 +7,14 @@
 				<view v-if="isOwner" :key="'filter-tabs-container'" class="filter-container">
 					<FilterTabs v-model="activeTenantFilter" :tabs="filterTabsData" />
 				</view>
+				<view v-if="isOwner && pendingApplications.length" class="applications-card">
+					<view class="applications-title">待确认申请 <text>{{ pendingApplications.length }}</text></view>
+					<view v-for="item in pendingApplications" :key="item.id" class="application-row">
+						<UserAvatar :user-id="item.applicant.id" :avatar-url="item.applicant.avatarUrl" :size="40" />
+						<view class="application-main"><text>{{ item.displayName }}<text v-if="item.wechatNickname"> · {{ item.wechatNickname }}</text></text><text>{{ getRoleName(item.joinLink.role) }}{{ item.message ? ` · ${item.message}` : '' }}</text></view>
+						<view class="application-actions"><text @click="rejectApplication(item.id)">拒绝</text><text class="approve" @click="approveApplication(item.id)">同意</text></view>
+					</view>
+				</view>
 
 				<template v-if="isOwner && activeTenantFilter === 'all' && membersToDisplay.length > 0" :key="'members-owner-all'">
 					<view v-for="group in groupedMembers" :key="group.tenantId">
@@ -22,7 +30,7 @@
 								<UserAvatar class="member-avatar" :user-id="member.id" :avatar-url="member.avatarUrl" :size="42" />
 								<view class="main-info">
 									<view class="name">{{ member.displayName }}</view>
-									<view class="desc">加入于: {{ formatChineseDate(member.joinDate) }}</view>
+									<view class="desc">{{ member.wechatNickname || '未设置昵称' }} · 加入于 {{ formatChineseDate(member.joinDate) }}</view>
 								</view>
 							</view>
 							<view class="side-info">
@@ -43,7 +51,7 @@
 							<UserAvatar class="member-avatar" :user-id="member.id" :avatar-url="member.avatarUrl" :size="42" />
 							<view class="main-info">
 								<view class="name">{{ member.displayName }}</view>
-								<view class="desc">加入于: {{ formatChineseDate(member.joinDate) }}</view>
+								<view class="desc">{{ member.wechatNickname || '未设置昵称' }} · 加入于 {{ formatChineseDate(member.joinDate) }}</view>
 							</view>
 						</view>
 						<view class="side-info">
@@ -59,11 +67,7 @@
 
 		<ExpandingFab v-if="canManagePersonnel" @click="openCreateModal" :no-tab-bar="true" :visible="isFabVisible" />
 
-		<AppModal v-model:visible="showCreateModal" :key="'create-member-modal'" title="邀请员工">
-			<view class="invitation-help">创建后，员工使用该手机号注册或登录，即可在店铺接入页看到邀请。</view>
-			<FormItem label="手机号码">
-				<input class="input-field" type="tel" v-model="createForm.phone" placeholder="请输入手机号" />
-			</FormItem>
+		<AppModal v-model:visible="showCreateModal" :key="'create-member-modal'" title="邀请成员">
 			<FormItem label="员工角色">
 				<picker mode="selector" :range="availableRolesForCreation" range-key="text" @change="onRoleChange">
 					<view class="picker">
@@ -72,11 +76,11 @@
 					</view>
 				</picker>
 			</FormItem>
+			<view v-if="sharePath" class="share-ready"><text>邀请卡片已准备好</text><text>有效期 7 天</text></view>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showCreateModal = false">取消</AppButton>
-				<AppButton type="primary" @click="handleCreateMember" :disabled="isSubmitting" :loading="isSubmitting">
-					{{ isSubmitting ? '' : '创建邀请' }}
-				</AppButton>
+				<button v-if="sharePath" class="share-button" open-type="share">发送邀请</button>
+				<AppButton v-else type="primary" @click="handleCreateMember" :disabled="isSubmitting" :loading="isSubmitting">{{ isSubmitting ? '' : '生成邀请' }}</AppButton>
 			</view>
 		</AppModal>
 	</view>
@@ -84,12 +88,12 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShareAppMessage, onShow } from '@dcloudio/uni-app';
 import { useDataStore } from '@/store/data';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
 import { useUiStore } from '@/store/ui';
-import { createMember, getMembers, getAllMembersByOwner } from '@/api/members';
+import { approveMembershipApplication, createJoinLink, getMembershipApplications, getMembers, getAllMembersByOwner, rejectMembershipApplication, type MembershipApplication } from '@/api/members';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
 import ListItem from '@/components/ListItem.vue';
@@ -120,10 +124,9 @@ const isFabVisible = ref(true);
 const lastScrollTop = ref(0);
 const scrollThreshold = 5;
 
-const createForm = reactive<{ phone: string; role: TenantRole }>({
-	phone: '',
-	role: 'MEMBER'
-});
+const createForm = reactive<{ role: TenantRole }>({ role: 'MEMBER' });
+const sharePath = ref('');
+const pendingApplications = ref<MembershipApplication[]>([]);
 
 // [核心重构] allOwnerMembersData 用于存储从后端一次性获取的完整数据
 const allOwnerMembersData = ref<TenantWithMembers[]>([]);
@@ -149,6 +152,7 @@ onShow(async () => {
 	}
 
 	await loadPersonnelData();
+	if (isOwner.value) pendingApplications.value = (await getMembershipApplications()).filter((item) => item.status === 'PENDING');
 });
 
 const filterTabsData = computed(() => {
@@ -273,23 +277,16 @@ const navigateToDetail = (memberId: string) => {
 };
 
 const openCreateModal = () => {
-	createForm.phone = '';
 	createForm.role = 'MEMBER';
+	sharePath.value = '';
 	showCreateModal.value = true;
 };
 
 const handleCreateMember = async () => {
-	if (!createForm.phone) {
-		toastStore.show({ message: '请输入员工手机号', type: 'error' });
-		return;
-	}
 	isSubmitting.value = true;
 	try {
-		await createMember(createForm);
-		toastStore.show({ message: '邀请已创建，7天内有效', type: 'success' });
-		showCreateModal.value = false;
-
-		await loadPersonnelData();
+		const link = await createJoinLink(createForm.role);
+		sharePath.value = `/pages/onboarding/join-application?token=${encodeURIComponent(link.token)}`;
 	} catch (error: any) {
 		console.error('创建成员失败:', error);
 		if (error.statusCode !== 409) {
@@ -299,6 +296,10 @@ const handleCreateMember = async () => {
 		isSubmitting.value = false;
 	}
 };
+
+onShareAppMessage(() => ({ title: `邀请你加入${dataStore.currentTenant?.name || '我的店铺'}`, path: sharePath.value || '/pages/launch/launch' }));
+const approveApplication = async (id: string) => { await approveMembershipApplication(id); pendingApplications.value = pendingApplications.value.filter((item) => item.id !== id); await loadPersonnelData(); toastStore.show({ message: '已同意加入', type: 'success' }); };
+const rejectApplication = async (id: string) => { await rejectMembershipApplication(id); pendingApplications.value = pendingApplications.value.filter((item) => item.id !== id); };
 </script>
 
 <style scoped lang="scss">
@@ -352,10 +353,34 @@ const handleCreateMember = async () => {
 	box-sizing: border-box;
 }
 
-.invitation-help {
-	margin-bottom: 16px;
-	font-size: 13px;
-	line-height: 1.55;
-	color: var(--text-secondary);
+.applications-card{margin:8px 14px 18px;padding:16px;background:#fff8f1;border:1px solid #f0dfd0;border-radius:18px}.applications-title{font-size:15px;font-weight:700;margin-bottom:10px}.applications-title text{font-size:11px;color:#fff;background:#b9794e;border-radius:20px;padding:2px 7px;margin-left:5px}.application-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #f1e5da}.application-main{flex:1;min-width:0;display:flex;flex-direction:column}.application-main text:first-child{font-size:14px;font-weight:700}.application-main text:last-child{font-size:11px;color:#998577;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.application-actions{display:flex;gap:8px;font-size:12px;color:#987867}.application-actions text{padding:7px 9px}.application-actions .approve{color:#fff;background:#8c5a3b;border-radius:9px}.share-ready{display:flex;justify-content:space-between;padding:14px;margin:12px 0;background:#f6eee7;border-radius:12px;font-size:13px;color:#775743}.share-ready text:last-child{font-size:11px;color:#aa8d79}.share-button {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	min-height: 54px;
+	box-sizing: border-box;
+	border: none;
+	border-radius: 15px;
+	font-size: 16px;
+	font-weight: 500;
+	text-align: center;
+	position: relative;
+	overflow: hidden;
+	transform: translateZ(0);
+	background-image: linear-gradient(135deg, var(--accent-color) 0%, var(--primary-color) 100%);
+	color: white;
+	box-shadow: 0 4px 15px rgba(140, 90, 59, 0.2);
+	margin: 0;
+	padding: 10px 15px;
+	line-height: normal;
+	transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.share-button::after {
+	border: none;
+}
+.share-button:active {
+	transform: scale(0.97);
+	box-shadow: 0 2px 8px rgba(140, 90, 59, 0.25);
 }
 </style>

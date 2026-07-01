@@ -18,7 +18,7 @@ export function getAvatarOptions(): Promise<AvatarOption[]> {
  * 更新当前用户的个人资料（姓名、头像等）
  * @param data 包含要更新字段的对象
  */
-export function updateProfile(data: { name?: string; avatarId?: string }): Promise<UserInfo> {
+export function updateProfile(data: { wechatNickname?: string; avatarId?: string }): Promise<UserInfo> {
 	return request<UserInfo>({
 		url: '/users/me/profile',
 		method: 'PATCH',

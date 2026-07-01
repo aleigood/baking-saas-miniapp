@@ -47,11 +47,11 @@
 			</view>
 
 			<view class="action-list">
-				<ListItem v-if="isOwner" :key="'item-tenants'" class="action-item" @click="navigateToTenantList" :bleed="true">
+				<ListItem :key="'item-tenants'" class="action-item" @click="navigateToTenantList" :bleed="true">
 					<view class="action-item-content">
 						<view class="action-left">
 							<image class="action-icon" src="/static/icons/store.svg" />
-							<text>店铺管理</text>
+							<text>{{ isOwner ? '店铺管理' : '申请创建店铺' }}</text>
 						</view>
 						<view class="action-right">&#10095;</view>
 					</view>

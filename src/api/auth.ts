@@ -24,8 +24,16 @@ export interface SmsCodeResponse {
 	debugCode?: string;
 }
 
+export function wechatLogin(code: string): Promise<LoginRes> {
+	return request<LoginRes>({ url: '/auth/wechat-login', method: 'POST', data: { code } });
+}
+
 export function sendRegistrationCode(phone: string): Promise<SmsCodeResponse> {
 	return request<SmsCodeResponse>({ url: '/auth/sms-codes', method: 'POST', data: { phone } });
+}
+
+export function sendProfileCode(phone: string): Promise<SmsCodeResponse> {
+	return request<SmsCodeResponse>({ url: '/auth/profile-sms-codes', method: 'POST', data: { phone } });
 }
 
 export function register(data: { phone: string; password: string; verificationCode: string }): Promise<LoginRes> {

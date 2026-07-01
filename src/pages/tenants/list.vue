@@ -1,9 +1,13 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<DetailHeader title="店铺管理" />
+		<DetailHeader :title="isOwner ? '店铺管理' : '我的店铺'" />
 		<DetailPageLayout>
 			<view class="page-content no-horizontal-padding page-content-with-fab">
+				<view v-if="pendingApplication" class="application-tip">
+					<view><text class="application-tip-title">开店申请审核中</text><text class="application-tip-name">{{ pendingApplication.storeName }}</text></view>
+					<text class="application-tip-status">等待审核</text>
+				</view>
 				<template v-if="tenants.length > 0" :key="'tenants-list-container'">
 					<ListItem
 						v-for="(tenant, index) in tenants"
@@ -37,9 +41,13 @@
 
 		<ExpandingFab :actions="fabActions" :no-tab-bar="true" />
 
-		<AppModal v-model:visible="showEditModal" :key="'edit-tenant-modal'" :title="isEditing ? '修改店铺' : '新增店铺'">
+		<AppModal v-model:visible="showEditModal" :key="'edit-tenant-modal'" :title="isEditing ? '修改店铺' : '申请创建店铺'">
+			<view v-if="!isEditing" class="license-tip">请根据营业执照上面信息如实填写</view>
 			<FormItem label="店铺名称">
 				<input class="input-field" v-model="editableTenant.name" placeholder="请输入店铺名称" />
+			</FormItem>
+			<FormItem label="店铺地址">
+				<input class="input-field" v-model="editableTenant.address" placeholder="请根据营业执照如实填写" />
 			</FormItem>
 			<FormItem v-if="isEditing" label="店铺状态">
 				<picker mode="selector" :range="statusOptions" range-key="text" @change="onStatusChange">
@@ -52,7 +60,7 @@
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showEditModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleSaveTenant" :disabled="isSubmitting" :loading="isSubmitting">
-					{{ isSubmitting ? '' : '确认' }}
+					{{ isSubmitting ? '' : (isEditing ? '保存修改' : '提交申请') }}
 				</AppButton>
 			</view>
 		</AppModal>
@@ -73,7 +81,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useToastStore } from '@/store/toast';
 import { useUserStore } from '@/store/user';
-import { getTenants, createTenant, updateTenant } from '@/api/tenants';
+import { getTenants, updateTenant } from '@/api/tenants';
+import { createStoreApplication, getStoreApplication, type StoreApplication } from '@/api/onboarding';
 // [代码重构] 导入公共日期格式化函数
 import { getLocalDate } from '@/utils/format';
 import type { Tenant } from '@/types/api';
@@ -97,10 +106,12 @@ const isLoading = ref(false);
 const isSubmitting = ref(false);
 const showEditModal = ref(false);
 const isEditing = ref(false);
+const pendingApplication = ref<StoreApplication | null>(null);
 
 const editableTenant = ref<Partial<Tenant>>({
 	id: '',
 	name: '',
+	address: '',
 	status: 'ACTIVE'
 });
 
@@ -111,7 +122,7 @@ const fabActions = computed(() => {
 	const actions = [
 		{
 			icon: '/static/icons/add.svg',
-			text: '新增店铺',
+			text: '申请创建店铺',
 			action: openAddModal
 		}
 	];
@@ -119,6 +130,7 @@ const fabActions = computed(() => {
 });
 
 const ownedTenantIds = computed(() => new Set(userStore.userInfo?.tenants.filter((item) => item.role === 'OWNER').map((item) => item.tenant.id) ?? []));
+const isOwner = computed(() => ownedTenantIds.value.size > 0);
 
 const canManageTenant = (tenantId: string) => ownedTenantIds.value.has(tenantId);
 
@@ -133,7 +145,13 @@ const selectedStatusText = computed(() => {
 
 onMounted(() => {
 	fetchTenants();
+	fetchApplication();
 });
+
+const fetchApplication = async () => {
+	const latest = await getStoreApplication();
+	pendingApplication.value = latest?.status === 'PENDING' ? latest : null;
+};
 
 const fetchTenants = async () => {
 	isLoading.value = true;
@@ -148,8 +166,12 @@ const fetchTenants = async () => {
 };
 
 const openAddModal = () => {
+	if (pendingApplication.value) {
+		toastStore.show({ message: '您已有待审核的开店申请', type: 'error' });
+		return;
+	}
 	isEditing.value = false;
-	editableTenant.value = { name: '', status: 'ACTIVE' };
+	editableTenant.value = { name: '', address: '', status: 'ACTIVE' };
 	showEditModal.value = true;
 };
 
@@ -164,8 +186,8 @@ const onStatusChange = (e: any) => {
 };
 
 const handleSaveTenant = async () => {
-	if (!editableTenant.value.name) {
-		toastStore.show({ message: '请输入店铺名称', type: 'error' });
+	if (!editableTenant.value.name || !editableTenant.value.address) {
+		toastStore.show({ message: '请输入店铺名称和地址', type: 'error' });
 		return;
 	}
 	isSubmitting.value = true;
@@ -173,13 +195,23 @@ const handleSaveTenant = async () => {
 		if (isEditing.value) {
 			await updateTenant(editableTenant.value.id!, {
 				name: editableTenant.value.name,
+				address: editableTenant.value.address,
 				status: editableTenant.value.status
 			});
 			toastStore.show({ message: '店铺信息更新成功', type: 'success' });
 		} else {
-			await createTenant({ name: editableTenant.value.name });
+			const profile = userStore.userInfo;
+			if (!profile?.name || !profile.phone) throw new Error('用户资料不完整');
+			await createStoreApplication({
+				storeName: editableTenant.value.name,
+				address: editableTenant.value.address,
+				name: profile.name,
+				wechatNickname: profile.wechatNickname || undefined,
+				phone: profile.phone
+			});
 			await userStore.fetchUserInfo();
-			toastStore.show({ message: '店铺创建成功', type: 'success' });
+			await fetchApplication();
+			toastStore.show({ message: '开店申请已提交', type: 'success' });
 		}
 		showEditModal.value = false;
 		await fetchTenants();
@@ -216,6 +248,13 @@ const handleEditFromMenu = () => {
 	flex-direction: column;
 	height: 100vh;
 }
+
+.application-tip { margin: 0 20px 14px; padding: 14px 16px; border: 1px solid #ead9ca; border-radius: 14px; background: #fffaf5; display: flex; align-items: center; justify-content: space-between; }
+.application-tip > view { display: flex; flex-direction: column; gap: 3px; }
+.application-tip-title { font-size: 13px; font-weight: 650; color: #8c5a3b; }
+.application-tip-name { font-size: 12px; color: var(--text-secondary); }
+.application-tip-status { font-size: 11px; color: #b67a4d; background: #f7eadf; padding: 3px 8px; border-radius: 999px; }
+.license-tip { margin: -2px 0 18px; padding: 10px 12px; border-radius: 10px; background: #fff8f1; color: #8e7564; font-size: 12px; line-height: 1.5; }
 
 // [UI改进] 新增店铺图标容器样式
 .store-icon-wrapper {

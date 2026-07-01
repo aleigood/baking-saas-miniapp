@@ -6,11 +6,8 @@
 			<view class="page-content" v-if="!isLoading && selectedMember">
 				<view class="card">
 					<view class="card-title">人员信息</view>
-					<FormItem label="姓名">
-						<input class="input-field is-disabled" type="text" :value="selectedMember.name || '未设置'" disabled />
-					</FormItem>
-					<FormItem label="手机号">
-						<input class="input-field is-disabled" type="text" :value="selectedMember.phone" disabled />
+					<FormItem label="微信昵称">
+						<input class="input-field is-disabled" type="text" :value="selectedMember.wechatNickname || '未设置'" disabled />
 					</FormItem>
 					<FormItem label="加入日期">
 						<input class="input-field is-disabled" type="text" :value="formatChineseDate(selectedMember.joinDate)" disabled />

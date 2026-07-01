@@ -18,7 +18,7 @@ export function getTenants(): Promise<Tenant[]> {
  * [核心新增] 创建一个新的店铺
  * @param data 包含店铺名称
  */
-export function createTenant(data: { name: string }): Promise<Tenant> {
+export function createTenant(data: { name: string; address: string }): Promise<Tenant> {
 	return request<Tenant>({
 		url: '/tenants',
 		method: 'POST',
@@ -31,7 +31,7 @@ export function createTenant(data: { name: string }): Promise<Tenant> {
  * @param tenantId 店铺ID
  * @param data 包含要更新的店铺名称或状态
  */
-export function updateTenant(tenantId: string, data: Partial<{ name: string; status: 'ACTIVE' | 'INACTIVE' }>): Promise<Tenant> {
+export function updateTenant(tenantId: string, data: Partial<{ name: string; address: string; status: 'ACTIVE' | 'INACTIVE' }>): Promise<Tenant> {
 	return request<Tenant>({
 		url: `/tenants/${tenantId}`,
 		method: 'PATCH',

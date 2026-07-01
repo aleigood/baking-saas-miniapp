@@ -34,11 +34,13 @@ const sizeStyle = computed(() => ({ width: `${props.size}px`, height: `${props.s
 	overflow: hidden;
 	box-sizing: border-box;
 	box-shadow: inset 0 0 0 1px rgba(90, 58, 39, 0.08);
+	transform: translateZ(0); /* [核心修复] 解决小程序中圆角失效导致的方形背景问题 */
 }
 
 .user-avatar-photo {
 	width: 100%;
 	height: 100%;
+	border-radius: 50%; /* 进一步保证图片本身是圆角的 */
 }
 
 .user-avatar-symbol {

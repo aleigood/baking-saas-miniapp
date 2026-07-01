@@ -1,199 +1,216 @@
 <template>
-	<view class="login-container">
-		<view class="content-wrapper" :class="{ 'enter-active': pageLoaded }" :style="{ paddingTop: safeAreaTop + 'px' }">
-			<image class="logo" src="/static/icons/croissant.svg" mode="aspectFit"></image>
-
-			<view class="welcome-text-group">
-				<h1 class="title">欢迎回来,</h1>
-				<p class="subtitle">登录您的账户</p>
-			</view>
-
-			<view class="form-container">
-				<input class="input-field" v-model="form.phone" placeholder="请输入手机号" type="tel" />
-				<input class="input-field" v-model="form.password" password placeholder="请输入密码" />
-				<AppButton type="primary" full-width :loading="loading" @click="handleLogin" class="login-button">
-					{{ loading ? '' : '登 录' }}
-				</AppButton>
-				<AppButton type="text-link" full-width @click="uni.navigateTo({ url: '/pages/register/register' })">注册新账号</AppButton>
-			</view>
-		</view>
-
-		<image class="footer-croissant" src="/static/icons/croissant.svg"></image>
-
-		<Toast />
-	</view>
+  <view class="login-page">
+    <view class="glow glow-top"></view>
+    <view
+      class="content"
+      :class="{ ready: pageLoaded }"
+      :style="{ paddingTop: safeAreaTop + 'px' }"
+    >
+      <view class="brand-mark"
+        ><image src="/static/icons/croissant.svg" mode="aspectFit"
+      /></view>
+      <view class="hero">
+        <text class="eyebrow">BAKEFLOW</text>
+        <text class="title">让每一次出炉，\n都更从容</text>
+        <text class="subtitle">配方、生产与店铺协作，从这里开始</text>
+      </view>
+      <button class="wechat-button" :loading="loading" @click="handleLogin">
+        <text>{{ loading ? "正在登录" : "微信一键登录" }}</text>
+      </button>
+      <text class="agreement">登录即表示您同意用户协议与隐私政策</text>
+    </view>
+    <view class="glow glow-bottom"></view>
+    <Toast />
+  </view>
 </template>
-<script lang="ts" setup>
-import { reactive, ref, onMounted, computed } from 'vue';
-// [核心修改] 新增导入 onShow
-import { onShow } from '@dcloudio/uni-app';
-import { useUserStore } from '@/store/user';
-import { useDataStore } from '@/store/data';
-import { useSystemStore } from '@/store/system';
-// [核心修改] 新增导入 uiStore 和 toastStore
-import { useUiStore } from '@/store/ui';
-import { useToastStore } from '@/store/toast';
-import AppButton from '@/components/AppButton.vue';
-import Toast from '@/components/Toast.vue';
+
+<script setup lang="ts">
+import { computed, onMounted, ref } from "vue";
+import Toast from "@/components/Toast.vue";
+import { useDataStore } from "@/store/data";
+import { useSystemStore } from "@/store/system";
+import { useUserStore } from "@/store/user";
 
 const loading = ref(false);
 const pageLoaded = ref(false);
 const userStore = useUserStore();
 const dataStore = useDataStore();
 const systemStore = useSystemStore();
-// [核心修改] 新增 uiStore 和 toastStore 实例
-const uiStore = useUiStore();
-const toastStore = useToastStore();
+const safeAreaTop = computed(() => systemStore.statusBarHeight + 72);
 
-// 新增计算属性，用于获取顶部安全区域高度
-const safeAreaTop = computed(() => {
-	// [核心修改] 增加了额外的垂直间距（从 40px 增加到 80px）来使内容整体下移
-	return systemStore.statusBarHeight + 80;
-});
+onMounted(() => setTimeout(() => (pageLoaded.value = true), 80));
 
-const form = reactive({
-	// [核心修改] 清除默认填写的手机号和密码，用于正式发布
-	phone: '',
-	password: ''
-});
+const getCode = () =>
+  new Promise<string>((resolve, reject) => {
+    // #ifdef MP-WEIXIN
+    uni.login({
+      provider: "weixin",
+      success: (res) => resolve(res.code),
+      fail: reject,
+    });
+    // #endif
+    // #ifndef MP-WEIXIN
+    resolve(`dev-${Date.now()}`);
+    // #endif
+  });
 
-// [核心新增] onShow生命周期钩子
-onShow(() => {
-	// [核心改造] 指定自己的地址来消费消息
-	const toastMessage = uiStore.consumeNextPageToast('/pages/login/login');
-	if (toastMessage) {
-		// 如果有，就在当前页（登录页）显示它
-		toastStore.show(toastMessage);
-	}
-});
+const proceedLogin = async () => {
+  loading.value = true;
+  try {
+    const result = await userStore.wechatLogin(await getCode());
+    if (!result) return;
+    await userStore.fetchUserInfo();
+    await dataStore.fetchTenants();
+    if (dataStore.currentTenantId) {
+      if (!(await dataStore.selectTenant(dataStore.currentTenantId))) return;
+    }
+    const inviteToken = uni.getStorageSync("pending_join_token");
+    if (inviteToken) {
+      uni.reLaunch({ url: "/pages/onboarding/store-access" });
+    } else {
+      uni.reLaunch({ url: result.redirectTo || "/pages/main/main" });
+    }
+  } finally {
+    loading.value = false;
+  }
+};
 
-onMounted(() => {
-	setTimeout(() => {
-		pageLoaded.value = true;
-	}, 100);
-});
+const handleLogin = () => {
+  if (loading.value) return;
 
-const handleLogin = async () => {
-	loading.value = true;
-	const loginResult = await userStore.login(form);
-	if (loginResult) {
-		try {
-			await userStore.fetchUserInfo();
-			await dataStore.fetchTenants(); // fetchTenants 内部会处理好 currentTenantId
+  // #ifdef MP-WEIXIN
+  const getUserProfile = (uni as any).getUserProfile;
+  if (getUserProfile) {
+    getUserProfile({
+      desc: "用于展示您的昵称",
+      success: (res: any) => {
+        if (res && res.userInfo) {
+          userStore.setAuthorizedWechatProfile({
+            nickName: res.userInfo.nickName,
+            avatarUrl: res.userInfo.avatarUrl
+          });
+        }
+        proceedLogin();
+      },
+      fail: (err: any) => {
+        console.warn("getUserProfile failed", err);
+        proceedLogin();
+      }
+    });
+    return;
+  }
+  // #endif
 
-			// [核心改造] 登录成功后，复用启动页的角色判断逻辑进行精确跳转
-			if (loginResult.redirectTo) {
-				uni.reLaunch({ url: loginResult.redirectTo });
-			} else {
-				// 如果后端没有指定跳转，前端进行角色判断
-				const currentTenantId = dataStore.currentTenantId;
-				const currentTenantInfo = userStore.userInfo?.tenants.find((t) => t.tenant.id === currentTenantId);
-
-				if (currentTenantInfo && currentTenantInfo.role === 'MEMBER') {
-					uni.reLaunch({ url: '/pages/baker/main' });
-				} else {
-					uni.reLaunch({ url: '/pages/main/main' });
-				}
-			}
-		} catch (error) {
-			loading.value = false;
-		}
-	} else {
-		loading.value = false;
-	}
+  proceedLogin();
 };
 </script>
+
 <style scoped lang="scss">
-@import '@/styles/common.scss';
-
-.login-container {
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-start;
-	align-items: center;
-	height: 100vh;
-	background-color: var(--bg-color);
-	padding: 0 40px; // 修改: 移除顶部的 padding
-	box-sizing: border-box;
-	overflow: hidden;
-	position: relative;
+.login-page {
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background: #fdf8f2;
+  color: #402d22;
 }
-
-.content-wrapper {
-	width: 100%;
-	z-index: 1;
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	// [核心修改] 移除固定的 padding-top，改为通过 style 绑定动态计算的高度
-	opacity: 0;
-	transform: translateY(30px);
-	transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+.content {
+  position: relative;
+  z-index: 2;
+  padding-left: 36px;
+  padding-right: 36px;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: 0.65s ease;
 }
-
-.content-wrapper.enter-active {
-	opacity: 1;
-	transform: translateY(0);
+.content.ready {
+  opacity: 1;
+  transform: none;
 }
-
-.welcome-text-group {
-	width: 100%;
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-
-.logo {
-	width: 130px;
-	height: 130px;
-	// [核心修改] 调整与下方文字的间距
-	margin-bottom: 30px;
-	align-self: center;
+.brand-mark image {
+  width: 72px;
+  height: 72px;
 }
-
+.hero {
+  display: flex;
+  flex-direction: column;
+  margin-top: 24px;
+}
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 4px;
+  font-weight: 700;
+  color: #bd7d4f;
+}
 .title {
-	color: var(--text-primary);
-	font-size: 32px;
-	font-weight: 600;
-	margin-bottom: 5px;
+  margin-top: 16px;
+  font-size: 34px;
+  line-height: 1.28;
+  font-weight: 750;
+  letter-spacing: 1px;
 }
-
 .subtitle {
-	color: var(--text-secondary);
-	font-size: 16px;
-	margin-bottom: 40px;
+  margin-top: 18px;
+  color: #8d796a;
+  font-size: 15px;
 }
-
-.form-container {
-	width: 100%;
+.wechat-button {
+  margin-top: 72px;
+  height: 56px;
+  border-radius: 18px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: white;
+  font-size: 16px;
+  font-weight: 650;
+  background: linear-gradient(135deg, #8c5a3b, #a96e47);
+  box-shadow: 0 14px 32px rgba(140, 90, 59, 0.25);
 }
-
-.input-field {
-	width: 100%;
-	height: 54px;
-	background-color: #ffffff;
-	border-radius: 15px;
-	padding: 0 20px;
-	margin-bottom: 20px;
-	font-size: 16px;
-	box-sizing: border-box;
-	border: 1px solid var(--border-color);
-	transition: border-color 0.3s, box-shadow 0.3s;
+.wechat-button::after {
+  border: 0;
 }
-
-.input-field:focus {
-	border-color: var(--primary-color);
-	box-shadow: 0 0 0 3px rgba(140, 90, 59, 0.1);
+.wechat-button:active {
+  transform: scale(0.985);
 }
-
-.login-button {
-	margin-top: 10px;
+.agreement {
+  display: block;
+  margin-top: 18px;
+  text-align: center;
+  font-size: 11px;
+  color: #b0a092;
 }
-
-.footer-croissant {
-	position: absolute;
-	bottom: -20vh;
-	right: -40vw;
-	width: 120vw;
-	height: 120vw;
-	opacity: 0.05;
-	z-index: 0;
+.glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.glow-top {
+  width: 320px;
+  height: 320px;
+  top: -140px;
+  right: -120px;
+  background: linear-gradient(
+    135deg,
+    rgba(236, 178, 111, 0.25) 0%,
+    rgba(236, 178, 111, 0.05) 100%
+  );
+}
+.glow-bottom {
+  width: 420px;
+  height: 420px;
+  bottom: -200px;
+  left: -160px;
+  background: linear-gradient(
+    135deg,
+    rgba(161, 112, 78, 0.15) 0%,
+    rgba(161, 112, 78, 0.02) 100%
+  );
 }
 </style>

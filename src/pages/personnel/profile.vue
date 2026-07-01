@@ -9,30 +9,11 @@
 						<UserAvatar :user-id="editableUser.id" :avatar-url="editableUser.avatarUrl" :size="100" />
 						<text class="avatar-action">更换头像</text>
 					</view>
-					<FormItem label="姓名（选填）">
-						<input class="input-field" type="text" v-model="editableUser.name" placeholder="可稍后补充姓名" />
-					</FormItem>
-					<FormItem label="手机号">
-						<input class="input-field is-disabled" type="text" :value="editableUser.phone" disabled />
+					<FormItem label="微信昵称">
+						<input class="input-field" type="nickname" :value="editableUser.wechatNickname" @blur="onNicknameBlur" placeholder="点击快速填入微信昵称" />
 					</FormItem>
 					<AppButton type="primary" full-width @click="handleUpdateProfile" :disabled="isSubmitting" :loading="isSubmitting">
 						{{ isSubmitting ? '' : '保存修改' }}
-					</AppButton>
-				</view>
-
-				<view class="card">
-					<view class="card-title">修改密码</view>
-					<FormItem label="当前密码">
-						<input class="input-field" type="password" v-model="passwordForm.currentPassword" placeholder="请输入当前密码" />
-					</FormItem>
-					<FormItem label="新密码">
-						<input class="input-field" type="password" v-model="passwordForm.newPassword" placeholder="请输入新密码" />
-					</FormItem>
-					<FormItem label="确认新密码">
-						<input class="input-field" type="password" v-model="passwordForm.confirmPassword" placeholder="请再次输入新密码" />
-					</FormItem>
-					<AppButton type="secondary" full-width @click="handleChangePassword" :disabled="isChangingPassword" :loading="isChangingPassword">
-						{{ isChangingPassword ? '' : '确认修改密码' }}
 					</AppButton>
 				</view>
 			</view>
@@ -65,10 +46,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useUserStore } from '@/store/user';
 import { useToastStore } from '@/store/toast';
-import { updateProfile, changePassword, getAvatarOptions, type AvatarOption } from '@/api/user';
+import { updateProfile, getAvatarOptions, type AvatarOption } from '@/api/user';
 import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
@@ -87,18 +68,12 @@ const toastStore = useToastStore();
 
 // 响应式状态
 const isSubmitting = ref(false);
-const isChangingPassword = ref(false);
-const editableUser = ref<{ id: string; name: string | null; phone: string; avatarId: string | null; avatarUrl: string | null } | null>(null);
+const editableUser = ref<{ id: string; wechatNickname: string | null; avatarId: string | null; avatarUrl: string | null } | null>(null);
 const avatarOptions = ref<AvatarOption[]>([]);
 const loadingAvatars = ref(false);
 const showAvatarPicker = ref(false);
 const pendingAvatarId = ref<string | null>(null);
 
-const passwordForm = reactive({
-	currentPassword: '',
-	newPassword: '',
-	confirmPassword: ''
-});
 
 // onMounted钩子：页面加载时，深拷贝用户信息以进行编辑
 onMounted(() => {
@@ -106,8 +81,7 @@ onMounted(() => {
 		editableUser.value = JSON.parse(
 			JSON.stringify({
 				id: userStore.userInfo.id,
-				name: userStore.userInfo.name,
-				phone: userStore.userInfo.phone,
+				wechatNickname: userStore.userInfo.wechatNickname,
 				avatarId: userStore.userInfo.avatarId,
 				avatarUrl: userStore.userInfo.avatarUrl
 			})
@@ -141,19 +115,28 @@ const confirmAvatar = () => {
 	showAvatarPicker.value = false;
 };
 
+const onNicknameBlur = (event: { detail: { value: string } }) => {
+	if (editableUser.value) editableUser.value.wechatNickname = event.detail.value.trim();
+};
+
 // 事件处理器：更新个人资料
 const handleUpdateProfile = async () => {
 	if (!editableUser.value) return;
+	if (!editableUser.value.wechatNickname) {
+		toastStore.show({ message: '请填写微信昵称', type: 'error' });
+		return;
+	}
 
 	isSubmitting.value = true;
 	try {
 		const updatedInfo = await updateProfile({
-			name: editableUser.value.name || '',
+			wechatNickname: editableUser.value.wechatNickname,
 			avatarId: editableUser.value.avatarId || undefined
 		});
 
 		// 更新 Pinia store 中的用户信息
-		userStore.userInfo!.name = updatedInfo.name;
+		userStore.userInfo!.wechatNickname = updatedInfo.wechatNickname;
+		userStore.userInfo!.displayName = updatedInfo.displayName;
 		userStore.userInfo!.avatarId = updatedInfo.avatarId;
 		userStore.userInfo!.avatarUrl = updatedInfo.avatarUrl;
 
@@ -166,31 +149,6 @@ const handleUpdateProfile = async () => {
 	}
 };
 
-// 事件处理器：修改密码
-const handleChangePassword = async () => {
-	if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-		toastStore.show({ message: '两次输入的新密码不一致', type: 'error' });
-		return;
-	}
-	if (!passwordForm.currentPassword || !passwordForm.newPassword) {
-		toastStore.show({ message: '请输入当前密码和新密码', type: 'error' });
-		return;
-	}
-
-	isChangingPassword.value = true;
-	try {
-		await changePassword(passwordForm);
-		toastStore.show({ message: '密码修改成功', type: 'success' });
-		// 重置表单
-		passwordForm.currentPassword = '';
-		passwordForm.newPassword = '';
-		passwordForm.confirmPassword = '';
-	} catch (error: any) {
-		console.error('修改密码失败:', error);
-	} finally {
-		isChangingPassword.value = false;
-	}
-};
 </script>
 
 <style scoped lang="scss">

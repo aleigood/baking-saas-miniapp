@@ -19,13 +19,12 @@ export function getAllMembersByOwner(): Promise<TenantWithMembers[]> {
  * [核心新增] 直接创建一个新成员并将其添加到当前店铺
  * @param data 包含姓名、手机、初始密码和角色
  */
-export function createMember(data: { phone: string; role: TenantRole }): Promise<any> {
-	return request({
-		url: '/members',
-		method: 'POST',
-		data
-	});
-}
+export interface JoinLink { id: string; token: string; role: TenantRole; expiresAt: string; }
+export interface MembershipApplication { id: string; displayName: string; wechatNickname?: string; message?: string; status: 'PENDING'|'APPROVED'|'REJECTED'; createdAt: string; applicant: { id: string; name?: string; wechatNickname?: string; avatarUrl?: string }; joinLink: { role: TenantRole }; }
+export const createJoinLink = (role: TenantRole) => request<JoinLink>({ url: '/members/join-links', method: 'POST', data: { role } });
+export const getMembershipApplications = () => request<MembershipApplication[]>({ url: '/members/applications' });
+export const approveMembershipApplication = (id: string) => request({ url: `/members/applications/${id}/approve`, method: 'POST', data: {} });
+export const rejectMembershipApplication = (id: string) => request({ url: `/members/applications/${id}/reject`, method: 'POST', data: {} });
 
 /**
  * 获取店铺的人员列表

@@ -94,9 +94,11 @@ export interface LoginRes {
 
 export interface UserInfo {
 	id: string;
-	phone: string;
+	phone: string | null;
 	phoneVerifiedAt: string | null;
 	name: string | null;
+	wechatNickname: string | null;
+	profileCompletedAt: string | null;
 	displayName: string;
 	avatarId: string | null;
 	avatarUrl: string | null;
@@ -113,6 +115,7 @@ export interface UserInfo {
 export interface Tenant {
 	id: string;
 	name: string;
+	address: string;
 	status: 'ACTIVE' | 'INACTIVE';
 }
 
@@ -591,7 +594,7 @@ export interface Member {
 	id: string;
 	name: string | null;
 	displayName: string;
-	phone: string;
+	wechatNickname: string | null;
 	avatarUrl: string | null;
 	role: TenantRole;
 	status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
