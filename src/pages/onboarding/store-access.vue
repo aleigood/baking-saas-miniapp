@@ -96,9 +96,44 @@
               <view v-if="['OWNER', 'MEMBER'].includes(invitePreview.relationship)" class="invite-relationship-tip">
                 {{ invitePreview.relationship === 'OWNER' ? '这是您管理的店铺，无需申请加入' : '您已经是该店铺成员' }}
               </view>
-              <AppButton v-else-if="['AVAILABLE', 'REJECTED'].includes(invitePreview.relationship)" type="primary" full-width @click="openJoinConfirm">
-                {{ invitePreview.relationship === 'REJECTED' ? '重新申请加入' : '接受邀请并申请加入' }}
-              </AppButton>
+              <view v-else-if="['AVAILABLE', 'REJECTED'].includes(invitePreview.relationship)">
+                <AppButton v-slot v-if="!showJoinForm" type="primary" full-width @click="openJoinForm">
+                  {{ invitePreview.relationship === 'REJECTED' ? '重新申请加入' : '接受邀请并申请加入' }}
+                </AppButton>
+                <view v-else class="expanded-join-form" :class="{ 'enter-active': showJoinForm }">
+                  <view class="form-divider"></view>
+                  
+                  <text class="input-label">真实姓名</text>
+                  <input class="modern-tenant-input" v-model.trim="profileForm.name" maxlength="30" placeholder="方便店主确认身份" placeholder-style="color: #c4b5a6;" />
+                  
+                  <text class="input-label">微信昵称 (必填)</text>
+                  <input type="nickname" class="modern-tenant-input" placeholder="点击快速填入微信昵称" :value="profileForm.wechatNickname" @blur="onNicknameBlur" placeholder-style="color: #c4b5a6;" />
+                  
+                  <text class="input-label">手机号</text>
+                  <input class="modern-tenant-input" v-model.trim="profileForm.phone" type="number" maxlength="11" placeholder="请输入手机号" placeholder-style="color: #c4b5a6;" />
+                  
+                  <view v-if="needsPhoneVerification" class="verification-row">
+                    <input class="modern-tenant-input verification-input" v-model.trim="profileForm.verificationCode" type="number" maxlength="6" placeholder="短信验证码" placeholder-style="color: #c4b5a6;" />
+                    <AppButton type="secondary" size="mini" :loading="smsSending" :disabled="smsCountdown > 0" @click="sendCode">{{ smsCountdown > 0 ? `${smsCountdown}秒` : "获取验证码" }}</AppButton>
+                  </view>
+                  
+                  <view class="form-actions-row">
+                    <AppButton
+                      type="secondary"
+                      class="action-btn"
+                      @click="showJoinForm = false"
+                      >取消</AppButton
+                    >
+                    <AppButton
+                      type="primary"
+                      class="action-btn"
+                      :loading="joinSubmitting"
+                      @click="confirmJoin"
+                      >确认申请</AppButton
+                    >
+                  </view>
+                </view>
+              </view>
             </view>
             <view
               v-for="item in memberships"
@@ -282,47 +317,7 @@
       </view>
     </AppModal>
 
-    <AppModal v-model:visible="showJoinConfirm" title="申请加入店铺">
-      <view v-if="invitePreview" class="join-confirm-store">
-        <text class="join-confirm-name">{{ invitePreview.tenant.name }}</text>
-        <text class="join-confirm-role"
-          >将以{{ roleName(invitePreview.role) }}身份申请加入</text
-        >
-      </view>
-      <text class="input-label">真实姓名</text>
-      <input class="modern-tenant-input" v-model.trim="profileForm.name" maxlength="30" placeholder="方便店主确认身份" placeholder-style="color: #c4b5a6;" />
-      <text class="input-label">微信昵称 (必填)</text>
-      <input type="nickname" class="modern-tenant-input" placeholder="点击快速填入微信昵称" :value="profileForm.wechatNickname" @blur="onNicknameBlur" placeholder-style="color: #c4b5a6;" />
-      <text class="input-label">手机号</text>
-      <input class="modern-tenant-input" v-model.trim="profileForm.phone" type="number" maxlength="11" placeholder="请输入手机号" placeholder-style="color: #c4b5a6;" />
-      <view v-if="needsPhoneVerification" class="verification-row">
-        <input class="modern-tenant-input verification-input" v-model.trim="profileForm.verificationCode" type="number" maxlength="6" placeholder="短信验证码" placeholder-style="color: #c4b5a6;" />
-        <AppButton type="secondary" size="mini" :loading="smsSending" :disabled="smsCountdown > 0" @click="sendCode">{{ smsCountdown > 0 ? `${smsCountdown}秒` : "获取验证码" }}</AppButton>
-      </view>
-      <text class="input-label">留言（选填）</text>
-      <textarea
-        class="join-message-input"
-        v-model.trim="joinForm.message"
-        maxlength="200"
-        placeholder="可以简单介绍自己"
-        placeholder-style="color: #c4b5a6;"
-      ></textarea>
-      <view class="modal-actions">
-        <AppButton
-          type="secondary"
-          class="modal-btn"
-          @click="showJoinConfirm = false"
-          >取消</AppButton
-        >
-        <AppButton
-          type="primary"
-          class="modal-btn"
-          :loading="joinSubmitting"
-          @click="confirmJoin"
-          >确认申请</AppButton
-        >
-      </view>
-    </AppModal>
+
     <Toast />
   </view>
 </template>
@@ -401,7 +396,7 @@ const submitting = ref(false);
 const joinSubmitting = ref(false);
 const enteringId = ref("");
 const showSubmitConfirm = ref(false);
-const showJoinConfirm = ref(false);
+const showJoinForm = ref(false);
 const pageLoaded = ref(false);
 const smsSending = ref(false);
 const smsCountdown = ref(0);
@@ -411,7 +406,6 @@ const form = reactive({
   address: "",
 });
 const profileForm = reactive({ name: "", wechatNickname: "", phone: "", verificationCode: "" });
-const joinForm = reactive({ message: "" });
 const needsPhoneVerification = computed(
   () => !userStore.userInfo?.phoneVerifiedAt || profileForm.phone !== userStore.userInfo?.phone,
 );
@@ -489,9 +483,8 @@ const enterApprovedStore = async () => {
     await activateTenant(application.value.createdTenant.id, "OWNER");
 };
 
-const openJoinConfirm = () => {
-  joinForm.message = "";
-  showJoinConfirm.value = true;
+const openJoinForm = () => {
+  showJoinForm.value = true;
 };
 
 const onNicknameBlur = (e: any) => {
@@ -546,13 +539,12 @@ const confirmJoin = async () => {
       ...profileForm,
       wechatNickname: profileForm.wechatNickname || undefined,
       verificationCode: needsPhoneVerification.value ? profileForm.verificationCode : undefined,
-      message: joinForm.message || undefined,
     });
     if (result.accessToken) userStore.setToken(result.accessToken);
     uni.removeStorageSync("pending_join_token");
     inviteToken.value = "";
     invitePreview.value = null;
-    showJoinConfirm.value = false;
+    showJoinForm.value = false;
     memberships.value = await getMyMembershipApplications();
     await userStore.fetchUserInfo();
     toastStore.show({ message: "申请已提交", type: "success" });
@@ -1195,30 +1187,30 @@ onUnmounted(() => { if (smsTimer) clearInterval(smsTimer); });
   background: #f9fcfd;
   border-color: #dceff5;
 }
-.join-confirm-store {
+.expanded-join-form {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 4px 0 20px;
-}
-.join-confirm-name {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-.join-confirm-role {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 6px;
-}
-.join-message-input {
   width: 100%;
-  height: 82px;
-  background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 12px 16px;
-  box-sizing: border-box;
-  font-size: 14px;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  &.enter-active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.form-divider {
+  height: 1px;
+  background: rgba(140, 90, 59, 0.1);
+  margin: 16px 0;
+}
+.form-actions-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  width: 100%;
+}
+.action-btn {
+  flex: 1;
 }
 </style>

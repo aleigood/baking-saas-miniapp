@@ -569,7 +569,7 @@ const handleLogout = () => {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	margin-bottom: 6px;
+	margin-bottom: 2px;
 }
 
 .role-badge {
@@ -586,7 +586,7 @@ const handleLogout = () => {
 .vip-text-flow {
 	display: inline-flex;
 	align-items: center;
-	margin-top: 8px;
+	margin-top: 2px;
 	padding: 2px 8px 2px 0; /* 右侧留白增加点击区域，左侧无需内边距以对齐名字 */
 	transition: opacity 0.2s ease;
 	color: var(--primary-color);

@@ -30,11 +30,11 @@
 								<UserAvatar class="member-avatar" :user-id="member.id" :avatar-url="member.avatarUrl" :size="42" />
 								<view class="main-info">
 									<view class="name">{{ member.displayName }}</view>
-									<view class="desc">{{ member.wechatNickname || '未设置昵称' }} · 加入于 {{ formatChineseDate(member.joinDate) }}</view>
+									<view class="desc">加入于 {{ formatChineseDate(member.joinDate) }}</view>
 								</view>
 							</view>
 							<view class="side-info">
-								<view class="value">{{ getRoleName(member.role) }}</view>
+								<text class="role-tag" :class="member.role.toLowerCase()">{{ getRoleName(member.role) }}</text>
 							</view>
 						</ListItem>
 					</view>
@@ -51,11 +51,11 @@
 							<UserAvatar class="member-avatar" :user-id="member.id" :avatar-url="member.avatarUrl" :size="42" />
 							<view class="main-info">
 								<view class="name">{{ member.displayName }}</view>
-								<view class="desc">{{ member.wechatNickname || '未设置昵称' }} · 加入于 {{ formatChineseDate(member.joinDate) }}</view>
+								<view class="desc">加入于 {{ formatChineseDate(member.joinDate) }}</view>
 							</view>
 						</view>
 						<view class="side-info">
-							<view class="value">{{ getRoleName(member.role) }}</view>
+							<text class="role-tag" :class="member.role.toLowerCase()">{{ getRoleName(member.role) }}</text>
 						</view>
 					</ListItem>
 				</template>
@@ -382,5 +382,25 @@ const rejectApplication = async (id: string) => { await rejectMembershipApplicat
 .share-button:active {
 	transform: scale(0.97);
 	box-shadow: 0 2px 8px rgba(140, 90, 59, 0.25);
+}
+.role-tag {
+	display: inline-block;
+	font-size: 11px;
+	font-weight: 600;
+	padding: 4px 10px;
+	border-radius: 8px;
+	text-align: center;
+}
+.role-tag.owner {
+	background-color: #fef3c7;
+	color: #d97706;
+}
+.role-tag.admin {
+	background-color: #e0f2fe;
+	color: #0284c7;
+}
+.role-tag.member {
+	background-color: #dcfce7;
+	color: #16a34a;
 }
 </style>

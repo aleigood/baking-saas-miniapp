@@ -75,7 +75,7 @@ const showAvatarPicker = ref(false);
 const pendingAvatarId = ref<string | null>(null);
 
 
-// onMounted钩子：页面加载时，深拷贝用户信息以进行编辑
+// onMounted钩子：页面加载时，深拷贝用户信息以进行编辑，并后台预加载头像选项
 onMounted(() => {
 	if (userStore.userInfo) {
 		editableUser.value = JSON.parse(
@@ -87,6 +87,8 @@ onMounted(() => {
 			})
 		);
 	}
+	// 预加载头像选项，避免打开弹窗时再等待接口请求
+	loadAvatarOptions();
 });
 
 const loadAvatarOptions = async () => {
