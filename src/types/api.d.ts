@@ -132,7 +132,7 @@ export interface RecipeFamily {
 	type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA';
 	category: RecipeCategory;
 	deletedAt: string | null;
-	freeTierEnabled: boolean;
+	freeTierUnlocked: boolean;
 	readOnly: boolean;
 	versions: RecipeVersion[];
 	productionCount?: number;

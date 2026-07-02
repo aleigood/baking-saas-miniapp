@@ -34,7 +34,7 @@ export interface SubscriptionSummary {
 	};
 	recipeSelection: {
 		required: boolean;
-		recipes: Array<{ id: string; name: string; freeTierEnabled: boolean; updatedAt: string }>;
+		recipes: Array<{ id: string; name: string; freeTierUnlocked: boolean; updatedAt: string }>;
 	};
 }
 
