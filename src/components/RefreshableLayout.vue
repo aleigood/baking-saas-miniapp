@@ -18,15 +18,21 @@
 		<scroll-view
 			:scroll-y="true"
 			class="scroll-area"
-			:refresher-enabled="true"
+			:refresher-enabled="refresherEnabled"
 			:refresher-triggered="isRefreshing"
+			:upper-threshold="TOP_EPSILON"
 			refresher-default-style="none"
 			refresher-background="transparent"
 			@refresherpulling="handleRefresherPulling"
 			@refresherrefresh="handleRefresherRefresh"
 			@refresherrestore="handleRefresherRestore"
 			@refresherabort="handleRefresherAbort"
-			@scroll="(e) => $emit('scroll', e)"
+			@touchstart="handleTouchStart"
+			@touchmove="handleTouchMove"
+			@touchend="handleTouchEnd"
+			@touchcancel="handleTouchEnd"
+			@scroll="handleScroll"
+			@scrolltoupper="handleScrollToUpper"
 		>
 			<slot></slot>
 		</scroll-view>
@@ -34,15 +40,114 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, getCurrentInstance, onUnmounted } from 'vue';
 
 const emit = defineEmits(['refresh', 'scroll']);
 
 const REFRESHER_HEIGHT = 80;
+const TOP_EPSILON = 2;
+const DIRECTION_THRESHOLD = 4;
 
 const refresherHeight = ref(0);
 const status = ref<'pulling' | 'releasing' | 'loading' | 'finishing'>('pulling');
 const isRefreshing = ref(false);
+const refresherEnabled = ref(true);
+const currentScrollTop = ref(0);
+const isTouching = ref(false);
+const gestureInvalidated = ref(false);
+const directionResolved = ref(false);
+const touchStartY = ref(0);
+const hasLeftTopDuringGesture = ref(false);
+const returnedToTop = ref(true);
+const instance = getCurrentInstance();
+let nativeTopCheckTimer: ReturnType<typeof setTimeout> | undefined;
+let nativeTopCheckVersion = 0;
+
+const isAtTop = () => currentScrollTop.value <= TOP_EPSILON;
+
+const verifyNativeTopAfterRelease = () => {
+	const checkVersion = ++nativeTopCheckVersion;
+	if (nativeTopCheckTimer) clearTimeout(nativeTopCheckTimer);
+	nativeTopCheckTimer = setTimeout(() => {
+		if (checkVersion !== nativeTopCheckVersion || isTouching.value || isRefreshing.value) return;
+		uni.createSelectorQuery()
+			.in(instance)
+			.select('.scroll-area')
+			.scrollOffset((result: any) => {
+				if (checkVersion !== nativeTopCheckVersion || isTouching.value || isRefreshing.value) return;
+				if (typeof result?.scrollTop !== 'number') return;
+				currentScrollTop.value = Math.max(0, result.scrollTop);
+				const nativeAtTop = isAtTop();
+				returnedToTop.value = nativeAtTop;
+				gestureInvalidated.value = false;
+				refresherEnabled.value = nativeAtTop;
+			})
+			.exec();
+	}, 32);
+};
+
+const invalidateCurrentGesture = () => {
+	hasLeftTopDuringGesture.value = true;
+	if (gestureInvalidated.value || isRefreshing.value) return;
+	gestureInvalidated.value = true;
+	refresherEnabled.value = false;
+};
+
+const handleTouchStart = (e: any) => {
+	nativeTopCheckVersion += 1;
+	if (nativeTopCheckTimer) clearTimeout(nativeTopCheckTimer);
+	const startedAtTop = returnedToTop.value || isAtTop();
+	isTouching.value = true;
+	directionResolved.value = false;
+	hasLeftTopDuringGesture.value = !startedAtTop;
+	returnedToTop.value = false;
+	gestureInvalidated.value = !startedAtTop;
+	touchStartY.value = Number(e.touches?.[0]?.clientY || 0);
+	refresherEnabled.value = !gestureInvalidated.value || isRefreshing.value;
+};
+
+const handleTouchMove = (e: any) => {
+	if (!isTouching.value || directionResolved.value || gestureInvalidated.value || isRefreshing.value) return;
+	const currentY = Number(e.touches?.[0]?.clientY || touchStartY.value);
+	const deltaY = currentY - touchStartY.value;
+	if (Math.abs(deltaY) < DIRECTION_THRESHOLD) return;
+	directionResolved.value = true;
+	if (deltaY < 0 || !isAtTop()) invalidateCurrentGesture();
+};
+
+const handleTouchEnd = () => {
+	const canRefreshNextGesture =
+		returnedToTop.value || (!hasLeftTopDuringGesture.value && isAtTop()) || isRefreshing.value;
+	isTouching.value = false;
+	directionResolved.value = false;
+	gestureInvalidated.value = false;
+	returnedToTop.value = canRefreshNextGesture;
+	refresherEnabled.value = canRefreshNextGesture;
+	verifyNativeTopAfterRelease();
+};
+
+const handleScroll = (e: any) => {
+	currentScrollTop.value = Math.max(0, Number(e.detail?.scrollTop || 0));
+	if (isAtTop()) {
+		if (hasLeftTopDuringGesture.value) returnedToTop.value = true;
+		if (!isTouching.value && !isRefreshing.value) {
+			gestureInvalidated.value = false;
+			refresherEnabled.value = true;
+		}
+	} else if (isTouching.value) {
+		invalidateCurrentGesture();
+	}
+	emit('scroll', e);
+};
+
+const handleScrollToUpper = () => {
+	currentScrollTop.value = 0;
+	returnedToTop.value = true;
+	if (!isTouching.value && !isRefreshing.value) {
+		gestureInvalidated.value = false;
+		refresherEnabled.value = true;
+	}
+};
 
 const croissantTransform = computed(() => {
 	const baseScale = 0.5;
@@ -68,6 +173,7 @@ const handleRefresherPulling = (e: any) => {
 const handleRefresherRefresh = () => {
 	status.value = 'loading';
 	isRefreshing.value = true;
+	refresherEnabled.value = true;
 	emit('refresh');
 };
 
@@ -75,12 +181,14 @@ const handleRefresherRestore = () => {
 	refresherHeight.value = 0;
 	status.value = 'pulling';
 	isRefreshing.value = false;
+	refresherEnabled.value = isAtTop();
 };
 
 const handleRefresherAbort = () => {
 	refresherHeight.value = 0;
 	status.value = 'pulling';
 	isRefreshing.value = false;
+	refresherEnabled.value = isAtTop();
 };
 
 const finishRefresh = () => {
@@ -89,6 +197,11 @@ const finishRefresh = () => {
 		isRefreshing.value = false;
 	}, 500);
 };
+
+onUnmounted(() => {
+	nativeTopCheckVersion += 1;
+	if (nativeTopCheckTimer) clearTimeout(nativeTopCheckTimer);
+});
 
 defineExpose({ finishRefresh });
 </script>
@@ -110,10 +223,7 @@ defineExpose({ finishRefresh });
 	align-items: center;
 	overflow: hidden;
 	position: absolute;
-
-	/* [修改] 原本是 top: 0; 现在让它往下偏移一个 Header 的高度，刚好从毛玻璃下边缘露出来 */
 	top: var(--header-height, 80px);
-
 	left: 0;
 	z-index: 1;
 }

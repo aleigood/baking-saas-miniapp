@@ -1,17 +1,21 @@
 <template>
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
 	<view class="page-wrapper">
-		<DetailHeader :title="selectedMember?.displayName || '加载中...'" />
+		<DetailHeader title="人员详情" />
 		<DetailPageLayout>
 			<view class="page-content" v-if="!isLoading && selectedMember">
-				<view class="member-profile-header">
-					<UserAvatar :user-id="selectedMember.id" :avatar-url="selectedMember.avatarUrl" :size="72" class="member-large-avatar" />
-					<view class="member-header-info">
-						<text class="member-header-name">{{ selectedMember.displayName }}</text>
-						<text class="role-tag" :class="selectedMember.role.toLowerCase()">{{ getRoleName(selectedMember.role) }}</text>
+				<!-- 个人头像与姓名板块 (精致居中设计) -->
+				<view class="member-profile-card">
+					<view class="avatar-wrapper">
+						<UserAvatar :user-id="selectedMember.id" :avatar-url="selectedMember.avatarUrl" :size="80" class="member-large-avatar" />
+					</view>
+					<text class="member-name">{{ selectedMember.displayName }}</text>
+					<view class="member-role-box">
+						<text class="role-badge" :class="selectedMember.role.toLowerCase()">{{ getRoleName(selectedMember.role) }}</text>
 					</view>
 				</view>
 
+				<!-- 基本信息卡片 -->
 				<view class="card info-card">
 					<view class="info-section-title">基本信息</view>
 					
@@ -25,18 +29,18 @@
 					</view>
 				</view>
 
+				<!-- 角色与管理卡片 -->
 				<view class="card action-card" v-if="canEditRole || canRemoveMember">
 					<view class="info-section-title">角色与管理</view>
 					
-					<view class="form-item-styled" v-if="canEditRole">
-						<text class="form-label-styled">修改角色</text>
+					<FormItem label="修改角色" v-if="canEditRole" class="role-form-item">
 						<picker mode="selector" :range="availableRolesDisplay" @change="onRoleChange">
-							<view class="picker-styled">
-								<text class="picker-val">{{ editableMemberRoleDisplay }}</text>
+							<view class="picker">
+								{{ editableMemberRoleDisplay }}
 								<view class="arrow-down"></view>
 							</view>
 						</picker>
-					</view>
+					</FormItem>
 
 					<view class="button-group">
 						<AppButton v-if="canEditRole" type="primary" full-width @click="handleUpdateMemberRole" :disabled="isSubmitting" :loading="isSubmitting">
@@ -68,6 +72,7 @@ import FormItem from '@/components/FormItem.vue';
 import AppButton from '@/components/AppButton.vue';
 import DetailHeader from '@/components/DetailHeader.vue';
 import DetailPageLayout from '@/components/DetailPageLayout.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { formatChineseDate } from '@/utils/format';
 
 defineOptions({
@@ -228,6 +233,9 @@ const handleRemoveMember = () => {
 </script>
 
 <style scoped lang="scss">
+@import '@/styles/common.scss';
+@include form-control-styles;
+
 .page-wrapper {
 	display: flex;
 	flex-direction: column;
@@ -239,62 +247,72 @@ const handleRemoveMember = () => {
 	padding: 20px 16px;
 }
 
-.member-profile-header {
+/* 个人头像与姓名板块 (精致居中设计) */
+.member-profile-card {
 	display: flex;
+	flex-direction: column;
 	align-items: center;
-	gap: 16px;
 	background: #fff;
-	border-radius: 20px;
-	padding: 20px;
+	border-radius: 24px;
+	padding: 28px 24px;
 	border: 1px solid rgba(140, 90, 59, 0.08);
-	box-shadow: 0 4px 16px rgba(89, 61, 42, 0.02);
+	box-shadow: 0 6px 16px rgba(140, 90, 59, 0.02);
 	margin-bottom: 16px;
 }
 
+.avatar-wrapper {
+	margin-bottom: 14px;
+}
+
 .member-large-avatar {
-	box-shadow: 0 4px 10px rgba(140, 90, 59, 0.15);
+	display: block; 
+	width: 80px;
+	height: 80px;
+	box-shadow: 0 4px 14px rgba(140, 90, 59, 0.12);
 	border-radius: 50%;
 }
 
-.member-header-info {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 6px;
-}
-
-.member-header-name {
+.member-name {
 	font-size: 20px;
 	font-weight: 700;
 	color: var(--text-primary);
+	margin-bottom: 8px;
 }
 
-.role-tag {
-	display: inline-block;
+.member-role-box {
+	display: flex;
+}
+
+.role-badge {
 	font-size: 11px;
 	font-weight: 600;
 	padding: 4px 10px;
 	border-radius: 8px;
-}
-.role-tag.owner {
-	background-color: #fef3c7;
-	color: #d97706;
-}
-.role-tag.admin {
-	background-color: #e0f2fe;
-	color: #0284c7;
-}
-.role-tag.member {
-	background-color: #dcfce7;
-	color: #16a34a;
+	line-height: 1;
 }
 
+.role-badge.owner {
+	background-color: #fdf6ec;
+	color: #d4a373;
+}
+
+.role-badge.admin {
+	background-color: #e8f4fd;
+	color: #2b8ac9;
+}
+
+.role-badge.member {
+	background-color: #eef7f0;
+	color: #27ae60;
+}
+
+/* 通用卡片布局 */
 .card {
 	background: #fff;
-	border-radius: 20px;
+	border-radius: 24px;
 	border: 1px solid rgba(140, 90, 59, 0.08);
-	box-shadow: 0 4px 16px rgba(89, 61, 42, 0.02);
-	padding: 20px;
+	box-shadow: 0 6px 16px rgba(140, 90, 59, 0.02);
+	padding: 24px;
 	margin-bottom: 16px;
 }
 
@@ -303,19 +321,31 @@ const handleRemoveMember = () => {
 	font-weight: 700;
 	color: var(--text-primary);
 	margin-bottom: 16px;
-	padding-bottom: 8px;
-	border-bottom: 1px solid rgba(140, 90, 59, 0.08);
+	padding-left: 8px;
+	position: relative;
+	line-height: 1.2;
+}
+
+.info-section-title::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 1px;
+	bottom: 1px;
+	width: 3px;
+	background-color: var(--primary-color);
+	border-radius: 2px;
 }
 
 .info-row {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 12px 0;
+	padding: 14px 0;
 }
 
 .info-row:not(:last-child) {
-	border-bottom: 1px dashed rgba(140, 90, 59, 0.05);
+	border-bottom: 1px solid #fcfaf7; 
 }
 
 .info-label {
@@ -329,53 +359,38 @@ const handleRemoveMember = () => {
 	color: var(--text-primary);
 }
 
-.form-item-styled {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	margin-bottom: 16px;
-}
-
-.form-label-styled {
-	font-size: 13px;
-	font-weight: 600;
-	color: var(--text-secondary);
-}
-
-.picker-styled {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	height: 48px;
-	background: #fff;
-	border: 1px solid var(--border-color);
-	border-radius: 12px;
-	padding: 0 16px;
-	box-sizing: border-box;
-}
-
-.picker-val {
-	font-size: 15px;
-	font-weight: 500;
-	color: var(--text-primary);
-}
-
-.arrow-down {
-	width: 0;
-	height: 0;
-	border-left: 5px solid transparent;
-	border-right: 5px solid transparent;
-	border-top: 5px solid var(--text-secondary);
+.role-form-item :deep(.picker) {
+	background-color: #faf8f5;
+	border-color: rgba(140, 90, 59, 0.12);
 }
 
 .button-group {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	margin-top: 20px;
+	margin-top: 24px;
 }
 
 .remove-btn {
-	margin-top: 4px;
+	margin-top: 0;
+}
+
+.remove-btn :deep(.btn) {
+	background-color: #fdf2f2 !important; 
+	color: #e74c3c !important; 
+	box-shadow: none !important;
+}
+
+.remove-btn :deep(.btn):active {
+	background-color: #fde8e8 !important;
+}
+
+.loading-spinner {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 40px 0;
+	color: var(--text-secondary);
+	font-size: 14px;
 }
 </style>
