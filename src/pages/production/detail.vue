@@ -23,7 +23,15 @@
 											<text class="name-text">{{ component.familyName }}</text>
 											<text class="version-tag">版本 V{{ component.version }}</text>
 										</view>
-										<view class="desc">{{ component.productsDescription }}</view>
+										<view class="product-badges-row" v-if="component.productDetails && component.productDetails.length > 0">
+											<view v-for="prod in component.productDetails" :key="prod.id" class="product-badge">
+												<text class="prod-name">{{ prod.name }}</text>
+												<text class="prod-qty" v-if="prod.baseComponent">
+													{{ component.category === 'OTHER' ? formatWeight(prod.baseComponent.quantity) : `×${prod.baseComponent.quantity}` }}
+												</text>
+											</view>
+										</view>
+										<view class="desc" v-else>{{ component.productsDescription }}</view>
 									</view>
 								</ListItem>
 							</template>
@@ -1660,6 +1668,35 @@ const componentMixInSummary = computed(() => {
 	&.is-fading-out {
 		animation: fadeOutClean 0.15s ease forwards;
 	}
+}
+
+.product-badges-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.product-badge {
+	display: inline-flex;
+	align-items: center;
+	background-color: #faf5f0;
+	border: 1px solid rgba(140, 90, 59, 0.08);
+	border-radius: 8px;
+	padding: 4px 10px;
+	font-size: 12px;
+	color: #7d6e63;
+	line-height: 1.2;
+}
+
+.prod-name {
+	font-weight: 500;
+}
+
+.prod-qty {
+	font-weight: 700;
+	color: var(--primary-color);
+	margin-left: 6px;
 }
 </style>
 

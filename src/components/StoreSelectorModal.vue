@@ -30,10 +30,9 @@ const handleSelectTenant = async (tenantId: string) => {
 		return;
 	}
 	try {
-		await dataStore.selectTenant(tenantId);
-		uiStore.closeModal(MODAL_KEYS.STORE);
-		// [核心说明] selectTenant 内部已经处理了数据重置和用户信息刷新
-		// 页面级的 onShow 钩子会负责后续的数据加载
+		if (await dataStore.enterTenantHome(tenantId)) {
+			uiStore.closeModal(MODAL_KEYS.STORE);
+		}
 	} catch (error) {
 		console.error('Failed to select tenant:', error);
 	}

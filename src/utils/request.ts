@@ -106,19 +106,8 @@ export const request = <T = any>(options: RequestOptions): Promise<T> => {
 					return reject(err);
 				}
 
-				if (options.url === '/auth/profile') {
-					uiStore.setNextPageToast(
-						{
-							message: '网络错误，无法验证身份',
-							type: 'error'
-						},
-						'/pages/login/login'
-					);
-				} else {
-					// [优化] 只有在没有被标记为静默请求时，才弹出全局网络错误
-					if (!options.hideErrorToast) {
-						toastStore.show({ message: '网络错误，请检查您的连接', type: 'error' });
-					}
+				if (!options.hideErrorToast) {
+					toastStore.show({ message: '网络错误，请检查您的连接', type: 'error' });
 				}
 				reject(err);
 			}

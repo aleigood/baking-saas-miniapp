@@ -60,16 +60,20 @@ const proceedLogin = async () => {
     const result = await userStore.wechatLogin(await getCode());
     if (!result) return;
     await userStore.fetchUserInfo();
-    await dataStore.fetchTenants();
-    if (dataStore.currentTenantId) {
-      if (!(await dataStore.selectTenant(dataStore.currentTenantId))) return;
-    }
     const inviteToken = uni.getStorageSync("pending_join_token");
     if (inviteToken) {
-      uni.reLaunch({ url: "/pages/onboarding/store-access" });
-    } else {
-      uni.reLaunch({ url: result.redirectTo || "/pages/main/main" });
+      uni.reLaunch({ url: "/pages/onboarding/join-application" });
+      return;
     }
+    const memberships = userStore.userInfo?.tenants || [];
+    if (memberships.length) {
+      const targetTenantId = dataStore.getPreferredTenantId();
+      await dataStore.enterTenantHome(targetTenantId);
+      return;
+    }
+    uni.reLaunch({ url: result.redirectTo || "/pages/onboarding/store-access" });
+  } catch (error) {
+    console.error("Login destination resolution failed:", error);
   } finally {
     loading.value = false;
   }

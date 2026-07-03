@@ -45,8 +45,11 @@
 										</view>
 									</view>
 								</view>
-								<view class="summary-group-details">
-									{{ group.items.join('、') }}
+								<view class="summary-group-badges">
+									<view v-for="item in group.items" :key="item.name" class="summary-badge">
+										<text class="sum-name">{{ item.name }}</text>
+										<text class="sum-qty">×{{ item.quantity }}</text>
+									</view>
 								</view>
 							</view>
 						</view>
@@ -146,7 +149,7 @@ const taskForm = reactive({
 });
 
 const taskQuantities = reactive<Record<string, number | null>>({});
-const summaryGroups = ref<{ name: string; items: string[]; totalQuantity: number }[]>([]);
+const summaryGroups = ref<{ name: string; items: { name: string; quantity: number }[]; totalQuantity: number }[]>([]);
 const activeTab = ref('');
 const renderedTab = ref('');
 const isFadingOutGrid = ref(false);
@@ -322,7 +325,7 @@ const updateSummary = () => {
 		summaryGroups.value = [];
 		return;
 	}
-	const groups: { name: string; items: string[]; totalQuantity: number }[] = [];
+	const groups: { name: string; items: { name: string; quantity: number }[]; totalQuantity: number }[] = [];
 	const productsInCategory = dataStore.productsForTaskCreation[selectedCategory.value] || {};
 
 	for (const groupName in productsInCategory) {
@@ -335,9 +338,10 @@ const updateSummary = () => {
 			groups.push({
 				name: groupName,
 				totalQuantity: totalQty,
-				items: quantifiedProducts.map((p) => {
-					return `${p.name} x${p.quantity}`;
-				})
+				items: quantifiedProducts.map((p) => ({
+					name: p.name,
+					quantity: p.quantity
+				}))
 			});
 		}
 	}
@@ -527,11 +531,33 @@ const handleSubmit = async () => {
 	height: 10px;
 }
 
-.summary-group-details {
-	font-size: 13px;
-	color: var(--text-secondary);
-	line-height: 1.6;
-	word-break: break-all;
+.summary-group-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.summary-badge {
+	display: inline-flex;
+	align-items: center;
+	background-color: #f4ede2; /* 使用稍深的温暖沙白色底色，无需边框也具备极佳的边界识别度 */
+	border: none;
+	border-radius: 8px;
+	padding: 4px 10px;
+	font-size: 12px;
+	color: #7d6e63;
+	line-height: 1.2;
+}
+
+.sum-name {
+	font-weight: 500;
+}
+
+.sum-qty {
+	font-weight: 700;
+	color: var(--primary-color);
+	margin-left: 6px;
 }
 
 .summary-placeholder {

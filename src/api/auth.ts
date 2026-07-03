@@ -43,9 +43,10 @@ export function register(data: { phone: string; password: string; verificationCo
 /**
  * 获取当前登录用户的个人资料
  */
-export function getProfile(): Promise<UserInfo> {
+export function getProfile(options: { hideErrorToast?: boolean } = {}): Promise<UserInfo> {
 	return request<UserInfo>({
-		url: '/auth/profile'
+		url: '/auth/profile',
+		hideErrorToast: options.hideErrorToast
 	});
 }
 

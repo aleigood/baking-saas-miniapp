@@ -85,12 +85,12 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
-  async function fetchUserInfo() {
+  async function fetchUserInfo(options: { hideErrorToast?: boolean } = {}) {
     if (!token.value) {
       throw new Error("No token found");
     }
     try {
-      const data = await getProfile();
+      const data = await getProfile(options);
       userInfo.value = data;
     } catch (error) {
       console.error("Fetch user info failed:", error);

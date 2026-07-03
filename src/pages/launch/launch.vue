@@ -1,143 +1,102 @@
 <template>
-  <view class="launch-container">
-    <image
-      class="logo"
-      src="/static/icons/croissant.svg"
-      mode="aspectFit"
-    ></image>
-    <view class="loading-dots">
-      <view class="dot"></view>
-      <view class="dot"></view>
-      <view class="dot"></view>
+  <AppLaunchLoading v-if="viewState === 'loading'" />
+  <view v-else class="launch-error-page">
+    <image class="error-logo" src="/static/icons/croissant.svg" mode="aspectFit" />
+    <text class="error-title">暂时无法进入小程序</text>
+    <text class="error-description">网络连接或身份验证没有完成，您的登录信息仍然保留。</text>
+    <view class="error-actions">
+      <AppButton type="primary" full-width :loading="retrying" @click="retry">重新加载</AppButton>
+      <AppButton type="secondary" full-width @click="loginAgain">重新登录</AppButton>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
-import { useUserStore } from "@/store/user";
+import { onMounted, ref } from "vue";
+import AppButton from "@/components/AppButton.vue";
+import AppLaunchLoading from "@/components/AppLaunchLoading.vue";
 import { useDataStore } from "@/store/data";
+import { useUserStore } from "@/store/user";
 
-onMounted(async () => {
-  // [核心逻辑] 将原 App.vue 中的启动逻辑迁移至此
-  const userStore = useUserStore();
-  const dataStore = useDataStore();
+const userStore = useUserStore();
+const dataStore = useDataStore();
+const viewState = ref<"loading" | "error">("loading");
+const retrying = ref(false);
 
-  // 1. 检查是否存在 token
-  if (userStore.token) {
-    try {
-      // 2. 获取用户信息
-      await userStore.fetchUserInfo();
-      if (userStore.userInfo && userStore.userInfo.tenants.length > 0) {
-        // [核心修改] 增加对缓存 tenant_id 的校验逻辑
-        let currentTenantId = uni.getStorageSync("tenant_id");
-        const userHasTenant = userStore.userInfo.tenants.some(
-          (t) => t.tenant.id === currentTenantId,
-        );
-
-        // 如果缓存的 tenant_id 无效或不存在，则使用用户店铺列表的第一个作为默认
-        if (!currentTenantId || !userHasTenant) {
-          currentTenantId = userStore.userInfo.tenants[0].tenant.id;
-          uni.setStorageSync("tenant_id", currentTenantId);
-        }
-        // 审核通过前签发的令牌没有店铺上下文。进入主页前必须重新签发当前店铺令牌。
-        if (!(await dataStore.selectTenant(currentTenantId))) {
-          userStore.handleUnauthorized();
-          return;
-        }
-
-        // 4. 查找用户在该店铺的角色
-        const currentTenantInfo = userStore.userInfo.tenants.find(
-          (t) => t.tenant.id === currentTenantId,
-        );
-
-        // 5. 如果角色是 MEMBER，则重定向到面包师专属页面
-        if (currentTenantInfo && currentTenantInfo.role === "MEMBER") {
-          uni.reLaunch({
-            url: "/pages/baker/main",
-          });
-        } else {
-          // 否则，进入常规主页
-          uni.reLaunch({
-            url: "/pages/main/main",
-          });
-        }
-      } else {
-        uni.reLaunch({ url: "/pages/onboarding/store-access" });
-      }
-    } catch (error) {
-      console.error(
-        "Launch Page: Token validation failed, redirecting to login.",
-        error,
-      );
-      // 如果获取用户信息失败（例如token过期），则跳转到登录页
-      userStore.handleUnauthorized();
+const resolveLaunch = async () => {
+  viewState.value = "loading";
+  try {
+    if (!userStore.token) {
+      uni.reLaunch({ url: "/pages/login/login" });
+      return;
     }
-  } else {
-    // 如果没有 token，直接跳转到登录页
-    uni.reLaunch({
-      url: "/pages/login/login",
-    });
+
+    await userStore.fetchUserInfo({ hideErrorToast: true });
+    const memberships = userStore.userInfo?.tenants || [];
+    if (!memberships.length) {
+      uni.reLaunch({ url: "/pages/onboarding/store-access" });
+      return;
+    }
+
+    const targetTenantId = dataStore.getPreferredTenantId();
+    if (!(await dataStore.enterTenantHome(targetTenantId, { showErrorToast: false }))) {
+      if (!userStore.isRedirecting) viewState.value = "error";
+    }
+  } catch (error) {
+    console.error("Launch Page: failed to resolve destination.", error);
+    if (!userStore.isRedirecting) viewState.value = "error";
+  } finally {
+    retrying.value = false;
   }
-});
+};
+
+const retry = async () => {
+  if (retrying.value) return;
+  retrying.value = true;
+  await resolveLaunch();
+};
+
+const loginAgain = () => userStore.logout();
+
+onMounted(resolveLaunch);
 </script>
 
 <style scoped lang="scss">
-.launch-container {
+.launch-error-page {
   display: flex;
+  min-height: 100vh;
+  box-sizing: border-box;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  height: 100vh;
-  background-color: var(--bg-color);
+  justify-content: center;
+  padding: 48px 36px;
+  background: var(--bg-color);
+  text-align: center;
 }
-
-.logo {
-  width: 150px;
-  height: 150px;
-  margin-bottom: 40px;
-  animation: float 3s ease-in-out infinite;
+.error-logo {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 28px;
+  opacity: 0.78;
 }
-
-.loading-dots {
+.error-title {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+}
+.error-description {
+  max-width: 300px;
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.error-actions {
   display: flex;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  margin: 0 5px;
-  background-color: var(--primary-color);
-  border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out both;
-}
-
-.dot:nth-child(1) {
-  animation-delay: -0.32s;
-}
-
-.dot:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-15px);
-  }
-}
-
-@keyframes bounce {
-  0%,
-  80%,
-  100% {
-    transform: scale(0);
-  }
-  40% {
-    transform: scale(1);
-  }
+  width: 100%;
+  max-width: 320px;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 30px;
 }
 </style>

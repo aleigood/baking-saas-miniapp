@@ -187,7 +187,12 @@ const handleRegister = async () => {
 		const result = await register(form);
 		userStore.setToken(result.accessToken);
 		await userStore.fetchUserInfo();
-		uni.reLaunch({ url: '/pages/onboarding/store-access' });
+		const inviteToken = uni.getStorageSync('pending_join_token');
+		uni.reLaunch({
+			url: inviteToken ? '/pages/onboarding/join-application' : '/pages/onboarding/store-access'
+		});
+	} catch (error) {
+		console.error('Registration destination resolution failed:', error);
 	} finally {
 		submitting.value = false;
 	}

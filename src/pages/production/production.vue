@@ -50,10 +50,27 @@
 										<text v-if="itemIdx > 0" class="title-sep">、</text>
 										<text class="recipe-name-text">{{ item.name }}</text>
 										<text v-if="item.quantity !== undefined && item.category !== 'OTHER'" class="quantity-badge">{{ item.quantity }}</text>
-										<text v-else-if="item.quantity !== undefined && item.category === 'OTHER'" class="quantity-text">{{ formatWeight(item.quantity) }}</text>
 									</template>
 								</view>
-								<view class="details">{{ getTaskDetails(task) }}</view>
+								<view class="task-items-row" v-if="task.status === 'PREP'">
+									<view v-for="(item, itemIdx) in getParsedPrepDetails(task.details)" :key="itemIdx" class="task-item-tag prep-tag status-prep">
+										<text class="item-name">{{ item.name }}</text>
+										<text class="item-qty" v-if="item.isQty">×{{ item.qty }}</text>
+									</view>
+								</view>
+								<view class="task-items-row" v-else-if="!task.items || task.items.length === 0">
+									<view class="task-item-tag" :class="`status-${task.status.toLowerCase()}`">
+										<text class="item-name">{{ getTaskDetails(task) }}</text>
+									</view>
+								</view>
+								<view class="task-items-row" v-else>
+									<view v-for="item in task.items" :key="item.product.id" class="task-item-tag" :class="`status-${task.status.toLowerCase()}`">
+										<text class="item-name">{{ item.product.name }}</text>
+										<text class="item-qty">
+											{{ isSelfMadeItem(item) ? formatWeight(Number(item.quantity)) : `×${item.quantity}` }}
+										</text>
+									</view>
+								</view>
 							</view>
 
 							<view class="status-tag" :class="(STATUS_MAP[task.status] || STATUS_MAP.DEFAULT).className">
@@ -507,6 +524,27 @@ const getTaskDetails = (task: any) => {
 		.join('、');
 };
 
+const getParsedPrepDetails = (detailsStr: string) => {
+	if (!detailsStr) return [];
+	const parts = detailsStr.split(/[，,、]/);
+	return parts.map(part => {
+		const trimmed = part.trim();
+		const match = trimmed.match(/^(\d+)种预制件$/);
+		if (match) {
+			return {
+				name: '预制件',
+				qty: Number(match[1]),
+				isQty: true
+			};
+		}
+		return {
+			name: trimmed,
+			qty: undefined,
+			isQty: false
+		};
+	}).filter(item => item.name);
+};
+
 const navigateToDetail = (task: any) => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
@@ -913,5 +951,75 @@ const handleSaveTemperatureSettings = () => {
 	100% {
 		transform: translateX(100%);
 	}
+}
+
+.task-items-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.task-item-tag {
+	display: inline-flex;
+	align-items: center;
+	background-color: #f4ede2; /* 与创建汇总一致的无边框暖沙黄色底色，作为通用回退 */
+	border: none;
+	border-radius: 6px;
+	padding: 2px 8px;
+	font-size: 11px;
+	color: #7d6e63;
+	line-height: 1.2;
+}
+
+/* 状态自适应配色胶囊 */
+.task-item-tag.status-pending {
+	background-color: #fcf5ed;
+	color: #a37343;
+}
+.task-item-tag.status-pending .item-qty {
+	color: #d4a373;
+}
+
+.task-item-tag.status-in_progress {
+	background-color: #e6eee8; /* 莫兰迪抹茶绿，非常温润舒适 */
+	color: #4a5f50; /* 鼠尾草深绿，低饱和度，显高级 */
+}
+.task-item-tag.status-in_progress .item-qty {
+	color: #4a5f50; /* 与文本颜色一致，确保整体感 */
+}
+
+.task-item-tag.status-completed {
+	background-color: #f5f0ed; /* 已完成 - 浅灰褐背景 */
+	color: #8e7a72; /* 灰褐文本 */
+}
+.task-item-tag.status-completed .item-qty {
+	color: #bcaaa4; /* 灰褐高亮 */
+}
+
+.task-item-tag.status-prep {
+	background-color: #f2e8f9;
+	color: #6a3d8a;
+}
+.task-item-tag.status-prep .item-qty {
+	color: #6a3d8a;
+}
+
+.task-item-tag.status-cancelled {
+	background-color: #f4f4f7;
+	color: #555558;
+}
+.task-item-tag.status-cancelled .item-qty {
+	color: #8e8e93;
+}
+
+.item-name {
+	font-weight: 500;
+}
+
+.item-qty {
+	font-weight: 700;
+	color: var(--primary-color);
+	margin-left: 4px;
 }
 </style>

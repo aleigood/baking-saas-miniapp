@@ -93,18 +93,7 @@
                   <text class="invite-detail-val">{{ invitePreview.inviter }}</text>
                 </view>
               </view>
-              <view v-if="['OWNER', 'MEMBER'].includes(invitePreview.relationship)" class="invite-relationship-tip">
-                {{ invitePreview.relationship === 'OWNER' ? '这是您管理的店铺，无需申请加入' : '您已经是该店铺成员' }}
-              </view>
-              <AppButton
-                v-if="['OWNER', 'MEMBER'].includes(invitePreview.relationship)"
-                type="primary"
-                full-width
-                :loading="enteringId === invitePreview.tenant.id"
-                @click="enterInvitedTenant"
-                >进入该店铺</AppButton
-              >
-              <view v-else-if="['AVAILABLE', 'REJECTED'].includes(invitePreview.relationship)">
+              <view v-if="['AVAILABLE', 'REJECTED'].includes(invitePreview.relationship)">
                 <AppButton v-slot v-if="!showJoinForm" type="primary" full-width @click="openJoinForm">
                   {{ invitePreview.relationship === 'REJECTED' ? '重新申请加入' : '接受邀请并申请加入' }}
                 </AppButton>
@@ -346,7 +335,7 @@ import AppButton from "@/components/AppButton.vue";
 import AppModal from "@/components/AppModal.vue";
 import Toast from "@/components/Toast.vue";
 import UserAvatar from "@/components/UserAvatar.vue";
-import { sendProfileCode, switchTenant } from "@/api/auth";
+import { sendProfileCode } from "@/api/auth";
 import {
   cancelStoreApplication,
   createStoreApplication,
@@ -467,16 +456,18 @@ const load = async () => {
     if (inviteToken.value) {
       try {
         invitePreview.value = await getJoinPreview(inviteToken.value);
+        if (["OWNER", "MEMBER"].includes(invitePreview.value.relationship)) {
+          uni.reLaunch({ url: "/pages/onboarding/join-application" });
+          return;
+        }
       } catch (error) {
         console.warn("Invalid or expired join token", error);
         uni.removeStorageSync("pending_join_token");
         inviteToken.value = "";
         invitePreview.value = null;
         toastStore.show({ message: "邀请已失效", type: "error" });
-        if (hasExistingTenant.value) {
-          await returnToCurrentTenant();
-          return;
-        }
+        uni.reLaunch({ url: "/pages/launch/launch" });
+        return;
       }
     }
   } finally {
@@ -485,17 +476,9 @@ const load = async () => {
 };
 
 const activateTenant = async (tenantId: string) => {
-  const result = await switchTenant(tenantId);
-  userStore.setToken(result.accessToken);
-  uni.setStorageSync("tenant_id", tenantId);
-  dataStore.currentTenantId = tenantId;
-  await Promise.all([userStore.fetchUserInfo(), dataStore.fetchTenants()]);
-  const currentRole = userStore.userInfo?.tenants.find(
-    (item) => item.tenant.id === tenantId,
-  )?.role;
-  uni.reLaunch({
-    url: currentRole === "MEMBER" ? "/pages/baker/main" : "/pages/main/main",
-  });
+  if (!(await dataStore.enterTenantHome(tenantId))) {
+    throw new Error("TENANT_SWITCH_FAILED");
+  }
 };
 
 const enterTenant = async (item: MembershipApplication) => {
@@ -512,22 +495,9 @@ const enterApprovedStore = async () => {
     await activateTenant(application.value.createdTenant.id);
 };
 
-const enterInvitedTenant = async () => {
-  if (!invitePreview.value) return;
-  enteringId.value = invitePreview.value.tenant.id;
-  try {
-    await activateTenant(invitePreview.value.tenant.id);
-    uni.removeStorageSync("pending_join_token");
-  } finally {
-    enteringId.value = "";
-  }
-};
-
 const returnToCurrentTenant = async () => {
-  const tenantIds = userStore.userInfo?.tenants.map((item) => item.tenant.id) || [];
-  if (!tenantIds.length) return;
-  const storedTenantId = String(uni.getStorageSync("tenant_id") || "");
-  const targetTenantId = tenantIds.includes(storedTenantId) ? storedTenantId : tenantIds[0];
+  const targetTenantId = dataStore.getPreferredTenantId();
+  if (!targetTenantId) return;
   returningToTenant.value = true;
   try {
     await activateTenant(targetTenantId);
@@ -1220,16 +1190,6 @@ onUnmounted(() => { if (smsTimer) clearInterval(smsTimer); });
   font-size: 13px;
   color: var(--text-primary);
   font-weight: 500;
-}
-.invite-relationship-tip {
-  padding: 13px 16px;
-  border: 1px solid rgba(140, 90, 59, 0.12);
-  border-radius: 12px;
-  background: #fff8f1;
-  color: #7d6251;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
 }
 .rejected-message {
   font-size: 12px;

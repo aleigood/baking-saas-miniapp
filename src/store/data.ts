@@ -405,7 +405,10 @@ export const useDataStore = defineStore("data", () => {
     }
   }
 
-  async function selectTenant(tenantId: string): Promise<boolean> {
+  async function selectTenant(
+    tenantId: string,
+    options: { showErrorToast?: boolean } = {},
+  ): Promise<boolean> {
     const userStore = useUserStore();
     const toastStore = useToastStore();
     try {
@@ -418,9 +421,34 @@ export const useDataStore = defineStore("data", () => {
       return true;
     } catch (error) {
       console.error("Failed to switch tenant", error);
-      toastStore.show({ message: "切换店铺失败", type: "error" });
+      if (options.showErrorToast !== false) {
+        toastStore.show({ message: "切换店铺失败", type: "error" });
+      }
       return false;
     }
+  }
+
+  async function enterTenantHome(
+    tenantId: string,
+    options: { showErrorToast?: boolean } = {},
+  ): Promise<boolean> {
+    if (!(await selectTenant(tenantId, options))) return false;
+    const userStore = useUserStore();
+    const currentRole = userStore.userInfo?.tenants.find(
+      (item) => item.tenant.id === tenantId,
+    )?.role;
+    uni.reLaunch({
+      url: currentRole === "MEMBER" ? "/pages/baker/main" : "/pages/main/main",
+    });
+    return true;
+  }
+
+  function getPreferredTenantId(): string {
+    const userStore = useUserStore();
+    const tenantIds = userStore.userInfo?.tenants.map((item) => item.tenant.id) || [];
+    if (!tenantIds.length) return "";
+    const storedTenantId = String(uni.getStorageSync("tenant_id") || "");
+    return tenantIds.includes(storedTenantId) ? storedTenantId : tenantIds[0];
   }
 
   function resetHistoricalTasks() {
@@ -494,6 +522,8 @@ export const useDataStore = defineStore("data", () => {
     clearProductionTasks,
     fetchTenants,
     selectTenant,
+    enterTenantHome,
+    getPreferredTenantId,
     reset,
     fetchProductionData,
     fetchHistoricalTasks,
