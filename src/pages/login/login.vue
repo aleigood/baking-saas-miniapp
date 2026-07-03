@@ -6,11 +6,11 @@
       :class="{ ready: pageLoaded }"
       :style="{ paddingTop: safeAreaTop + 'px' }"
     >
-      <view class="brand-mark"
-        ><image src="/static/icons/croissant.svg" mode="aspectFit"
-      /></view>
+      <view class="brand-header">
+        <image class="brand-logo" src="/static/icons/croissant.svg" mode="aspectFit" />
+        <text class="brand-name">BAKEFLOW</text>
+      </view>
       <view class="hero">
-        <text class="eyebrow">BAKEFLOW</text>
         <text class="title">让每一次出炉，\n都更从容</text>
         <text class="subtitle">配方、生产与店铺协作，从这里开始</text>
       </view>
@@ -126,25 +126,27 @@ const handleLogin = () => {
   opacity: 1;
   transform: none;
 }
-.brand-mark {
+.brand-header {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
 }
-.brand-mark image {
+.brand-logo {
   width: 72px;
   height: 72px;
+}
+.brand-name {
+  font-size: 11px;
+  letter-spacing: 4px;
+  text-indent: 4px; /* 抵消 letter-spacing 导致的最右侧字距偏移，实现完美的绝对中线对齐 */
+  font-weight: 700;
+  color: #bd7d4f;
 }
 .hero {
   display: flex;
   flex-direction: column;
-  margin-top: 24px;
-}
-.eyebrow {
-  font-size: 11px;
-  letter-spacing: 4px;
-  font-weight: 700;
-  color: #bd7d4f;
+  margin-top: 32px;
 }
 .title {
   margin-top: 16px;

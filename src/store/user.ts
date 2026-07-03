@@ -42,10 +42,10 @@ export const useUserStore = defineStore("user", () => {
     uni.reLaunch({ url: "/pages/login/login" });
   }
 
-  function logout() {
+  function logout(preservePendingInvite = false) {
     if (isRedirecting.value) return;
     isRedirecting.value = true;
-    clearSession(false);
+    clearSession(preservePendingInvite);
     uni.reLaunch({ url: "/pages/login/login" });
   }
 

@@ -18,7 +18,7 @@ const statusBarHeight = computed(() => systemStore.statusBarHeight);
 onLoad((options) => {
 	const token = decodeURIComponent(String(options?.token || ''));
 	if (!token) {
-		uni.reLaunch({ url: '/pages/onboarding/store-access' });
+		uni.reLaunch({ url: '/pages/launch/launch' });
 		return;
 	}
 	uni.setStorageSync('pending_join_token', token);

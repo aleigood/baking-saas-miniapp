@@ -3,7 +3,7 @@
 	<view class="baker-page-container">
 		<BakerHeader />
 
-		<view class="content-area">
+		<view class="content-area" :style="{ '--header-height': systemStore.headerHeight + 'px' }">
 			<ProductionPage :has-tab-bar="false" />
 		</view>
 

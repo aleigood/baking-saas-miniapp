@@ -96,6 +96,14 @@
               <view v-if="['OWNER', 'MEMBER'].includes(invitePreview.relationship)" class="invite-relationship-tip">
                 {{ invitePreview.relationship === 'OWNER' ? '这是您管理的店铺，无需申请加入' : '您已经是该店铺成员' }}
               </view>
+              <AppButton
+                v-if="['OWNER', 'MEMBER'].includes(invitePreview.relationship)"
+                type="primary"
+                full-width
+                :loading="enteringId === invitePreview.tenant.id"
+                @click="enterInvitedTenant"
+                >进入该店铺</AppButton
+              >
               <view v-else-if="['AVAILABLE', 'REJECTED'].includes(invitePreview.relationship)">
                 <AppButton v-slot v-if="!showJoinForm" type="primary" full-width @click="openJoinForm">
                   {{ invitePreview.relationship === 'REJECTED' ? '重新申请加入' : '接受邀请并申请加入' }}
@@ -169,6 +177,16 @@
                 >进入</AppButton
               >
             </view>
+          </view>
+
+          <view v-if="hasExistingTenant" class="existing-tenant-exit">
+            <view class="existing-tenant-copy">
+              <text class="existing-tenant-title">暂不处理这条邀请？</text>
+              <text class="existing-tenant-desc">您可以随时返回当前店铺，邀请会继续保留。</text>
+            </view>
+            <AppButton type="secondary" size="mini" :loading="returningToTenant" @click="returnToCurrentTenant">
+              返回我的店铺
+            </AppButton>
           </view>
         </view>
 
@@ -395,6 +413,7 @@ const loading = ref(false);
 const submitting = ref(false);
 const joinSubmitting = ref(false);
 const enteringId = ref("");
+const returningToTenant = ref(false);
 const showSubmitConfirm = ref(false);
 const showJoinForm = ref(false);
 const pageLoaded = ref(false);
@@ -411,8 +430,11 @@ const needsPhoneVerification = computed(
 );
 
 const hasJoinFlow = computed(
-  () => Boolean(invitePreview.value) || memberships.value.length > 0,
+  () =>
+    Boolean(invitePreview.value) ||
+    memberships.value.some((item) => ["PENDING", "APPROVED"].includes(item.status)),
 );
+const hasExistingTenant = computed(() => Boolean(userStore.userInfo?.tenants.length));
 const showInvitePreview = computed(() => {
   if (!invitePreview.value) return false;
   return !memberships.value.some(
@@ -451,6 +473,10 @@ const load = async () => {
         inviteToken.value = "";
         invitePreview.value = null;
         toastStore.show({ message: "邀请已失效", type: "error" });
+        if (hasExistingTenant.value) {
+          await returnToCurrentTenant();
+          return;
+        }
       }
     }
   } finally {
@@ -458,21 +484,24 @@ const load = async () => {
   }
 };
 
-const activateTenant = async (tenantId: string, role: TenantRole) => {
+const activateTenant = async (tenantId: string) => {
   const result = await switchTenant(tenantId);
   userStore.setToken(result.accessToken);
   uni.setStorageSync("tenant_id", tenantId);
   dataStore.currentTenantId = tenantId;
   await Promise.all([userStore.fetchUserInfo(), dataStore.fetchTenants()]);
+  const currentRole = userStore.userInfo?.tenants.find(
+    (item) => item.tenant.id === tenantId,
+  )?.role;
   uni.reLaunch({
-    url: role === "MEMBER" ? "/pages/baker/main" : "/pages/main/main",
+    url: currentRole === "MEMBER" ? "/pages/baker/main" : "/pages/main/main",
   });
 };
 
 const enterTenant = async (item: MembershipApplication) => {
   enteringId.value = item.id;
   try {
-    await activateTenant(item.tenant.id, item.joinLink.role);
+    await activateTenant(item.tenant.id);
   } finally {
     enteringId.value = "";
   }
@@ -480,7 +509,31 @@ const enterTenant = async (item: MembershipApplication) => {
 
 const enterApprovedStore = async () => {
   if (application.value?.createdTenant)
-    await activateTenant(application.value.createdTenant.id, "OWNER");
+    await activateTenant(application.value.createdTenant.id);
+};
+
+const enterInvitedTenant = async () => {
+  if (!invitePreview.value) return;
+  enteringId.value = invitePreview.value.tenant.id;
+  try {
+    await activateTenant(invitePreview.value.tenant.id);
+    uni.removeStorageSync("pending_join_token");
+  } finally {
+    enteringId.value = "";
+  }
+};
+
+const returnToCurrentTenant = async () => {
+  const tenantIds = userStore.userInfo?.tenants.map((item) => item.tenant.id) || [];
+  if (!tenantIds.length) return;
+  const storedTenantId = String(uni.getStorageSync("tenant_id") || "");
+  const targetTenantId = tenantIds.includes(storedTenantId) ? storedTenantId : tenantIds[0];
+  returningToTenant.value = true;
+  try {
+    await activateTenant(targetTenantId);
+  } finally {
+    returningToTenant.value = false;
+  }
 };
 
 const openJoinForm = () => {
@@ -595,7 +648,7 @@ const cancel = async () => {
   }
 };
 const handleLogout = () => {
-  userStore.logout();
+  userStore.logout(Boolean(inviteToken.value));
 };
 
 onMounted(async () => {
@@ -803,6 +856,32 @@ onUnmounted(() => { if (smsTimer) clearInterval(smsTimer); });
   border: 1px solid var(--border-color);
   border-radius: 14px;
   padding: 12px 14px;
+}
+.existing-tenant-exit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(140, 90, 59, 0.12);
+}
+.existing-tenant-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+.existing-tenant-title {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 650;
+}
+.existing-tenant-desc {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
 }
 .invitation-detail {
   display: flex;

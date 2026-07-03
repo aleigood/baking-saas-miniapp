@@ -271,13 +271,9 @@ watch(
 	.option-icon {
 		width: 22px;
 		height: 22px;
-
 		/* [关键 CSS 2] 强制小按钮图标变主题色 #8c5a3b */
-		/* 利用 drop-shadow 投影 Hack */
-		/* 1. 将原始图标移出可视区域 */
-		transform: translateX(-100px);
-		/* 2. 在原位置投射一个指定颜色的实体影子 */
-		filter: drop-shadow(100px 0 0 #8c5a3b);
+		/* 使用高精度 CSS 滤镜在原位直接变色，既不需要位移（避免 iOS 裁剪），也无需 mask-image（避免安卓兼容性路径问题） */
+		filter: brightness(0) saturate(100%) invert(41%) sepia(21%) saturate(1210%) hue-rotate(338deg) brightness(93%) contrast(89%);
 	}
 }
 
