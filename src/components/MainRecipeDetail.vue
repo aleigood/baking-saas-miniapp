@@ -1,187 +1,329 @@
 <template>
-	<view>
-		<view class="product-tabs-wrapper">
-			<FilterTabs v-if="version && version.products.length > 0" :tabs="productTabsForFilter" v-model="selectedProductId" align="center" />
-		</view>
+  <view>
+    <view class="product-tabs-wrapper">
+      <FilterTabs
+        v-if="version && version.products.length > 0"
+        :tabs="productTabsForFilter"
+        v-model="selectedProductId"
+        align="center"
+      />
+    </view>
 
-		<view
-			class="card recipe-detail-product-card"
-			v-if="selectedProduct && renderedRecipeDetails"
-			:key="'recipe-details-card-' + renderedProductId"
-			:class="{ 'is-fetching': isFetching, 'is-fading-out': isFadingOut }"
-		>
-			<view class="meta-grid-container">
-				<view class="meta-item" v-if="targetTempDisplay">
-					<view class="label">出缸温度</view>
-					<view class="value">{{ targetTempDisplay }}°C</view>
-				</view>
-				<view class="meta-divider" v-if="targetTempDisplay"></view>
-				<view class="meta-item">
-					<view class="label">含水量</view>
-					<view class="value">{{ calculatedWaterContent }}%</view>
-				</view>
-				<view class="meta-divider"></view>
-				<view class="meta-item">
-					<view class="label">工艺损耗</view>
-					<view class="value">{{ lossRatioDisplay }}</view>
-				</view>
-				<view class="meta-divider"></view>
-				<view class="meta-item">
-					<view class="label">分割损耗</view>
-					<view class="value">{{ divisionLossDisplay }}g</view>
-				</view>
-			</view>
+    <view
+      class="card recipe-detail-product-card"
+      v-if="selectedProduct && renderedRecipeDetails"
+      :key="'recipe-details-card-' + renderedProductId"
+      :class="{ 'is-fetching': isFetching, 'is-fading-out': isFadingOut }"
+    >
+      <view class="meta-grid-container">
+        <view class="meta-item" v-if="targetTempDisplay">
+          <view class="label">出缸温度</view>
+          <view class="value">{{ targetTempDisplay }}°C</view>
+        </view>
+        <view class="meta-divider" v-if="targetTempDisplay"></view>
+        <view class="meta-item">
+          <view class="label">含水量</view>
+          <view class="value">{{ calculatedWaterContent }}%</view>
+        </view>
+        <view class="meta-divider"></view>
+        <view class="meta-item">
+          <view class="label">工艺损耗</view>
+          <view class="value">{{ lossRatioDisplay }}</view>
+        </view>
+        <view class="meta-divider"></view>
+        <view class="meta-item">
+          <view class="label">分割余量</view>
+          <view class="value">{{ divisionLossDisplay }}g</view>
+        </view>
+      </view>
 
-			<view class="data-analysis-section">
-				<AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
-				<LineChart v-if="detailChartTab === 'trend'" :chart-data="renderedCostHistory" />
-				<PieChart v-if="detailChartTab === 'breakdown'" :chart-data="renderedCostBreakdown" />
-			</view>
+      <view class="data-analysis-section">
+        <AnimatedTabs v-model="detailChartTab" :tabs="chartTabs" />
+        <LineChart
+          v-if="detailChartTab === 'trend'"
+          :chart-data="renderedCostHistory"
+        />
+        <PieChart
+          v-if="detailChartTab === 'breakdown'"
+          :chart-data="renderedCostBreakdown"
+        />
+      </view>
 
-			<view v-if="renderedRecipeDetails.componentGroups && renderedRecipeDetails.componentGroups.length > 0">
-				<view v-for="(component, index) in renderedRecipeDetails.componentGroups" :key="component.name + index" class="dough-section">
-					<view class="group-title" @click="toggleCollapse(component.name)">
-						<span>{{ component.name }}</span>
-						<span class="arrow" :class="{ collapsed: collapsedSections.has(component.name) }">&#10095;</span>
-					</view>
-					<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has(component.name) }">
-						<view class="smart-table">
-							<view class="table-header">
-								<text class="col-ingredient">原料</text>
-								<text class="col-ratio">比例</text>
-								<text class="col-usage">用量</text>
-								<text class="col-price">单价/kg</text>
-								<text class="col-total">成本</text>
-							</view>
-							<view
-								v-for="(ing, ingIndex) in component.ingredients"
-								:key="ingIndex"
-								class="table-row"
-								@click.stop="handleIconClick(ing.extraInfo, 'main-ing-icon-' + index + '-' + ingIndex)"
-							>
-								<view class="col-ingredient ingredient-name-cell">
-									<view v-if="ing.extraInfo" class="ingredient-with-icon" :id="'main-ing-icon-' + index + '-' + ingIndex">
-										<view class="ingredient-name-wrapper">
-											<text>{{ ing.name }}</text>
-											<text class="recipe-tag" v-if="ing.isRecipe">自制</text>
-										</view>
-										<image class="info-icon" src="/static/icons/info.svg" mode="aspectFit"></image>
-									</view>
-									<view v-else class="ingredient-name-wrapper">
-										<text>{{ ing.name }}</text>
-										<text class="recipe-tag" v-if="ing.isRecipe">自制</text>
-									</view>
-								</view>
-								<text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
-								<text class="col-usage">{{ formatWeight(ing.weightInGrams) }}</text>
-								<text class="col-price">¥{{ formatMoney(ing.pricePerKg) }}</text>
-								<text class="col-total">¥{{ formatMoney(ing.cost) }}</text>
-							</view>
-						</view>
-						<view v-if="component.procedure && component.procedure.length > 0" class="procedure-notes">
-							<text class="notes-title">制作要点:</text>
-							<text v-for="(step, stepIndex) in component.procedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
-						</view>
-					</view>
-				</view>
+      <view
+        v-if="
+          renderedRecipeDetails.componentGroups &&
+          renderedRecipeDetails.componentGroups.length > 0
+        "
+      >
+        <view
+          v-for="(component, index) in renderedRecipeDetails.componentGroups"
+          :key="component.name + index"
+          class="dough-section"
+        >
+          <view class="group-title" @click="toggleCollapse(component.name)">
+            <span>{{ component.name }}</span>
+            <span
+              class="arrow"
+              :class="{ collapsed: collapsedSections.has(component.name) }"
+              >&#10095;</span
+            >
+          </view>
+          <view
+            class="collapsible-content"
+            :class="{ 'is-collapsed': collapsedSections.has(component.name) }"
+          >
+            <view class="smart-table">
+              <view class="table-header">
+                <text class="col-ingredient">原料</text>
+                <text class="col-ratio">比例</text>
+                <text class="col-usage">用量</text>
+                <text class="col-price">单价/kg</text>
+                <text class="col-total">成本</text>
+              </view>
+              <view
+                v-for="(ing, ingIndex) in component.ingredients"
+                :key="ingIndex"
+                class="table-row"
+                @click.stop="
+                  handleIconClick(
+                    ing.extraInfo,
+                    'main-ing-icon-' + index + '-' + ingIndex,
+                  )
+                "
+              >
+                <view class="col-ingredient ingredient-name-cell">
+                  <view
+                    v-if="ing.extraInfo"
+                    class="ingredient-with-icon"
+                    :id="'main-ing-icon-' + index + '-' + ingIndex"
+                  >
+                    <view class="ingredient-name-wrapper">
+                      <text>{{ ing.name }}</text>
+                      <text class="recipe-tag" v-if="ing.isRecipe">自制</text>
+                    </view>
+                    <image
+                      class="info-icon"
+                      src="/static/icons/info.svg"
+                      mode="aspectFit"
+                    ></image>
+                  </view>
+                  <view v-else class="ingredient-name-wrapper">
+                    <text>{{ ing.name }}</text>
+                    <text class="recipe-tag" v-if="ing.isRecipe">自制</text>
+                  </view>
+                </view>
+                <text class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
+                <text class="col-usage">{{
+                  formatWeight(ing.weightInGrams)
+                }}</text>
+                <text class="col-price"
+                  >¥{{ formatMoney(ing.pricePerKg) }}</text
+                >
+                <text class="col-total">¥{{ formatMoney(ing.cost) }}</text>
+              </view>
+            </view>
+            <view
+              v-if="component.procedure && component.procedure.length > 0"
+              class="procedure-notes"
+            >
+              <text class="notes-title">制作要点:</text>
+              <text
+                v-for="(step, stepIndex) in component.procedure"
+                :key="stepIndex"
+                class="note-item"
+                >{{ stepIndex + 1 }}. {{ step }}</text
+              >
+            </view>
+          </view>
+        </view>
 
-				<view v-if="hasOtherIngredients" class="other-ingredients-section">
-					<view class="group-title" @click="toggleCollapse('otherIngredients')">
-						<span>{{ selectedProduct.name }}</span>
-						<span class="arrow" :class="{ collapsed: collapsedSections.has('otherIngredients') }">&#10095;</span>
-					</view>
-					<view class="collapsible-content" :class="{ 'is-collapsed': collapsedSections.has('otherIngredients') }">
-						<template v-for="(ingredients, groupName) in renderedRecipeDetails.groupedExtraIngredients" :key="groupName">
-							<view v-if="ingredients.length > 0" class="summary-table-wrapper">
-								<view class="smart-table detail-table">
-									<view class="table-header summary-header">
-										<text class="col-ingredient">{{ groupName === '搅拌原料' ? '辅料' : groupName }}</text>
-										<text v-if="groupName === '搅拌原料'" class="col-ratio">配方占比</text>
-										<text class="col-usage">{{ getUsageColumnHeader(groupName as string) }}</text>
-										<text class="col-total">成本</text>
-									</view>
+        <view v-if="hasOtherIngredients" class="other-ingredients-section">
+          <view class="group-title" @click="toggleCollapse('otherIngredients')">
+            <span>{{ selectedProduct.name }}</span>
+            <span
+              class="arrow"
+              :class="{ collapsed: collapsedSections.has('otherIngredients') }"
+              >&#10095;</span
+            >
+          </view>
+          <view
+            class="collapsible-content"
+            :class="{
+              'is-collapsed': collapsedSections.has('otherIngredients'),
+            }"
+          >
+            <template
+              v-for="(
+                ingredients, groupName
+              ) in renderedRecipeDetails.groupedExtraIngredients"
+              :key="groupName"
+            >
+              <view v-if="ingredients.length > 0" class="summary-table-wrapper">
+                <view class="smart-table detail-table">
+                  <view class="table-header summary-header">
+                    <text class="col-ingredient">{{
+                      groupName === "搅拌原料" ? "辅料" : groupName
+                    }}</text>
+                    <text v-if="groupName === '搅拌原料'" class="col-ratio"
+                      >配方占比</text
+                    >
+                    <text class="col-usage">{{
+                      getUsageColumnHeader(groupName as string)
+                    }}</text>
+                    <text class="col-total">成本</text>
+                  </view>
 
-									<template v-for="ing in ingredients" :key="ing.id">
-										<view
-											class="table-row group-main-row"
-											:class="{ 'is-interactive': ing.isRecipe && ing.ingredients && ing.ingredients.length > 0 }"
-											@click="ing.isRecipe && ing.ingredients && toggleExtraRow(ing.id)"
-										>
-											<view class="col-ingredient ingredient-name-cell">
-												<view class="ingredient-name-wrapper">
-													<text
-														class="expand-chevron"
-														:class="{ expanded: expandedExtraRows.has(ing.id) }"
-														v-if="ing.isRecipe && ing.ingredients && ing.ingredients.length > 0"
-													>
-														›
-													</text>
-													<text>{{ ing.name }}</text>
-													<text class="recipe-tag" v-if="ing.isRecipe">自制</text>
-												</view>
-											</view>
-											<text v-if="groupName === '搅拌原料'" class="col-ratio">{{ toPercentage(ing.ratio) }}%</text>
-											<text class="col-usage">{{ getUsageDisplay(ing) }}</text>
-											<text class="col-total">¥{{ formatMoney(ing.cost) }}</text>
-										</view>
+                  <template v-for="ing in ingredients" :key="ing.id">
+                    <view
+                      class="table-row group-main-row"
+                      :class="{
+                        'is-interactive':
+                          ing.isRecipe &&
+                          ing.ingredients &&
+                          ing.ingredients.length > 0,
+                      }"
+                      @click="
+                        ing.isRecipe &&
+                        ing.ingredients &&
+                        toggleExtraRow(ing.id)
+                      "
+                    >
+                      <view class="col-ingredient ingredient-name-cell">
+                        <view class="ingredient-name-wrapper">
+                          <text
+                            class="expand-chevron"
+                            :class="{ expanded: expandedExtraRows.has(ing.id) }"
+                            v-if="
+                              ing.isRecipe &&
+                              ing.ingredients &&
+                              ing.ingredients.length > 0
+                            "
+                          >
+                            ›
+                          </text>
+                          <text>{{ ing.name }}</text>
+                          <text class="recipe-tag" v-if="ing.isRecipe"
+                            >自制</text
+                          >
+                        </view>
+                      </view>
+                      <text v-if="groupName === '搅拌原料'" class="col-ratio"
+                        >{{ toPercentage(ing.ratio) }}%</text
+                      >
+                      <text class="col-usage">{{ getUsageDisplay(ing) }}</text>
+                      <text class="col-total"
+                        >¥{{ formatMoney(ing.cost) }}</text
+                      >
+                    </view>
 
-										<template v-if="expandedExtraRows.has(ing.id) && ing.ingredients && ing.ingredients.length > 0">
-											<view
-												class="table-row nested-item-row"
-												:class="{ 'is-last-item': subIdx === ing.ingredients.length - 1 }"
-												v-for="(sub, subIdx) in ing.ingredients"
-												:key="subIdx"
-											>
-												<view class="col-ingredient">
-													<text>{{ sub.name }}</text>
-												</view>
-												<text v-if="groupName === '搅拌原料'" class="col-ratio"></text>
-												<text class="col-usage">{{ formatWeight(sub.weightInGrams) }}</text>
-												<text class="col-total">¥{{ formatMoney(sub.cost) }}</text>
-											</view>
-										</template>
-									</template>
-								</view>
-							</view>
-						</template>
-						<view class="total-cost-summary">
-							<view class="summary-divider"></view>
-							<view class="summary-text">总成本: ¥{{ formatMoney(renderedRecipeDetails.totalCost) }}</view>
-						</view>
-						<view v-if="renderedRecipeDetails.productProcedure && renderedRecipeDetails.productProcedure.length > 0" class="procedure-notes">
-							<text class="notes-title">制作要点:</text>
-							<text v-for="(step, stepIndex) in renderedRecipeDetails.productProcedure" :key="stepIndex" class="note-item">{{ stepIndex + 1 }}. {{ step }}</text>
-						</view>
-					</view>
-				</view>
-			</view>
-			<view v-else class="empty-state" style="padding: 20px 0">暂无基础组件原料信息</view>
-		</view>
-		<view v-else-if="version && version.products.length === 0" class="empty-state">当前版本暂无产品</view>
-	</view>
+                    <template
+                      v-if="
+                        expandedExtraRows.has(ing.id) &&
+                        ing.ingredients &&
+                        ing.ingredients.length > 0
+                      "
+                    >
+                      <view
+                        class="table-row nested-item-row"
+                        :class="{
+                          'is-last-item': subIdx === ing.ingredients.length - 1,
+                        }"
+                        v-for="(sub, subIdx) in ing.ingredients"
+                        :key="subIdx"
+                      >
+                        <view class="col-ingredient">
+                          <text>{{ sub.name }}</text>
+                        </view>
+                        <text
+                          v-if="groupName === '搅拌原料'"
+                          class="col-ratio"
+                        ></text>
+                        <text class="col-usage">{{
+                          formatWeight(sub.weightInGrams)
+                        }}</text>
+                        <text class="col-total"
+                          >¥{{ formatMoney(sub.cost) }}</text
+                        >
+                      </view>
+                    </template>
+                  </template>
+                </view>
+              </view>
+            </template>
+            <view class="total-cost-summary">
+              <view class="summary-divider"></view>
+              <view class="summary-text"
+                >总成本: ¥{{
+                  formatMoney(renderedRecipeDetails.totalCost)
+                }}</view
+              >
+            </view>
+            <view
+              v-if="
+                renderedRecipeDetails.productProcedure &&
+                renderedRecipeDetails.productProcedure.length > 0
+              "
+              class="procedure-notes"
+            >
+              <text class="notes-title">制作要点:</text>
+              <text
+                v-for="(
+                  step, stepIndex
+                ) in renderedRecipeDetails.productProcedure"
+                :key="stepIndex"
+                class="note-item"
+                >{{ stepIndex + 1 }}. {{ step }}</text
+              >
+            </view>
+          </view>
+        </view>
+      </view>
+      <view v-else class="empty-state" style="padding: 20px 0"
+        >暂无基础组件原料信息</view
+      >
+    </view>
+    <view
+      v-else-if="version && version.products.length === 0"
+      class="empty-state"
+      >当前版本暂无产品</view
+    >
+  </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive, getCurrentInstance } from 'vue';
-import type { PropType } from 'vue';
-import type { RecipeVersion, RecipeDetails, CalculatedExtraIngredientInfo } from '@/types/api';
-import { getProductCostHistory, getProductCostBreakdown, getRecipeDetails } from '@/api/costing';
-import { useDataStore } from '@/store/data';
-import LineChart from '@/components/LineChart.vue';
-import PieChart from '@/components/PieChart.vue';
-import FilterTabs from '@/components/FilterTabs.vue';
-import AnimatedTabs from '@/components/AnimatedTabs.vue';
-import { formatNumber, formatWeight, toPercentage, formatMoney } from '@/utils/format';
+import { ref, computed, watch, reactive, getCurrentInstance } from "vue";
+import type { PropType } from "vue";
+import type {
+  RecipeVersion,
+  RecipeDetails,
+  CalculatedExtraIngredientInfo,
+} from "@/types/api";
+import {
+  getProductCostHistory,
+  getProductCostBreakdown,
+  getRecipeDetails,
+} from "@/api/costing";
+import { useDataStore } from "@/store/data";
+import LineChart from "@/components/LineChart.vue";
+import PieChart from "@/components/PieChart.vue";
+import FilterTabs from "@/components/FilterTabs.vue";
+import AnimatedTabs from "@/components/AnimatedTabs.vue";
+import {
+  formatNumber,
+  formatWeight,
+  toPercentage,
+  formatMoney,
+} from "@/utils/format";
 
 const instance = getCurrentInstance();
 
-const emit = defineEmits(['show-popover']);
+const emit = defineEmits(["show-popover"]);
 
 const props = defineProps({
-	version: {
-		type: Object as PropType<RecipeVersion | null>,
-		default: null
-	}
+  version: {
+    type: Object as PropType<RecipeVersion | null>,
+    default: null,
+  },
 });
 
 const dataStore = useDataStore();
@@ -194,527 +336,540 @@ const costHistory = ref<{ cost: number }[]>([]);
 const renderedCostHistory = ref<{ cost: number }[]>([]);
 const costBreakdown = ref<{ name: string; value: number }[]>([]);
 const renderedCostBreakdown = ref<{ name: string; value: number }[]>([]);
-const detailChartTab = ref<'trend' | 'breakdown'>('trend');
+const detailChartTab = ref<"trend" | "breakdown">("trend");
 const collapsedSections = ref(new Set<string>());
 const isFadingOut = ref(false);
 const isFetching = ref(false);
 
 const tempCostData = reactive<{
-	history: any[];
-	breakdown: any[];
-	details: RecipeDetails | null;
+  history: any[];
+  breakdown: any[];
+  details: RecipeDetails | null;
 }>({
-	history: [],
-	breakdown: [],
-	details: null
+  history: [],
+  breakdown: [],
+  details: null,
 });
 
 // 记录展开的额外原料
 const expandedExtraRows = ref(new Set<string>());
 
 const chartTabs = ref([
-	{
-		key: 'trend',
-		label: '成本走势'
-	},
-	{
-		key: 'breakdown',
-		label: '原料成本'
-	}
+  {
+    key: "trend",
+    label: "成本走势",
+  },
+  {
+    key: "breakdown",
+    label: "原料成本",
+  },
 ]);
 
 const targetTempDisplay = computed(() => {
-	if (!props.version || !props.version.components[0]) return null;
-	return props.version.components[0].targetTemp || null;
+  if (!props.version || !props.version.components[0]) return null;
+  return props.version.components[0].targetTemp || null;
 });
 
 const lossRatioDisplay = computed(() => {
-	if (!props.version || !props.version.components[0]) return '0%';
-	const loss = props.version.components[0].lossRatio || 0;
-	return toPercentage(loss) + '%';
+  if (!props.version || !props.version.components[0]) return "0%";
+  const loss = props.version.components[0].lossRatio || 0;
+  return toPercentage(loss) + "%";
 });
 
 const divisionLossDisplay = computed(() => {
-	if (!props.version || !props.version.components[0]) return '0';
-	return props.version.components[0].divisionLoss || 0;
+  if (!props.version || !props.version.components[0]) return "0";
+  return props.version.components[0].divisionLoss || 0;
 });
 
 const calculatedWaterContent = computed(() => {
-	if (!props.version || !props.version.components[0]) return '0';
-	const component = props.version.components[0];
+  if (!props.version || !props.version.components[0]) return "0";
+  const component = props.version.components[0];
 
-	if (component.customWaterContent != null && component.customWaterContent !== undefined) {
-		return component.customWaterContent;
-	}
+  if (
+    component.customWaterContent != null &&
+    component.customWaterContent !== undefined
+  ) {
+    return component.customWaterContent;
+  }
 
-	if (!component.ingredients || component.ingredients.length === 0) return '0';
+  if (!component.ingredients || component.ingredients.length === 0) return "0";
 
-	let totalWaterRatio = 0;
+  let totalWaterRatio = 0;
 
-	component.ingredients.forEach((ing) => {
-		const ratio = Number(ing.ratio || 0);
-		if (ratio <= 0) return;
+  component.ingredients.forEach((ing) => {
+    const ratio = Number(ing.ratio || 0);
+    if (ratio <= 0) return;
 
-		let waterContent = 0;
-		if (ing.ingredient) {
-			if (ing.ingredient.name === '水') {
-				waterContent = 1;
-			} else {
-				waterContent = ing.ingredient.waterContent || 0;
-			}
-		}
+    let waterContent = 0;
+    if (ing.ingredient) {
+      if (ing.ingredient.name === "水") {
+        waterContent = 1;
+      } else {
+        waterContent = ing.ingredient.waterContent || 0;
+      }
+    }
 
-		totalWaterRatio += ratio * waterContent;
-	});
+    totalWaterRatio += ratio * waterContent;
+  });
 
-	return (totalWaterRatio * 100).toFixed(1);
+  return (totalWaterRatio * 100).toFixed(1);
 });
 
 const productTabsForFilter = computed(() => {
-	if (!props.version || !props.version.products) return [];
+  if (!props.version || !props.version.products) return [];
 
-	return props.version.products.map((p) => ({
-		key: p.id,
-		label: p.name
-	}));
+  return props.version.products.map((p) => ({
+    key: p.id,
+    label: p.name,
+  }));
 });
 
 const selectedProduct = computed(() => {
-	if (!props.version || !selectedProductId.value) return null;
-	if (!props.version.products) return null;
+  if (!props.version || !selectedProductId.value) return null;
+  if (!props.version.products) return null;
 
-	return props.version.products.find((p) => p.id === selectedProductId.value);
+  return props.version.products.find((p) => p.id === selectedProductId.value);
 });
 
 const hasOtherIngredients = computed(() => {
-	if (!renderedRecipeDetails.value) return false;
-	return Object.values(renderedRecipeDetails.value.groupedExtraIngredients).some((group) => group.length > 0);
+  if (!renderedRecipeDetails.value) return false;
+  return Object.values(
+    renderedRecipeDetails.value.groupedExtraIngredients,
+  ).some((group) => group.length > 0);
 });
 
-const handleIconClick = (info: string | null | undefined, elementId: string) => {
-	if (!info) {
-		emit('show-popover', { info: null, rect: null });
-		return;
-	}
-	const query = uni.createSelectorQuery().in(instance);
-	query
-		.select('#' + elementId)
-		.boundingClientRect((rect: UniApp.NodeInfo) => {
-			if (rect) {
-				emit('show-popover', {
-					info,
-					rect
-				});
-			}
-		})
-		.exec();
+const handleIconClick = (
+  info: string | null | undefined,
+  elementId: string,
+) => {
+  if (!info) {
+    emit("show-popover", { info: null, rect: null });
+    return;
+  }
+  const query = uni.createSelectorQuery().in(instance);
+  query
+    .select("#" + elementId)
+    .boundingClientRect((rect: UniApp.NodeInfo) => {
+      if (rect) {
+        emit("show-popover", {
+          info,
+          rect,
+        });
+      }
+    })
+    .exec();
 };
 
 const fetchCostDataForRender = async (productId: string) => {
-	try {
-		const [historyData, breakdownData, detailsData] = await Promise.all([getProductCostHistory(productId), getProductCostBreakdown(productId), getRecipeDetails(productId)]);
-		tempCostData.history = historyData;
-		tempCostData.breakdown = breakdownData;
-		tempCostData.details = detailsData;
-	} catch (error) {
-		console.error('Failed to fetch cost data for product:', error);
-		tempCostData.history = [];
-		tempCostData.breakdown = [];
-		tempCostData.details = null;
-	}
+  try {
+    const [historyData, breakdownData, detailsData] = await Promise.all([
+      getProductCostHistory(productId),
+      getProductCostBreakdown(productId),
+      getRecipeDetails(productId),
+    ]);
+    tempCostData.history = historyData;
+    tempCostData.breakdown = breakdownData;
+    tempCostData.details = detailsData;
+  } catch (error) {
+    console.error("Failed to fetch cost data for product:", error);
+    tempCostData.history = [];
+    tempCostData.breakdown = [];
+    tempCostData.details = null;
+  }
 };
 
 const fetchCostData = async (productId: string | null) => {
-	if (!productId) {
-		tempCostData.history = [];
-		tempCostData.breakdown = [];
-		tempCostData.details = null;
-		renderedProductId.value = null;
-		renderedRecipeDetails.value = null;
-		renderedCostHistory.value = [];
-		renderedCostBreakdown.value = [];
-		return;
-	}
-	isFetching.value = true;
-	await fetchCostDataForRender(productId);
-	isFetching.value = false;
-	renderedProductId.value = productId;
-	renderedRecipeDetails.value = tempCostData.details;
-	renderedCostHistory.value = tempCostData.history;
-	renderedCostBreakdown.value = tempCostData.breakdown;
+  if (!productId) {
+    tempCostData.history = [];
+    tempCostData.breakdown = [];
+    tempCostData.details = null;
+    renderedProductId.value = null;
+    renderedRecipeDetails.value = null;
+    renderedCostHistory.value = [];
+    renderedCostBreakdown.value = [];
+    return;
+  }
+  isFetching.value = true;
+  await fetchCostDataForRender(productId);
+  isFetching.value = false;
+  renderedProductId.value = productId;
+  renderedRecipeDetails.value = tempCostData.details;
+  renderedCostHistory.value = tempCostData.history;
+  renderedCostBreakdown.value = tempCostData.breakdown;
 };
 
 const toggleCollapse = (sectionName: string) => {
-	const newSet = new Set(collapsedSections.value);
-	if (newSet.has(sectionName)) {
-		newSet.delete(sectionName);
-	} else {
-		newSet.add(sectionName);
-	}
-	collapsedSections.value = newSet;
+  const newSet = new Set(collapsedSections.value);
+  if (newSet.has(sectionName)) {
+    newSet.delete(sectionName);
+  } else {
+    newSet.add(sectionName);
+  }
+  collapsedSections.value = newSet;
 };
 
 // 切换额外原料内部明细展示
 const toggleExtraRow = (rowId: string) => {
-	const newSet = new Set(expandedExtraRows.value);
-	if (newSet.has(rowId)) {
-		newSet.delete(rowId);
-	} else {
-		newSet.add(rowId);
-	}
-	expandedExtraRows.value = newSet;
+  const newSet = new Set(expandedExtraRows.value);
+  if (newSet.has(rowId)) {
+    newSet.delete(rowId);
+  } else {
+    newSet.add(rowId);
+  }
+  expandedExtraRows.value = newSet;
 };
 
 const getUsageColumnHeader = (groupName: string): string => {
-	if (groupName === '馅料' || groupName === '表面装饰') {
-		return '单个用量';
-	}
-	return '总用量';
+  if (groupName === "馅料" || groupName === "表面装饰") {
+    return "单个用量";
+  }
+  return "总用量";
 };
 
 const getUsageDisplay = (ingredient: CalculatedExtraIngredientInfo): string => {
-	return formatWeight(ingredient.weightInGrams);
+  return formatWeight(ingredient.weightInGrams);
 };
 
 watch(selectedProductId, async (newProductId) => {
-	if (!newProductId) {
-		await fetchCostData(null);
-		return;
-	}
-	if (!renderedProductId.value) {
-		await fetchCostData(newProductId);
-		return;
-	}
-	isFetching.value = true;
-	await fetchCostDataForRender(newProductId);
+  if (!newProductId) {
+    await fetchCostData(null);
+    return;
+  }
+  if (!renderedProductId.value) {
+    await fetchCostData(newProductId);
+    return;
+  }
+  isFetching.value = true;
+  await fetchCostDataForRender(newProductId);
 
-	if (selectedProductId.value !== newProductId) {
-		isFetching.value = false;
-		return;
-	}
+  if (selectedProductId.value !== newProductId) {
+    isFetching.value = false;
+    return;
+  }
 
-	isFadingOut.value = true;
-	setTimeout(() => {
-		renderedProductId.value = newProductId;
-		renderedRecipeDetails.value = tempCostData.details;
-		renderedCostHistory.value = tempCostData.history;
-		renderedCostBreakdown.value = tempCostData.breakdown;
-		isFetching.value = false;
-		isFadingOut.value = false;
-	}, 150);
+  isFadingOut.value = true;
+  setTimeout(() => {
+    renderedProductId.value = newProductId;
+    renderedRecipeDetails.value = tempCostData.details;
+    renderedCostHistory.value = tempCostData.history;
+    renderedCostBreakdown.value = tempCostData.breakdown;
+    isFetching.value = false;
+    isFadingOut.value = false;
+  }, 150);
 });
 
 watch(
-	() => props.version,
-	(newVersion) => {
-		renderedProductId.value = null;
-		if (newVersion && newVersion.products.length > 0) {
-			const newId = newVersion.products[0].id;
-			if (selectedProductId.value === newId) {
-				fetchCostData(newId);
-			} else {
-				selectedProductId.value = newId;
-			}
-		} else {
-			selectedProductId.value = null;
-		}
-	},
-	{
-		immediate: true
-	}
+  () => props.version,
+  (newVersion) => {
+    renderedProductId.value = null;
+    if (newVersion && newVersion.products.length > 0) {
+      const newId = newVersion.products[0].id;
+      if (selectedProductId.value === newId) {
+        fetchCostData(newId);
+      } else {
+        selectedProductId.value = newId;
+      }
+    } else {
+      selectedProductId.value = null;
+    }
+  },
+  {
+    immediate: true,
+  },
 );
 </script>
 
 <style scoped lang="scss">
-@import '@/styles/common.scss';
+@import "@/styles/common.scss";
 @include table-layout;
 
 .meta-grid-container {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 18px 10px;
-	border-radius: 12px;
-	margin-bottom: 15px;
-	border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 10px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+  border: none;
 }
 
 .meta-item {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 6px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
 .meta-divider {
-	width: 1px;
-	height: 24px;
-	background-color: #e6dccd;
-	opacity: 0.6;
+  width: 1px;
+  height: 24px;
+  background-color: #e6dccd;
+  opacity: 0.6;
 }
 
 .meta-item .label {
-	font-size: 13px;
-	color: var(--text-secondary);
-	font-weight: 400;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 400;
 }
 
 .meta-item .value {
-	font-size: 16px;
-	font-weight: 600;
-	color: var(--primary-color);
-	font-family: -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
-	letter-spacing: -0.5px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-color);
+  font-family:
+    -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  letter-spacing: -0.5px;
 }
 
 .ingredient-name-cell {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5px;
 }
 
 .ingredient-name-wrapper {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .recipe-tag {
-	font-size: 11px;
-	font-weight: 500;
-	padding: 2px 8px;
-	border-radius: 10px;
-	background-color: #faedcd;
-	color: var(--primary-color);
-	flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: #faedcd;
+  color: var(--primary-color);
+  flex-shrink: 0;
 }
 
 .collapsible-content {
-	max-height: 1000px;
-	overflow: hidden;
-	transition: max-height 0.3s ease-in-out;
-	box-sizing: border-box;
+  max-height: 1000px;
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out;
+  box-sizing: border-box;
 }
 
 .other-ingredients-section {
-	padding-bottom: 10px;
+  padding-bottom: 10px;
 }
 
 .collapsible-content.is-collapsed {
-	max-height: 0;
+  max-height: 0;
 }
 
 .ingredient-with-icon {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	flex-grow: 1;
-	justify-content: space-between;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-grow: 1;
+  justify-content: space-between;
 }
 
 .info-icon {
-	width: 16px;
-	height: 16px;
-	flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .group-title {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	font-size: 16px;
-	font-weight: 600;
-	color: var(--text-primary);
-	border: none;
-	margin-top: 30px;
-	position: relative;
-	background-color: #faf8f5;
-	padding: 10px 15px;
-	border-radius: 12px;
-	transition: background-color 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border: none;
+  margin-top: 30px;
+  position: relative;
+  background-color: #faf8f5;
+  padding: 10px 15px;
+  border-radius: 12px;
+  transition: background-color 0.2s;
 }
 
 .group-title:active {
-	background-color: #f0ebe5;
+  background-color: #f0ebe5;
 }
 
 .arrow {
-	font-size: 14px;
-	color: var(--text-secondary);
-	transform: rotate(90deg);
-	transition: transform 0.3s ease;
-	padding: 5px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  transform: rotate(90deg);
+  transition: transform 0.3s ease;
+  padding: 5px;
 }
 
 .arrow.collapsed {
-	transform: rotate(0deg);
+  transform: rotate(0deg);
 }
 
 .smart-table {
-	font-size: 14px;
-	margin-top: 25px;
+  font-size: 14px;
+  margin-top: 25px;
 
-	.table-header {
-		color: var(--text-secondary);
-		font-weight: 500;
-		background-color: transparent;
-		border-bottom: 1px solid var(--border-color);
-	}
+  .table-header {
+    color: var(--text-secondary);
+    font-weight: 500;
+    background-color: transparent;
+    border-bottom: 1px solid var(--border-color);
+  }
 
-	.table-row {
-		color: var(--text-primary);
-		border-bottom: 1px solid var(--border-color);
+  .table-row {
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
 
-		&:last-child {
-			border-bottom: none;
-		}
-	}
+    &:last-child {
+      border-bottom: none;
+    }
+  }
 }
 
 /* --- [核心样式优化] 嵌套明细直观视觉方案 --- */
 .group-main-row.is-interactive {
-	transition: background-color 0.2s ease;
-	&:active {
-		background-color: #f7f4ed; /* 点击反馈 */
-	}
+  transition: background-color 0.2s ease;
+  &:active {
+    background-color: #f7f4ed; /* 点击反馈 */
+  }
 }
 
 .expand-chevron {
-	font-size: 18px;
-	color: #c5bba8;
-	display: inline-block;
-	transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-	margin-right: 4px;
-	transform-origin: center;
-	line-height: 1;
-	font-family: monospace;
-	font-weight: 300;
+  font-size: 18px;
+  color: #c5bba8;
+  display: inline-block;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-right: 4px;
+  transform-origin: center;
+  line-height: 1;
+  font-family: monospace;
+  font-weight: 300;
 }
 
 .expand-chevron.expanded {
-	transform: rotate(90deg) translateX(1px); /* 微调旋转后的视觉居中 */
+  transform: rotate(90deg) translateX(1px); /* 微调旋转后的视觉居中 */
 }
 
 /* 直接对齐 cell 施加极浅的背景模拟内嵌卡片 */
 .nested-header-row {
-	.col-ingredient,
-	.col-ratio,
-	.col-usage,
-	.col-total {
-		background-color: #fdfcf9; /* 与图片相符的极浅米色 */
-		color: #a89d8e;
-		font-size: 12px;
-		border-bottom: 1px dashed #efe8df; /* 虚线底边 */
-		padding-top: 14px;
-		padding-bottom: 8px;
-	}
-	.col-ingredient {
-		padding-left: 28px; /* 通过缩进拉开视觉层级 */
-	}
+  .col-ingredient,
+  .col-ratio,
+  .col-usage,
+  .col-total {
+    background-color: #fdfcf9; /* 与图片相符的极浅米色 */
+    color: #a89d8e;
+    font-size: 12px;
+    border-bottom: 1px dashed #efe8df; /* 虚线底边 */
+    padding-top: 14px;
+    padding-bottom: 8px;
+  }
+  .col-ingredient {
+    padding-left: 28px; /* 通过缩进拉开视觉层级 */
+  }
 }
 
 .nested-item-row {
-	.col-ingredient,
-	.col-ratio,
-	.col-usage,
-	.col-total {
-		background-color: #fdfcf9;
-		color: #857a6b;
-		font-size: 13px;
-		border-bottom: none; /* 内部条目不含横线 */
-		padding-top: 8px;
-		padding-bottom: 8px;
-	}
-	.col-ingredient {
-		padding-left: 28px;
-		display: flex;
-		align-items: center;
-		gap: 6px;
-	}
+  .col-ingredient,
+  .col-ratio,
+  .col-usage,
+  .col-total {
+    background-color: #fdfcf9;
+    color: #857a6b;
+    font-size: 13px;
+    border-bottom: none; /* 内部条目不含横线 */
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .col-ingredient {
+    padding-left: 28px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 
-	/* 为最后一行预留下方呼吸空间 */
-	&.is-last-item {
-		.col-ingredient,
-		.col-ratio,
-		.col-usage,
-		.col-total {
-			padding-bottom: 16px;
-		}
-	}
+  /* 为最后一行预留下方呼吸空间 */
+  &.is-last-item {
+    .col-ingredient,
+    .col-ratio,
+    .col-usage,
+    .col-total {
+      padding-bottom: 16px;
+    }
+  }
 }
 
 /* ------------------------------------- */
 
 .procedure-notes {
-	@include procedure-notes-style;
-	margin-top: 25px;
+  @include procedure-notes-style;
+  margin-top: 25px;
 }
 
 .product-tabs-wrapper {
-	padding: 30px 0px;
+  padding: 30px 0px;
 }
 
 .data-analysis-section {
-	margin-bottom: 20px;
+  margin-bottom: 20px;
 }
 
 .summary-header {
-	background-color: transparent;
-	border-bottom: 1px solid var(--border-color);
+  background-color: transparent;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .total-cost-summary {
-	margin-top: 25px;
-	text-align: right;
-	font-size: 14px;
-	font-weight: 600;
-	color: var(--text-primary);
+  margin-top: 25px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .summary-divider {
-	height: 1px;
-	background-color: var(--border-color);
-	margin-bottom: 10px;
+  height: 1px;
+  background-color: var(--border-color);
+  margin-bottom: 10px;
 }
 
 .summary-text {
-	padding: 0px 4px;
+  padding: 0px 4px;
 }
 
 .recipe-detail-product-card {
-	animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: fadeInClean 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 
-	&.is-fetching {
-		opacity: 0.4;
-		pointer-events: none;
-		animation: none;
-		transition: opacity 0.15s ease;
-	}
+  &.is-fetching {
+    opacity: 0.4;
+    pointer-events: none;
+    animation: none;
+    transition: opacity 0.15s ease;
+  }
 
-	&.is-fading-out {
-		animation: fadeOutClean 0.15s ease forwards;
-	}
+  &.is-fading-out {
+    animation: fadeOutClean 0.15s ease forwards;
+  }
 }
 </style>
 
 <style lang="scss">
 @keyframes fadeInClean {
-	from {
-		opacity: 0;
-		transform: translateY(5px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeOutClean {
-	to {
-		opacity: 0;
-		transform: translateY(-5px);
-	}
+  to {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
 }
 </style>
