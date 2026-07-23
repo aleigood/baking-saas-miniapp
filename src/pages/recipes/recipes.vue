@@ -327,7 +327,12 @@ const fabActions = computed(() => {
 		},
 		{
 			icon: '/static/icons/add.svg',
-			text: '其他配方',
+			text: '面种',
+			action: () => navigateToEditPage('PRE_DOUGH')
+		},
+		{
+			icon: '/static/icons/add.svg',
+			text: '自制原料',
 			action: () => navigateToEditPage('EXTRA')
 		}
 	];
@@ -437,7 +442,7 @@ const canEditRecipe = computed(() => {
 	return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 });
 
-const navigateToEditPage = (type: 'MAIN' | 'EXTRA') => {
+const navigateToEditPage = (type: 'MAIN' | 'PRE_DOUGH' | 'EXTRA') => {
 	if (isNavigating.value) return;
 	isNavigating.value = true;
 	const url = `/pages/recipes/edit?type=${type}`;

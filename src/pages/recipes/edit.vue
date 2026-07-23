@@ -1013,7 +1013,9 @@ const handlePageClick = () => {
 
 const pageTitle = computed(() => {
   if (pageMode.value === "create") {
-    return form.value.type === "MAIN" ? "新建产品配方" : "新建其他配方";
+    if (form.value.type === "PRE_DOUGH") return "新建面种";
+    if (form.value.type === "EXTRA") return "新建自制原料";
+    return "新建产品配方";
   }
   if (pageMode.value === "edit") {
     return "新建配方版本";
@@ -1594,8 +1596,12 @@ onLoad(async (options) => {
     }
   } else {
     pageMode.value = "create";
-    if (options?.type === "EXTRA") {
-      form.value.type = "PRE_DOUGH";
+    const initialType =
+      options?.type === "PRE_DOUGH" || options?.type === "EXTRA"
+        ? options.type
+        : "MAIN";
+    if (initialType !== "MAIN") {
+      form.value.type = initialType;
       form.value.products = [];
       form.value.category = "OTHER";
       form.value.components = [
