@@ -431,7 +431,7 @@ onShow(() => {
 
 const handleRefresh = async () => {
 	try {
-		dataStore.markIngredientsAsStale();
+		dataStore.markIngredientMutationStale();
 		await dataStore.fetchIngredientsData();
 	} finally {
 		refreshableLayout.value?.finishRefresh();
@@ -501,7 +501,7 @@ const confirmDeleteIngredient = async () => {
 	try {
 		await deleteIngredient(selectedIngredient.value.id);
 		toastStore.show({ message: '删除成功', type: 'success' });
-		dataStore.markIngredientsAsStale();
+		dataStore.markIngredientMutationStale();
 		await dataStore.fetchIngredientsData();
 		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
@@ -544,7 +544,7 @@ const handleCreateIngredient = async () => {
 		});
 		toastStore.show({ message: '创建成功，请继续添加规格和价格', type: 'success', duration: 3000 });
 		showCreateIngredientModal.value = false;
-		dataStore.markIngredientsAsStale();
+		dataStore.markIngredientMutationStale();
 		await dataStore.fetchIngredientsData();
 		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {

@@ -1378,9 +1378,7 @@ const handleConfirmComplete = async () => {
       target,
     );
 
-    dataStore.markProductionAsStale();
-    dataStore.markHistoricalTasksAsStale();
-    dataStore.markIngredientsAsStale();
+    dataStore.markProductionMutationStale();
 
     uni.navigateBack();
   } catch (error) {

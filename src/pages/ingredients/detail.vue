@@ -683,7 +683,7 @@ const handleCreateSku = async () => {
 
 		toastStore.show({ message: '创建成功', type: 'success' });
 		showAddSkuModal.value = false;
-		dataStore.markIngredientsAsStale();
+		dataStore.markIngredientMutationStale();
 		await loadIngredientData(ingredient.value.id);
 	} finally {
 		isSubmitting.value = false;
@@ -705,7 +705,7 @@ const handleUpdateSku = async () => {
 		});
 		toastStore.show({ message: '更新成功', type: 'success' });
 		showEditSkuModal.value = false;
-		dataStore.markIngredientsAsStale();
+		dataStore.markIngredientMutationStale();
 		await loadIngredientData(ingredient.value.id);
 	} catch (error) {
 		console.error('Failed to update SKU:', error);
@@ -764,7 +764,7 @@ const handleCreatePriceRecord = async () => {
 		await createPriceRecord(payload);
 		toastStore.show({ message: '价格记录成功', type: 'success' });
 		showPriceRecordModal.value = false;
-		dataStore.markIngredientsAsStale();
+		dataStore.markIngredientMutationStale();
 		await loadIngredientData(ingredient.value!.id);
 	} finally {
 		isSubmitting.value = false;
@@ -820,7 +820,7 @@ const handleConfirmDeleteSku = async () => {
 		toastStore.show({ message: '删除成功', type: 'success' });
 		showDeleteSkuConfirmModal.value = false;
 		selectedSkuForAction.value = null;
-		dataStore.markIngredientsAsStale();
+		dataStore.markIngredientMutationStale();
 		await loadIngredientData(ingredient.value.id);
 	} catch (error) {
 		showDeleteSkuConfirmModal.value = false;
@@ -836,7 +836,7 @@ const handleActivateFromModal = async () => {
 	try {
 		await setActiveSku(ingredient.value.id, sku.id);
 		toastStore.show({ message: '设置成功', type: 'success' });
-		dataStore.markIngredientsAsStale();
+		dataStore.markIngredientMutationStale();
 		await loadIngredientData(ingredient.value.id);
 	} catch (error) {
 		console.error('Failed to activate SKU:', error);
@@ -894,7 +894,7 @@ const handleUpdateIngredient = async () => {
 		});
 		toastStore.show({ message: '保存成功', type: 'success' });
 		showEditModal.value = false;
-		dataStore.markIngredientsAsStale();
+		dataStore.markIngredientMutationStale();
 		await loadIngredientData(ingredient.value.id);
 	} catch (error) {
 		console.error('Failed to update ingredient properties:', error);
@@ -935,7 +935,7 @@ const handleUpdatePriceRecord = async () => {
 		await updatePriceRecord(editPriceRecordForm.id, payload);
 		toastStore.show({ message: '更新成功', type: 'success' });
 		showEditPriceRecordModal.value = false;
-		dataStore.markIngredientsAsStale();
+		dataStore.markIngredientMutationStale();
 		await loadIngredientData(ingredient.value.id);
 	} catch (error) {
 		console.error('Failed to update price record:', error);

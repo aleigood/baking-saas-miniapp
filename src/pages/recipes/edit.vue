@@ -2064,10 +2064,7 @@ const handleSubmit = async () => {
       }
     }
 
-    dataStore.markRecipesAsStale();
-    dataStore.markIngredientsAsStale();
-    dataStore.markProductionAsStale();
-    dataStore.markProductsForTaskCreationAsStale();
+    dataStore.markRecipeMutationStale();
     uni.navigateBack();
   } catch (error) {
     console.error("Failed to save recipe:", error);

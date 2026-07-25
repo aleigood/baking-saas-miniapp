@@ -686,9 +686,7 @@ const handleSubmit = async () => {
       }
     }
 
-    dataStore.markProductionAsStale();
-    dataStore.markHistoricalTasksAsStale();
-    dataStore.markIngredientsAsStale();
+    dataStore.markProductionMutationStale();
     uni.navigateBack();
   } catch (error) {
     console.error("Failed to create/update ingredient tasks:", error);

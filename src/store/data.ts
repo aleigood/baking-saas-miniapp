@@ -239,6 +239,24 @@ export const useDataStore = defineStore("data", () => {
   const markMembersAsStale = () => {
     dataStale.members = true;
   };
+  const markRecipeMutationStale = () => {
+    markRecipesAsStale();
+    markProductsForTaskCreationAsStale();
+    markProductionAsStale();
+    markIngredientsAsStale();
+  };
+  const markIngredientMutationStale = () => {
+    markIngredientsAsStale();
+    markRecipesAsStale();
+    markProductsForTaskCreationAsStale();
+    markProductionAsStale();
+  };
+  const markProductionMutationStale = () => {
+    markProductionAsStale();
+    markHistoricalTasksAsStale();
+    markIngredientsAsStale();
+    markRecipesAsStale();
+  };
 
   async function fetchTenants() {
     try {
@@ -538,6 +556,9 @@ export const useDataStore = defineStore("data", () => {
     markProductsForTaskCreationAsStale,
     markIngredientsAsStale,
     markMembersAsStale,
+    markRecipeMutationStale,
+    markIngredientMutationStale,
+    markProductionMutationStale,
     // [新增] 导出清理历史任务的方法
     clearHistoricalTasks,
   };

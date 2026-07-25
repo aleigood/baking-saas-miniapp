@@ -695,7 +695,7 @@ const handleSaveVersionNotes = async () => {
     );
     showEditVersionNotesModal.value = false;
     toastStore.show({ message: "版本说明已更新", type: "success" });
-    dataStore.markRecipesAsStale();
+    dataStore.markRecipeMutationStale();
     await loadRecipeData(recipeFamily.value.id);
   } catch (error) {
     console.error("Failed to update recipe version notes:", error);
@@ -775,7 +775,7 @@ const activateVersionAction = async (versionToActivate: RecipeVersion) => {
       message: "设置成功",
       type: "success",
     });
-    dataStore.markRecipesAsStale();
+    dataStore.markRecipeMutationStale();
     await loadRecipeData(recipeFamily.value.id);
   } catch (error) {
     console.error("Failed to activate version:", error);
@@ -799,9 +799,7 @@ const handleApplyDependencyUpgrades = async () => {
         : null;
     if (!result) return;
     showDependencyUpgradeModal.value = false;
-    dataStore.markRecipesAsStale();
-    dataStore.markProductionAsStale();
-    dataStore.markProductsForTaskCreationAsStale();
+    dataStore.markRecipeMutationStale();
     toastStore.show({
       message: `已更新 ${result.upgradedRecipes.length} 个关联配方`,
       type: "success",

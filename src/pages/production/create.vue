@@ -384,8 +384,7 @@ const handleSubmit = async () => {
 			}
 		}
 
-		dataStore.markProductionAsStale();
-		dataStore.markHistoricalTasksAsStale();
+		dataStore.markProductionMutationStale();
 		uni.navigateBack();
 	} catch (error) {
 		console.error('Failed to submit task:', error);

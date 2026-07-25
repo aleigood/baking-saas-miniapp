@@ -474,8 +474,7 @@ const handleUnrestrictRecipe = async () => {
 				? `配方已解除受限，还可启用 ${result.remaining} 个配方`
 				: '配方已解除受限，免费版名额已用完';
 		toastStore.show({ message, type: 'success' });
-		dataStore.markRecipesAsStale();
-		dataStore.markProductsForTaskCreationAsStale();
+		dataStore.markRecipeMutationStale();
 		await dataStore.fetchRecipesData();
 		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
@@ -508,8 +507,7 @@ const confirmDiscontinueRecipe = async () => {
 	try {
 		await discontinueRecipe(selectedRecipe.value.id);
 		toastStore.show({ message: '配方已停用', type: 'success' });
-		dataStore.markRecipesAsStale();
-		dataStore.markProductsForTaskCreationAsStale();
+		dataStore.markRecipeMutationStale();
 		await dataStore.fetchRecipesData();
 		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
@@ -527,8 +525,7 @@ const confirmRestoreRecipe = async () => {
 	try {
 		await restoreRecipe(selectedRecipe.value.id);
 		toastStore.show({ message: '配方已恢复', type: 'success' });
-		dataStore.markRecipesAsStale();
-		dataStore.markProductsForTaskCreationAsStale();
+		dataStore.markRecipeMutationStale();
 		await dataStore.fetchRecipesData();
 		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {
@@ -546,7 +543,7 @@ const confirmDeleteRecipe = async () => {
 	try {
 		await deleteRecipe(selectedRecipe.value.id);
 		toastStore.show({ message: '删除成功', type: 'success' });
-		dataStore.markRecipesAsStale();
+		dataStore.markRecipeMutationStale();
 		await dataStore.fetchRecipesData();
 		triggerListAnimationWithKeyUpdate(true);
 	} catch (error) {

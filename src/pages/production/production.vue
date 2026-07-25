@@ -459,7 +459,7 @@ const handleScroll = (event: any) => {
 
 const handleRefresh = async () => {
 	try {
-		dataStore.markProductionAsStale();
+		dataStore.markProductionMutationStale();
 		dataStore.markProductsForTaskCreationAsStale();
 		await Promise.all([dataStore.fetchProductsForTaskCreation(), dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 	} finally {
@@ -609,7 +609,7 @@ const handleConfirmDeleteTask = async () => {
 		dataStore.clearTaskProgress(selectedTaskForAction.value.id);
 
 		toastStore.show({ message: '任务已删除', type: 'success' });
-		dataStore.markProductionAsStale();
+		dataStore.markProductionMutationStale();
 
 		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 		triggerListAnimationWithKeyUpdate(true);
@@ -631,8 +631,7 @@ const handleConfirmCancelTask = async () => {
 		dataStore.clearTaskProgress(selectedTaskForAction.value.id);
 
 		toastStore.show({ message: '任务已取消', type: 'success' });
-		dataStore.markProductionAsStale();
-		dataStore.markHistoricalTasksAsStale();
+		dataStore.markProductionMutationStale();
 
 		await Promise.all([dataStore.fetchProductionData(selectedDate.value), getTaskDates().then((dates) => (taskDates.value = dates))]);
 		triggerListAnimationWithKeyUpdate(true);
