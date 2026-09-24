@@ -68,6 +68,8 @@ export const useDataStore = defineStore("data", () => {
   const productsForTaskCreation = ref<ProductsForTaskResponse>(
     {} as ProductsForTaskResponse,
   );
+  // 每次刷新或失效都推进序号，防止旧请求覆盖新的使用中配方。
+  let taskProductsRequestVersion = 0;
   const ingredients = ref<{ allIngredients: Ingredient[] }>({
     allIngredients: [],
   });
@@ -231,6 +233,7 @@ export const useDataStore = defineStore("data", () => {
     dataStale.recipes = true;
   };
   const markProductsForTaskCreationAsStale = () => {
+    taskProductsRequestVersion += 1;
     dataStale.productsForTaskCreation = true;
   };
   const markIngredientsAsStale = () => {
@@ -356,8 +359,8 @@ export const useDataStore = defineStore("data", () => {
     }
   }
 
-  async function fetchRecipesData() {
-    if (!currentTenantId.value) return;
+  async function fetchRecipesData(): Promise<boolean> {
+    if (!currentTenantId.value) return false;
     try {
       const { startDate, endDate } = getMonthDateRange();
       const [recipeData, recipeStatData] = await Promise.all([
@@ -368,19 +371,33 @@ export const useDataStore = defineStore("data", () => {
       recipeStats.value = recipeStatData;
       dataLoaded.value.recipes = true;
       dataStale.recipes = false;
+      return true;
     } catch (error) {
       console.error("Failed to fetch recipes data", error);
+      return false;
     }
   }
 
-  async function fetchProductsForTaskCreation() {
-    if (!currentTenantId.value) return;
+  async function fetchProductsForTaskCreation(): Promise<boolean> {
+    const tenantId = currentTenantId.value;
+    if (!tenantId) return false;
+    const requestVersion = ++taskProductsRequestVersion;
+    dataStale.productsForTaskCreation = true;
     try {
-      productsForTaskCreation.value = await getProductsForTasks();
+      const products = await getProductsForTasks();
+      if (
+        requestVersion !== taskProductsRequestVersion ||
+        tenantId !== currentTenantId.value
+      ) {
+        return false;
+      }
+      productsForTaskCreation.value = products;
       dataLoaded.value.productsForTaskCreation = true;
       dataStale.productsForTaskCreation = false;
+      return true;
     } catch (error) {
       console.error("Failed to fetch products for task creation", error);
+      return false;
     }
   }
 
@@ -482,6 +499,7 @@ export const useDataStore = defineStore("data", () => {
   }
 
   function resetData() {
+    markProductsForTaskCreationAsStale();
     production.value = [];
     homeStats.value = { pendingCount: 0 };
     // [核心修改] 重置 recipes 状态时，使用新的结构

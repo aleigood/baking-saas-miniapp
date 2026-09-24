@@ -534,14 +534,15 @@ onLoad(async (options) => {
     taskForm.endDate = dateStr;
   }
 
-  if (dataStore.dataStale.recipes || !dataStore.dataLoaded.recipes) {
-    await dataStore.fetchRecipesData();
-  }
-  if (
-    dataStore.dataStale.productsForTaskCreation ||
-    !dataStore.dataLoaded.productsForTaskCreation
-  ) {
-    await dataStore.fetchProductsForTaskCreation();
+  // 配方家族与产品列表一起更新，避免跨端修改后仍提交旧版本产品。
+  const [recipesLoaded, productsLoaded] = await Promise.all([
+    dataStore.fetchRecipesData(),
+    dataStore.fetchProductsForTaskCreation(),
+  ]);
+  if (!recipesLoaded || !productsLoaded) {
+    toastStore.show({ message: "未能获取最新配方，请返回后重试", type: "error" });
+    uni.navigateBack();
+    return;
   }
 
   initRecipeStates();

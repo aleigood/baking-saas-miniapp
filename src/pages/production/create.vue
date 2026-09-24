@@ -195,8 +195,11 @@ const handleGroupClick = (groupName: string) => {
 onLoad(async (options) => {
 	isLoading.value = true;
 
-	if (dataStore.dataStale.productsForTaskCreation || !dataStore.dataLoaded.productsForTaskCreation) {
-		await dataStore.fetchProductsForTaskCreation();
+	// 创建入口始终确认最新使用中版本，也覆盖电脑端编辑造成的缓存变化。
+	if (!(await dataStore.fetchProductsForTaskCreation())) {
+		toastStore.show({ message: '未能获取最新配方，请返回后重试', type: 'error' });
+		uni.navigateBack();
+		return;
 	}
 
 	Object.values(dataStore.productsForTaskCreation)
@@ -305,7 +308,7 @@ const clearGroup = (groupName: string) => {
 };
 
 const isCreatable = computed(() => {
-	return Object.values(taskQuantities).some((qty) => qty && qty > 0);
+	return !isLoading.value && Object.values(taskQuantities).some((qty) => qty && qty > 0);
 });
 
 const onDateChange = (e: any, type: 'start' | 'end') => {
@@ -349,6 +352,7 @@ const updateSummary = () => {
 };
 
 const handleSubmit = async () => {
+	if (isLoading.value || isCreating.value) return;
 	const productsToSubmit = Object.entries(taskQuantities)
 		.filter(([, quantity]) => quantity && quantity > 0)
 		.map(([productId, quantity]) => ({
